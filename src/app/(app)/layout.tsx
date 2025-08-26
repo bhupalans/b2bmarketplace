@@ -1,9 +1,10 @@
-import { AppLayout } from "@/components/app-layout";
 
-export default async function AuthenticatedAppLayout({
+import { AppLayout as Layout } from "@/components/app-layout";
+
+export default async function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <AppLayout>{children}</AppLayout>;
+  return <Layout>{children}</Layout>;
 }

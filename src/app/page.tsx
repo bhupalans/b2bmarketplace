@@ -1,10 +1,11 @@
-import AuthenticatedAppLayout from "./(app)/layout";
+
+import AppLayout from "./(app)/layout";
 import ProductsPage from "./(app)/page";
 
 export default function Home() {
   return (
-    <AuthenticatedAppLayout>
+    <AppLayout>
       <ProductsPage />
-    </AuthenticatedAppLayout>
+    </AppLayout>
   );
 }

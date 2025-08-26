@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -28,12 +29,16 @@ export function UserNav() {
     router.push('/login');
   };
 
-  if (!firebaseUser || !user) {
+  if (!firebaseUser) {
     return (
        <Button asChild>
-          <Link href="/login">Log In</Link>
+          <Link href="/login">Log In / Sign Up</Link>
        </Button>
     )
+  }
+
+  if (!user) {
+    return null; // Still loading user profile
   }
 
   return (

@@ -28,10 +28,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !firebaseUser) {
+    // This effect now only handles redirecting from protected routes.
+    // The main products page is public and won't trigger this.
+    const isProtectedRoute = pathname.startsWith('/messages'); 
+    
+    if (!loading && !firebaseUser && isProtectedRoute) {
       router.push("/login");
     }
-  }, [firebaseUser, loading, router]);
+  }, [firebaseUser, loading, router, pathname]);
   
   if (loading) {
     return (
@@ -41,12 +45,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!firebaseUser) {
-    // This can happen briefly between loading=false and the router push.
-    // It prevents the layout from flashing before the redirect.
+  // If on a protected route and not logged in, show nothing until redirect completes.
+  const isProtectedRoute = pathname.startsWith('/messages');
+  if (isProtectedRoute && !firebaseUser) {
     return null;
   }
-
 
   return (
     <SidebarProvider>
