@@ -53,7 +53,9 @@ export default async function SellerProfilePage({
               <AvatarFallback>{seller.name.charAt(0)}</AvatarFallback>
             </Avatar>
             <CardTitle className="text-2xl">{seller.name}</CardTitle>
-            <CardDescription>{seller.email}</CardDescription>
+            <CardDescription>
+              A trusted B2B Marketplace seller.
+            </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
             <Button asChild className="w-full">
