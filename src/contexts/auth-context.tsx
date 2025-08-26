@@ -22,11 +22,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // First, check for the result of a redirect sign-in
+    // First, check for the result of a redirect sign-in.
+    // This promise must be handled to completion before we set up the
+    // onAuthStateChanged listener.
     getRedirectResult(auth)
       .then(async (result) => {
         if (result) {
-          // This case means a user has just signed in via redirect.
+          // A user has successfully signed in via redirect.
           const user = result.user;
           const userDocRef = doc(db, 'users', user.uid);
           const userDoc = await getDoc(userDocRef);
@@ -43,14 +45,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         }
         // If result is null, it's a normal page load, not a redirect return.
-        // We don't need to do anything here; onAuthStateChanged will handle it.
+        // We don't need to do anything; onAuthStateChanged will handle it.
       })
       .catch((error) => {
         console.error("Error processing redirect result:", error);
       })
       .finally(() => {
         // onAuthStateChanged is the single source of truth for the user's state.
-        // It will fire after getRedirectResult completes.
+        // It will fire after getRedirectResult completes, ensuring a consistent state.
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
           setFirebaseUser(user);
           if (user) {
@@ -60,8 +62,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             if (userDoc.exists()) {
               setUser({ id: userDoc.id, ...userDoc.data() } as User);
             } else {
-              // This case can happen if a user signs in with a popup
-              // and their profile hasn't been created yet.
+              // This can happen on first sign-in (e.g., with popup)
+              // if the profile hasn't been created yet.
               const userProfile = {
                 name: user.displayName,
                 email: user.email,

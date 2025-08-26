@@ -155,7 +155,7 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
       
     } catch (error: any) {
       console.error(error);
-      // Don't show a toast for user-closed popups
+      // Don't show a toast for user-closed popups or cancelled requests
       if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
           toast({
             variant: "destructive",
