@@ -11,17 +11,27 @@ export const mockUsers: Record<string, User> = {
   },
   'user-2': {
     id: 'user-2',
-    name: 'Bob Seller',
-    email: 'bob@example.com',
+    name: 'Bob\'s Manufacturing Co.',
+    email: 'contact@bob-mfg.com',
     avatar: 'https://i.pravatar.cc/150?u=user-2',
     role: 'seller',
+    businessType: 'Manufacturer',
+    location: 'Detroit, USA',
+    memberSince: 2018,
+    certifications: ['ISO 9001', 'Verified Supplier'],
+    companyDescription: 'Bob\'s Manufacturing Co. has been a leader in industrial components since 2018. We specialize in high-quality widgets, gears, and automated systems for factories worldwide. Our commitment to quality is backed by our ISO 9001 certification.'
   },
   'user-3': {
     id: 'user-3',
-    name: 'Charlie Corp',
-    email: 'charlie@example.com',
+    name: 'Charlie Global Trading',
+    email: 'sales@charlie-global.com',
     avatar: 'https://i.pravatar.cc/150?u=user-3',
     role: 'seller',
+    businessType: 'Trading Company',
+    location: 'Singapore',
+    memberSince: 2021,
+    certifications: ['Verified Supplier', 'Top Exporter'],
+    companyDescription: 'Charlie Global Trading sources and supplies high-quality raw materials and electronic components for businesses across the globe. We pride ourselves on our robust supply chain and excellent customer service.'
   }
 };
 

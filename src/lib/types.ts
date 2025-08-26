@@ -1,9 +1,15 @@
+
 export type User = {
   id: string;
   name: string;
   email: string;
   avatar: string;
   role: 'buyer' | 'seller' | 'admin';
+  businessType?: 'Manufacturer' | 'Distributor' | 'Trading Company' | 'Agent';
+  location?: string;
+  memberSince?: number;
+  certifications?: string[];
+  companyDescription?: string;
 };
 
 export type Category = {
