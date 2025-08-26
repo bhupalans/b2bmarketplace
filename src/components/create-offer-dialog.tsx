@@ -70,8 +70,7 @@ function SubmitButton() {
 export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, recipientId, formAction }: CreateOfferDialogProps) {
   const { toast } = useToast();
   const isControllingOpen = typeof open !== 'undefined';
-  const formRef = useRef<HTMLFormElement>(null);
-
+  
   const form = useForm<z.infer<typeof offerSchema>>({
     resolver: zodResolver(offerSchema),
     defaultValues: {
@@ -94,21 +93,19 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
   }, [suggestion, form, open]);
   
   const handleAction = (formData: FormData) => {
-    const values = {
+    // We manually add the offer data to the form data
+    // because the form is controlled by react-hook-form
+    const offerValues = {
         productId: form.getValues('productId'),
         quantity: form.getValues('quantity'),
         pricePerUnit: form.getValues('pricePerUnit'),
         notes: form.getValues('notes'),
     }
-    // Set the values on formData so the action receives them
-    formData.append('offer', JSON.stringify(values));
-    formData.append('recipientId', recipientId);
-    // The message is just for context; the server action uses the offer data
-    formData.append('message', 'New Offer');
+    formData.append('offer', JSON.stringify(offerValues));
 
     formAction(formData);
 
-    const product = mockProducts.find(p => p.id === values.productId);
+    const product = mockProducts.find(p => p.id === offerValues.productId);
     toast({
         title: "Offer Sent!",
         description: `Your offer for ${product?.title} has been sent.`
@@ -157,10 +154,13 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
         </DialogHeader>
         <Form {...form}>
           <form 
-            ref={formRef}
             action={handleAction}
             className="space-y-4"
           >
+             {/* Hidden inputs for the server action */}
+            <input type="hidden" name="recipientId" value={recipientId} />
+            <input type="hidden" name="message" value="New Offer" />
+
             <FormField
               control={form.control}
               name="productId"
@@ -233,8 +233,6 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
                 </FormItem>
               )}
             />
-            <input type="hidden" name="recipientId" value={recipientId} />
-            <input type="hidden" name="message" value="New Offer" />
             <DialogFooter>
                <SubmitButton />
             </DialogFooter>
