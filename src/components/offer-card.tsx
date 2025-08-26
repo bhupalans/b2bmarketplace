@@ -1,7 +1,7 @@
 
 "use client";
 
-import { mockOffers, mockProducts } from "@/lib/mock-data";
+import { loggedInUser, mockOffers, mockProducts } from "@/lib/mock-data";
 import {
   Card,
   CardContent,
@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from "./ui/card";
 import { Button } from "./ui/button";
-import { Check, Gavel, X } from "lucide-react";
+import { Check, Gavel, Loader2, X } from "lucide-react";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "./ui/badge";
@@ -26,14 +26,18 @@ export function OfferCard({ offerId }: OfferCardProps) {
   const { toast } = useToast();
   // We use state to make the component re-render when the offer status changes.
   const [offer, setOffer] = useState<Offer | undefined>(mockOffers[offerId]);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   if (!offer) return null;
 
   const product = mockProducts.find((p) => p.id === offer.productId);
   if (!product) return null;
 
-  const handleDecision = (decision: "accepted" | "declined") => {
+  const handleDecision = async (decision: "accepted" | "declined") => {
+    setIsUpdating(true);
     // In a real app, this would be a server action.
+    await new Promise(res => setTimeout(res, 1000));
+    
     const updatedOffer = { ...offer, status: decision };
     setOffer(updatedOffer);
     
@@ -44,6 +48,7 @@ export function OfferCard({ offerId }: OfferCardProps) {
       title: `Offer ${decision}`,
       description: `You have ${decision} the offer for ${product.title}.`,
     });
+    setIsUpdating(false);
   };
 
   const totalPrice = new Intl.NumberFormat("en-US", {
@@ -55,6 +60,9 @@ export function OfferCard({ offerId }: OfferCardProps) {
     style: "currency",
     currency: "USD",
   }).format(offer.pricePerUnit);
+
+  const isBuyer = loggedInUser.id === offer.buyerId;
+  const showActions = isBuyer && offer.status === "pending";
 
   return (
     <Card className="w-full">
@@ -100,26 +108,30 @@ export function OfferCard({ offerId }: OfferCardProps) {
         )}
       </CardContent>
       <CardFooter className="flex flex-col items-stretch gap-2">
-        {offer.status === "pending" ? (
+        {showActions ? (
           <>
-            <Button onClick={() => handleDecision("accepted")}>
-              <Check className="mr-2" />
+            <Button onClick={() => handleDecision("accepted")} disabled={isUpdating}>
+              {isUpdating ? <Loader2 className="mr-2 animate-spin" /> : <Check className="mr-2" />}
               Accept Offer
             </Button>
             <Button
               variant="outline"
               onClick={() => handleDecision("declined")}
+              disabled={isUpdating}
             >
-              <X className="mr-2" />
+             {isUpdating ? <Loader2 className="mr-2 animate-spin" /> : <X className="mr-2" />}
               Decline
             </Button>
           </>
         ) : (
           <Badge
             className="w-full justify-center py-2 text-sm capitalize"
-            variant={offer.status === 'accepted' ? 'default' : 'destructive'}
+            variant={
+                offer.status === 'pending' ? 'secondary' : 
+                offer.status === 'accepted' ? 'default' : 'destructive'
+            }
           >
-            Offer {offer.status}
+            {offer.status === 'pending' ? (isBuyer ? 'Pending Your Response' : 'Offer Sent') : `Offer ${offer.status}`}
           </Badge>
         )}
       </CardFooter>

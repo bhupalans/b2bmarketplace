@@ -36,6 +36,8 @@ export type Offer = {
   pricePerUnit: number;
   notes: string;
   status: 'pending' | 'accepted' | 'declined';
+  sellerId: string;
+  buyerId: string;
 };
 
 export type Message = {

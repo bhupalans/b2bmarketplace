@@ -178,6 +178,8 @@ export const mockOffers: Record<string, Offer> = {
     pricePerUnit: 1100,
     notes: 'Bulk discount applied. Delivery within 14 business days.',
     status: 'pending',
+    sellerId: 'user-2',
+    buyerId: 'user-1'
   },
 };
 
@@ -213,4 +215,4 @@ export const mockMessages: Message[] = [
     }
 ];
 
-export const loggedInUser = mockUsers['user-1'];
+export const loggedInUser = mockUsers['user-2'];

@@ -36,6 +36,7 @@ import {
 } from "./ui/select";
 import { loggedInUser, mockProducts } from "@/lib/mock-data";
 import { OfferSuggestion } from "@/lib/types";
+import { sendMessageAction } from "@/app/actions";
 
 const offerSchema = z.object({
   productId: z.string().min(1, { message: "Please select a product." }),
@@ -49,10 +50,11 @@ type CreateOfferDialogProps = {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   onClose?: () => void;
+  recipientId: string;
 };
 
 
-export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose }: CreateOfferDialogProps) {
+export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, recipientId }: CreateOfferDialogProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const isControllingOpen = typeof open !== 'undefined';
@@ -80,19 +82,30 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose }: C
 
   async function onSubmit(values: z.infer<typeof offerSchema>) {
     setIsLoading(true);
-    console.log("Creating offer with values:", values);
     
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const formData = new FormData();
+    formData.append("message", "New Offer");
+    formData.append("offer", JSON.stringify(values));
+    formData.append("recipientId", recipientId);
 
-    // In a real app, this would come from the server action response
-    const product = mockProducts.find(p => p.id === values.productId);
+    // This action will create the offer and the message.
+    // The chat component will receive the new message and update the UI.
+    const result = await sendMessageAction(null, formData);
     
-    toast({
-        title: "Offer Sent!",
-        description: `Your offer for ${product?.title} has been sent.`
-    });
-
+    if (result.error) {
+      toast({
+        title: "Error Sending Offer",
+        description: result.error,
+        variant: "destructive"
+      });
+    } else {
+      const product = mockProducts.find(p => p.id === values.productId);
+      toast({
+          title: "Offer Sent!",
+          description: `Your offer for ${product?.title} has been sent.`
+      });
+    }
+    
     setIsLoading(false);
     if (onOpenChange) {
       onOpenChange(false);

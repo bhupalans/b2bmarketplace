@@ -1,17 +1,23 @@
+
 "use server";
 
 import { filterContactDetails } from "@/ai/flows/filter-contact-details";
 import { suggestOffer } from "@/ai/flows/suggest-offer";
-import { mockProducts } from "@/lib/mock-data";
+import { loggedInUser, mockOffers, mockProducts, mockUsers } from "@/lib/mock-data";
+import { Offer } from "@/lib/types";
 import { z } from "zod";
 
 const messageSchema = z.object({
   message: z.string().min(1),
+  offer: z.string().optional(), // Stringified JSON of the new offer
+  recipientId: z.string().optional(), // Who the offer is for
 });
 
 export async function sendMessageAction(prevState: any, formData: FormData) {
   const validatedFields = messageSchema.safeParse({
     message: formData.get("message"),
+    offer: formData.get("offer") as string | undefined,
+    recipientId: formData.get("recipientId") as string | undefined,
   });
 
   if (!validatedFields.success) {
@@ -21,6 +27,38 @@ export async function sendMessageAction(prevState: any, formData: FormData) {
     };
   }
 
+  // Handle creating a new offer
+  if (validatedFields.data.offer && validatedFields.data.recipientId) {
+    const offerData = JSON.parse(validatedFields.data.offer) as Omit<Offer, 'id' | 'status' | 'sellerId' | 'buyerId'>;
+    const newOffer: Offer = {
+      ...offerData,
+      id: `offer-${Date.now()}`,
+      status: 'pending',
+      sellerId: loggedInUser.id,
+      buyerId: validatedFields.data.recipientId,
+    };
+    
+    // In a real app, you'd save this to a database.
+    mockOffers[newOffer.id] = newOffer;
+
+    const product = mockProducts.find(p => p.id === newOffer.productId);
+
+    // Return a new message that contains the offer
+    return {
+      error: null,
+      message: {
+        id: `msg-${Date.now()}`,
+        text: `Offer created for ${product?.title}`, // This text isn't displayed but good for context
+        timestamp: Date.now(),
+        senderId: loggedInUser.id, 
+        recipientId: validatedFields.data.recipientId,
+        offerId: newOffer.id,
+      }
+    }
+  }
+
+
+  // Handle standard text messages
   const originalMessage = validatedFields.data.message;
   const result = await filterContactDetails({ message: originalMessage });
 
@@ -32,8 +70,8 @@ export async function sendMessageAction(prevState: any, formData: FormData) {
       id: `msg-${Date.now()}`,
       text: result.modifiedMessage, // Use the (potentially modified) message
       timestamp: Date.now(),
-      senderId: "user-1", // mock sender
-      recipientId: "user-2",
+      senderId: loggedInUser.id, // mock sender
+      recipientId: mockUsers['user-1'].id, // Hardcoded for demo
     },
   };
 }

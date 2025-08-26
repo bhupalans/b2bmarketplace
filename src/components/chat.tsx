@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useRef, useState, useActionState } from "react";
@@ -53,7 +54,11 @@ const SubmitButton = () => {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" size="icon" disabled={pending}>
-      <Send className="h-4 w-4" />
+      {pending ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <Send className="h-4 w-4" />
+      )}
       <span className="sr-only">Send</span>
     </Button>
   );
@@ -123,6 +128,7 @@ export function Chat() {
   }
 
   const activeUser = mockUsers["user-2"];
+  const recipient = loggedInUser.id === 'user-1' ? mockUsers['user-2'] : mockUsers['user-1'];
 
   return (
     <div className="grid min-h-[calc(100vh-8rem)] w-full grid-cols-[260px_1fr] rounded-lg border">
@@ -163,7 +169,7 @@ export function Chat() {
         <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6">
           <div className="flex-1">
             <h1 className="text-lg font-semibold md:text-xl">
-              {activeUser.name}
+              {recipient.name}
             </h1>
             <p className="text-sm text-muted-foreground">Online</p>
           </div>
@@ -188,6 +194,7 @@ export function Chat() {
                   open={isCreateOfferOpen}
                   onOpenChange={setCreateOfferOpen}
                   onClose={() => setSuggestion(null)}
+                  recipientId={recipient.id}
                 />
               </>
             )}
@@ -231,6 +238,14 @@ export function Chat() {
                     <p>{message.text}</p>
                   )}
                 </div>
+                {message.senderId === loggedInUser.id && (
+                   <Avatar className="h-8 w-8 border">
+                    <AvatarImage src={mockUsers[message.senderId]?.avatar} />
+                    <AvatarFallback>
+                      {mockUsers[message.senderId]?.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
               </div>
             ))}
           </div>
