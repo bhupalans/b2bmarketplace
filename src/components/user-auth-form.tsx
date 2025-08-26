@@ -132,7 +132,7 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
           )}
           <Button disabled={isLoading} className="w-full">
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {mode === "login" ? "Log In" : "Create Account"}
+            {mode === "login" ? "Sign In" : "Create Account"}
           </Button>
         </form>
       </Form>
