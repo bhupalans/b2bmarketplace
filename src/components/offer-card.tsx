@@ -15,8 +15,6 @@ import { Check, Gavel, Loader2, X } from "lucide-react";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "./ui/badge";
-import { useState } from "react";
-import { Offer } from "@/lib/types";
 import { useFormStatus } from "react-dom";
 
 interface OfferCardProps {
@@ -25,20 +23,16 @@ interface OfferCardProps {
 }
 
 const ActionButton = ({
-  decision,
   children,
 }: {
-  decision: "accepted" | "declined";
   children: React.ReactNode;
 }) => {
   const { pending } = useFormStatus();
   return (
     <Button
       type="submit"
-      name="decision"
-      value={decision}
       disabled={pending}
-      variant={decision === "declined" ? "outline" : "default"}
+      className="w-full"
     >
       {pending ? <Loader2 className="mr-2 animate-spin" /> : children}
     </Button>
@@ -66,31 +60,7 @@ export function OfferCard({ offerId, onDecision }: OfferCardProps) {
   }).format(offer.pricePerUnit);
 
   const isBuyer = loggedInUser.id === offer.buyerId;
-  const showActions = isBuyer && offer.status === "pending";
-
-  const handleDecision = (formData: FormData) => {
-    const decision = formData.get("decision") as "accepted" | "declined";
-
-    // Optimistically update the mock data for the demo
-    const updatedOffer = { ...offer, status: decision };
-    mockOffers[offerId] = updatedOffer;
-
-    if (onDecision) {
-      const offerDecision = {
-        offerId,
-        decision,
-        productTitle: product.title,
-      };
-      formData.append("offerDecision", JSON.stringify(offerDecision));
-      formData.append("message", "Offer decision made");
-      onDecision(formData);
-    } else {
-      toast({
-        title: `Offer ${decision}`,
-        description: `You have ${decision} the offer for ${product.title}.`,
-      });
-    }
-  };
+  const showActions = isBuyer && offer.status === "pending" && onDecision;
 
   return (
     <Card className="w-full">
@@ -137,14 +107,38 @@ export function OfferCard({ offerId, onDecision }: OfferCardProps) {
       </CardContent>
       <CardFooter className="flex flex-col items-stretch gap-2">
         {showActions ? (
-          <form action={handleDecision} className="w-full space-y-2">
-            <ActionButton decision="accepted">
-              <Check className="mr-2" /> Accept Offer
-            </ActionButton>
-            <ActionButton decision="declined">
-              <X className="mr-2" /> Decline
-            </ActionButton>
-          </form>
+          <div className="w-full space-y-2">
+             <form action={onDecision} className="w-full">
+               <input
+                 type="hidden"
+                 name="offerDecision"
+                 value={JSON.stringify({
+                   offerId,
+                   decision: 'accepted',
+                   productTitle: product.title,
+                 })}
+               />
+              <input type="hidden" name="message" value="Offer decision made" />
+               <ActionButton>
+                 <Check className="mr-2" /> Accept Offer
+               </ActionButton>
+             </form>
+             <form action={onDecision} className="w-full">
+                <input
+                    type="hidden"
+                    name="offerDecision"
+                    value={JSON.stringify({
+                      offerId,
+                      decision: 'declined',
+                      productTitle: product.title,
+                    })}
+                />
+                <input type="hidden" name="message" value="Offer decision made" />
+                <Button type="submit" variant="outline" className="w-full">
+                  <X className="mr-2" /> Decline
+                </Button>
+             </form>
+          </div>
         ) : (
           <Badge
             className="w-full justify-center py-2 text-sm capitalize"
