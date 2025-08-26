@@ -152,7 +152,11 @@ export default async function ProductDetailPage({
                 <AvatarFallback>{seller.name.charAt(0)}</AvatarFallback>
               </Avatar>
               <div>
-                <CardTitle>{seller.name}</CardTitle>
+                <CardTitle>
+                  <Link href={`/sellers/${seller.id}`} className="hover:underline">
+                    {seller.name}
+                  </Link>
+                </CardTitle>
                 <CardDescription>
                   <Badge variant="secondary" className="mt-1">
                     Seller
