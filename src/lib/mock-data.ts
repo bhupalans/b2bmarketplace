@@ -1,5 +1,5 @@
 
-import type { User, Product, Message, Category } from './types';
+import type { User, Product, Message, Category, Offer } from './types';
 
 export const mockUsers: Record<string, User> = {
   'user-1': {
@@ -160,20 +160,46 @@ export const mockProducts: Product[] = [
   },
 ];
 
+export const mockOffers: Record<string, Offer> = {
+  'offer-1': {
+    id: 'offer-1',
+    productId: 'prod-1',
+    quantity: 500,
+    pricePerUnit: 1100,
+    notes: 'Bulk discount applied. Delivery within 14 business days.',
+    status: 'pending',
+  },
+};
+
 export const mockMessages: Message[] = [
     {
         id: 'msg-1',
         text: 'Hello, I am interested in the Industrial Grade Widgets. Can you provide the spec sheet?',
-        timestamp: Date.now() - 1000 * 60 * 5,
+        timestamp: Date.now() - 1000 * 60 * 10,
         senderId: 'user-1',
         recipientId: 'user-2',
     },
     {
         id: 'msg-2',
         text: 'Of course, I am attaching it now. Let me know if you have any more questions.',
-        timestamp: Date.now() - 1000 * 60 * 3,
+        timestamp: Date.now() - 1000 * 60 * 8,
         senderId: 'user-2',
         recipientId: 'user-1',
+    },
+    {
+      id: 'msg-3',
+      text: 'After reviewing, we\'d like to place a large order. What is the price for 500 units?',
+      timestamp: Date.now() - 1000 * 60 * 5,
+      senderId: 'user-1',
+      recipientId: 'user-2',
+    },
+    {
+      id: 'msg-4',
+      text: 'For 500 units, I can offer a price of $1100 per unit. I\'ve created a formal offer for you to review.',
+      timestamp: Date.now() - 1000 * 60 * 2,
+      senderId: 'user-2',
+      recipientId: 'user-1',
+      offerId: 'offer-1'
     }
 ];
 

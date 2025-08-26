@@ -23,10 +23,20 @@ export type Product = {
   specifications?: { name: string; value: string }[];
 };
 
+export type Offer = {
+  id: string;
+  productId: string;
+  quantity: number;
+  pricePerUnit: number;
+  notes: string;
+  status: 'pending' | 'accepted' | 'declined';
+};
+
 export type Message = {
   id: string;
   text: string;
   timestamp: number;
   senderId: string;
   recipientId: string;
+  offerId?: string;
 };

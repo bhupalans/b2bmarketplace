@@ -11,6 +11,7 @@ import {
   PlusCircle,
   Search,
   Send,
+  Gavel,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -38,11 +39,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { mockMessages, mockUsers } from "@/lib/mock-data";
+import { mockMessages, mockUsers, loggedInUser } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import type { Message } from "@/lib/types";
 import { sendMessageAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
+import { OfferCard } from "./offer-card";
+import { CreateOfferDialog } from "./create-offer-dialog";
 
 const SubmitButton = () => {
   const { pending } = useFormStatus();
@@ -128,11 +131,12 @@ export function Chat() {
             <h1 className="text-lg font-semibold md:text-xl">
               {activeUser.name}
             </h1>
-            <p className="text-sm text-muted-foreground">
-              Online
-            </p>
+            <p className="text-sm text-muted-foreground">Online</p>
           </div>
           <div className="flex flex-1 items-center justify-end gap-2">
+            {loggedInUser.role === 'seller' && (
+              <CreateOfferDialog />
+            )}
             <Button variant="outline" size="icon" className="h-8 w-8">
               <MoreHorizontal className="h-4 w-4" />
               <span className="sr-only">More</span>
@@ -147,10 +151,10 @@ export function Chat() {
                 key={message.id}
                 className={cn(
                   "flex items-start gap-3",
-                  message.senderId === "user-1" && "justify-end"
+                  message.senderId === loggedInUser.id && "justify-end"
                 )}
               >
-                {message.senderId !== "user-1" && (
+                {message.senderId !== loggedInUser.id && (
                   <Avatar className="h-8 w-8 border">
                     <AvatarImage src={mockUsers[message.senderId]?.avatar} />
                     <AvatarFallback>
@@ -161,12 +165,17 @@ export function Chat() {
                 <div
                   className={cn(
                     "max-w-xs rounded-lg p-3 text-sm",
-                    message.senderId === "user-1"
+                    message.senderId === loggedInUser.id
                       ? "bg-primary text-primary-foreground"
-                      : "bg-muted"
+                      : "bg-muted",
+                    message.offerId && "max-w-md bg-transparent p-0"
                   )}
                 >
-                  <p>{message.text}</p>
+                  {message.offerId ? (
+                    <OfferCard offerId={message.offerId} />
+                  ) : (
+                    <p>{message.text}</p>
+                  )}
                 </div>
               </div>
             ))}
