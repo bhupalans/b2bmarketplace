@@ -93,17 +93,15 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
     }
   }, [suggestion, form, open]);
 
-  // This function will run when react-hook-form validation succeeds.
-  // We'll use it to manually submit the form, which will then trigger our server action.
-  const onValid = () => {
-    formRef.current?.requestSubmit();
-  }
-
-  const handleFormAction = (formData: FormData) => {
-    // This function is now called by the form's `action` prop
-    const values = form.getValues();
+  // This function is now the single source of truth for submission.
+  // It's called by react-hook-form's handleSubmit.
+  const onSubmit = (values: z.infer<typeof offerSchema>) => {
+    const formData = new FormData();
     formData.append("offer", JSON.stringify(values));
     formData.append("recipientId", recipientId);
+    
+    // The message is just for context; the server action uses the offer data
+    formData.append("message", "New Offer");
     
     formAction(formData);
 
@@ -157,11 +155,11 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
         <Form {...form}>
           <form 
             ref={formRef} 
-            action={handleFormAction} 
-            onSubmit={form.handleSubmit(onValid)}
+            // We pass our combined onSubmit function here.
+            // react-hook-form will run validation first, then call it.
+            onSubmit={form.handleSubmit(onSubmit)}
             className="space-y-4"
           >
-            <input type="hidden" name="message" value="New Offer" />
             <FormField
               control={form.control}
               name="productId"
@@ -235,7 +233,8 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
             />
 
             <DialogFooter>
-              <SubmitButton />
+               {/* This button's type="submit" will now correctly trigger the form's onSubmit */}
+              <Button type="submit">Send Offer</Button>
             </DialogFooter>
           </form>
         </Form>
