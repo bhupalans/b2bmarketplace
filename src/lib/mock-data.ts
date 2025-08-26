@@ -1,4 +1,4 @@
-import type { User, Product, Message } from './types';
+import type { User, Product, Message, Category } from './types';
 
 export const mockUsers: Record<string, User> = {
   'user-1': {
@@ -24,6 +24,32 @@ export const mockUsers: Record<string, User> = {
   }
 };
 
+export const mockCategories: Category[] = [
+  // Level 1
+  { id: 'cat-1', name: 'Industrial Supplies', parentId: null },
+  { id: 'cat-2', name: 'Raw Materials', parentId: null },
+  { id: 'cat-3', name: 'Electronics', parentId: null },
+
+  // Level 2
+  { id: 'cat-1-1', name: 'Mechanical Components', parentId: 'cat-1' },
+  { id: 'cat-1-2', name: 'Conveying Systems', parentId: 'cat-1' },
+
+  { id: 'cat-2-1', name: 'Textiles', parentId: 'cat-2' },
+  { id: 'cat-2-2', name: 'Metals & Alloys', parentId: 'cat-2' },
+  
+  { id: 'cat-3-1', name: 'Electronic Components', parentId: 'cat-3' },
+
+  // Level 3
+  { id: 'cat-1-1-1', name: 'Widgets', parentId: 'cat-1-1' },
+  { id: 'cat-1-1-2', name: 'Gears & Cogs', parentId: 'cat-1-1' },
+  { id: 'cat-1-2-1', name: 'Belt Conveyors', parentId: 'cat-1-2' },
+
+  { id: 'cat-2-1-1', name: 'Cotton', parentId: 'cat-2-1' },
+  { id: 'cat-2-2-1', name: 'Titanium', parentId: 'cat-2-2' },
+
+  { id: 'cat-3-1-1', name: 'Printed Circuit Boards (PCBs)', parentId: 'cat-3-1' },
+];
+
 export const mockProducts: Product[] = [
   {
     id: 'prod-1',
@@ -32,6 +58,7 @@ export const mockProducts: Product[] = [
     image: 'https://picsum.photos/600/400?random=1',
     priceUSD: 1200.50,
     sellerId: 'user-2',
+    categoryId: 'cat-1-1-1',
     specifications: [
         { name: 'Material', value: 'Reinforced Steel' },
         { name: 'Weight', value: '15.5 kg' },
@@ -45,6 +72,7 @@ export const mockProducts: Product[] = [
     image: 'https://picsum.photos/600/400?random=2',
     priceUSD: 850.00,
     sellerId: 'user-2',
+    categoryId: 'cat-1-1-2',
     specifications: [
         { name: 'Material', value: 'Hardened Brass' },
         { name: 'Units per Set', value: '12' },
@@ -59,6 +87,7 @@ export const mockProducts: Product[] = [
     image: 'https://picsum.photos/600/400?random=3',
     priceUSD: 5500.00,
     sellerId: 'user-3',
+    categoryId: 'cat-2-1-1',
     specifications: [
         { name: 'Material', value: 'Organic Cotton' },
         { name: 'Weight per Bale', value: '1000 kg' },
@@ -72,6 +101,7 @@ export const mockProducts: Product[] = [
     image: 'https://picsum.photos/600/400?random=4',
     priceUSD: 3200.75,
     sellerId: 'user-3',
+    categoryId: 'cat-3-1-1',
     specifications: [
         { name: 'Layers', value: '4' },
         { name: 'Material', value: 'FR-4' },
@@ -85,6 +115,7 @@ export const mockProducts: Product[] = [
     image: 'https://picsum.photos/600/400?random=5',
     priceUSD: 15000.00,
     sellerId: 'user-2',
+    categoryId: 'cat-1-2-1',
     specifications: [
         { name: 'Length', value: '10 meters' },
         { name: 'Speed', value: '0-2 m/s' },
@@ -98,6 +129,7 @@ export const mockProducts: Product[] = [
     image: 'https://picsum.photos/600/400?random=6',
     priceUSD: 7800.00,
     sellerId: 'user-3',
+    categoryId: 'cat-2-2-1',
     specifications: [
         { name: 'Alloy', value: 'Ti-6Al-4V' },
         { name: 'Length', value: '1 meter' },

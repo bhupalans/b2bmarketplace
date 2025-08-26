@@ -1,7 +1,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { mockProducts, mockUsers } from "@/lib/mock-data";
+import { mockProducts, mockUsers, mockCategories } from "@/lib/mock-data";
 import { notFound } from "next/navigation";
 import {
   Card,
@@ -19,6 +19,15 @@ import {
   TableCell,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { Category } from "@/lib/types";
 
 // This is a server component, so we can fetch data directly.
 // In a real app, you'd fetch this from a database.
@@ -28,7 +37,15 @@ async function getProduct(id: string) {
     return null;
   }
   const seller = mockUsers[product.sellerId];
-  return { product, seller };
+  
+  const categoryPath: Category[] = [];
+  let currentCategory = mockCategories.find(c => c.id === product.categoryId);
+  while (currentCategory) {
+    categoryPath.unshift(currentCategory);
+    currentCategory = mockCategories.find(c => c.id === currentCategory!.parentId);
+  }
+
+  return { product, seller, categoryPath };
 }
 
 export default async function ProductDetailPage({
@@ -42,7 +59,7 @@ export default async function ProductDetailPage({
     notFound();
   }
 
-  const { product, seller } = data;
+  const { product, seller, categoryPath } = data;
 
   // We can't use the useCurrency hook here because this is a Server Component.
   // We'll just display the price in USD for now.
@@ -53,6 +70,30 @@ export default async function ProductDetailPage({
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
+       <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/">Home</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          {categoryPath.map((cat, index) => (
+            <React.Fragment key={cat.id}>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {index === categoryPath.length - 1 ? (
+                  <BreadcrumbPage>{cat.name}</BreadcrumbPage>
+                ) : (
+                  <BreadcrumbLink asChild>
+                    {/* In a real app, this would link to a category page */}
+                    <Link href="#">{cat.name}</Link>
+                  </BreadcrumbLink>
+                )}
+              </BreadcrumbItem>
+            </React.Fragment>
+          ))}
+        </BreadcrumbList>
+      </Breadcrumb>
       <div className="grid gap-8 md:grid-cols-2">
         <div className="space-y-8">
           <Card className="overflow-hidden">

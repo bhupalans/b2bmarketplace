@@ -6,6 +6,12 @@ export type User = {
   role: 'buyer' | 'seller' | 'admin';
 };
 
+export type Category = {
+  id: string;
+  name: string;
+  parentId: string | null;
+};
+
 export type Product = {
   id: string;
   title: string;
@@ -13,6 +19,7 @@ export type Product = {
   image: string;
   priceUSD: number;
   sellerId: string;
+  categoryId: string;
   specifications?: { name: string; value: string }[];
 };
 
