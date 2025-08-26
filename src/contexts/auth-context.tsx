@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import type { User } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
@@ -31,16 +31,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (userDoc.exists()) {
           setUser({ id: userDoc.id, ...userDoc.data() } as User);
         } else {
-          // This can happen on first sign-in (e.g., with Google popup)
-          // if the profile hasn't been created yet.
-          const userProfile = {
-            name: fbUser.displayName,
-            email: fbUser.email,
-            role: 'buyer', // Default role
-            avatar: fbUser.photoURL || `https://i.pravatar.cc/150?u=${fbUser.uid}`,
-          };
-          await setDoc(userDocRef, userProfile);
-          setUser({ id: fbUser.uid, ...userProfile } as User);
+            // This can happen if the user record exists in Auth but not Firestore.
+            // This is unlikely in an email/pass flow but good to handle.
+            console.warn("No user profile found in Firestore for UID:", fbUser.uid);
+            setUser(null); 
         }
       } else {
         // User is signed out.
@@ -54,13 +48,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <AuthContext.Provider value={{ user, firebaseUser, loading }}>
-      {loading ? (
-        <div className="flex h-screen items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
-      ) : (
-        children
-      )}
+        {children}
     </AuthContext.Provider>
   );
 };

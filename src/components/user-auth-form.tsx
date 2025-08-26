@@ -9,8 +9,6 @@ import * as z from "zod";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  GoogleAuthProvider,
-  signInWithPopup,
 } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -59,18 +57,10 @@ const signupSchema = formSchema.refine(
   }
 );
 
-const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.85 3.18-1.73 4.1-1.02 1.02-2.6 1.84-4.84 1.84-5.84 0-10.62-4.7-10.62-10.62s4.78-10.62 10.62-10.62c3.37 0 5.39 1.48 6.62 2.62l2.34-2.34C19.63 1.18 16.47 0 12.48 0 5.88 0 0 5.88 0 12.48s5.88 12.48 12.48 12.48c7.28 0 12.12-5.04 12.12-12.48 0-.8-.08-1.52-.2-2.24H12.48z" />
-    </svg>
-);
-
-
 export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
-  const [isGoogleLoading, setIsGoogleLoading] = React.useState<boolean>(false);
 
   const finalSchema = mode === 'signup' ? signupSchema : formSchema;
 
@@ -127,27 +117,6 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
       });
     } finally {
       setIsLoading(false);
-    }
-  }
-
-  async function handleGoogleSignIn() {
-    setIsGoogleLoading(true);
-    const provider = new GoogleAuthProvider();
-    try {
-        await signInWithPopup(auth, provider);
-      // For popups, onAuthStateChanged in AuthProvider will handle the success and navigation.
-    } catch (error: any) {
-      console.error(error);
-      // Don't show a toast for user-closed popups
-      if (error.code !== 'auth/popup-closed-by-user') {
-          toast({
-            variant: "destructive",
-            title: "Authentication Failed",
-            description: error.message || "An unexpected error occurred.",
-          });
-      }
-    } finally {
-      setIsGoogleLoading(false);
     }
   }
 
@@ -240,33 +209,12 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
               )}
             />
           )}
-          <Button disabled={isLoading || isGoogleLoading} className="w-full">
+          <Button disabled={isLoading} className="w-full">
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {mode === "login" ? "Sign In" : "Create Account"}
           </Button>
         </form>
       </Form>
-
-       <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-background px-2 text-muted-foreground">
-            Or continue with
-          </span>
-        </div>
-      </div>
-      
-      <Button variant="outline" type="button" disabled={isLoading || isGoogleLoading} onClick={handleGoogleSignIn}>
-        {isGoogleLoading ? (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        ) : (
-          <GoogleIcon className="mr-2 h-4 w-4" />
-        )}{" "}
-        Google
-      </Button>
-
     </div>
   );
 }
