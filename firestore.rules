@@ -1,28 +1,21 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Allow public read access for products and categories
+    // Products can be read by anyone, but only written by logged-in users.
     match /products/{productId} {
       allow read: if true;
       allow write: if request.auth != null;
     }
 
+    // Categories can be read by anyone, but only written by logged-in users.
     match /categories/{categoryId} {
       allow read: if true;
       allow write: if request.auth != null;
     }
 
-    // Secure user data - only the user can read/write their own data
+    // A user can only read or write their own profile information.
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
-
-    // You would add rules for other collections like 'messages' here
-    // For example, to only allow involved parties to read/write messages
-    // match /messages/{messageId} {
-    //   allow read, write: if request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.recipientId;
-    // }
   }
 }
