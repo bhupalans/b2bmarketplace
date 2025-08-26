@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
+import { Providers } from "./providers";
 
 export const metadata: Metadata = {
   title: "B2B Marketplace",
   description: "A B2B marketplace for buyers and sellers.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -23,8 +23,7 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        {children}
-        <Toaster />
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

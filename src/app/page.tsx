@@ -1,5 +1,10 @@
-import { redirect } from 'next/navigation';
+import AuthenticatedAppLayout from "./(app)/layout";
+import ProductsPage from "./(app)/page";
 
 export default function Home() {
-  redirect('/login');
+  return (
+    <AuthenticatedAppLayout>
+      <ProductsPage />
+    </AuthenticatedAppLayout>
+  );
 }
