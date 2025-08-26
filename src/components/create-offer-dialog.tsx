@@ -26,7 +26,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 import {
   Select,
   SelectContent,
@@ -36,6 +36,7 @@ import {
 } from "./ui/select";
 import { loggedInUser, mockProducts } from "@/lib/mock-data";
 import { OfferSuggestion } from "@/lib/types";
+import { useFormStatus } from "react-dom";
 
 const offerSchema = z.object({
   productId: z.string().min(1, { message: "Please select a product." }),
@@ -53,11 +54,23 @@ type CreateOfferDialogProps = {
   formAction: (payload: FormData) => void;
 };
 
+function SubmitButton() {
+    const { pending } = useFormStatus();
+    return (
+        <Button type="submit" disabled={pending}>
+            {pending && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            )}
+            Send Offer
+        </Button>
+    )
+}
+
 
 export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, recipientId, formAction }: CreateOfferDialogProps) {
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
   const isControllingOpen = typeof open !== 'undefined';
+  const formRef = useRef<HTMLFormElement>(null);
 
   const form = useForm<z.infer<typeof offerSchema>>({
     resolver: zodResolver(offerSchema),
@@ -80,25 +93,26 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
     }
   }, [suggestion, form, open]);
 
-  async function onSubmit(values: z.infer<typeof offerSchema>) {
-    setIsLoading(true);
-    
-    const formData = new FormData();
-    formData.append("message", "New Offer");
+  // This function will run when react-hook-form validation succeeds.
+  // We'll use it to manually submit the form, which will then trigger our server action.
+  const onValid = () => {
+    formRef.current?.requestSubmit();
+  }
+
+  const handleFormAction = (formData: FormData) => {
+    // This function is now called by the form's `action` prop
+    const values = form.getValues();
     formData.append("offer", JSON.stringify(values));
     formData.append("recipientId", recipientId);
-
-    // This action will create the offer and the message.
-    // The chat component will receive the new message and update the UI.
-    formAction(formData);
     
+    formAction(formData);
+
     const product = mockProducts.find(p => p.id === values.productId);
     toast({
         title: "Offer Sent!",
         description: `Your offer for ${product?.title} has been sent.`
     });
     
-    setIsLoading(false);
     if (onOpenChange) {
       onOpenChange(false);
     }
@@ -141,7 +155,13 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form 
+            ref={formRef} 
+            action={handleFormAction} 
+            onSubmit={form.handleSubmit(onValid)}
+            className="space-y-4"
+          >
+            <input type="hidden" name="message" value="New Offer" />
             <FormField
               control={form.control}
               name="productId"
@@ -151,7 +171,6 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
                   <Select
                     onValueChange={field.onChange}
                     value={field.value}
-                    disabled={isLoading}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -177,7 +196,7 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
                   <FormItem>
                     <FormLabel>Quantity</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} disabled={isLoading} />
+                      <Input type="number" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -190,7 +209,7 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
                   <FormItem>
                     <FormLabel>Price per Unit (USD)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" {...field} disabled={isLoading} />
+                      <Input type="number" step="0.01" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -208,7 +227,6 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
                     <Textarea
                       placeholder="e.g. Bulk discount applied, delivery terms..."
                       {...field}
-                      disabled={isLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -217,12 +235,7 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
             />
 
             <DialogFooter>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                Send Offer
-              </Button>
+              <SubmitButton />
             </DialogFooter>
           </form>
         </Form>
