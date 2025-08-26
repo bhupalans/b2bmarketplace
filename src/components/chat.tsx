@@ -62,6 +62,7 @@ export function Chat() {
   const [state, formAction] = useActionState(sendMessageAction, {
     error: null,
     message: null,
+    modificationReason: null,
   });
 
   useEffect(() => {
@@ -75,6 +76,12 @@ export function Chat() {
     if (state.message) {
       setMessages((prev) => [...prev, state.message as Message]);
       formRef.current?.reset();
+    }
+    if (state.modificationReason) {
+      toast({
+        title: "Message Modified",
+        description: state.modificationReason,
+      });
     }
   }, [state, toast]);
 

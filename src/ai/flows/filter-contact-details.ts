@@ -19,13 +19,15 @@ const FilterContactDetailsInputSchema = z.object({
 export type FilterContactDetailsInput = z.infer<typeof FilterContactDetailsInputSchema>;
 
 const FilterContactDetailsOutputSchema = z.object({
-  containsContactDetails: z
-    .boolean()
-    .describe('Whether the message contains any contact details.'),
-  flaggedReason: z
+  modifiedMessage: z
+    .string()
+    .describe('The message with any contact details redacted.'),
+  modificationReason: z
     .string()
     .optional()
-    .describe('The reason the message was flagged, if any.'),
+    .describe(
+      'The reason the message was modified, if any. This will be shown to the sender.'
+    ),
 });
 export type FilterContactDetailsOutput = z.infer<typeof FilterContactDetailsOutputSchema>;
 
@@ -37,14 +39,15 @@ const filterContactDetailsPrompt = ai.definePrompt({
   name: 'filterContactDetailsPrompt',
   input: {schema: FilterContactDetailsInputSchema},
   output: {schema: FilterContactDetailsOutputSchema},
-  prompt: `You are a content moderation AI that scans messages for contact details.
+  prompt: `You are a content moderation AI for a B2B marketplace. Your role is to prevent users from sharing contact information like email addresses, phone numbers, or website URLs in messages.
 
-  Your job is to analyze the message and determine if it contains any contact details, like phone numbers, email addresses, or website links.
+Analyze the user's message. 
+- If it contains any contact details, you must redact them. Replace the contact detail with a neutral placeholder like "[contact information removed]".
+- After redacting, populate the 'modifiedMessage' field with the safe version of the message.
+- Populate 'modificationReason' with a brief, user-friendly explanation of what was removed (e.g., "An email address was removed from your message.").
+- If the message contains no contact details, the 'modifiedMessage' should be identical to the original message, and 'modificationReason' should be empty.
 
-  If the message contains contact details, set containsContactDetails to true and provide a reason in flaggedReason.
-  If not, set containsContactDetails to false, and leave flaggedReason empty.
-
-  Message: {{{message}}}`,
+Original Message: {{{message}}}`,
 });
 
 const filterContactDetailsFlow = ai.defineFlow(

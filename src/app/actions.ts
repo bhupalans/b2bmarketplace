@@ -14,24 +14,21 @@ export async function sendMessageAction(prevState: any, formData: FormData) {
 
   if (!validatedFields.success) {
     return {
+      ...prevState,
       error: "Message cannot be empty.",
     };
   }
 
-  const message = validatedFields.data.message;
-  const result = await filterContactDetails({ message });
+  const originalMessage = validatedFields.data.message;
+  const result = await filterContactDetails({ message: originalMessage });
 
-  if (result.containsContactDetails) {
-    return {
-      error: `Message blocked: ${result.flaggedReason}`,
-    };
-  }
-
+  // Always succeed, but include the modification reason if there was one.
   return {
     error: null,
+    modificationReason: result.modificationReason || null,
     message: {
       id: `msg-${Date.now()}`,
-      text: message,
+      text: result.modifiedMessage, // Use the (potentially modified) message
       timestamp: Date.now(),
       senderId: "user-1", // mock sender
       recipientId: "user-2",
