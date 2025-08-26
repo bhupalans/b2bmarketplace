@@ -32,10 +32,17 @@ export async function getProductAndSeller(productId: string): Promise<{ product:
   
   let seller: User | null = null;
   if (product.sellerId) {
-    const sellerRef = doc(db, "users", product.sellerId);
-    const sellerSnap = await getDoc(sellerRef);
-    if (sellerSnap.exists()) {
-      seller = { id: sellerSnap.id, ...sellerSnap.data() } as User;
+    try {
+      const sellerRef = doc(db, "users", product.sellerId);
+      const sellerSnap = await getDoc(sellerRef);
+      if (sellerSnap.exists()) {
+        seller = { id: sellerSnap.id, ...sellerSnap.data() } as User;
+      }
+    } catch (error) {
+        console.error(`Failed to fetch seller data for product ${productId}. This might be due to Firestore security rules.`, error);
+        // If fetching the seller fails (e.g., due to permissions for a public user),
+        // we'll proceed without the seller data instead of crashing the page.
+        seller = null;
     }
   }
 
