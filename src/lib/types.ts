@@ -46,3 +46,9 @@ export type Message = {
   recipientId: string;
   offerId?: string;
 };
+
+export type OfferSuggestion = {
+  productId?: string;
+  quantity?: number;
+  pricePerUnit?: number;
+}

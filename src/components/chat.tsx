@@ -12,6 +12,8 @@ import {
   Search,
   Send,
   Gavel,
+  Wand2,
+  Loader2,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -41,8 +43,8 @@ import {
 } from "@/components/ui/tooltip";
 import { mockMessages, mockUsers, loggedInUser } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
-import type { Message } from "@/lib/types";
-import { sendMessageAction } from "@/app/actions";
+import type { Message, OfferSuggestion } from "@/lib/types";
+import { sendMessageAction, suggestOfferAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { OfferCard } from "./offer-card";
 import { CreateOfferDialog } from "./create-offer-dialog";
@@ -59,14 +61,25 @@ const SubmitButton = () => {
 
 export function Chat() {
   const [messages, setMessages] = useState<Message[]>(mockMessages);
+  const [suggestion, setSuggestion] = useState<OfferSuggestion | null>(null);
+  const [isSuggesting, setIsSuggesting] = useState(false);
   const { toast } = useToast();
   const formRef = useRef<HTMLFormElement>(null);
+  const suggestionFormRef = useRef<HTMLFormElement>(null);
+  const [isCreateOfferOpen, setCreateOfferOpen] = useState(false);
+
 
   const [state, formAction] = useActionState(sendMessageAction, {
     error: null,
     message: null,
     modificationReason: null,
   });
+
+  const [suggestionState, suggestionAction] = useActionState(suggestOfferAction, {
+    error: null,
+    suggestion: null,
+  });
+
 
   useEffect(() => {
     if (state.error) {
@@ -87,6 +100,27 @@ export function Chat() {
       });
     }
   }, [state, toast]);
+
+  useEffect(() => {
+    if (suggestionState.error) {
+      toast({
+        variant: "destructive",
+        title: "Suggestion Failed",
+        description: suggestionState.error,
+      });
+      setIsSuggesting(false);
+    }
+    if (suggestionState.suggestion) {
+      setSuggestion(suggestionState.suggestion);
+      setCreateOfferOpen(true);
+      setIsSuggesting(false);
+    }
+  }, [suggestionState, toast]);
+
+  const handleSuggestOffer = () => {
+    setIsSuggesting(true);
+    suggestionFormRef.current?.requestSubmit();
+  }
 
   const activeUser = mockUsers["user-2"];
 
@@ -135,7 +169,27 @@ export function Chat() {
           </div>
           <div className="flex flex-1 items-center justify-end gap-2">
             {loggedInUser.role === 'seller' && (
-              <CreateOfferDialog />
+              <>
+                <form ref={suggestionFormRef} action={suggestionAction} className="hidden">
+                  <input type="hidden" name="chatHistory" value={messages.map(m => `${mockUsers[m.senderId]?.name}: ${m.text}`).join('\n')} />
+                  <input type="hidden" name="sellerId" value={loggedInUser.id} />
+                </form>
+                <Button variant="outline" size="sm" onClick={handleSuggestOffer} disabled={isSuggesting}>
+                  {isSuggesting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Wand2 className="mr-2 h-4 w-4" />
+                  )}
+                  Suggest Offer
+                </Button>
+
+                <CreateOfferDialog
+                  suggestion={suggestion}
+                  open={isCreateOfferOpen}
+                  onOpenChange={setCreateOfferOpen}
+                  onClose={() => setSuggestion(null)}
+                />
+              </>
             )}
             <Button variant="outline" size="icon" className="h-8 w-8">
               <MoreHorizontal className="h-4 w-4" />

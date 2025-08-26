@@ -26,7 +26,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Select,
   SelectContent,
@@ -34,7 +34,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { mockProducts } from "@/lib/mock-data";
+import { loggedInUser, mockProducts } from "@/lib/mock-data";
+import { OfferSuggestion } from "@/lib/types";
 
 const offerSchema = z.object({
   productId: z.string().min(1, { message: "Please select a product." }),
@@ -43,20 +44,39 @@ const offerSchema = z.object({
   notes: z.string().optional(),
 });
 
-export function CreateOfferDialog() {
+type CreateOfferDialogProps = {
+  suggestion?: OfferSuggestion | null;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onClose?: () => void;
+};
+
+
+export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose }: CreateOfferDialogProps) {
   const { toast } = useToast();
-  const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const isControllingOpen = typeof open !== 'undefined';
 
   const form = useForm<z.infer<typeof offerSchema>>({
     resolver: zodResolver(offerSchema),
     defaultValues: {
       productId: "",
-      quantity: 100,
-      pricePerUnit: 10,
+      quantity: undefined,
+      pricePerUnit: undefined,
       notes: "",
     },
   });
+
+  useEffect(() => {
+    if (suggestion) {
+      form.reset({
+        productId: suggestion.productId || "",
+        quantity: suggestion.quantity,
+        pricePerUnit: suggestion.pricePerUnit,
+        notes: "",
+      });
+    }
+  }, [suggestion, form]);
 
   async function onSubmit(values: z.infer<typeof offerSchema>) {
     setIsLoading(true);
@@ -74,18 +94,37 @@ export function CreateOfferDialog() {
     });
 
     setIsLoading(false);
-    setOpen(false);
+    if (onOpenChange) {
+      onOpenChange(false);
+    }
+    if (onClose) {
+      onClose();
+    }
     form.reset();
   }
 
+  const sellerProducts = mockProducts.filter(p => p.sellerId === loggedInUser.id);
+  
+  const handleOpenChange = (isOpen: boolean) => {
+    if (onOpenChange) {
+      onOpenChange(isOpen);
+    }
+    if (!isOpen && onClose) {
+      onClose();
+    }
+  };
+
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline">
-          <Gavel className="mr-2" />
-          Create Offer
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      {!isControllingOpen && (
+        <DialogTrigger asChild>
+          <Button>
+            <Gavel className="mr-2 h-4 w-4" />
+            Create Offer
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Create Formal Offer</DialogTitle>
@@ -103,7 +142,7 @@ export function CreateOfferDialog() {
                   <FormLabel>Product</FormLabel>
                   <Select
                     onValueChange={field.onChange}
-                    defaultValue={field.value}
+                    value={field.value}
                     disabled={isLoading}
                   >
                     <FormControl>
@@ -112,7 +151,7 @@ export function CreateOfferDialog() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {mockProducts.map((p) => (
+                      {sellerProducts.map((p) => (
                         <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>
                       ))}
                     </SelectContent>
