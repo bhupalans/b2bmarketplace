@@ -17,53 +17,43 @@ import { useToast } from "@/hooks/use-toast";
 import { Badge } from "./ui/badge";
 import { useState } from "react";
 import { Offer } from "@/lib/types";
+import { useFormStatus } from "react-dom";
 
 interface OfferCardProps {
   offerId: string;
   onDecision?: (payload: FormData) => void;
 }
 
+const ActionButton = ({
+  decision,
+  children,
+}: {
+  decision: "accepted" | "declined";
+  children: React.ReactNode;
+}) => {
+  const { pending } = useFormStatus();
+  return (
+    <Button
+      type="submit"
+      name="decision"
+      value={decision}
+      disabled={pending}
+      variant={decision === "declined" ? "outline" : "default"}
+    >
+      {pending ? <Loader2 className="mr-2 animate-spin" /> : children}
+    </Button>
+  );
+};
+
 export function OfferCard({ offerId, onDecision }: OfferCardProps) {
   const { toast } = useToast();
   // We use state to make the component re-render when the offer status changes.
-  const [offer, setOffer] = useState<Offer | undefined>(mockOffers[offerId]);
-  const [isUpdating, setIsUpdating] = useState(false);
+  const offer = mockOffers[offerId];
 
   if (!offer) return null;
 
   const product = mockProducts.find((p) => p.id === offer.productId);
   if (!product) return null;
-
-  const handleDecision = async (decision: "accepted" | "declined") => {
-    setIsUpdating(true);
-    // In a real app, this would be a server action.
-    await new Promise(res => setTimeout(res, 1000));
-    
-    const updatedOffer = { ...offer, status: decision };
-    setOffer(updatedOffer);
-    
-    // Also update the mock data so it persists across re-renders for this demo
-    mockOffers[offerId] = updatedOffer;
-
-    if (onDecision) {
-      const formData = new FormData();
-      const offerDecision = {
-        offerId,
-        decision,
-        productTitle: product.title,
-      };
-      formData.append("offerDecision", JSON.stringify(offerDecision));
-      formData.append("message", "Offer decision made");
-      onDecision(formData);
-    } else {
-       toast({
-        title: `Offer ${decision}`,
-        description: `You have ${decision} the offer for ${product.title}.`,
-      });
-    }
-
-    setIsUpdating(false);
-  };
 
   const totalPrice = new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -77,6 +67,30 @@ export function OfferCard({ offerId, onDecision }: OfferCardProps) {
 
   const isBuyer = loggedInUser.id === offer.buyerId;
   const showActions = isBuyer && offer.status === "pending";
+
+  const handleDecision = (formData: FormData) => {
+    const decision = formData.get("decision") as "accepted" | "declined";
+
+    // Optimistically update the mock data for the demo
+    const updatedOffer = { ...offer, status: decision };
+    mockOffers[offerId] = updatedOffer;
+
+    if (onDecision) {
+      const offerDecision = {
+        offerId,
+        decision,
+        productTitle: product.title,
+      };
+      formData.append("offerDecision", JSON.stringify(offerDecision));
+      formData.append("message", "Offer decision made");
+      onDecision(formData);
+    } else {
+      toast({
+        title: `Offer ${decision}`,
+        description: `You have ${decision} the offer for ${product.title}.`,
+      });
+    }
+  };
 
   return (
     <Card className="w-full">
@@ -123,29 +137,30 @@ export function OfferCard({ offerId, onDecision }: OfferCardProps) {
       </CardContent>
       <CardFooter className="flex flex-col items-stretch gap-2">
         {showActions ? (
-          <>
-            <Button onClick={() => handleDecision("accepted")} disabled={isUpdating}>
-              {isUpdating ? <Loader2 className="mr-2 animate-spin" /> : <Check className="mr-2" />}
-              Accept Offer
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => handleDecision("declined")}
-              disabled={isUpdating}
-            >
-             {isUpdating ? <Loader2 className="mr-2 animate-spin" /> : <X className="mr-2" />}
-              Decline
-            </Button>
-          </>
+          <form action={handleDecision} className="w-full space-y-2">
+            <ActionButton decision="accepted">
+              <Check className="mr-2" /> Accept Offer
+            </ActionButton>
+            <ActionButton decision="declined">
+              <X className="mr-2" /> Decline
+            </ActionButton>
+          </form>
         ) : (
           <Badge
             className="w-full justify-center py-2 text-sm capitalize"
             variant={
-                offer.status === 'pending' ? 'secondary' : 
-                offer.status === 'accepted' ? 'default' : 'destructive'
+              offer.status === "pending"
+                ? "secondary"
+                : offer.status === "accepted"
+                ? "default"
+                : "destructive"
             }
           >
-            {offer.status === 'pending' ? (isBuyer ? 'Pending Your Response' : 'Offer Sent') : `Offer ${offer.status}`}
+            {offer.status === "pending"
+              ? isBuyer
+                ? "Pending Your Response"
+                : "Offer Sent"
+              : `Offer ${offer.status}`}
           </Badge>
         )}
       </CardFooter>
