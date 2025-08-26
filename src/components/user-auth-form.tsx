@@ -163,7 +163,12 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
             description: error.message || "An unexpected error occurred.",
           });
       }
-      setIsGoogleLoading(false);
+    } finally {
+        // Only set loading to false if it's not a redirect, 
+        // as the page will be unloaded anyway.
+        if (isIframe) {
+            setIsGoogleLoading(false);
+        }
     }
   }
 

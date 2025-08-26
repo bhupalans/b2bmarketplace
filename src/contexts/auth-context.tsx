@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { onAuthStateChanged, User as FirebaseUser, getRedirectResult, UserCredential } from 'firebase/auth';
+import { onAuthStateChanged, User as FirebaseUser, getRedirectResult } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import type { User } from '@/lib/types';
@@ -22,16 +22,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const processRedirectResult = async () => {
-      try {
-        const result = await getRedirectResult(auth);
+    // First, check for the result of a redirect sign-in
+    getRedirectResult(auth)
+      .then(async (result) => {
         if (result) {
-          // This is a first-time sign-in or a re-auth from Google via redirect.
+          // This case means a user has just signed in via redirect.
           const user = result.user;
           const userDocRef = doc(db, 'users', user.uid);
           const userDoc = await getDoc(userDocRef);
+
           if (!userDoc.exists()) {
-            // Create their profile if it doesn't exist
+            // If it's a first-time sign-in, create their profile.
             const userProfile = {
               name: user.displayName,
               email: user.email,
@@ -41,42 +42,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             await setDoc(userDocRef, userProfile);
           }
         }
-      } catch (error) {
-        console.error("Error getting redirect result:", error);
-      }
-    };
-    
-    // Process the redirect result first. onAuthStateChanged will handle setting the final user state.
-    processRedirectResult();
+        // If result is null, it's a normal page load, not a redirect return.
+        // We don't need to do anything here; onAuthStateChanged will handle it.
+      })
+      .catch((error) => {
+        console.error("Error processing redirect result:", error);
+      })
+      .finally(() => {
+        // onAuthStateChanged is the single source of truth for the user's state.
+        // It will fire after getRedirectResult completes.
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+          setFirebaseUser(user);
+          if (user) {
+            // User is signed in. Fetch their profile from Firestore.
+            const userDocRef = doc(db, 'users', user.uid);
+            const userDoc = await getDoc(userDocRef);
+            if (userDoc.exists()) {
+              setUser({ id: userDoc.id, ...userDoc.data() } as User);
+            } else {
+              // This case can happen if a user signs in with a popup
+              // and their profile hasn't been created yet.
+              const userProfile = {
+                name: user.displayName,
+                email: user.email,
+                role: 'buyer', // Default role
+                avatar: user.photoURL || `https://i.pravatar.cc/150?u=${user.uid}`,
+              };
+              await setDoc(userDocRef, userProfile);
+              setUser({ id: user.uid, ...userProfile } as User);
+            }
+          } else {
+            // User is signed out.
+            setUser(null);
+          }
+          setLoading(false);
+        });
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setFirebaseUser(user);
-      if (user) {
-        // User is signed in. Fetch their profile from Firestore.
-        const userDocRef = doc(db, 'users', user.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
-          setUser({ id: userDoc.id, ...userDoc.data() } as User);
-        } else {
-            // This case handles a first-time sign-in from a non-redirect method (e.g., popup)
-            // It might also catch a new user from a redirect if the profile creation in processRedirectResult hasn't finished, which is fine.
-            const userProfile = {
-              name: user.displayName,
-              email: user.email,
-              role: 'buyer', // Default role
-              avatar: user.photoURL || `https://i.pravatar.cc/150?u=${user.uid}`,
-            };
-            await setDoc(userDocRef, userProfile);
-            setUser({ id: user.uid, ...userProfile } as User);
-        }
-      } else {
-        // User is signed out.
-        setUser(null);
-      }
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
+        return () => unsubscribe();
+      });
   }, []);
   
   if (loading) {
