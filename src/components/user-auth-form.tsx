@@ -89,7 +89,13 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
   React.useEffect(() => {
     const handleRedirectResult = async () => {
       try {
-        setIsGoogleLoading(true);
+        // Set loading true only if we anticipate a redirect result potentially happening.
+        // A user might just be visiting the login page without having been redirected.
+        const potentialRedirect = auth.currentUser === null; // Simple heuristic
+        if (potentialRedirect) {
+            setIsGoogleLoading(true);
+        }
+
         const result = await getRedirectResult(auth);
         if (result) {
           const user = result.user;
@@ -100,13 +106,13 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
             const userProfile = {
               name: user.displayName,
               email: user.email,
-              role: 'buyer', // Default role
+              role: 'buyer', // Default role for Google sign-up
               avatar: user.photoURL || `https://i.pravatar.cc/150?u=${user.uid}`,
             };
             await setDoc(userDocRef, userProfile);
             toast({
               title: "Account Created",
-              description: "Welcome! Your account has been created.",
+              description: "Welcome! Your account has been created via Google.",
             });
           } else {
             toast({
@@ -117,12 +123,12 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
           router.push("/");
         }
       } catch (error: any) {
-        // Don't show an error if there was no redirect result to process
+        // This specific error means there was no redirect operation to process, which is normal on a fresh page load.
         if (error.code !== 'auth/no-redirect-operation') {
              toast({
                 variant: "destructive",
                 title: "Google Sign-In Failed",
-                description: error.message || "Could not sign in with Google. Please try again.",
+                description: error.message || "Could not process Google sign-in. Please try again.",
             });
         }
       } finally {
@@ -183,8 +189,8 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
   async function handleGoogleSignIn() {
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
-    await signInWithRedirect(auth, provider);
-    // The redirect will happen here; the result is handled by the useEffect hook.
+    // We don't need to await this. It navigates away from the page.
+    signInWithRedirect(auth, provider);
   }
 
   return (
