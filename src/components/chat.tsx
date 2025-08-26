@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect, useRef, useState, useActionState } from "react";
+import React, { useEffect, useRef, useState, useActionState, startTransition } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import {
@@ -65,7 +65,8 @@ const SubmitButton = () => {
 };
 
 export function Chat() {
-  const [messages, setMessages] = useState<Message[]>(mockMessages);
+  // We combine mock messages with a state for new messages for instant updates
+  const [newMessages, setNewMessages] = useState<Message[]>([]);
   const [suggestion, setSuggestion] = useState<OfferSuggestion | null>(null);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const { toast } = useToast();
@@ -85,6 +86,7 @@ export function Chat() {
     suggestion: null,
   });
 
+  const allMessages = [...mockMessages, ...newMessages];
 
   useEffect(() => {
     if (state.error) {
@@ -95,7 +97,28 @@ export function Chat() {
       });
     }
     if (state.message) {
-      setMessages((prev) => [...prev, state.message as Message]);
+      // In a real app, this would come from a real-time subscription (e.g. Firestore)
+      // For the demo, we just add it to our local state.
+      const message = state.message as Message;
+      startTransition(() => {
+        setNewMessages((prev) => [...prev, message]);
+        // If the new message is an offer, we also add the system message
+        if (message.offerId) {
+            const product = mockProducts.find(p => p.id === mockOffers[message.offerId!].productId);
+            const decision = mockOffers[message.offerId!].status;
+            if (decision !== 'pending') {
+                const systemMessage = {
+                    id: `msg-${Date.now()}`,
+                    text: `Offer ${decision}: ${product?.title}`,
+                    timestamp: Date.now(),
+                    senderId: 'system',
+                    recipientId: message.recipientId,
+                    isSystemMessage: true,
+                };
+                setNewMessages((prev) => [...prev, systemMessage]);
+            }
+        }
+      });
       formRef.current?.reset();
     }
     if (state.modificationReason) {
@@ -177,7 +200,7 @@ export function Chat() {
             {loggedInUser.role === 'seller' && (
               <>
                 <form ref={suggestionFormRef} action={suggestionAction} className="hidden">
-                  <input type="hidden" name="chatHistory" value={messages.map(m => `${mockUsers[m.senderId]?.name}: ${m.text}`).join('\n')} />
+                  <input type="hidden" name="chatHistory" value={allMessages.map(m => `${mockUsers[m.senderId]?.name || 'System'}: ${m.text}`).join('\n')} />
                   <input type="hidden" name="sellerId" value={loggedInUser.id} />
                 </form>
                 <Button variant="outline" size="sm" onClick={handleSuggestOffer} disabled={isSuggesting}>
@@ -208,7 +231,7 @@ export function Chat() {
 
         <main className="flex-1 overflow-auto p-4">
           <div className="space-y-4">
-            {messages.map((message) => (
+            {allMessages.map((message) => (
               <div
                 key={message.id}
                 className={cn(
@@ -236,7 +259,7 @@ export function Chat() {
                   )}
                 >
                   {message.offerId ? (
-                    <OfferCard offerId={message.offerId} onDecision={formAction} />
+                    <OfferCard offerId={message.offerId} />
                   ) : (
                     <p>{message.text}</p>
                   )}

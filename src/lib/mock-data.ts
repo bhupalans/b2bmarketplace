@@ -32,6 +32,13 @@ export const mockUsers: Record<string, User> = {
     memberSince: 2021,
     certifications: ['Verified Supplier', 'Top Exporter'],
     companyDescription: 'Charlie Global Trading sources and supplies high-quality raw materials and electronic components for businesses across the globe. We pride ourselves on our robust supply chain and excellent customer service.'
+  },
+  'system': {
+      id: 'system',
+      name: 'System',
+      email: '',
+      avatar: '',
+      role: 'admin'
   }
 };
 

@@ -5,13 +5,13 @@ import { filterContactDetails } from "@/ai/flows/filter-contact-details";
 import { suggestOffer } from "@/ai/flows/suggest-offer";
 import { loggedInUser, mockOffers, mockProducts, mockUsers } from "@/lib/mock-data";
 import { Offer } from "@/lib/types";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 const messageSchema = z.object({
   message: z.string().min(1),
   offer: z.string().optional(), // Stringified JSON of the new offer
   recipientId: z.string().optional(), // Who the offer is for
-  offerDecision: z.string().optional(), // Stringified JSON of the offer decision
 });
 
 export async function sendMessageAction(prevState: any, formData: FormData) {
@@ -19,7 +19,6 @@ export async function sendMessageAction(prevState: any, formData: FormData) {
     message: formData.get("message"),
     offer: formData.get("offer") as string | undefined,
     recipientId: formData.get("recipientId") as string | undefined,
-    offerDecision: formData.get("offerDecision") as string | undefined,
   });
 
   if (!validatedFields.success) {
@@ -28,28 +27,7 @@ export async function sendMessageAction(prevState: any, formData: FormData) {
       error: "Message cannot be empty.",
     };
   }
-
-  // Handle updating an offer and creating a system message
-  if (validatedFields.data.offerDecision) {
-    const { offerId, decision, productTitle } = JSON.parse(validatedFields.data.offerDecision);
-    const offer = mockOffers[offerId];
-    if (offer) {
-      offer.status = decision;
-    }
-    return {
-      error: null,
-      message: {
-        id: `msg-${Date.now()}`,
-        text: `Offer ${decision}: ${productTitle}`,
-        timestamp: Date.now(),
-        senderId: loggedInUser.id,
-        recipientId: offer.sellerId,
-        isSystemMessage: true, // Flag for styling
-      }
-    };
-  }
-
-
+  
   // Handle creating a new offer
   if (validatedFields.data.offer && validatedFields.data.recipientId) {
     const offerData = JSON.parse(validatedFields.data.offer) as Omit<Offer, 'id' | 'status' | 'sellerId' | 'buyerId'>;
@@ -94,7 +72,7 @@ export async function sendMessageAction(prevState: any, formData: FormData) {
       text: result.modifiedMessage, // Use the (potentially modified) message
       timestamp: Date.now(),
       senderId: loggedInUser.id, // mock sender
-      recipientId: mockUsers['user-1'].id, // Hardcoded for demo
+      recipientId: mockUsers['user-2'].id, // Hardcoded for demo
     },
   };
 }
@@ -138,4 +116,50 @@ export async function suggestOfferAction(prevState: any, formData: FormData) {
       suggestion: null,
     }
   }
+}
+
+
+const offerDecisionSchema = z.object({
+  offerId: z.string(),
+  decision: z.enum(['accepted', 'declined']),
+});
+
+// A new, dedicated server action for handling offer decisions.
+export async function decideOnOfferAction(formData: FormData) {
+  const validatedFields = offerDecisionSchema.safeParse({
+    offerId: formData.get('offerId'),
+    decision: formData.get('decision'),
+  });
+
+  if (!validatedFields.success) {
+    return { error: 'Invalid offer decision data.' };
+  }
+  
+  const { offerId, decision } = validatedFields.data;
+  const offer = mockOffers[offerId];
+  
+  if (offer) {
+    offer.status = decision;
+    
+    const product = mockProducts.find(p => p.id === offer.productId);
+
+    // This creates the system message. In a real app, you'd save this to a DB.
+    const systemMessage = {
+      id: `msg-${Date.now()}`,
+      text: `Offer ${decision}: ${product?.title}`,
+      timestamp: Date.now(),
+      senderId: 'system',
+      recipientId: offer.sellerId,
+      isSystemMessage: true, 
+    };
+
+    // This is a placeholder for where you would push the new message to a real-time system.
+    // For now, we rely on revalidating the path to show the new status.
+    console.log("New system message created:", systemMessage);
+    
+    revalidatePath('/messages');
+    return { success: true };
+  }
+
+  return { error: 'Offer not found.' };
 }

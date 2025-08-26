@@ -15,39 +15,53 @@ import { Check, Gavel, Loader2, X } from "lucide-react";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "./ui/badge";
-import { useFormStatus } from "react-dom";
+import { decideOnOfferAction } from "@/app/actions";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+
 
 interface OfferCardProps {
   offerId: string;
-  onDecision?: (payload: FormData) => void;
 }
 
-const ActionButton = ({
-  children,
-}: {
-  children: React.ReactNode;
-}) => {
-  const { pending } = useFormStatus();
-  return (
-    <Button
-      type="submit"
-      disabled={pending}
-      className="w-full"
-    >
-      {pending ? <Loader2 className="mr-2 animate-spin" /> : children}
-    </Button>
-  );
-};
-
-export function OfferCard({ offerId, onDecision }: OfferCardProps) {
+export function OfferCard({ offerId }: OfferCardProps) {
   const { toast } = useToast();
-  // We use state to make the component re-render when the offer status changes.
   const offer = mockOffers[offerId];
+  // We use state to make the component re-render when the offer status changes.
+  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
+
 
   if (!offer) return null;
 
   const product = mockProducts.find((p) => p.id === offer.productId);
   if (!product) return null;
+
+  const handleDecision = async (decision: 'accepted' | 'declined') => {
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.append('offerId', offerId);
+      formData.append('decision', decision);
+
+      const result = await decideOnOfferAction(formData);
+
+      if (result?.error) {
+        toast({
+          title: "Error",
+          description: result.error,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: `Offer ${decision}`,
+          description: `You have ${decision} the offer for ${product.title}.`,
+        });
+        // In a real app, a websocket would push this update.
+        // For our demo, we just refresh the page to show the new system message.
+        router.refresh();
+      }
+    });
+  };
 
   const totalPrice = new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -60,7 +74,7 @@ export function OfferCard({ offerId, onDecision }: OfferCardProps) {
   }).format(offer.pricePerUnit);
 
   const isBuyer = loggedInUser.id === offer.buyerId;
-  const showActions = isBuyer && offer.status === "pending" && onDecision;
+  const showActions = isBuyer && offer.status === "pending";
 
   return (
     <Card className="w-full">
@@ -107,37 +121,19 @@ export function OfferCard({ offerId, onDecision }: OfferCardProps) {
       </CardContent>
       <CardFooter className="flex flex-col items-stretch gap-2">
         {showActions ? (
-          <div className="w-full space-y-2">
-             <form action={onDecision} className="w-full">
-               <input
-                 type="hidden"
-                 name="offerDecision"
-                 value={JSON.stringify({
-                   offerId,
-                   decision: 'accepted',
-                   productTitle: product.title,
-                 })}
-               />
-              <input type="hidden" name="message" value="Offer decision made" />
-               <ActionButton>
-                 <Check className="mr-2" /> Accept Offer
-               </ActionButton>
-             </form>
-             <form action={onDecision} className="w-full">
-                <input
-                    type="hidden"
-                    name="offerDecision"
-                    value={JSON.stringify({
-                      offerId,
-                      decision: 'declined',
-                      productTitle: product.title,
-                    })}
-                />
-                <input type="hidden" name="message" value="Offer decision made" />
-                <Button type="submit" variant="outline" className="w-full">
-                  <X className="mr-2" /> Decline
-                </Button>
-             </form>
+          <div className="grid w-full grid-cols-2 gap-2">
+            <Button
+              onClick={() => handleDecision('declined')}
+              variant="outline"
+              disabled={isPending}
+            >
+              {isPending ? <Loader2 className="mr-2 animate-spin" /> : <X className="mr-2" />}
+              Decline
+            </Button>
+            <Button onClick={() => handleDecision('accepted')} disabled={isPending}>
+               {isPending ? <Loader2 className="mr-2 animate-spin" /> : <Check className="mr-2" />}
+               Accept
+            </Button>
           </div>
         ) : (
           <Badge
