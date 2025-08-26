@@ -11,18 +11,38 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { loggedInUser } from "@/lib/mock-data";
+import { useAuth } from "@/contexts/auth-context";
+import { auth } from "@/lib/firebase";
+import { signOut } from "firebase/auth";
 import { CreditCard, LogOut, Settings, User } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+
 
 export function UserNav() {
+  const { user, firebaseUser } = useAuth();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push('/login');
+  };
+
+  if (!firebaseUser || !user) {
+    return (
+       <Button asChild>
+          <Link href="/login">Log In</Link>
+       </Button>
+    )
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-9 w-9">
-            <AvatarImage src={loggedInUser.avatar} alt={loggedInUser.name} />
-            <AvatarFallback>{loggedInUser.name.charAt(0)}</AvatarFallback>
+            <AvatarImage src={user.avatar} alt={user.name} />
+            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
@@ -30,10 +50,10 @@ export function UserNav() {
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">
-              {loggedInUser.name}
+              {user.name}
             </p>
             <p className="text-xs leading-none text-muted-foreground">
-              {loggedInUser.email}
+              {user.email}
             </p>
           </div>
         </DropdownMenuLabel>
@@ -53,11 +73,9 @@ export function UserNav() {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/login">
-            <LogOut className="mr-2 h-4 w-4" />
-            <span>Log In</span>
-          </Link>
+        <DropdownMenuItem onClick={handleLogout}>
+          <LogOut className="mr-2 h-4 w-4" />
+          <span>Log Out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

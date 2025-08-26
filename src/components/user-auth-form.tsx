@@ -5,6 +5,14 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  updateProfile,
+} from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
+
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,12 +32,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface UserAuthFormProps extends React.HTMLAttributes<HTMLDivElement> {
   mode: "login" | "signup";
 }
 
 const formSchema = z.object({
+  name: z.string().optional(),
   email: z.string().email({ message: "Please enter a valid email." }),
   password: z
     .string()
@@ -37,33 +47,103 @@ const formSchema = z.object({
   role: z.enum(["buyer", "seller"]).optional(),
 });
 
+const signupSchema = formSchema.refine(
+  (data) => {
+    return !!data.name && !!data.role;
+  },
+  {
+    message: "Name and role are required for signup.",
+    path: ["name"], // you can specify which field to attach the error to
+  }
+);
+
+
 export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
   const router = useRouter();
+  const { toast } = useToast();
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const finalSchema = mode === 'signup' ? signupSchema : formSchema;
+
+  const form = useForm<z.infer<typeof finalSchema>>({
+    resolver: zodResolver(finalSchema),
     defaultValues: {
+      name: "",
       email: "",
       password: "",
       role: "buyer",
     },
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof finalSchema>) {
     setIsLoading(true);
+    try {
+      if (mode === "signup") {
+        const userCredential = await createUserWithEmailAndPassword(
+          auth,
+          values.email,
+          values.password
+        );
+        const user = userCredential.user;
+        
+        // Add user profile to Firestore
+        const userProfile = {
+          name: values.name,
+          email: values.email,
+          role: values.role,
+          avatar: `https://i.pravatar.cc/150?u=${user.uid}`,
+        };
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    setIsLoading(false);
-    router.push("/");
+        await setDoc(doc(db, "users", user.uid), userProfile);
+        
+        toast({
+          title: "Account Created",
+          description: "You have been successfully signed up.",
+        });
+        
+      } else {
+        await signInWithEmailAndPassword(auth, values.email, values.password);
+        toast({
+          title: "Signed In",
+          description: "You have successfully signed in.",
+        });
+      }
+      router.push("/");
+    } catch (error: any) {
+      console.error(error);
+      toast({
+        variant: "destructive",
+        title: "Authentication Failed",
+        description: error.message || "An unexpected error occurred.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
     <div className={cn("grid gap-6", className)} {...props}>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+           {mode === "signup" && (
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Full Name or Company</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="e.g. Acme Inc."
+                      disabled={isLoading}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
           <FormField
             control={form.control}
             name="email"

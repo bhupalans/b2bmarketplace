@@ -42,13 +42,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { mockMessages, mockUsers, loggedInUser } from "@/lib/mock-data";
+import { mockMessages, mockUsers, mockProducts, mockOffers } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
-import type { Message, OfferSuggestion } from "@/lib/types";
+import type { Message, OfferSuggestion, User } from "@/lib/types";
 import { sendMessageAction, suggestOfferAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { OfferCard } from "./offer-card";
 import { CreateOfferDialog } from "./create-offer-dialog";
+import { useAuth } from "@/contexts/auth-context";
 
 const SubmitButton = () => {
   const { pending } = useFormStatus();
@@ -65,6 +66,7 @@ const SubmitButton = () => {
 };
 
 export function Chat() {
+  const { user: loggedInUser } = useAuth();
   // We combine mock messages with a state for new messages for instant updates
   const [newMessages, setNewMessages] = useState<Message[]>([]);
   const [suggestion, setSuggestion] = useState<OfferSuggestion | null>(null);
@@ -150,8 +152,18 @@ export function Chat() {
     suggestionFormRef.current?.requestSubmit();
   }
 
-  const activeUser = mockUsers["user-2"];
-  const recipient = loggedInUser.id === 'user-1' ? mockUsers['user-2'] : mockUsers['user-1'];
+  // This is a temporary setup. In a real app, you'd have a system to select conversation partners.
+  const otherUsers = Object.values(mockUsers).filter(u => u.id !== loggedInUser?.id && u.role !== 'admin');
+  const recipient = otherUsers[0] || null; // Fallback for now
+  const activeUser = recipient;
+
+  if (!loggedInUser || !recipient) {
+    return (
+      <div className="flex h-full items-center justify-center text-muted-foreground">
+        Select a conversation to start chatting.
+      </div>
+    )
+  }
 
   return (
     <div className="grid min-h-[calc(100vh-8rem)] w-full grid-cols-[260px_1fr] rounded-lg border">
@@ -266,9 +278,9 @@ export function Chat() {
                 </div>
                 {message.senderId === loggedInUser.id && !message.isSystemMessage && (
                    <Avatar className="h-8 w-8 border">
-                    <AvatarImage src={mockUsers[message.senderId]?.avatar} />
+                    <AvatarImage src={(loggedInUser as User)?.avatar} />
                     <AvatarFallback>
-                      {mockUsers[message.senderId]?.name.charAt(0)}
+                      {(loggedInUser as User)?.name.charAt(0)}
                     </AvatarFallback>
                   </Avatar>
                 )}

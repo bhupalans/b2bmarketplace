@@ -1,6 +1,9 @@
 
 import type { User, Product, Message, Category, Offer } from './types';
 
+// This file is now deprecated for users, but still used for products, messages, etc.
+// We will migrate these to Firestore in a future step.
+
 export const mockUsers: Record<string, User> = {
   'user-1': {
     id: 'user-1',

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { loggedInUser, mockOffers, mockProducts } from "@/lib/mock-data";
+import { mockOffers, mockProducts } from "@/lib/mock-data";
 import {
   Card,
   CardContent,
@@ -18,6 +18,7 @@ import { Badge } from "./ui/badge";
 import { decideOnOfferAction } from "@/app/actions";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/auth-context";
 
 
 interface OfferCardProps {
@@ -26,13 +27,13 @@ interface OfferCardProps {
 
 export function OfferCard({ offerId }: OfferCardProps) {
   const { toast } = useToast();
+  const { user: loggedInUser } = useAuth();
   const offer = mockOffers[offerId];
-  // We use state to make the component re-render when the offer status changes.
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
 
-  if (!offer) return null;
+  if (!offer || !loggedInUser) return null;
 
   const product = mockProducts.find((p) => p.id === offer.productId);
   if (!product) return null;

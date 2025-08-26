@@ -1,6 +1,7 @@
 "use client";
 
 import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider } from "@/contexts/auth-context";
 import { CurrencyProvider } from "@/contexts/currency-context";
 import { useEffect, useState } from "react";
 
@@ -27,9 +28,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <CurrencyProvider rates={rates}>
-      {children}
-      <Toaster />
-    </CurrencyProvider>
+    <AuthProvider>
+      <CurrencyProvider rates={rates}>
+        {children}
+        <Toaster />
+      </CurrencyProvider>
+    </AuthProvider>
   );
 }

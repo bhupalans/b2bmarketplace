@@ -17,9 +17,26 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "./ui/button";
 import { UserNav } from "./user-nav";
+import { useAuth } from "@/contexts/auth-context";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { firebaseUser, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !firebaseUser) {
+      router.push("/login");
+    }
+  }, [firebaseUser, loading, router]);
+  
+  if (loading || !firebaseUser) {
+    // You can show a loading spinner here
+    return null; 
+  }
+
 
   return (
     <SidebarProvider>
@@ -70,7 +87,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
           <SidebarTrigger className="sm:hidden" />
           <div className="flex-1" />
-          <UserNav />
+          <div className="hidden sm:block">
+            <UserNav />
+          </div>
         </header>
         <main className="flex-1 p-4 sm:px-6 sm:py-0">{children}</main>
       </SidebarInset>

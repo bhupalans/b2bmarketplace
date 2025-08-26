@@ -3,7 +3,8 @@
 
 import { filterContactDetails } from "@/ai/flows/filter-contact-details";
 import { suggestOffer } from "@/ai/flows/suggest-offer";
-import { loggedInUser, mockOffers, mockProducts, mockUsers } from "@/lib/mock-data";
+import { auth } from "@/lib/firebase";
+import { mockOffers, mockProducts, mockUsers } from "@/lib/mock-data";
 import { Offer } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -27,6 +28,11 @@ export async function sendMessageAction(prevState: any, formData: FormData) {
       error: "Message cannot be empty.",
     };
   }
+
+  const senderId = auth.currentUser?.uid;
+  if (!senderId) {
+    return { error: "User not authenticated." };
+  }
   
   // Handle creating a new offer
   if (validatedFields.data.offer && validatedFields.data.recipientId) {
@@ -35,7 +41,7 @@ export async function sendMessageAction(prevState: any, formData: FormData) {
       ...offerData,
       id: `offer-${Date.now()}`,
       status: 'pending',
-      sellerId: loggedInUser.id,
+      sellerId: senderId,
       buyerId: validatedFields.data.recipientId,
     };
     
@@ -51,7 +57,7 @@ export async function sendMessageAction(prevState: any, formData: FormData) {
         id: `msg-${Date.now()}`,
         text: `Offer created for ${product?.title}`, // This text isn't displayed but good for context
         timestamp: Date.now(),
-        senderId: loggedInUser.id, 
+        senderId: senderId, 
         recipientId: validatedFields.data.recipientId,
         offerId: newOffer.id,
       }
@@ -63,6 +69,12 @@ export async function sendMessageAction(prevState: any, formData: FormData) {
   const originalMessage = validatedFields.data.message;
   const result = await filterContactDetails({ message: originalMessage });
 
+  // In a real app, you'd have a way to determine the recipient
+  const recipientId = Object.keys(mockUsers).find(id => id !== senderId && id !== 'system');
+  if (!recipientId) {
+      return { error: "Could not determine recipient." };
+  }
+
   // Always succeed, but include the modification reason if there was one.
   return {
     error: null,
@@ -71,8 +83,8 @@ export async function sendMessageAction(prevState: any, formData: FormData) {
       id: `msg-${Date.now()}`,
       text: result.modifiedMessage, // Use the (potentially modified) message
       timestamp: Date.now(),
-      senderId: loggedInUser.id, // mock sender
-      recipientId: mockUsers['user-2'].id, // Hardcoded for demo
+      senderId: senderId,
+      recipientId: recipientId,
     },
   };
 }

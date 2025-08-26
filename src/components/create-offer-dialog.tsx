@@ -34,9 +34,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { loggedInUser, mockProducts } from "@/lib/mock-data";
+import { mockProducts } from "@/lib/mock-data";
 import { OfferSuggestion } from "@/lib/types";
 import { useFormStatus } from "react-dom";
+import { useAuth } from "@/contexts/auth-context";
 
 const offerSchema = z.object({
   productId: z.string().min(1, { message: "Please select a product." }),
@@ -69,7 +70,8 @@ function SubmitButton() {
 
 export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, recipientId, formAction }: CreateOfferDialogProps) {
   const { toast } = useToast();
-  const isControllingOpen = typeof open !== 'undefined';
+  const { user } = useAuth();
+  const formRef = useRef<HTMLFormElement>(null);
   
   const form = useForm<z.infer<typeof offerSchema>>({
     resolver: zodResolver(offerSchema),
@@ -93,15 +95,16 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
   }, [suggestion, form, open]);
   
   const handleAction = (formData: FormData) => {
-    // We manually add the offer data to the form data
-    // because the form is controlled by react-hook-form
+    const values = form.getValues();
     const offerValues = {
-        productId: form.getValues('productId'),
-        quantity: form.getValues('quantity'),
-        pricePerUnit: form.getValues('pricePerUnit'),
-        notes: form.getValues('notes'),
+        productId: values.productId,
+        quantity: values.quantity,
+        pricePerUnit: values.pricePerUnit,
+        notes: values.notes,
     }
     formData.append('offer', JSON.stringify(offerValues));
+    formData.append('recipientId', recipientId);
+    formData.append('message', 'New Offer'); // Required for the action
 
     formAction(formData);
 
@@ -111,16 +114,10 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
         description: `Your offer for ${product?.title} has been sent.`
     });
     
-    if (onOpenChange) {
-      onOpenChange(false);
-    }
-    if (onClose) {
-      onClose();
-    }
-    form.reset();
+    handleOpenChange(false);
   }
 
-  const sellerProducts = mockProducts.filter(p => p.sellerId === loggedInUser.id);
+  const sellerProducts = mockProducts.filter(p => p.sellerId === user?.id);
   
   const handleOpenChange = (isOpen: boolean) => {
     if (onOpenChange) {
@@ -137,7 +134,7 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      {!isControllingOpen && (
+      {!open && (
         <DialogTrigger asChild>
           <Button>
             <Gavel className="mr-2 h-4 w-4" />
@@ -154,13 +151,10 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
         </DialogHeader>
         <Form {...form}>
           <form 
+            ref={formRef}
             action={handleAction}
             className="space-y-4"
           >
-             {/* Hidden inputs for the server action */}
-            <input type="hidden" name="recipientId" value={recipientId} />
-            <input type="hidden" name="message" value="New Offer" />
-
             <FormField
               control={form.control}
               name="productId"
