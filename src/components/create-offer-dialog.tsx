@@ -92,17 +92,20 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
       });
     }
   }, [suggestion, form, open]);
-
-  // This function is now the single source of truth for submission.
-  // It's called by react-hook-form's handleSubmit.
-  const onSubmit = (values: z.infer<typeof offerSchema>) => {
-    const formData = new FormData();
-    formData.append("offer", JSON.stringify(values));
-    formData.append("recipientId", recipientId);
-    
+  
+  const handleAction = async (formData: FormData) => {
+    const values = {
+        productId: form.getValues('productId'),
+        quantity: form.getValues('quantity'),
+        pricePerUnit: form.getValues('pricePerUnit'),
+        notes: form.getValues('notes'),
+    }
+    // Set the values on formData so the action receives them
+    formData.append('offer', JSON.stringify(values));
+    formData.append('recipientId', recipientId);
     // The message is just for context; the server action uses the offer data
-    formData.append("message", "New Offer");
-    
+    formData.append('message', 'New Offer');
+
     formAction(formData);
 
     const product = mockProducts.find(p => p.id === values.productId);
@@ -155,9 +158,7 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
         <Form {...form}>
           <form 
             ref={formRef} 
-            // We pass our combined onSubmit function here.
-            // react-hook-form will run validation first, then call it.
-            onSubmit={form.handleSubmit(onSubmit)}
+            action={handleAction}
             className="space-y-4"
           >
             <FormField
@@ -194,7 +195,7 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
                   <FormItem>
                     <FormLabel>Quantity</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} />
+                      <Input type="number" {...field} value={field.value ?? ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -207,7 +208,7 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
                   <FormItem>
                     <FormLabel>Price per Unit (USD)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" {...field} />
+                      <Input type="number" step="0.01" {...field} value={field.value ?? ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -233,8 +234,7 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
             />
 
             <DialogFooter>
-               {/* This button's type="submit" will now correctly trigger the form's onSubmit */}
-              <Button type="submit">Send Offer</Button>
+              <SubmitButton />
             </DialogFooter>
           </form>
         </Form>
