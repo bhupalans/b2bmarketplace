@@ -222,4 +222,4 @@ export const mockMessages: Message[] = [
     }
 ];
 
-export const loggedInUser = mockUsers['user-1'];
+export const loggedInUser = mockUsers['user-2'];
