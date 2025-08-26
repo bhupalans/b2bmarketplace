@@ -282,12 +282,14 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
       </div>
       
       <Button variant="outline" type="button" disabled={isLoading || isGoogleLoading} onClick={handleGoogleSignIn}>
-        {isGoogleLoading ? (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        ) : (
-          <GoogleIcon className="mr-2 h-4 w-4" />
-        )}{" "}
-        Google
+        <div className="flex items-center justify-center">
+            {isGoogleLoading ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+            <GoogleIcon className="mr-2 h-4 w-4" />
+            )}{" "}
+            Google
+        </div>
       </Button>
 
     </div>
