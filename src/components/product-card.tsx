@@ -42,7 +42,7 @@ export function ProductCard({ product }: ProductCardProps) {
         <Link href={`/products/${product.id}`}>
           <div className="relative aspect-video w-full">
             <Image
-              src={product.image}
+              src={product.images[0]}
               alt={product.title}
               fill
               className="object-cover"

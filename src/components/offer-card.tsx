@@ -68,7 +68,7 @@ export function OfferCard({ offerId }: OfferCardProps) {
           </div>
           <div className="relative h-16 w-16 overflow-hidden rounded-md">
             <Image
-              src={product.image}
+              src={product.images[0]}
               alt={product.title}
               fill
               className="object-cover"

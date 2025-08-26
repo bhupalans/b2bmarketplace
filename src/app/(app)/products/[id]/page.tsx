@@ -28,6 +28,13 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 import { Category } from "@/lib/types";
 
 // This is a server component, so we can fetch data directly.
@@ -98,15 +105,25 @@ export default async function ProductDetailPage({
       <div className="grid gap-8 md:grid-cols-2">
         <div className="space-y-8">
           <Card className="overflow-hidden">
-            <div className="relative aspect-square w-full">
-              <Image
-                src={product.image}
-                alt={product.title}
-                fill
-                className="object-cover"
-                data-ai-hint="product image"
-              />
-            </div>
+            <Carousel className="w-full">
+              <CarouselContent>
+                {product.images.map((imgSrc, index) => (
+                  <CarouselItem key={index}>
+                    <div className="relative aspect-square w-full">
+                      <Image
+                        src={imgSrc}
+                        alt={`${product.title} - view ${index + 1}`}
+                        fill
+                        className="object-cover"
+                        data-ai-hint="product image"
+                      />
+                    </div>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious className="absolute left-4" />
+              <CarouselNext className="absolute right-4" />
+            </Carousel>
           </Card>
 
           {product.specifications && product.specifications.length > 0 && (
