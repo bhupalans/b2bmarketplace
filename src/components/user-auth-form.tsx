@@ -10,7 +10,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   GoogleAuthProvider,
-  signInWithRedirect,
+  signInWithPopup,
 } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -133,8 +133,27 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
   async function handleGoogleSignIn() {
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
-    // We don't need to await this. It navigates away from the page.
-    await signInWithRedirect(auth, provider);
+    try {
+      await signInWithPopup(auth, provider);
+      // The onAuthStateChanged listener in AuthProvider will handle profile creation and navigation.
+      toast({
+        title: "Signed In",
+        description: "You have successfully signed in with Google.",
+      });
+      router.push("/");
+    } catch (error: any) {
+      console.error(error);
+      // Don't show a toast for user-closed popups
+      if (error.code !== 'auth/popup-closed-by-user') {
+          toast({
+            variant: "destructive",
+            title: "Authentication Failed",
+            description: error.message || "An unexpected error occurred.",
+          });
+      }
+    } finally {
+        setIsGoogleLoading(false);
+    }
   }
 
   return (
