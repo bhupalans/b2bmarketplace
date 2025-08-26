@@ -8,7 +8,7 @@ const firebaseConfig = {
   appId: '1:822558435203:web:c462791316c4540a2e78b6',
   storageBucket: 'b2b-marketplace-udg1v.firebasestorage.app',
   apiKey: 'AIzaSyDL_o5j6RtqjCwFN5iTtvUj6nFfyDJaaxc',
-  authDomain: 'b2b-marketplace-udg1v.firebaseapp.com',
+  authDomain: typeof window !== 'undefined' ? window.location.hostname : 'b2b-marketplace-udg1v.firebaseapp.com',
   messagingSenderId: '822558435203',
 };
 
