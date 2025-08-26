@@ -244,7 +244,7 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
                 <FormItem>
                   <FormLabel>I am a...</FormLabel>
                   <Select
-                    onValuechange={field.onChange}
+                    onValueChange={field.onChange}
                     defaultValue={field.value}
                     disabled={isLoading}
                   >
@@ -282,14 +282,12 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
       </div>
       
       <Button variant="outline" type="button" disabled={isLoading || isGoogleLoading} onClick={handleGoogleSignIn}>
-        <div className="flex items-center justify-center">
-            {isGoogleLoading ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-            <GoogleIcon className="mr-2 h-4 w-4" />
-            )}{" "}
-            Google
-        </div>
+        {isGoogleLoading ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : (
+          <GoogleIcon className="mr-2 h-4 w-4" />
+        )}{" "}
+        Google
       </Button>
 
     </div>
