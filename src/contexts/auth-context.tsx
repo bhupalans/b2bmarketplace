@@ -22,12 +22,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setLoading(true);
-      setFirebaseUser(user);
-      if (user) {
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      setFirebaseUser(fbUser);
+      if (fbUser) {
         // User is signed in. Fetch their profile from Firestore.
-        const userDocRef = doc(db, 'users', user.uid);
+        const userDocRef = doc(db, 'users', fbUser.uid);
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists()) {
           setUser({ id: userDoc.id, ...userDoc.data() } as User);
@@ -35,13 +34,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // This can happen on first sign-in (e.g., with Google popup)
           // if the profile hasn't been created yet.
           const userProfile = {
-            name: user.displayName,
-            email: user.email,
+            name: fbUser.displayName,
+            email: fbUser.email,
             role: 'buyer', // Default role
-            avatar: user.photoURL || `https://i.pravatar.cc/150?u=${user.uid}`,
+            avatar: fbUser.photoURL || `https://i.pravatar.cc/150?u=${fbUser.uid}`,
           };
           await setDoc(userDocRef, userProfile);
-          setUser({ id: user.uid, ...userProfile } as User);
+          setUser({ id: fbUser.uid, ...userProfile } as User);
         }
       } else {
         // User is signed out.
@@ -52,18 +51,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     return () => unsubscribe();
   }, []);
-  
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
 
   return (
     <AuthContext.Provider value={{ user, firebaseUser, loading }}>
-      {children}
+      {loading ? (
+        <div className="flex h-screen items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      ) : (
+        children
+      )}
     </AuthContext.Provider>
   );
 };

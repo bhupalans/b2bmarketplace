@@ -33,12 +33,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [firebaseUser, loading, router]);
   
-  if (loading || !firebaseUser) {
+  if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
+  }
+
+  if (!firebaseUser) {
+    // This can happen briefly between loading=false and the router push.
+    // It prevents the layout from flashing before the redirect.
+    return null;
   }
 
 
