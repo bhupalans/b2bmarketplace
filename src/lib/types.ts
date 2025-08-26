@@ -47,6 +47,7 @@ export type Message = {
   senderId: string;
   recipientId: string;
   offerId?: string;
+  isSystemMessage?: boolean;
 };
 
 export type OfferSuggestion = {

@@ -20,9 +20,10 @@ import { Offer } from "@/lib/types";
 
 interface OfferCardProps {
   offerId: string;
+  onDecision?: (payload: FormData) => void;
 }
 
-export function OfferCard({ offerId }: OfferCardProps) {
+export function OfferCard({ offerId, onDecision }: OfferCardProps) {
   const { toast } = useToast();
   // We use state to make the component re-render when the offer status changes.
   const [offer, setOffer] = useState<Offer | undefined>(mockOffers[offerId]);
@@ -44,10 +45,23 @@ export function OfferCard({ offerId }: OfferCardProps) {
     // Also update the mock data so it persists across re-renders for this demo
     mockOffers[offerId] = updatedOffer;
 
-    toast({
-      title: `Offer ${decision}`,
-      description: `You have ${decision} the offer for ${product.title}.`,
-    });
+    if (onDecision) {
+      const formData = new FormData();
+      const offerDecision = {
+        offerId,
+        decision,
+        productTitle: product.title,
+      };
+      formData.append("offerDecision", JSON.stringify(offerDecision));
+      formData.append("message", "Offer decision made");
+      onDecision(formData);
+    } else {
+       toast({
+        title: `Offer ${decision}`,
+        description: `You have ${decision} the offer for ${product.title}.`,
+      });
+    }
+
     setIsUpdating(false);
   };
 

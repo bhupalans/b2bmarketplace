@@ -36,7 +36,6 @@ import {
 } from "./ui/select";
 import { loggedInUser, mockProducts } from "@/lib/mock-data";
 import { OfferSuggestion } from "@/lib/types";
-import { sendMessageAction } from "@/app/actions";
 
 const offerSchema = z.object({
   productId: z.string().min(1, { message: "Please select a product." }),
@@ -51,10 +50,11 @@ type CreateOfferDialogProps = {
   onOpenChange?: (open: boolean) => void;
   onClose?: () => void;
   recipientId: string;
+  formAction: (payload: FormData) => void;
 };
 
 
-export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, recipientId }: CreateOfferDialogProps) {
+export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, recipientId, formAction }: CreateOfferDialogProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const isControllingOpen = typeof open !== 'undefined';
@@ -78,7 +78,7 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
         notes: "",
       });
     }
-  }, [suggestion, form]);
+  }, [suggestion, form, open]);
 
   async function onSubmit(values: z.infer<typeof offerSchema>) {
     setIsLoading(true);
@@ -90,21 +90,13 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
 
     // This action will create the offer and the message.
     // The chat component will receive the new message and update the UI.
-    const result = await sendMessageAction(null, formData);
+    formAction(formData);
     
-    if (result.error) {
-      toast({
-        title: "Error Sending Offer",
-        description: result.error,
-        variant: "destructive"
-      });
-    } else {
-      const product = mockProducts.find(p => p.id === values.productId);
-      toast({
-          title: "Offer Sent!",
-          description: `Your offer for ${product?.title} has been sent.`
-      });
-    }
+    const product = mockProducts.find(p => p.id === values.productId);
+    toast({
+        title: "Offer Sent!",
+        description: `Your offer for ${product?.title} has been sent.`
+    });
     
     setIsLoading(false);
     if (onOpenChange) {
@@ -124,6 +116,9 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
     }
     if (!isOpen && onClose) {
       onClose();
+    }
+    if (!isOpen) {
+      form.reset();
     }
   };
 

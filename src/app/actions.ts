@@ -11,6 +11,7 @@ const messageSchema = z.object({
   message: z.string().min(1),
   offer: z.string().optional(), // Stringified JSON of the new offer
   recipientId: z.string().optional(), // Who the offer is for
+  offerDecision: z.string().optional(), // Stringified JSON of the offer decision
 });
 
 export async function sendMessageAction(prevState: any, formData: FormData) {
@@ -18,6 +19,7 @@ export async function sendMessageAction(prevState: any, formData: FormData) {
     message: formData.get("message"),
     offer: formData.get("offer") as string | undefined,
     recipientId: formData.get("recipientId") as string | undefined,
+    offerDecision: formData.get("offerDecision") as string | undefined,
   });
 
   if (!validatedFields.success) {
@@ -26,6 +28,27 @@ export async function sendMessageAction(prevState: any, formData: FormData) {
       error: "Message cannot be empty.",
     };
   }
+
+  // Handle updating an offer and creating a system message
+  if (validatedFields.data.offerDecision) {
+    const { offerId, decision, productTitle } = JSON.parse(validatedFields.data.offerDecision);
+    const offer = mockOffers[offerId];
+    if (offer) {
+      offer.status = decision;
+    }
+    return {
+      error: null,
+      message: {
+        id: `msg-${Date.now()}`,
+        text: `Offer ${decision}: ${productTitle}`,
+        timestamp: Date.now(),
+        senderId: loggedInUser.id,
+        recipientId: offer.sellerId,
+        isSystemMessage: true, // Flag for styling
+      }
+    };
+  }
+
 
   // Handle creating a new offer
   if (validatedFields.data.offer && validatedFields.data.recipientId) {

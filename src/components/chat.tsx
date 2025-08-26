@@ -195,6 +195,7 @@ export function Chat() {
                   onOpenChange={setCreateOfferOpen}
                   onClose={() => setSuggestion(null)}
                   recipientId={recipient.id}
+                  formAction={formAction}
                 />
               </>
             )}
@@ -212,10 +213,10 @@ export function Chat() {
                 key={message.id}
                 className={cn(
                   "flex items-start gap-3",
-                  message.senderId === loggedInUser.id && "justify-end"
+                  message.isSystemMessage ? "justify-center" : (message.senderId === loggedInUser.id && "justify-end")
                 )}
               >
-                {message.senderId !== loggedInUser.id && (
+                {message.senderId !== loggedInUser.id && !message.isSystemMessage && (
                   <Avatar className="h-8 w-8 border">
                     <AvatarImage src={mockUsers[message.senderId]?.avatar} />
                     <AvatarFallback>
@@ -226,19 +227,21 @@ export function Chat() {
                 <div
                   className={cn(
                     "max-w-xs rounded-lg p-3 text-sm",
-                    message.senderId === loggedInUser.id
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted",
+                    message.isSystemMessage 
+                      ? "bg-accent text-accent-foreground" 
+                      : (message.senderId === loggedInUser.id
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted"),
                     message.offerId && "max-w-md bg-transparent p-0"
                   )}
                 >
                   {message.offerId ? (
-                    <OfferCard offerId={message.offerId} />
+                    <OfferCard offerId={message.offerId} onDecision={formAction} />
                   ) : (
                     <p>{message.text}</p>
                   )}
                 </div>
-                {message.senderId === loggedInUser.id && (
+                {message.senderId === loggedInUser.id && !message.isSystemMessage && (
                    <Avatar className="h-8 w-8 border">
                     <AvatarImage src={mockUsers[message.senderId]?.avatar} />
                     <AvatarFallback>
@@ -272,6 +275,7 @@ export function Chat() {
               placeholder="Type your message here..."
               className="min-h-12 flex-1 resize-none rounded-full px-4 py-3"
             />
+             <input type="hidden" name="recipientId" value={recipient.id} />
             <SubmitButton />
           </form>
         </footer>
