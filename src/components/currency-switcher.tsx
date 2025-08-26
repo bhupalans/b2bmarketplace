@@ -11,7 +11,7 @@ import {
 
 export function CurrencySwitcher() {
   const { currency, setCurrency, rates } = useCurrency();
-  const availableCurrencies = ["USD", ...Object.keys(rates)];
+  const availableCurrencies = Array.from(new Set(["USD", ...Object.keys(rates)]));
 
   return (
     <Select value={currency} onValueChange={setCurrency}>
