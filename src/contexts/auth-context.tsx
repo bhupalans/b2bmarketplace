@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { onAuthStateChanged, User as FirebaseUser, getRedirectResult, UserCredential } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import type { User } from '@/lib/types';
@@ -21,8 +21,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // This effect sets up the central auth state listener.
   useEffect(() => {
+    // This effect runs once on mount to handle the redirect result.
+    getRedirectResult(auth)
+      .then(async (result: UserCredential | null) => {
+        if (result) {
+          // This is a first-time sign-in from Google via redirect.
+          const user = result.user;
+          const userDocRef = doc(db, 'users', user.uid);
+          const userDoc = await getDoc(userDocRef);
+          if (!userDoc.exists()) {
+            // Create their profile if it doesn't exist
+            console.log("Creating new user profile for Google redirect user.");
+            const userProfile = {
+              name: user.displayName,
+              email: user.email,
+              role: 'buyer', // Default role
+              avatar: user.photoURL || `https://i.pravatar.cc/150?u=${user.uid}`,
+            };
+            await setDoc(userDocRef, userProfile);
+          }
+        }
+        // If result is null, it's a normal page load, not a redirect return.
+        // The onAuthStateChanged listener below will handle all cases of setting the user.
+      })
+      .catch((error) => {
+        console.error("Error getting redirect result:", error);
+      });
+
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setFirebaseUser(user);
       if (user) {
@@ -32,8 +59,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (userDoc.exists()) {
           setUser({ id: userDoc.id, ...userDoc.data() } as User);
         } else {
-            // This is a first-time sign-in from Google, create a user profile.
-            console.log("Creating new user profile for Google user.");
+            // This case handles a first-time sign-in from a non-redirect method (e.g., popup)
+            console.log("Creating new user profile for Google popup user.");
             const userProfile = {
               name: user.displayName,
               email: user.email,
