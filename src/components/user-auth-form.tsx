@@ -11,9 +11,8 @@ import {
   signInWithEmailAndPassword,
   GoogleAuthProvider,
   signInWithRedirect,
-  getRedirectResult,
 } from "firebase/auth";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
 import { cn } from "@/lib/utils";
@@ -85,61 +84,6 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
     },
   });
 
-  // Effect to handle the redirect result after Google sign-in
-  React.useEffect(() => {
-    const handleRedirectResult = async () => {
-      try {
-        // Set loading true only if we anticipate a redirect result potentially happening.
-        // A user might just be visiting the login page without having been redirected.
-        const potentialRedirect = auth.currentUser === null; // Simple heuristic
-        if (potentialRedirect) {
-            setIsGoogleLoading(true);
-        }
-
-        const result = await getRedirectResult(auth);
-        if (result) {
-          const user = result.user;
-          const userDocRef = doc(db, "users", user.uid);
-          const userDoc = await getDoc(userDocRef);
-
-          if (!userDoc.exists()) {
-            const userProfile = {
-              name: user.displayName,
-              email: user.email,
-              role: 'buyer', // Default role for Google sign-up
-              avatar: user.photoURL || `https://i.pravatar.cc/150?u=${user.uid}`,
-            };
-            await setDoc(userDocRef, userProfile);
-            toast({
-              title: "Account Created",
-              description: "Welcome! Your account has been created via Google.",
-            });
-          } else {
-            toast({
-              title: "Signed In",
-              description: "Welcome back!",
-            });
-          }
-          router.push("/");
-        }
-      } catch (error: any) {
-        // This specific error means there was no redirect operation to process, which is normal on a fresh page load.
-        if (error.code !== 'auth/no-redirect-operation') {
-             toast({
-                variant: "destructive",
-                title: "Google Sign-In Failed",
-                description: error.message || "Could not process Google sign-in. Please try again.",
-            });
-        }
-      } finally {
-        setIsGoogleLoading(false);
-      }
-    };
-
-    handleRedirectResult();
-  }, [router, toast]);
-
-
   async function onSubmit(values: z.infer<typeof finalSchema>) {
     setIsLoading(true);
     try {
@@ -190,7 +134,7 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     // We don't need to await this. It navigates away from the page.
-    signInWithRedirect(auth, provider);
+    await signInWithRedirect(auth, provider);
   }
 
   return (
