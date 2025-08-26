@@ -5,12 +5,12 @@ import React, { useState, useMemo } from "react";
 import { ProductCard } from "@/components/product-card";
 import { CurrencySwitcher } from "@/components/currency-switcher";
 import { CategorySidebar } from "@/components/category-sidebar";
-import { mockProducts, mockCategories } from "@/lib/mock-data";
 import { Category, Product } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { useProducts } from "@/hooks/use-products";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 
 // Helper function to get all descendant category IDs
 const getDescendantCategoryIds = (
