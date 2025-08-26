@@ -1,8 +1,9 @@
+
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building, Home, MessageSquare, PanelLeft } from "lucide-react";
+import { Building, Home, MessageSquare, PanelLeft, Loader2 } from "lucide-react";
 import {
   SidebarProvider,
   Sidebar,
@@ -33,8 +34,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }, [firebaseUser, loading, router]);
   
   if (loading || !firebaseUser) {
-    // You can show a loading spinner here
-    return null; 
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
   }
 
 
