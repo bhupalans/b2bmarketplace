@@ -137,34 +137,6 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
     }
   };
 
-  const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const isValid = await form.trigger();
-    if (isValid) {
-      // Manually create FormData and append fields
-      const formData = new FormData(e.currentTarget);
-      const values = form.getValues();
-      formData.append('offer', JSON.stringify(values));
-      formData.append('recipientId', recipientId);
-      formData.append('message', 'New Offer');
-      formAction(formData);
-
-      const product = mockProducts.find(p => p.id === values.productId);
-      toast({
-          title: "Offer Sent!",
-          description: `Your offer for ${product?.title} has been sent.`
-      });
-      
-      if (onOpenChange) {
-        onOpenChange(false);
-      }
-      if (onClose) {
-        onClose();
-      }
-      form.reset();
-    }
-  };
-
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -186,7 +158,7 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
         <Form {...form}>
           <form 
             ref={formRef}
-            onSubmit={handleFormSubmit}
+            action={handleAction}
             className="space-y-4"
           >
             <FormField
@@ -261,9 +233,10 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
                 </FormItem>
               )}
             />
-
+            <input type="hidden" name="recipientId" value={recipientId} />
+            <input type="hidden" name="message" value="New Offer" />
             <DialogFooter>
-               <Button type="submit">Send Offer</Button>
+               <SubmitButton />
             </DialogFooter>
           </form>
         </Form>
