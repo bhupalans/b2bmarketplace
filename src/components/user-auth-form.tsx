@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -8,9 +9,10 @@ import * as z from "zod";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  updateProfile,
+  GoogleAuthProvider,
+  signInWithPopup,
 } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
 import { cn } from "@/lib/utils";
@@ -57,11 +59,18 @@ const signupSchema = formSchema.refine(
   }
 );
 
+const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.85 3.18-1.73 4.1-1.02 1.02-2.6 1.84-4.84 1.84-5.84 0-10.62-4.7-10.62-10.62s4.78-10.62 10.62-10.62c3.37 0 5.39 1.48 6.62 2.62l2.34-2.34C19.63 1.18 16.47 0 12.48 0 5.88 0 0 5.88 0 12.48s5.88 12.48 12.48 12.48c7.28 0 12.12-5.04 12.12-12.48 0-.8-.08-1.52-.2-2.24H12.48z" />
+    </svg>
+);
+
 
 export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
+  const [isGoogleLoading, setIsGoogleLoading] = React.useState<boolean>(false);
 
   const finalSchema = mode === 'signup' ? signupSchema : formSchema;
 
@@ -118,6 +127,50 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
       });
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function handleGoogleSignIn() {
+    setIsGoogleLoading(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      // Check if user already exists in Firestore
+      const userDocRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists()) {
+        // New user, create a profile in Firestore
+        const userProfile = {
+          name: user.displayName,
+          email: user.email,
+          role: 'buyer', // Default role for social signup
+          avatar: user.photoURL || `https://i.pravatar.cc/150?u=${user.uid}`,
+        };
+        await setDoc(userDocRef, userProfile);
+        toast({
+          title: "Account Created",
+          description: "Welcome! Your account has been created.",
+        });
+      } else {
+         toast({
+          title: "Signed In",
+          description: "Welcome back!",
+        });
+      }
+      router.push("/");
+
+    } catch (error: any) {
+      console.error(error);
+      toast({
+        variant: "destructive",
+        title: "Google Sign-In Failed",
+        description: error.message || "Could not sign in with Google. Please try again.",
+      });
+    } finally {
+      setIsGoogleLoading(false);
     }
   }
 
@@ -191,7 +244,7 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
                 <FormItem>
                   <FormLabel>I am a...</FormLabel>
                   <Select
-                    onValueChange={field.onChange}
+                    onValuechange={field.onChange}
                     defaultValue={field.value}
                     disabled={isLoading}
                   >
@@ -210,12 +263,33 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
               )}
             />
           )}
-          <Button disabled={isLoading} className="w-full">
+          <Button disabled={isLoading || isGoogleLoading} className="w-full">
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {mode === "login" ? "Sign In" : "Create Account"}
           </Button>
         </form>
       </Form>
+
+       <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-background px-2 text-muted-foreground">
+            Or continue with
+          </span>
+        </div>
+      </div>
+      
+      <Button variant="outline" type="button" disabled={isLoading || isGoogleLoading} onClick={handleGoogleSignIn}>
+        {isGoogleLoading ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : (
+          <GoogleIcon className="mr-2 h-4 w-4" />
+        )}{" "}
+        Google
+      </Button>
+
     </div>
   );
 }
