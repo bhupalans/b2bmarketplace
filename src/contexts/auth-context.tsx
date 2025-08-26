@@ -22,17 +22,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // This effect runs once on mount to handle the redirect result.
-    getRedirectResult(auth)
-      .then(async (result: UserCredential | null) => {
+    const processRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
         if (result) {
-          // This is a first-time sign-in from Google via redirect.
+          // This is a first-time sign-in or a re-auth from Google via redirect.
           const user = result.user;
           const userDocRef = doc(db, 'users', user.uid);
           const userDoc = await getDoc(userDocRef);
           if (!userDoc.exists()) {
             // Create their profile if it doesn't exist
-            console.log("Creating new user profile for Google redirect user.");
             const userProfile = {
               name: user.displayName,
               email: user.email,
@@ -42,13 +41,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             await setDoc(userDocRef, userProfile);
           }
         }
-        // If result is null, it's a normal page load, not a redirect return.
-        // The onAuthStateChanged listener below will handle all cases of setting the user.
-      })
-      .catch((error) => {
+      } catch (error) {
         console.error("Error getting redirect result:", error);
-      });
-
+      }
+    };
+    
+    // Process the redirect result first. onAuthStateChanged will handle setting the final user state.
+    processRedirectResult();
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setFirebaseUser(user);
@@ -60,7 +59,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setUser({ id: userDoc.id, ...userDoc.data() } as User);
         } else {
             // This case handles a first-time sign-in from a non-redirect method (e.g., popup)
-            console.log("Creating new user profile for Google popup user.");
+            // It might also catch a new user from a redirect if the profile creation in processRedirectResult hasn't finished, which is fine.
             const userProfile = {
               name: user.displayName,
               email: user.email,

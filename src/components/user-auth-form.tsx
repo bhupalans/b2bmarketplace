@@ -72,7 +72,7 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const [isGoogleLoading, setIsGoogleLoading] = React.useState<boolean>(false);
-  const [isIframe, setIsIframe] = React.useState<boolean>(true); // Default to true for Studio
+  const [isIframe, setIsIframe] = React.useState<boolean>(true);
 
   const finalSchema = mode === 'signup' ? signupSchema : formSchema;
 
@@ -88,7 +88,9 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
 
   React.useEffect(() => {
     // This will only run on the client side
-    setIsIframe(window.self !== window.top);
+    if (typeof window !== 'undefined') {
+      setIsIframe(window.self !== window.top);
+    }
   }, []);
 
 
@@ -149,8 +151,7 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
             // Use redirect for standalone windows
             await signInWithRedirect(auth, provider);
         }
-      // For popups, onAuthStateChanged handles the success.
-      // For redirects, the logic in AuthProvider will handle it.
+      // For popups and redirects, onAuthStateChanged in AuthProvider will handle the success.
       
     } catch (error: any) {
       console.error(error);
