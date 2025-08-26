@@ -15,6 +15,8 @@ import { Check, Gavel, X } from "lucide-react";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "./ui/badge";
+import { useState } from "react";
+import { Offer } from "@/lib/types";
 
 interface OfferCardProps {
   offerId: string;
@@ -22,7 +24,9 @@ interface OfferCardProps {
 
 export function OfferCard({ offerId }: OfferCardProps) {
   const { toast } = useToast();
-  const offer = mockOffers[offerId];
+  // We use state to make the component re-render when the offer status changes.
+  const [offer, setOffer] = useState<Offer | undefined>(mockOffers[offerId]);
+
   if (!offer) return null;
 
   const product = mockProducts.find((p) => p.id === offer.productId);
@@ -30,7 +34,12 @@ export function OfferCard({ offerId }: OfferCardProps) {
 
   const handleDecision = (decision: "accepted" | "declined") => {
     // In a real app, this would be a server action.
-    offer.status = decision;
+    const updatedOffer = { ...offer, status: decision };
+    setOffer(updatedOffer);
+    
+    // Also update the mock data so it persists across re-renders for this demo
+    mockOffers[offerId] = updatedOffer;
+
     toast({
       title: `Offer ${decision}`,
       description: `You have ${decision} the offer for ${product.title}.`,
@@ -107,7 +116,7 @@ export function OfferCard({ offerId }: OfferCardProps) {
           </>
         ) : (
           <Badge
-            className="w-full justify-center py-2 text-sm"
+            className="w-full justify-center py-2 text-sm capitalize"
             variant={offer.status === 'accepted' ? 'default' : 'destructive'}
           >
             Offer {offer.status}
