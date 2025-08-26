@@ -9,6 +9,8 @@ import { mockProducts, mockCategories } from "@/lib/mock-data";
 import { Category, Product } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { useProducts } from "@/hooks/use-products";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Helper function to get all descendant category IDs
 const getDescendantCategoryIds = (
@@ -32,32 +34,37 @@ const getDescendantCategoryIds = (
 
 
 export default function ProductsPage() {
+  const { products, categories, loading } = useProducts();
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
     null
   );
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredProducts = useMemo(() => {
-    let products = mockProducts;
+    if (loading) {
+      return [];
+    }
+
+    let filtered = products;
 
     // Filter by category
     if (selectedCategoryId) {
-      const categoryIdsToFilter = getDescendantCategoryIds(selectedCategoryId, mockCategories);
-      products = products.filter((product) =>
+      const categoryIdsToFilter = getDescendantCategoryIds(selectedCategoryId, categories);
+      filtered = filtered.filter((product) =>
         categoryIdsToFilter.includes(product.categoryId)
       );
     }
     
     // Filter by search term
     if (searchTerm) {
-      products = products.filter(product => 
+      filtered = filtered.filter(product => 
         product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         product.description.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    return products;
-  }, [selectedCategoryId, searchTerm]);
+    return filtered;
+  }, [selectedCategoryId, searchTerm, products, categories, loading]);
   
   const handleSelectCategory = (categoryId: string | null) => {
     setSelectedCategoryId(categoryId);
@@ -67,7 +74,8 @@ export default function ProductsPage() {
     <div className="grid grid-cols-1 gap-8 md:grid-cols-[280px_1fr]">
       <aside>
         <CategorySidebar
-          categories={mockCategories}
+          categories={categories}
+          loading={loading}
           selectedCategoryId={selectedCategoryId}
           onSelectCategory={handleSelectCategory}
         />
@@ -76,9 +84,11 @@ export default function ProductsPage() {
         <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <div className="flex-1">
             <h1 className="text-2xl font-bold tracking-tight">Products</h1>
-            <p className="text-muted-foreground">
-              Showing {filteredProducts.length} of {mockProducts.length} products
-            </p>
+            {!loading && (
+              <p className="text-muted-foreground">
+                Showing {filteredProducts.length} of {products.length} products
+              </p>
+            )}
           </div>
           <CurrencySwitcher />
         </div>
@@ -90,14 +100,35 @@ export default function ProductsPage() {
               className="w-full pl-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              disabled={loading}
             />
         </div>
         
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
-          {filteredProducts.map((product: Product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        {loading ? (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
+             {Array.from({ length: 6 }).map((_, i) => (
+                <Card key={i}>
+                  <CardHeader className="p-0">
+                     <Skeleton className="aspect-video w-full" />
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    <Skeleton className="h-6 w-3/4" />
+                    <Skeleton className="mt-2 h-4 w-full" />
+                     <Skeleton className="mt-4 h-8 w-1/2" />
+                  </CardContent>
+                  <CardFooter className="p-6 pt-0">
+                    <Skeleton className="h-10 w-full" />
+                  </CardFooter>
+                </Card>
+              ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
+            {filteredProducts.map((product: Product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        )}
       </main>
     </div>
   );

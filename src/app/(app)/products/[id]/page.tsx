@@ -2,8 +2,8 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { mockProducts, mockUsers, mockCategories } from "@/lib/mock-data";
 import { notFound } from "next/navigation";
+import { getProductAndSeller, getCategoryPath } from "@/lib/firestore";
 import {
   Card,
   CardContent,
@@ -35,39 +35,20 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import { Category } from "@/lib/types";
-
-// This is a server component, so we can fetch data directly.
-// In a real app, you'd fetch this from a database.
-async function getProduct(id: string) {
-  const product = mockProducts.find((p) => p.id === id);
-  if (!product) {
-    return null;
-  }
-  const seller = mockUsers[product.sellerId];
-  
-  const categoryPath: Category[] = [];
-  let currentCategory = mockCategories.find(c => c.id === product.categoryId);
-  while (currentCategory) {
-    categoryPath.unshift(currentCategory);
-    currentCategory = mockCategories.find(c => c.id === currentCategory!.parentId);
-  }
-
-  return { product, seller, categoryPath };
-}
 
 export default async function ProductDetailPage({
   params,
 }: {
   params: { id: string };
 }) {
-  const data = await getProduct(params.id);
+  const productData = await getProductAndSeller(params.id);
 
-  if (!data) {
+  if (!productData) {
     notFound();
   }
 
-  const { product, seller, categoryPath } = data;
+  const { product, seller } = productData;
+  const categoryPath = await getCategoryPath(product.categoryId);
 
   // We can't use the useCurrency hook here because this is a Server Component.
   // We'll just display the price in USD for now.
@@ -92,10 +73,8 @@ export default async function ProductDetailPage({
                 {index === categoryPath.length - 1 ? (
                   <BreadcrumbPage>{cat.name}</BreadcrumbPage>
                 ) : (
-                  <BreadcrumbLink asChild>
-                    {/* In a real app, this would link to a category page */}
-                    <Link href="#">{cat.name}</Link>
-                  </BreadcrumbLink>
+                  // This link is disabled for now, but could lead to a category page
+                  <span className="cursor-not-allowed">{cat.name}</span>
                 )}
               </BreadcrumbItem>
             </React.Fragment>
@@ -162,31 +141,33 @@ export default async function ProductDetailPage({
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center gap-4 space-y-0">
-              <Avatar className="h-12 w-12 border">
-                <AvatarImage src={seller.avatar} alt={seller.name} />
-                <AvatarFallback>{seller.name.charAt(0)}</AvatarFallback>
-              </Avatar>
-              <div>
-                <CardTitle>
-                  <Link href={`/sellers/${seller.id}`} className="hover:underline">
-                    {seller.name}
-                  </Link>
-                </CardTitle>
-                <CardDescription>
-                  <Badge variant="secondary" className="mt-1">
-                    Seller
-                  </Badge>
-                </CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Button asChild className="w-full">
-                <Link href="/messages">Contact Seller</Link>
-              </Button>
-            </CardContent>
-          </Card>
+          {seller && (
+            <Card>
+              <CardHeader className="flex flex-row items-center gap-4 space-y-0">
+                <Avatar className="h-12 w-12 border">
+                  <AvatarImage src={seller.avatar} alt={seller.name} />
+                  <AvatarFallback>{seller.name.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <CardTitle>
+                    <Link href={`/sellers/${seller.id}`} className="hover:underline">
+                      {seller.name}
+                    </Link>
+                  </CardTitle>
+                  <CardDescription>
+                    <Badge variant="secondary" className="mt-1">
+                      Seller
+                    </Badge>
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Button asChild className="w-full">
+                  <Link href="/messages">Contact Seller</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>

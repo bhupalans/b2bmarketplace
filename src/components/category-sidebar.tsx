@@ -11,11 +11,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { Skeleton } from "./ui/skeleton";
 
 interface CategorySidebarProps {
   categories: Category[];
   selectedCategoryId: string | null;
   onSelectCategory: (id: string | null) => void;
+  loading: boolean;
 }
 
 interface CategoryTreeItem extends Category {
@@ -103,6 +105,7 @@ export function CategorySidebar({
   categories,
   selectedCategoryId,
   onSelectCategory,
+  loading,
 }: CategorySidebarProps) {
   const categoryTree = buildCategoryTree(categories);
 
@@ -114,21 +117,29 @@ export function CategorySidebar({
           variant="ghost"
           size="sm"
           onClick={() => onSelectCategory(null)}
-          disabled={!selectedCategoryId}
+          disabled={!selectedCategoryId || loading}
         >
           Reset
         </Button>
       </div>
       <div className="space-y-1">
-        {categoryTree.map((item) => (
-          <CategoryListItem
-            key={item.id}
-            item={item}
-            selectedCategoryId={selectedCategoryId}
-            onSelectCategory={onSelectCategory}
-            level={0}
-          />
-        ))}
+        {loading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-8 w-full" />
+            ))}
+          </div>
+        ) : (
+          categoryTree.map((item) => (
+            <CategoryListItem
+              key={item.id}
+              item={item}
+              selectedCategoryId={selectedCategoryId}
+              onSelectCategory={onSelectCategory}
+              level={0}
+            />
+          ))
+        )}
       </div>
     </div>
   );
