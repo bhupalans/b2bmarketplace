@@ -17,10 +17,4 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Dynamically set the authDomain to the current host for multi-domain support
-// This is crucial for Google Sign-In to work from different environments (like Cloud Workstations)
-if (typeof window !== 'undefined') {
-  auth.tenantId = window.location.hostname;
-}
-
 export { app, auth, db };
