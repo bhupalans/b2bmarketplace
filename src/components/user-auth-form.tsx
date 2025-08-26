@@ -10,7 +10,8 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
 } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -84,6 +85,55 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
     },
   });
 
+  // Effect to handle the redirect result after Google sign-in
+  React.useEffect(() => {
+    const handleRedirectResult = async () => {
+      try {
+        setIsGoogleLoading(true);
+        const result = await getRedirectResult(auth);
+        if (result) {
+          const user = result.user;
+          const userDocRef = doc(db, "users", user.uid);
+          const userDoc = await getDoc(userDocRef);
+
+          if (!userDoc.exists()) {
+            const userProfile = {
+              name: user.displayName,
+              email: user.email,
+              role: 'buyer', // Default role
+              avatar: user.photoURL || `https://i.pravatar.cc/150?u=${user.uid}`,
+            };
+            await setDoc(userDocRef, userProfile);
+            toast({
+              title: "Account Created",
+              description: "Welcome! Your account has been created.",
+            });
+          } else {
+            toast({
+              title: "Signed In",
+              description: "Welcome back!",
+            });
+          }
+          router.push("/");
+        }
+      } catch (error: any) {
+        // Don't show an error if there was no redirect result to process
+        if (error.code !== 'auth/no-redirect-operation') {
+             toast({
+                variant: "destructive",
+                title: "Google Sign-In Failed",
+                description: error.message || "Could not sign in with Google. Please try again.",
+            });
+        }
+      } finally {
+        setIsGoogleLoading(false);
+      }
+    };
+
+    handleRedirectResult();
+  }, [router, toast]);
+
+
   async function onSubmit(values: z.infer<typeof finalSchema>) {
     setIsLoading(true);
     try {
@@ -132,46 +182,9 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
 
   async function handleGoogleSignIn() {
     setIsGoogleLoading(true);
-    try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-
-      // Check if user already exists in Firestore
-      const userDocRef = doc(db, "users", user.uid);
-      const userDoc = await getDoc(userDocRef);
-
-      if (!userDoc.exists()) {
-        // New user, create a profile in Firestore
-        const userProfile = {
-          name: user.displayName,
-          email: user.email,
-          role: 'buyer', // Default role for social signup
-          avatar: user.photoURL || `https://i.pravatar.cc/150?u=${user.uid}`,
-        };
-        await setDoc(userDocRef, userProfile);
-        toast({
-          title: "Account Created",
-          description: "Welcome! Your account has been created.",
-        });
-      } else {
-         toast({
-          title: "Signed In",
-          description: "Welcome back!",
-        });
-      }
-      router.push("/");
-
-    } catch (error: any) {
-      console.error(error);
-      toast({
-        variant: "destructive",
-        title: "Google Sign-In Failed",
-        description: error.message || "Could not sign in with Google. Please try again.",
-      });
-    } finally {
-      setIsGoogleLoading(false);
-    }
+    const provider = new GoogleAuthProvider();
+    await signInWithRedirect(auth, provider);
+    // The redirect will happen here; the result is handled by the useEffect hook.
   }
 
   return (
