@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { onAuthStateChanged, User as FirebaseUser, getRedirectResult } from 'firebase/auth';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import type { User } from '@/lib/types';
@@ -22,66 +22,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // First, check for the result of a redirect sign-in.
-    // This promise must be handled to completion before we set up the
-    // onAuthStateChanged listener.
-    getRedirectResult(auth)
-      .then(async (result) => {
-        if (result) {
-          // A user has successfully signed in via redirect.
-          const user = result.user;
-          const userDocRef = doc(db, 'users', user.uid);
-          const userDoc = await getDoc(userDocRef);
-
-          if (!userDoc.exists()) {
-            // If it's a first-time sign-in, create their profile.
-            const userProfile = {
-              name: user.displayName,
-              email: user.email,
-              role: 'buyer', // Default role
-              avatar: user.photoURL || `https://i.pravatar.cc/150?u=${user.uid}`,
-            };
-            await setDoc(userDocRef, userProfile);
-          }
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setFirebaseUser(user);
+      if (user) {
+        // User is signed in. Fetch their profile from Firestore.
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists()) {
+          setUser({ id: userDoc.id, ...userDoc.data() } as User);
+        } else {
+          // This can happen on first sign-in (e.g., with Google popup)
+          // if the profile hasn't been created yet.
+          const userProfile = {
+            name: user.displayName,
+            email: user.email,
+            role: 'buyer', // Default role
+            avatar: user.photoURL || `https://i.pravatar.cc/150?u=${user.uid}`,
+          };
+          await setDoc(userDocRef, userProfile);
+          setUser({ id: user.uid, ...userProfile } as User);
         }
-        // If result is null, it's a normal page load, not a redirect return.
-        // We don't need to do anything; onAuthStateChanged will handle it.
-      })
-      .catch((error) => {
-        console.error("Error processing redirect result:", error);
-      })
-      .finally(() => {
-        // onAuthStateChanged is the single source of truth for the user's state.
-        // It will fire after getRedirectResult completes, ensuring a consistent state.
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-          setFirebaseUser(user);
-          if (user) {
-            // User is signed in. Fetch their profile from Firestore.
-            const userDocRef = doc(db, 'users', user.uid);
-            const userDoc = await getDoc(userDocRef);
-            if (userDoc.exists()) {
-              setUser({ id: userDoc.id, ...userDoc.data() } as User);
-            } else {
-              // This can happen on first sign-in (e.g., with popup)
-              // if the profile hasn't been created yet.
-              const userProfile = {
-                name: user.displayName,
-                email: user.email,
-                role: 'buyer', // Default role
-                avatar: user.photoURL || `https://i.pravatar.cc/150?u=${user.uid}`,
-              };
-              await setDoc(userDocRef, userProfile);
-              setUser({ id: user.uid, ...userProfile } as User);
-            }
-          } else {
-            // User is signed out.
-            setUser(null);
-          }
-          setLoading(false);
-        });
+      } else {
+        // User is signed out.
+        setUser(null);
+      }
+      setLoading(false);
+    });
 
-        return () => unsubscribe();
-      });
+    return () => unsubscribe();
   }, []);
   
   if (loading) {

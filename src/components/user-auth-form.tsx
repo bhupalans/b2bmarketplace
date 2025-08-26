@@ -11,7 +11,6 @@ import {
   signInWithEmailAndPassword,
   GoogleAuthProvider,
   signInWithPopup,
-  signInWithRedirect,
 } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -72,7 +71,6 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const [isGoogleLoading, setIsGoogleLoading] = React.useState<boolean>(false);
-  const [isIframe, setIsIframe] = React.useState<boolean>(true);
 
   const finalSchema = mode === 'signup' ? signupSchema : formSchema;
 
@@ -85,14 +83,6 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
       role: "buyer",
     },
   });
-
-  React.useEffect(() => {
-    // This will only run on the client side
-    if (typeof window !== 'undefined') {
-      setIsIframe(window.self !== window.top);
-    }
-  }, []);
-
 
   async function onSubmit(values: z.infer<typeof finalSchema>) {
     setIsLoading(true);
@@ -144,19 +134,12 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     try {
-        if (isIframe) {
-            // Use popup for iframe environments like Firebase Studio
-            await signInWithPopup(auth, provider);
-        } else {
-            // Use redirect for standalone windows
-            await signInWithRedirect(auth, provider);
-        }
-      // For popups and redirects, onAuthStateChanged in AuthProvider will handle the success.
-      
+        await signInWithPopup(auth, provider);
+      // For popups, onAuthStateChanged in AuthProvider will handle the success and navigation.
     } catch (error: any) {
       console.error(error);
-      // Don't show a toast for user-closed popups or cancelled requests
-      if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
+      // Don't show a toast for user-closed popups
+      if (error.code !== 'auth/popup-closed-by-user') {
           toast({
             variant: "destructive",
             title: "Authentication Failed",
@@ -164,11 +147,7 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
           });
       }
     } finally {
-        // Only set loading to false if it's not a redirect, 
-        // as the page will be unloaded anyway.
-        if (isIframe) {
-            setIsGoogleLoading(false);
-        }
+      setIsGoogleLoading(false);
     }
   }
 
