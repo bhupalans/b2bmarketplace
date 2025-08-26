@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { useFormState, useFormStatus } from "react-dom";
+import { useActionState, useFormStatus } from "react-dom";
 import Link from "next/link";
 import {
   File,
@@ -59,7 +59,7 @@ export function Chat() {
   const { toast } = useToast();
   const formRef = useRef<HTMLFormElement>(null);
 
-  const [state, formAction] = useFormState(sendMessageAction, {
+  const [state, formAction] = useActionState(sendMessageAction, {
     error: null,
     message: null,
   });
