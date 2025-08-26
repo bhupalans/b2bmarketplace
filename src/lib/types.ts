@@ -13,6 +13,7 @@ export type Product = {
   image: string;
   priceUSD: number;
   sellerId: string;
+  specifications?: { name: string; value: string }[];
 };
 
 export type Message = {

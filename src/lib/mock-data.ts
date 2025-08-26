@@ -32,6 +32,11 @@ export const mockProducts: Product[] = [
     image: 'https://picsum.photos/600/400?random=1',
     priceUSD: 1200.50,
     sellerId: 'user-2',
+    specifications: [
+        { name: 'Material', value: 'Reinforced Steel' },
+        { name: 'Weight', value: '15.5 kg' },
+        { name: 'SKU', value: 'WID-IND-001' },
+    ]
   },
   {
     id: 'prod-2',
@@ -40,6 +45,12 @@ export const mockProducts: Product[] = [
     image: 'https://picsum.photos/600/400?random=2',
     priceUSD: 850.00,
     sellerId: 'user-2',
+    specifications: [
+        { name: 'Material', value: 'Hardened Brass' },
+        { name: 'Units per Set', value: '12' },
+        { name: 'Tolerance', value: '±0.01mm' },
+        { name: 'SKU', value: 'COG-PRE-012' },
+    ]
   },
   {
     id: 'prod-3',
@@ -48,6 +59,11 @@ export const mockProducts: Product[] = [
     image: 'https://picsum.photos/600/400?random=3',
     priceUSD: 5500.00,
     sellerId: 'user-3',
+    specifications: [
+        { name: 'Material', value: 'Organic Cotton' },
+        { name: 'Weight per Bale', value: '1000 kg' },
+        { name: 'Certification', value: 'GOTS Certified' },
+    ]
   },
   {
     id: 'prod-4',
@@ -56,6 +72,11 @@ export const mockProducts: Product[] = [
     image: 'https://picsum.photos/600/400?random=4',
     priceUSD: 3200.75,
     sellerId: 'user-3',
+    specifications: [
+        { name: 'Layers', value: '4' },
+        { name: 'Material', value: 'FR-4' },
+        { name: 'Quantity', value: '100 boards' },
+    ]
   },
   {
     id: 'prod-5',
@@ -64,6 +85,11 @@ export const mockProducts: Product[] = [
     image: 'https://picsum.photos/600/400?random=5',
     priceUSD: 15000.00,
     sellerId: 'user-2',
+    specifications: [
+        { name: 'Length', value: '10 meters' },
+        { name: 'Speed', value: '0-2 m/s' },
+        { name: 'Motor', value: '2 HP Brushless DC' },
+    ]
   },
   {
     id: 'prod-6',
@@ -72,6 +98,11 @@ export const mockProducts: Product[] = [
     image: 'https://picsum.photos/600/400?random=6',
     priceUSD: 7800.00,
     sellerId: 'user-3',
+    specifications: [
+        { name: 'Alloy', value: 'Ti-6Al-4V' },
+        { name: 'Length', value: '1 meter' },
+        { name: 'Quantity', value: '50 rods' },
+    ]
   },
 ];
 

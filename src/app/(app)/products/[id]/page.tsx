@@ -13,6 +13,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableRow,
+} from "@/components/ui/table";
 
 // This is a server component, so we can fetch data directly.
 // In a real app, you'd fetch this from a database.
@@ -48,17 +54,39 @@ export default async function ProductDetailPage({
   return (
     <div className="mx-auto max-w-4xl space-y-8">
       <div className="grid gap-8 md:grid-cols-2">
-        <Card className="overflow-hidden">
-          <div className="relative aspect-square w-full">
-            <Image
-              src={product.image}
-              alt={product.title}
-              fill
-              className="object-cover"
-              data-ai-hint="product image"
-            />
-          </div>
-        </Card>
+        <div className="space-y-8">
+          <Card className="overflow-hidden">
+            <div className="relative aspect-square w-full">
+              <Image
+                src={product.image}
+                alt={product.title}
+                fill
+                className="object-cover"
+                data-ai-hint="product image"
+              />
+            </div>
+          </Card>
+
+          {product.specifications && product.specifications.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Technical Specifications</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableBody>
+                    {product.specifications.map((spec) => (
+                      <TableRow key={spec.name}>
+                        <TableCell className="font-medium">{spec.name}</TableCell>
+                        <TableCell>{spec.value}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+        </div>
 
         <div className="space-y-6">
           <Card>
