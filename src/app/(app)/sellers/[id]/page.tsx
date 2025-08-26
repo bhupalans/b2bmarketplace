@@ -1,6 +1,6 @@
 
 import { notFound } from "next/navigation";
-import { mockUsers, mockProducts } from "@/lib/mock-data";
+import { getSellerAndProducts } from "@/lib/firestore";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Card,
@@ -14,28 +14,18 @@ import { Badge } from "@/components/ui/badge";
 import {
   Building,
   Calendar,
-  CheckBadge,
   MapPin,
   Trophy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
-async function getSellerData(id: string) {
-  const seller = mockUsers[id];
-  if (!seller || seller.role !== "seller") {
-    return null;
-  }
-  const products = mockProducts.filter((p) => p.sellerId === id);
-  return { seller, products };
-}
-
 export default async function SellerProfilePage({
   params,
 }: {
   params: { id: string };
 }) {
-  const data = await getSellerData(params.id);
+  const data = await getSellerAndProducts(params.id);
 
   if (!data) {
     notFound();
@@ -70,7 +60,7 @@ export default async function SellerProfilePage({
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              {seller.companyDescription}
+              {seller.companyDescription || "No company description provided."}
             </p>
           </CardContent>
         </Card>
@@ -80,18 +70,24 @@ export default async function SellerProfilePage({
             <CardTitle>Business Details</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-sm">
-            <div className="flex items-center">
-              <Building className="mr-3 h-5 w-5 text-muted-foreground" />
-              <span className="font-medium">{seller.businessType}</span>
-            </div>
-            <div className="flex items-center">
-              <MapPin className="mr-3 h-5 w-5 text-muted-foreground" />
-              <span>{seller.location}</span>
-            </div>
-            <div className="flex items-center">
-              <Calendar className="mr-3 h-5 w-5 text-muted-foreground" />
-              <span>Member since {seller.memberSince}</span>
-            </div>
+            {seller.businessType && (
+                <div className="flex items-center">
+                <Building className="mr-3 h-5 w-5 text-muted-foreground" />
+                <span className="font-medium">{seller.businessType}</span>
+                </div>
+            )}
+            {seller.location && (
+                <div className="flex items-center">
+                <MapPin className="mr-3 h-5 w-5 text-muted-foreground" />
+                <span>{seller.location}</span>
+                </div>
+            )}
+            {seller.memberSince && (
+                <div className="flex items-center">
+                <Calendar className="mr-3 h-5 w-5 text-muted-foreground" />
+                <span>Member since {seller.memberSince}</span>
+                </div>
+            )}
           </CardContent>
         </Card>
 

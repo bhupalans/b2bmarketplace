@@ -1,4 +1,4 @@
-import { collection, getDocs, doc, getDoc, writeBatch } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc, writeBatch, query, where } from "firebase/firestore";
 import { db } from "./firebase";
 import { Product, Category, User } from "./types";
 import { mockProducts, mockCategories } from "./mock-data";
@@ -40,6 +40,24 @@ export async function getProductAndSeller(productId: string): Promise<{ product:
   }
 
   return { product, seller };
+}
+
+// Function to fetch a single seller and their products
+export async function getSellerAndProducts(sellerId: string): Promise<{ seller: User; products: Product[] } | null> {
+  const sellerRef = doc(db, "users", sellerId);
+  const sellerSnap = await getDoc(sellerRef);
+
+  if (!sellerSnap.exists() || sellerSnap.data().role !== 'seller') {
+    return null;
+  }
+
+  const seller = { id: sellerSnap.id, ...sellerSnap.data() } as User;
+
+  const productsQuery = query(collection(db, "products"), where("sellerId", "==", sellerId));
+  const productsSnapshot = await getDocs(productsQuery);
+  const products = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+
+  return { seller, products };
 }
 
 // Function to get the category path for breadcrumbs
