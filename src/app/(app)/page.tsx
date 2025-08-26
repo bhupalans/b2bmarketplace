@@ -7,6 +7,8 @@ import { CurrencySwitcher } from "@/components/currency-switcher";
 import { CategorySidebar } from "@/components/category-sidebar";
 import { mockProducts, mockCategories } from "@/lib/mock-data";
 import { Category, Product } from "@/lib/types";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 
 // Helper function to get all descendant category IDs
 const getDescendantCategoryIds = (
@@ -33,16 +35,29 @@ export default function ProductsPage() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
     null
   );
+  const [searchTerm, setSearchTerm] = useState("");
 
   const filteredProducts = useMemo(() => {
-    if (!selectedCategoryId) {
-      return mockProducts;
+    let products = mockProducts;
+
+    // Filter by category
+    if (selectedCategoryId) {
+      const categoryIdsToFilter = getDescendantCategoryIds(selectedCategoryId, mockCategories);
+      products = products.filter((product) =>
+        categoryIdsToFilter.includes(product.categoryId)
+      );
     }
-    const categoryIdsToFilter = getDescendantCategoryIds(selectedCategoryId, mockCategories);
-    return mockProducts.filter((product) =>
-      categoryIdsToFilter.includes(product.categoryId)
-    );
-  }, [selectedCategoryId]);
+    
+    // Filter by search term
+    if (searchTerm) {
+      products = products.filter(product => 
+        product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.description.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    return products;
+  }, [selectedCategoryId, searchTerm]);
   
   const handleSelectCategory = (categoryId: string | null) => {
     setSelectedCategoryId(categoryId);
@@ -67,6 +82,17 @@ export default function ProductsPage() {
           </div>
           <CurrencySwitcher />
         </div>
+        
+        <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+              placeholder="Search products by title or description..."
+              className="w-full pl-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+        </div>
+        
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
           {filteredProducts.map((product: Product) => (
             <ProductCard key={product.id} product={product} />
