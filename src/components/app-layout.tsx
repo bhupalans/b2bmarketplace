@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building, Home, MessageSquare, PanelLeft, Loader2 } from "lucide-react";
+import { Building, Home, MessageSquare, PanelLeft, Loader2, LayoutDashboard } from "lucide-react";
 import {
   SidebarProvider,
   Sidebar,
@@ -24,18 +24,28 @@ import { useEffect } from "react";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { firebaseUser, loading } = useAuth();
+  const { user, firebaseUser, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    // This effect now only handles redirecting from protected routes.
-    // The main products page is public and won't trigger this.
-    const isProtectedRoute = pathname.startsWith('/messages'); 
-    
-    if (!loading && !firebaseUser && isProtectedRoute) {
-      router.push("/login");
+    // Define protected routes and seller-only routes
+    const protectedRoutes = ['/messages', '/dashboard'];
+    const sellerOnlyRoutes = ['/dashboard'];
+
+    // Find if the current path is one of the protected routes
+    const isProtectedRoute = protectedRoutes.some(path => pathname.startsWith(path));
+    const isSellerOnlyRoute = sellerOnlyRoutes.some(path => pathname.startsWith(path));
+
+    if (!loading) {
+      if (!firebaseUser && isProtectedRoute) {
+        // If not logged in and trying to access a protected route, redirect to login
+        router.push("/login");
+      } else if (firebaseUser && isSellerOnlyRoute && user?.role !== 'seller') {
+        // If logged in, but not a seller, and trying to access a seller-only route, redirect to home
+        router.push("/");
+      }
     }
-  }, [firebaseUser, loading, router, pathname]);
+  }, [firebaseUser, user, loading, router, pathname]);
   
   if (loading) {
     return (
@@ -45,11 +55,25 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // If on a protected route and not logged in, show nothing until redirect completes.
-  const isProtectedRoute = pathname.startsWith('/messages');
+  // While loading or if redirection is pending, we might show a loader or nothing
+  const isProtectedRoute = ['/messages', '/dashboard'].some(path => pathname.startsWith(path));
   if (isProtectedRoute && !firebaseUser) {
-    return null;
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
   }
+  
+  if (pathname.startsWith('/dashboard') && user?.role !== 'seller') {
+      return (
+        <div className="flex h-screen items-center justify-center">
+            <p>Access Denied. Redirecting...</p>
+            <Loader2 className="ml-2 h-8 w-8 animate-spin" />
+        </div>
+    );
+  }
+
 
   return (
     <SidebarProvider>
@@ -78,6 +102,20 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
+             {user?.role === 'seller' && (
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname.startsWith("/dashboard")}
+                  tooltip="Dashboard"
+                >
+                  <Link href="/dashboard">
+                    <LayoutDashboard />
+                    <span className="sr-only">Dashboard</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild

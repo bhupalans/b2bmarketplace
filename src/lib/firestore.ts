@@ -1,7 +1,7 @@
 import { collection, getDocs, doc, getDoc, writeBatch, query, where } from "firebase/firestore";
 import { db } from "./firebase";
-import { Product, Category, User } from "./types";
-import { mockProducts, mockCategories } from "./mock-data";
+import { Product, Category, User, Offer } from "./types";
+import { mockProducts, mockCategories, mockOffers } from "./mock-data";
 
 // Function to fetch all products
 export async function getProducts(): Promise<Product[]> {
@@ -86,6 +86,42 @@ export async function getCategoryPath(categoryId: string): Promise<Category[]> {
     }
     
     return path;
+}
+
+// Function to get dashboard data for a seller
+export async function getSellerDashboardData(sellerId: string): Promise<{
+  totalRevenue: number;
+  acceptedOffersCount: number;
+  totalProducts: number;
+  productsWithOfferCounts: (Product & { offerCount: number })[];
+} | null> {
+  try {
+    // For this demo, we'll calculate from mock data. In a real app, you'd use Firestore queries/aggregations.
+    const sellerProducts = mockProducts.filter(p => p.sellerId === sellerId);
+    const sellerProductIds = sellerProducts.map(p => p.id);
+
+    const relevantOffers = Object.values(mockOffers).filter(o => sellerProductIds.includes(o.productId));
+
+    const acceptedOffers = relevantOffers.filter(o => o.status === 'accepted');
+    const totalRevenue = acceptedOffers.reduce((sum, offer) => sum + (offer.pricePerUnit * offer.quantity), 0);
+    const acceptedOffersCount = acceptedOffers.length;
+
+    const productsWithOfferCounts = sellerProducts.map(product => {
+      const offerCount = relevantOffers.filter(o => o.productId === product.id).length;
+      return { ...product, offerCount };
+    }).sort((a, b) => b.offerCount - a.offerCount);
+
+
+    return {
+      totalRevenue,
+      acceptedOffersCount,
+      totalProducts: sellerProducts.length,
+      productsWithOfferCounts,
+    };
+  } catch (error) {
+    console.error("Error fetching seller dashboard data:", error);
+    return null;
+  }
 }
 
 
