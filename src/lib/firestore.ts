@@ -1,4 +1,4 @@
-import { collection, getDocs, doc, getDoc, writeBatch, query, where } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc, writeBatch, query, where, addDoc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "./firebase";
 import { Product, Category, User, Offer } from "./types";
 import { mockProducts, mockCategories, mockOffers } from "./mock-data";
@@ -10,6 +10,15 @@ export async function getProducts(): Promise<Product[]> {
   const productList = productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
   return productList;
 }
+
+// Function to fetch a single product
+export async function getProduct(productId: string): Promise<Product | null> {
+    const productRef = doc(db, "products", productId);
+    const productSnap = await getDoc(productRef);
+    if (!productSnap.exists()) return null;
+    return { id: productSnap.id, ...productSnap.data() } as Product;
+}
+
 
 // Function to fetch all categories
 export async function getCategories(): Promise<Category[]> {
@@ -67,6 +76,14 @@ export async function getSellerAndProducts(sellerId: string): Promise<{ seller: 
   return { seller, products };
 }
 
+// Function to get all products for a specific seller
+export async function getSellerProducts(sellerId: string): Promise<Product[]> {
+    const q = query(collection(db, "products"), where("sellerId", "==", sellerId));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+}
+
+
 // Function to get the category path for breadcrumbs
 export async function getCategoryPath(categoryId: string): Promise<Category[]> {
     const path: Category[] = [];
@@ -122,6 +139,29 @@ export async function getSellerDashboardData(sellerId: string): Promise<{
     console.error("Error fetching seller dashboard data:", error);
     return null;
   }
+}
+
+// Function to create or update a product
+export async function createOrUpdateProduct(
+  productData: Omit<Product, 'id'>,
+  productId?: string
+): Promise<Product> {
+  if (productId) {
+    // Update existing product
+    const productRef = doc(db, 'products', productId);
+    await updateDoc(productRef, productData);
+    return { id: productId, ...productData };
+  } else {
+    // Create new product
+    const docRef = await addDoc(collection(db, 'products'), productData);
+    return { id: docRef.id, ...productData };
+  }
+}
+
+// Function to delete a product
+export async function deleteProduct(productId: string): Promise<void> {
+  const productRef = doc(db, 'products', productId);
+  await deleteDoc(productRef);
 }
 
 

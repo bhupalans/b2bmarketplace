@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building, Home, MessageSquare, PanelLeft, Loader2, LayoutDashboard } from "lucide-react";
+import { Building, Home, MessageSquare, PanelLeft, Loader2, LayoutDashboard, Package } from "lucide-react";
 import {
   SidebarProvider,
   Sidebar,
@@ -29,8 +29,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Define protected routes and seller-only routes
-    const protectedRoutes = ['/messages', '/dashboard'];
-    const sellerOnlyRoutes = ['/dashboard'];
+    const protectedRoutes = ['/messages', '/dashboard', '/my-products'];
+    const sellerOnlyRoutes = ['/dashboard', '/my-products'];
 
     // Find if the current path is one of the protected routes
     const isProtectedRoute = protectedRoutes.some(path => pathname.startsWith(path));
@@ -56,7 +56,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   // While loading or if redirection is pending, we might show a loader or nothing
-  const isProtectedRoute = ['/messages', '/dashboard'].some(path => pathname.startsWith(path));
+  const isProtectedRoute = ['/messages', '/dashboard', '/my-products'].some(path => pathname.startsWith(path));
   if (isProtectedRoute && !firebaseUser) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -103,18 +103,32 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </SidebarMenuButton>
             </SidebarMenuItem>
              {user?.role === 'seller' && (
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname.startsWith("/dashboard")}
-                  tooltip="Dashboard"
-                >
-                  <Link href="/dashboard">
-                    <LayoutDashboard />
-                    <span className="sr-only">Dashboard</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              <>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname.startsWith("/dashboard")}
+                    tooltip="Dashboard"
+                  >
+                    <Link href="/dashboard">
+                      <LayoutDashboard />
+                      <span className="sr-only">Dashboard</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname.startsWith("/my-products")}
+                    tooltip="My Products"
+                  >
+                    <Link href="/my-products">
+                      <Package />
+                      <span className="sr-only">My Products</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </>
             )}
             <SidebarMenuItem>
               <SidebarMenuButton

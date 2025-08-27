@@ -1,22 +1,30 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users can only manage their own profiles
-    match /users/{userId} {
-      allow read; // Allow public read for seller profiles
-      allow write: if request.auth != null && request.auth.uid == userId;
-    }
-
-    // Products and Categories are public to read
     match /products/{productId} {
-      allow read;
-      allow write: if request.auth != null; // Only logged-in users can create/update
+      // Anyone can read products.
+      allow read: if true;
+      
+      // An authenticated user can create a product.
+      allow create: if request.auth != null;
+      
+      // A user can only update or delete a product if they are the sellerId on that document.
+      allow update, delete: if request.auth != null && get(/databases/$(database)/documents/products/$(productId)).data.sellerId == request.auth.uid;
     }
 
+    // Categories can be read by anyone, but only written by authenticated users (admins).
     match /categories/{categoryId} {
-      allow read;
-      allow write: if request.auth != null; // Only logged-in users can create/update
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // User profiles can be read by anyone (for seller profiles), 
+    // but a user can only write to their own document.
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }

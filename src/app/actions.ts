@@ -4,8 +4,9 @@
 import { filterContactDetails } from "@/ai/flows/filter-contact-details";
 import { suggestOffer } from "@/ai/flows/suggest-offer";
 import { auth } from "@/lib/firebase";
+import { createOrUpdateProduct, deleteProduct, getProduct } from "@/lib/firestore";
 import { mockOffers, mockProducts, mockUsers } from "@/lib/mock-data";
-import { Offer } from "@/lib/types";
+import { Offer, Product } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -174,4 +175,65 @@ export async function decideOnOfferAction(formData: FormData) {
   }
 
   return { error: 'Offer not found.' };
+}
+
+
+const productSchema = z.object({
+  id: z.string().optional(),
+  title: z.string().min(3),
+  description: z.string().min(10),
+  priceUSD: z.coerce.number().positive(),
+  categoryId: z.string().min(1),
+  images: z.array(z.string()).min(1),
+});
+
+export async function createOrUpdateProductAction(values: z.infer<typeof productSchema>) {
+  const sellerId = auth.currentUser?.uid;
+  if (!sellerId) {
+    return { success: false, error: 'User not authenticated' };
+  }
+
+  try {
+    const productData: Omit<Product, 'id'> = {
+      ...values,
+      sellerId,
+    };
+    
+    const savedProduct = await createOrUpdateProduct(productData, values.id);
+
+    // Revalidate paths to update caches
+    revalidatePath('/');
+    revalidatePath(`/products/${savedProduct.id}`);
+    revalidatePath(`/sellers/${sellerId}`);
+    revalidatePath('/my-products');
+
+    return { success: true, product: savedProduct };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function deleteProductAction(productId: string) {
+    const sellerId = auth.currentUser?.uid;
+    if (!sellerId) {
+        return { success: false, error: 'User not authenticated' };
+    }
+    
+    // Optional: Verify the user owns the product before deleting
+    const product = await getProduct(productId);
+    if (!product || product.sellerId !== sellerId) {
+        return { success: false, error: 'Permission denied or product not found' };
+    }
+
+    try {
+        await deleteProduct(productId);
+        
+        revalidatePath('/');
+        revalidatePath(`/sellers/${sellerId}`);
+        revalidatePath('/my-products');
+
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
 }
