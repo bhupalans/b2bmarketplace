@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "./ui/button";
-import { Loader2, Trash2, Plus, UploadCloud } from "lucide-react";
+import { Loader2, Trash2, Plus, UploadCloud, CheckCircle, XCircle } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -42,6 +42,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { v4 as uuidv4 } from 'uuid';
 import { Progress } from "./ui/progress";
+import { cn } from "@/lib/utils";
 
 
 const productSchema = z.object({
@@ -61,6 +62,17 @@ type ProductFormDialogProps = {
   product?: Product;
   onSuccess: (product: Product) => void;
 };
+
+type UploadStatus = 'uploading' | 'success' | 'error';
+interface ImageUpload {
+    file: File;
+    id: string;
+    progress: number;
+    status: UploadStatus;
+    downloadURL?: string;
+    error?: string;
+}
+
 
 const storage = getStorage();
 
@@ -95,9 +107,9 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
   const [categories, setCategories] = useState<Category[]>([]);
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const [imageUploads, setImageUploads] = useState<ImageUpload[]>([]);
 
+  const isUploading = imageUploads.some(u => u.status === 'uploading');
 
   const form = useForm<z.infer<typeof productSchema>>({
     resolver: zodResolver(productSchema),
@@ -149,41 +161,55 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     });
   };
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
-    setUploading(true);
-    setUploadProgress({});
+    const newUploads: ImageUpload[] = Array.from(files).map(file => ({
+      file,
+      id: uuidv4(),
+      progress: 0,
+      status: 'uploading',
+    }));
 
-    const uploadPromises = Array.from(files).map(file => {
-        const uniqueId = uuidv4();
-        return uploadImage(file, (progress) => {
-            setUploadProgress(prev => ({ ...prev, [uniqueId]: progress }));
-        }).then(downloadURL => {
-            // Remove progress for completed file
-            setUploadProgress(prev => {
-                const newProgress = { ...prev };
-                delete newProgress[uniqueId];
-                return newProgress;
-            });
-            return downloadURL;
-        });
-    });
+    setImageUploads(prev => [...prev, ...newUploads]);
 
-    try {
-        const downloadURLs = await Promise.all(uploadPromises);
+    const uploadPromises = newUploads.map(upload => 
+      uploadImage(upload.file, (progress) => {
+        setImageUploads(prev => prev.map(u => u.id === upload.id ? { ...u, progress } : u));
+      })
+      .then(downloadURL => {
+        setImageUploads(prev => prev.map(u => u.id === upload.id ? { ...u, status: 'success', downloadURL, progress: 100 } : u));
+        return { downloadURL, status: 'fulfilled' as const };
+      })
+      .catch(error => {
+        setImageUploads(prev => prev.map(u => u.id === upload.id ? { ...u, status: 'error', error: error.message } : u));
+        return { error, status: 'rejected' as const };
+      })
+    );
+
+    Promise.allSettled(uploadPromises).then(results => {
+      const successfulUploads = results
+        .filter((result): result is PromiseFulfilledResult<{ downloadURL: string }> => result.status === 'fulfilled' && !!result.value.downloadURL)
+        .map(result => result.value.downloadURL);
+
+      if (successfulUploads.length > 0) {
         const currentImages = form.getValues("images");
-        form.setValue("images", [...currentImages, ...downloadURLs]);
-    } catch (error) {
-        toast({
-            variant: "destructive",
-            title: "Upload Failed",
-            description: "There was a problem uploading your image(s). Please try again.",
-        });
-    } finally {
-        setUploading(false);
-    }
+        form.setValue("images", [...currentImages, ...successfulUploads], { shouldValidate: true });
+      }
+
+      if (results.some(r => r.status === 'rejected')) {
+          toast({
+              variant: "destructive",
+              title: "Some uploads failed",
+              description: "There was a problem uploading one or more of your images. Please try them again.",
+          });
+      }
+       // Reset file input so user can select same file again if needed
+       if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    });
   };
 
   const handleRemoveImage = (index: number) => {
@@ -191,10 +217,6 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     form.setValue("images", currentImages.filter((_, i) => i !== index));
   }
   
-  const totalProgress = Object.values(uploadProgress).length > 0
-    ? Object.values(uploadProgress).reduce((a, b) => a + b, 0) / Object.values(uploadProgress).length
-    : 0;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -280,60 +302,76 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Product Images</FormLabel>
-                  <FormControl>
-                     <div className="flex flex-wrap items-center gap-4">
-                        {field.value.map((img, index) => (
-                            <div key={index} className="relative group">
-                                <Image src={img} alt="Product image" width={100} height={100} className="rounded-md object-cover aspect-square" />
-                                <Button
-                                    type="button"
-                                    variant="destructive"
-                                    size="icon"
-                                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                    onClick={() => handleRemoveImage(index)}
-                                >
-                                    <Trash2 className="h-4 w-4"/>
-                                </Button>
-                            </div>
-                        ))}
+                  <div className="flex flex-wrap items-center gap-4">
+                    {field.value.map((img, index) => (
+                        <div key={index} className="relative group">
+                            <Image src={img} alt="Product image" width={100} height={100} className="rounded-md object-cover aspect-square" />
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                size="icon"
+                                className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => handleRemoveImage(index)}
+                            >
+                                <Trash2 className="h-4 w-4"/>
+                            </Button>
+                        </div>
+                    ))}
+                    <div className="flex items-center justify-center h-24 w-24 flex-shrink-0 border-2 border-dashed rounded-md">
                         <input
                             type="file"
                             ref={fileInputRef}
                             onChange={handleFileChange}
                             className="hidden"
                             accept="image/png, image/jpeg, image/gif"
-                            disabled={uploading}
+                            disabled={isUploading}
                             multiple
                         />
-                         <div className="flex items-center justify-center h-24 w-24 flex-shrink-0 border-2 border-dashed rounded-md">
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-full w-full"
-                                onClick={() => fileInputRef.current?.click()}
-                                disabled={uploading}
-                            >
-                                {uploading ? (
-                                    <Loader2 className="h-6 w-6 animate-spin" />
-                                ) : (
-                                    <UploadCloud className="h-6 w-6" />
-                                )}
-                                <span className="sr-only">Upload Image</span>
-                            </Button>
-                        </div>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-full w-full"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isUploading}
+                        >
+                            {isUploading ? (
+                                <Loader2 className="h-6 w-6 animate-spin" />
+                            ) : (
+                                <UploadCloud className="h-6 w-6" />
+                            )}
+                            <span className="sr-only">Upload Image</span>
+                        </Button>
                     </div>
-                  </FormControl>
-                  {uploading && <Progress value={totalProgress} className="w-full mt-2" />}
+                  </div>
                   <FormDescription>The first image will be the main display image. You can upload multiple images.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
+            {imageUploads.length > 0 && (
+                <div className="space-y-2">
+                    {imageUploads.map(upload => (
+                        <div key={upload.id} className="p-2 border rounded-md">
+                           <div className="flex items-center justify-between text-sm">
+                                <p className="truncate w-40">{upload.file.name}</p>
+                                <div className="flex items-center gap-2">
+                                     {upload.status === 'success' && <CheckCircle className="h-4 w-4 text-green-500" />}
+                                     {upload.status === 'error' && <XCircle className="h-4 w-4 text-destructive" />}
+                                     <p className="w-12 text-right">{Math.round(upload.progress)}%</p>
+                                </div>
+                            </div>
+                            {upload.status === 'uploading' && <Progress value={upload.progress} className="h-1 mt-1" />}
+                            {upload.status === 'error' && <p className="text-xs text-destructive mt-1">{upload.error}</p>}
+                        </div>
+                    ))}
+                </div>
+            )}
+
 
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button type="submit" disabled={isPending || uploading}>
+              <Button type="submit" disabled={isPending || isUploading}>
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {product ? "Save Changes" : "Create Product"}
               </Button>
