@@ -35,10 +35,13 @@ import {
   SelectValue,
 } from "./ui/select";
 import { Product, Category } from "@/lib/types";
-import { createOrUpdateProductAction, uploadImagesAction } from "@/app/actions";
+import { createOrUpdateProductAction } from "@/app/actions";
 import { getCategories } from "@/lib/firestore";
 import Image from "next/image";
 import { useAuth } from "@/contexts/auth-context";
+import { storage } from "@/lib/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { v4 as uuidv4 } from "uuid";
 
 const productSchema = z.object({
   id: z.string().optional(),
@@ -121,33 +124,35 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     
     setIsUploading(true);
 
-    const formData = new FormData();
-    Array.from(files).forEach(file => {
-      formData.append('files', file);
-    });
-    formData.append('sellerId', user.id);
+    try {
+      const uploadPromises = Array.from(files).map(file => {
+        const filePath = `product-images/${user.id}/${uuidv4()}-${file.name}`;
+        const storageRef = ref(storage, filePath);
+        return uploadBytes(storageRef, file).then(snapshot => getDownloadURL(snapshot.ref));
+      });
+      
+      const urls = await Promise.all(uploadPromises);
 
-    const result = await uploadImagesAction(formData);
-
-    if (result.success && result.urls) {
       const currentImages = form.getValues("images");
-      form.setValue("images", [...currentImages, ...result.urls], { shouldValidate: true });
+      form.setValue("images", [...currentImages, ...urls], { shouldValidate: true });
       toast({
         title: "Upload Successful",
-        description: `${result.urls.length} image(s) have been added.`
+        description: `${urls.length} image(s) have been added.`
       });
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Upload Failed",
-        description: result.error || "Could not upload files.",
-      });
-    }
 
-    if(fileInputRef.current) {
-        fileInputRef.current.value = "";
+    } catch (error: any) {
+        console.error("Upload failed in component:", error);
+        toast({
+            variant: "destructive",
+            title: "Upload Failed",
+            description: error.message || "Could not upload files.",
+        });
+    } finally {
+        if(fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+        setIsUploading(false);
     }
-    setIsUploading(false);
   };
 
   const handleRemoveImage = (imageUrlToRemove: string) => {
@@ -301,3 +306,5 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     </Dialog>
   );
 }
+
+    

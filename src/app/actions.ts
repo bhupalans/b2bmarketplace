@@ -9,8 +9,6 @@ import { mockOffers, mockProducts, mockUsers } from "@/lib/mock-data";
 import { Offer, Product } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { v4 as uuidv4 } from 'uuid';
-import { uploadFileToStorage } from "./admin-actions";
 
 const messageSchema = z.object({
   message: z.string().min(1),
@@ -240,33 +238,4 @@ export async function deleteProductAction(productId: string, sellerId: string) {
     }
 }
 
-
-export async function uploadImagesAction(formData: FormData) {
-  const files = formData.getAll('files') as File[];
-  const sellerId = formData.get('sellerId') as string;
-
-  if (!sellerId) {
-    return { success: false, error: 'User not authenticated.' };
-  }
-  if (!files || files.length === 0) {
-    return { success: false, error: 'No files provided.' };
-  }
-
-  try {
-    const urls: string[] = [];
-    for (const file of files) {
-      // Convert file to buffer to pass to the admin action
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      
-      const filePath = `product-images/${sellerId}/${uuidv4()}-${file.name}`;
-      
-      const downloadURL = await uploadFileToStorage(buffer, filePath, file.type);
-      urls.push(downloadURL);
-    }
-    return { success: true, urls };
-  } catch (error: any) {
-    console.error("Upload failed in action:", error);
-    return { success: false, error: `Upload failed: ${error.message}` };
-  }
-}
+    
