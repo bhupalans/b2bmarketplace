@@ -96,7 +96,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
 
 
   const form = useForm<z.infer<typeof productSchema>>({
@@ -150,21 +150,36 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
 
     setUploading(true);
-    setUploadProgress(0);
+    setUploadProgress({});
+
+    const uploadPromises = Array.from(files).map(file => {
+        const uniqueId = uuidv4();
+        return uploadImage(file, (progress) => {
+            setUploadProgress(prev => ({ ...prev, [uniqueId]: progress }));
+        }).then(downloadURL => {
+            // Remove progress for completed file
+            setUploadProgress(prev => {
+                const newProgress = { ...prev };
+                delete newProgress[uniqueId];
+                return newProgress;
+            });
+            return downloadURL;
+        });
+    });
 
     try {
-        const downloadURL = await uploadImage(file, setUploadProgress);
+        const downloadURLs = await Promise.all(uploadPromises);
         const currentImages = form.getValues("images");
-        form.setValue("images", [...currentImages, downloadURL]);
+        form.setValue("images", [...currentImages, ...downloadURLs]);
     } catch (error) {
         toast({
             variant: "destructive",
             title: "Upload Failed",
-            description: "There was a problem uploading your image. Please try again.",
+            description: "There was a problem uploading your image(s). Please try again.",
         });
     } finally {
         setUploading(false);
@@ -175,6 +190,10 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     const currentImages = form.getValues("images");
     form.setValue("images", currentImages.filter((_, i) => i !== index));
   }
+  
+  const totalProgress = Object.values(uploadProgress).length > 0
+    ? Object.values(uploadProgress).reduce((a, b) => a + b, 0) / Object.values(uploadProgress).length
+    : 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -224,7 +243,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
                   <FormItem>
                     <FormLabel>Price (USD)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" {...field} />
+                      <Input type="number" step="0.01" {...field} value={field.value ?? ''}/>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -262,7 +281,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
                 <FormItem>
                   <FormLabel>Product Images</FormLabel>
                   <FormControl>
-                     <div className="flex items-center gap-4">
+                     <div className="flex flex-wrap items-center gap-4">
                         {field.value.map((img, index) => (
                             <div key={index} className="relative group">
                                 <Image src={img} alt="Product image" width={100} height={100} className="rounded-md object-cover aspect-square" />
@@ -284,26 +303,29 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
                             className="hidden"
                             accept="image/png, image/jpeg, image/gif"
                             disabled={uploading}
+                            multiple
                         />
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="h-24 w-24 flex-shrink-0"
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={uploading}
-                        >
-                            {uploading ? (
-                                <Loader2 className="h-6 w-6 animate-spin" />
-                            ) : (
-                                <UploadCloud className="h-6 w-6" />
-                            )}
-                            <span className="sr-only">Upload Image</span>
-                        </Button>
+                         <div className="flex items-center justify-center h-24 w-24 flex-shrink-0 border-2 border-dashed rounded-md">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-full w-full"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={uploading}
+                            >
+                                {uploading ? (
+                                    <Loader2 className="h-6 w-6 animate-spin" />
+                                ) : (
+                                    <UploadCloud className="h-6 w-6" />
+                                )}
+                                <span className="sr-only">Upload Image</span>
+                            </Button>
+                        </div>
                     </div>
                   </FormControl>
-                  {uploading && <Progress value={uploadProgress} className="w-full mt-2" />}
-                  <FormDescription>The first image will be the main display image. Click the cloud icon to upload an image.</FormDescription>
+                  {uploading && <Progress value={totalProgress} className="w-full mt-2" />}
+                  <FormDescription>The first image will be the main display image. You can upload multiple images.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -312,7 +334,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
               <Button type="submit" disabled={isPending || uploading}>
-                {(isPending || uploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {product ? "Save Changes" : "Create Product"}
               </Button>
             </DialogFooter>
