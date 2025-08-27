@@ -9,6 +9,8 @@ import { mockOffers, mockProducts, mockUsers } from "@/lib/mock-data";
 import { Offer, Product } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { getAdminApp } from "@/lib/firebase-admin";
+import { v4 as uuidv4 } from "uuid";
 
 const messageSchema = z.object({
   message: z.string().min(1),
@@ -238,4 +240,25 @@ export async function deleteProductAction(productId: string, sellerId: string) {
     }
 }
 
-    
+
+export async function getSignedUploadUrlAction(fileName: string, fileType: string, userId: string) {
+    const adminApp = getAdminApp();
+    const bucket = adminApp.storage().bucket();
+    const finalFilePath = `products/${userId}/${uuidv4()}-${fileName}`;
+    const file = bucket.file(finalFilePath);
+
+    const expires = Date.now() + 60 * 5 * 1000; // 5 minutes
+
+    try {
+        const [url] = await file.getSignedUrl({
+            action: 'write',
+            expires,
+            contentType: fileType,
+            version: 'v4',
+        });
+        return { success: true, url, finalFilePath };
+    } catch (error: any) {
+        console.error("Error getting signed URL:", error);
+        return { success: false, error: 'Could not get upload URL.', url: null, finalFilePath: null };
+    }
+}

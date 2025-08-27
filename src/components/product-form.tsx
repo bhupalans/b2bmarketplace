@@ -35,12 +35,10 @@ import {
   SelectValue,
 } from "./ui/select";
 import { Product, Category } from "@/lib/types";
-import { createOrUpdateProductAction } from "@/app/actions";
+import { createOrUpdateProductAction, getSignedUploadUrlAction } from "@/app/actions";
 import { getCategories } from "@/lib/firestore";
 import Image from "next/image";
 import { useAuth } from "@/contexts/auth-context";
-import { storage } from "@/lib/firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { v4 as uuidv4 } from "uuid";
 
 const productSchema = z.object({
@@ -125,12 +123,32 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     setIsUploading(true);
 
     try {
-      const uploadPromises = Array.from(files).map(file => {
-        const filePath = `products/${user.id}/${uuidv4()}-${file.name}`;
-        const storageRef = ref(storage, filePath);
-        return uploadBytes(storageRef, file).then(snapshot => getDownloadURL(snapshot.ref));
+      const uploadPromises = Array.from(files).map(async file => {
+        // 1. Get a signed URL from the server
+        const { success, error, url, finalFilePath } = await getSignedUploadUrlAction(file.name, file.type, user.id);
+        
+        if (!success || !url) {
+          throw new Error(error || 'Could not get an upload URL.');
+        }
+
+        // 2. Upload the file to the signed URL
+        const uploadResponse = await fetch(url, {
+          method: 'PUT',
+          body: file,
+          headers: {
+            'Content-Type': file.type,
+          },
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error(`Upload failed for ${file.name}`);
+        }
+
+        // 3. Construct the final public URL
+        const publicUrl = `https://firebasestorage.googleapis.com/v0/b/b2b-marketplace-udg1v.appspot.com/o/${encodeURIComponent(finalFilePath)}?alt=media`;
+        return publicUrl;
       });
-      
+
       const urls = await Promise.all(uploadPromises);
 
       const currentImages = form.getValues("images");
