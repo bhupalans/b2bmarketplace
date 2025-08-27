@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "./ui/button";
-import { Loader2, Trash2, Plus, Link as LinkIcon } from "lucide-react";
+import { Loader2, Trash2, Plus, UploadCloud } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -39,7 +39,10 @@ import { createOrUpdateProductAction } from "@/app/actions";
 import { getCategories } from "@/lib/firestore";
 import Image from "next/image";
 import { useAuth } from "@/contexts/auth-context";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { v4 as uuidv4 } from 'uuid';
+import { Progress } from "./ui/progress";
+
 
 const productSchema = z.object({
   id: z.string().optional(),
@@ -52,10 +55,6 @@ const productSchema = z.object({
 });
 
 
-const imageUrlSchema = z.object({
-    url: z.string().url({ message: "Please enter a valid image URL." }),
-});
-
 type ProductFormDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -63,54 +62,30 @@ type ProductFormDialogProps = {
   onSuccess: (product: Product) => void;
 };
 
-function AddImagePopover({ onImageAdded }: { onImageAdded: (url: string) => void }) {
-  const [popoverOpen, setPopoverOpen] = useState(false);
-  const { toast } = useToast();
-  const [imageUrl, setImageUrl] = useState("");
+const storage = getStorage();
 
-  const handleAddUrl = () => {
-    const result = imageUrlSchema.safeParse({ url: imageUrl });
-    if (result.success) {
-      onImageAdded(result.data.url);
-      setImageUrl("");
-      setPopoverOpen(false);
-    } else {
-      toast({
-        variant: 'destructive',
-        title: 'Invalid URL',
-        description: result.error.errors[0].message,
-      });
-    }
-  };
+async function uploadImage(file: File, onProgress: (progress: number) => void): Promise<string> {
+  const fileId = uuidv4();
+  const storageRef = ref(storage, `product-images/${fileId}-${file.name}`);
+  const uploadTask = uploadBytesResumable(storageRef, file);
 
-  return (
-    <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-      <PopoverTrigger asChild>
-        <Button type="button" variant="outline" size="icon" className="h-24 w-24 flex-shrink-0">
-          <Plus className="h-6 w-6" />
-          <span className="sr-only">Add Image</span>
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-80">
-        <div className="grid gap-4">
-          <div className="space-y-2">
-            <h4 className="font-medium leading-none">Add Image URL</h4>
-            <p className="text-sm text-muted-foreground">
-              Paste the URL of your product image.
-            </p>
-          </div>
-          <div className="grid grid-cols-[1fr_auto] items-center gap-2">
-            <Input
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              placeholder="https://..."
-            />
-            <Button onClick={handleAddUrl} size="sm">Add</Button>
-          </div>
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
+  return new Promise((resolve, reject) => {
+    uploadTask.on('state_changed',
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        onProgress(progress);
+      },
+      (error) => {
+        console.error("Upload failed:", error);
+        reject(error);
+      },
+      () => {
+        getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+          resolve(downloadURL);
+        });
+      }
+    );
+  });
 }
 
 
@@ -119,6 +94,10 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
   const [isPending, startTransition] = useTransition();
   const [categories, setCategories] = useState<Category[]>([]);
   const { user } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
 
   const form = useForm<z.infer<typeof productSchema>>({
     resolver: zodResolver(productSchema),
@@ -140,7 +119,6 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     if (user?.id) {
       form.setValue('sellerId', user.id);
     }
-    // Reset form when product prop changes or dialog opens
     form.reset({
       id: product?.id,
       title: product?.title || "",
@@ -171,10 +149,27 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     });
   };
 
-  const handleImageAdded = (url: string) => {
-    const currentImages = form.getValues("images");
-    form.setValue("images", [...currentImages, url]);
-  }
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setUploadProgress(0);
+
+    try {
+        const downloadURL = await uploadImage(file, setUploadProgress);
+        const currentImages = form.getValues("images");
+        form.setValue("images", [...currentImages, downloadURL]);
+    } catch (error) {
+        toast({
+            variant: "destructive",
+            title: "Upload Failed",
+            description: "There was a problem uploading your image. Please try again.",
+        });
+    } finally {
+        setUploading(false);
+    }
+  };
 
   const handleRemoveImage = (index: number) => {
     const currentImages = form.getValues("images");
@@ -267,7 +262,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
                 <FormItem>
                   <FormLabel>Product Images</FormLabel>
                   <FormControl>
-                    <div className="flex items-center gap-4">
+                     <div className="flex items-center gap-4">
                         {field.value.map((img, index) => (
                             <div key={index} className="relative group">
                                 <Image src={img} alt="Product image" width={100} height={100} className="rounded-md object-cover aspect-square" />
@@ -282,10 +277,33 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
                                 </Button>
                             </div>
                         ))}
-                        <AddImagePopover onImageAdded={handleImageAdded}/>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileChange}
+                            className="hidden"
+                            accept="image/png, image/jpeg, image/gif"
+                            disabled={uploading}
+                        />
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-24 w-24 flex-shrink-0"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={uploading}
+                        >
+                            {uploading ? (
+                                <Loader2 className="h-6 w-6 animate-spin" />
+                            ) : (
+                                <UploadCloud className="h-6 w-6" />
+                            )}
+                            <span className="sr-only">Upload Image</span>
+                        </Button>
                     </div>
                   </FormControl>
-                  <FormDescription>The first image will be the main display image. Click the plus icon to add an image by URL.</FormDescription>
+                  {uploading && <Progress value={uploadProgress} className="w-full mt-2" />}
+                  <FormDescription>The first image will be the main display image. Click the cloud icon to upload an image.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -293,8 +311,8 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
 
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button type="submit" disabled={isPending}>
-                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button type="submit" disabled={isPending || uploading}>
+                {(isPending || uploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {product ? "Save Changes" : "Create Product"}
               </Button>
             </DialogFooter>

@@ -1,0 +1,15 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Allow public read access to all images
+    match /product-images/{allPaths=**} {
+      allow read: if true;
+    }
+
+    // Allow authenticated users to write (upload, update, delete) to the product-images folder
+    match /product-images/{imageId} {
+      allow write: if request.auth != null;
+    }
+  }
+}
