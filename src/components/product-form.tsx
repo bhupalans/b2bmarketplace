@@ -122,23 +122,14 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     setIsUploading(true);
 
     const formData = new FormData();
-    // Although the diagnostic doesn't use the file, we keep this part intact
     Array.from(files).forEach(file => {
       formData.append('files', file);
     });
+    formData.append('sellerId', user.id);
 
     const result = await uploadImagesAction(formData);
 
-    if (result.diagnostic) {
-      toast({
-        title: "Diagnostic Test Passed",
-        description: "The server can connect to Firebase Storage. The problem lies elsewhere in the code."
-      });
-      // In a real scenario, we might proceed, but for the test, we just report success.
-      // We can add the test URL just to see it in the UI.
-      const currentImages = form.getValues("images");
-      form.setValue("images", [...currentImages, ...result.urls], { shouldValidate: true });
-    } else if (result.success && result.urls) {
+    if (result.success && result.urls) {
       const currentImages = form.getValues("images");
       form.setValue("images", [...currentImages, ...result.urls], { shouldValidate: true });
       toast({
@@ -148,8 +139,8 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     } else {
       toast({
         variant: "destructive",
-        title: "Diagnostic Test Failed",
-        description: result.error || "An unknown error occurred. This confirms an environment or permissions issue.",
+        title: "Upload Failed",
+        description: result.error || "Could not upload files.",
       });
     }
 
