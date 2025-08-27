@@ -73,34 +73,6 @@ interface ImageUpload {
     error?: string;
 }
 
-
-const storage = getStorage();
-
-async function uploadImage(file: File, onProgress: (progress: number) => void): Promise<string> {
-  const fileId = uuidv4();
-  const storageRef = ref(storage, `product-images/${fileId}-${file.name}`);
-  const uploadTask = uploadBytesResumable(storageRef, file);
-
-  return new Promise((resolve, reject) => {
-    uploadTask.on('state_changed',
-      (snapshot) => {
-        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        onProgress(progress);
-      },
-      (error) => {
-        console.error("Upload failed:", error);
-        reject(error);
-      },
-      () => {
-        getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-          resolve(downloadURL);
-        });
-      }
-    );
-  });
-}
-
-
 export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: ProductFormDialogProps) {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
@@ -140,6 +112,8 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
       images: product?.images || [],
       sellerId: user?.id || "",
     });
+    // Reset uploads when dialog opens/product changes
+    setImageUploads([]);
   }, [product, open, form, user]);
 
   const onSubmit = (values: z.infer<typeof productSchema>) => {
@@ -174,24 +148,37 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
 
     setImageUploads(prev => [...prev, ...newUploads]);
 
-    const uploadPromises = newUploads.map(upload => 
-      uploadImage(upload.file, (progress) => {
-        setImageUploads(prev => prev.map(u => u.id === upload.id ? { ...u, progress } : u));
-      })
-      .then(downloadURL => {
-        setImageUploads(prev => prev.map(u => u.id === upload.id ? { ...u, status: 'success', downloadURL, progress: 100 } : u));
-        return { downloadURL, status: 'fulfilled' as const };
-      })
-      .catch(error => {
-        setImageUploads(prev => prev.map(u => u.id === upload.id ? { ...u, status: 'error', error: error.message } : u));
-        return { error, status: 'rejected' as const };
-      })
-    );
+    const uploadPromises = newUploads.map(upload => {
+      const storage = getStorage();
+      const fileId = uuidv4();
+      const storageRef = ref(storage, `product-images/${fileId}-${upload.file.name}`);
+      const uploadTask = uploadBytesResumable(storageRef, upload.file);
+      
+      return new Promise<string>((resolve, reject) => {
+        uploadTask.on('state_changed',
+          (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+             setImageUploads(prev => prev.map(u => u.id === upload.id ? { ...u, progress } : u));
+          },
+          (error) => {
+            console.error("Upload failed:", error);
+            setImageUploads(prev => prev.map(u => u.id === upload.id ? { ...u, status: 'error', error: error.message } : u));
+            reject(error);
+          },
+          () => {
+            getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+              setImageUploads(prev => prev.map(u => u.id === upload.id ? { ...u, status: 'success', downloadURL, progress: 100 } : u));
+              resolve(downloadURL);
+            });
+          }
+        );
+      });
+    });
 
     Promise.allSettled(uploadPromises).then(results => {
       const successfulUploads = results
-        .filter((result): result is PromiseFulfilledResult<{ downloadURL: string }> => result.status === 'fulfilled' && !!result.value.downloadURL)
-        .map(result => result.value.downloadURL);
+        .filter((result): result is PromiseFulfilledResult<string> => result.status === 'fulfilled')
+        .map(result => result.value);
 
       if (successfulUploads.length > 0) {
         const currentImages = form.getValues("images");
@@ -382,3 +369,5 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     </Dialog>
   );
 }
+
+    
