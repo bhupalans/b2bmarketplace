@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "./ui/button";
-import { Loader2, Upload } from "lucide-react";
+import { Loader2, Trash2, Upload } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -66,7 +66,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
       id: product?.id,
       title: product?.title || "",
       description: product?.description || "",
-      priceUSD: product?.priceUSD || undefined,
+      priceUSD: product?.priceUSD || '',
       categoryId: product?.categoryId || "",
       images: product?.images || [],
     },
@@ -82,7 +82,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
       id: product?.id,
       title: product?.title || "",
       description: product?.description || "",
-      priceUSD: product?.priceUSD || undefined,
+      priceUSD: product?.priceUSD || '',
       categoryId: product?.categoryId || "",
       images: product?.images || [],
     });

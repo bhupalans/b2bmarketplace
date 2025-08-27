@@ -77,8 +77,8 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
     resolver: zodResolver(offerSchema),
     defaultValues: {
       productId: "",
-      quantity: undefined,
-      pricePerUnit: undefined,
+      quantity: '',
+      pricePerUnit: '',
       notes: "",
     },
   });
@@ -87,8 +87,8 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
     if (suggestion) {
       form.reset({
         productId: suggestion.productId || "",
-        quantity: suggestion.quantity,
-        pricePerUnit: suggestion.pricePerUnit,
+        quantity: suggestion.quantity || '',
+        pricePerUnit: suggestion.pricePerUnit || '',
         notes: "",
       });
     }
@@ -127,7 +127,12 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
       onClose();
     }
     if (!isOpen) {
-      form.reset();
+      form.reset({
+        productId: "",
+        quantity: '',
+        pricePerUnit: '',
+        notes: "",
+      });
     }
   };
 
@@ -190,7 +195,7 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
                   <FormItem>
                     <FormLabel>Quantity</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} value={field.value ?? ''} />
+                      <Input type="number" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -203,7 +208,7 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
                   <FormItem>
                     <FormLabel>Price per Unit (USD)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" {...field} value={field.value ?? ''} />
+                      <Input type="number" step="0.01" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
