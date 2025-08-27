@@ -9,7 +9,7 @@ import { mockOffers, mockProducts, mockUsers } from "@/lib/mock-data";
 import { Offer, Product } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { getDownloadURL, ref, uploadString } from "firebase/storage";
 import { v4 as uuidv4 } from 'uuid';
 
 const messageSchema = z.object({
@@ -242,49 +242,32 @@ export async function deleteProductAction(productId: string, sellerId: string) {
 
 
 export async function uploadImagesAction(formData: FormData) {
-  const files = formData.getAll('files') as File[];
-  const sellerId = formData.get('sellerId') as string;
+  // DIAGNOSTIC TEST: This action ignores the form data and attempts a direct write.
+  console.log('Running server-side diagnostic test for Firebase Storage...');
 
-  if (!sellerId) {
-    return { success: false, error: "User not authenticated. Please ensure you are logged in." };
-  }
-  if (!files || files.length === 0) {
-    return { success: false, error: "No files provided." };
-  }
+  try {
+    const testContent = 'Firebase Storage connection from server action is working.';
+    const storageRef = ref(storage, `product-images/diagnostic-test.txt`);
+    
+    console.log('Attempting to upload test file to:', storageRef.fullPath);
+    await uploadString(storageRef, testContent, 'raw');
+    console.log('Diagnostic test file uploaded successfully.');
 
-  const uploadPromises = files.map(async (file) => {
-    try {
-      const fileId = uuidv4();
-      const storageRef = ref(storage, `product-images/${sellerId}/${fileId}-${file.name}`);
-      
-      const buffer = Buffer.from(await file.arrayBuffer());
-      
-      const snapshot = await uploadBytes(storageRef, buffer, {
-        contentType: file.type,
-      });
-
-      const downloadURL = await getDownloadURL(snapshot.ref);
-      return downloadURL;
-    } catch (error: any) {
-      console.error(`Failed to upload ${file.name}:`, error);
-      // Return a specific object for failed uploads
-      return { error: `Failed to upload ${file.name}`, fileName: file.name };
+    const downloadURL = await getDownloadURL(storageRef);
+    console.log('Test file URL:', downloadURL);
+    
+    return { success: true, urls: [downloadURL], diagnostic: true };
+  } catch (error: any) {
+    console.error("DIAGNOSTIC TEST FAILED:", error);
+    console.error("Error Code:", error.code);
+    console.error("Error Message:", error.message);
+    
+    // Return a specific error message for the diagnostic failure.
+    let errorMessage = `Diagnostic test failed: ${error.message}.`;
+    if (error.code === 'storage/unauthorized') {
+      errorMessage = 'Diagnostic test failed: Unauthorized. The server environment does not have permission to write to Firebase Storage. Please check IAM roles for the App Hosting service account.';
     }
-  });
-
-  const results = await Promise.all(uploadPromises);
-
-  const uploadedUrls = results.filter(result => typeof result === 'string') as string[];
-  const uploadErrors = results.filter(result => typeof result === 'object' && result.error);
-
-  if (uploadErrors.length > 0) {
-    return { 
-      success: false, 
-      error: `Could not upload ${uploadErrors.length} file(s).`,
-      urls: uploadedUrls,
-      errors: uploadErrors
-    };
+    
+    return { success: false, error: errorMessage };
   }
-
-  return { success: true, urls: uploadedUrls };
 }

@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "./ui/button";
-import { Loader2, Trash2, UploadCloud, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, Trash2, UploadCloud } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -39,7 +39,6 @@ import { createOrUpdateProductAction, uploadImagesAction } from "@/app/actions";
 import { getCategories } from "@/lib/firestore";
 import Image from "next/image";
 import { useAuth } from "@/contexts/auth-context";
-import { Progress } from "./ui/progress";
 
 const productSchema = z.object({
   id: z.string().optional(),
@@ -123,14 +122,23 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     setIsUploading(true);
 
     const formData = new FormData();
-    formData.append('sellerId', user.id);
+    // Although the diagnostic doesn't use the file, we keep this part intact
     Array.from(files).forEach(file => {
       formData.append('files', file);
     });
 
     const result = await uploadImagesAction(formData);
 
-    if (result.success && result.urls) {
+    if (result.diagnostic) {
+      toast({
+        title: "Diagnostic Test Passed",
+        description: "The server can connect to Firebase Storage. The problem lies elsewhere in the code."
+      });
+      // In a real scenario, we might proceed, but for the test, we just report success.
+      // We can add the test URL just to see it in the UI.
+      const currentImages = form.getValues("images");
+      form.setValue("images", [...currentImages, ...result.urls], { shouldValidate: true });
+    } else if (result.success && result.urls) {
       const currentImages = form.getValues("images");
       form.setValue("images", [...currentImages, ...result.urls], { shouldValidate: true });
       toast({
@@ -140,8 +148,8 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     } else {
       toast({
         variant: "destructive",
-        title: "Upload Failed",
-        description: result.error || "An unknown error occurred during upload.",
+        title: "Diagnostic Test Failed",
+        description: result.error || "An unknown error occurred. This confirms an environment or permissions issue.",
       });
     }
 
@@ -154,8 +162,6 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
   const handleRemoveImage = (imageUrlToRemove: string) => {
     const currentImages = form.getValues("images");
     form.setValue("images", currentImages.filter((img) => img !== imageUrlToRemove), { shouldValidate: true });
-    // Note: This only removes from the form state. The actual file deletion would need a separate server action
-    // if the product has already been saved. For unsaved products, this is fine.
   };
   
   return (
