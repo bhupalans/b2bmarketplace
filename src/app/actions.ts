@@ -3,14 +3,14 @@
 
 import { filterContactDetails } from "@/ai/flows/filter-contact-details";
 import { suggestOffer } from "@/ai/flows/suggest-offer";
-import { auth, db, storage } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { createOrUpdateProduct, deleteProduct, getProduct } from "@/lib/firestore";
 import { mockOffers, mockProducts, mockUsers } from "@/lib/mock-data";
 import { Offer, Product } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { v4 as uuidv4 } from 'uuid';
+import { uploadFileToStorage } from "./admin-actions";
 
 const messageSchema = z.object({
   message: z.string().min(1),
@@ -255,23 +255,18 @@ export async function uploadImagesAction(formData: FormData) {
   try {
     const urls: string[] = [];
     for (const file of files) {
-      // Convert the file to a Buffer on the server.
+      // Convert file to buffer to pass to the admin action
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
       
-      const storageRef = ref(storage, `product-images/${sellerId}/${uuidv4()}-${file.name}`);
+      const filePath = `product-images/${sellerId}/${uuidv4()}-${file.name}`;
       
-      // Upload the buffer.
-      await uploadBytes(storageRef, buffer, {
-        contentType: file.type,
-      });
-
-      const downloadURL = await getDownloadURL(storageRef);
+      const downloadURL = await uploadFileToStorage(buffer, filePath, file.type);
       urls.push(downloadURL);
     }
     return { success: true, urls };
   } catch (error: any) {
-    console.error("Upload failed:", error);
+    console.error("Upload failed in action:", error);
     return { success: false, error: `Upload failed: ${error.message}` };
   }
 }
