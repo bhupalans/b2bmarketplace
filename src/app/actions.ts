@@ -3,12 +3,14 @@
 
 import { filterContactDetails } from "@/ai/flows/filter-contact-details";
 import { suggestOffer } from "@/ai/flows/suggest-offer";
-import { auth } from "@/lib/firebase";
+import { auth, storage } from "@/lib/firebase";
 import { createOrUpdateProduct, deleteProduct, getProduct } from "@/lib/firestore";
 import { mockOffers, mockProducts, mockUsers } from "@/lib/mock-data";
 import { Offer, Product } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { v4 as uuidv4 } from 'uuid';
 
 const messageSchema = z.object({
   message: z.string().min(1),
@@ -236,4 +238,54 @@ export async function deleteProductAction(productId: string, sellerId: string) {
     } catch (error: any) {
         return { success: false, error: error.message };
     }
+}
+
+
+export async function uploadImagesAction(formData: FormData) {
+  const files = formData.getAll('files') as File[];
+  const sellerId = formData.get('sellerId') as string;
+
+  if (!sellerId) {
+    return { success: false, error: "User not authenticated." };
+  }
+  if (!files || files.length === 0) {
+    return { success: false, error: "No files provided." };
+  }
+
+  const uploadPromises = files.map(async (file) => {
+    try {
+      const fileId = uuidv4();
+      const storageRef = ref(storage, `product-images/${sellerId}/${fileId}-${file.name}`);
+      
+      // Convert file to ArrayBuffer
+      const buffer = await file.arrayBuffer();
+      
+      const snapshot = await uploadBytes(storageRef, buffer, {
+        contentType: file.type,
+      });
+
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      return downloadURL;
+    } catch (error: any) {
+      console.error(`Failed to upload ${file.name}:`, error);
+      // Return a specific object for failed uploads
+      return { error: `Failed to upload ${file.name}`, fileName: file.name };
+    }
+  });
+
+  const results = await Promise.all(uploadPromises);
+
+  const uploadedUrls = results.filter(result => typeof result === 'string') as string[];
+  const uploadErrors = results.filter(result => typeof result === 'object' && result.error);
+
+  if (uploadErrors.length > 0) {
+    return { 
+      success: false, 
+      error: `Could not upload ${uploadErrors.length} file(s).`,
+      urls: uploadedUrls,
+      errors: uploadErrors
+    };
+  }
+
+  return { success: true, urls: uploadedUrls };
 }

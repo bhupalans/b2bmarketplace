@@ -35,12 +35,10 @@ import {
   SelectValue,
 } from "./ui/select";
 import { Product, Category } from "@/lib/types";
-import { createOrUpdateProductAction } from "@/app/actions";
+import { createOrUpdateProductAction, uploadImagesAction } from "@/app/actions";
 import { getCategories } from "@/lib/firestore";
 import Image from "next/image";
 import { useAuth } from "@/contexts/auth-context";
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { v4 as uuidv4 } from 'uuid';
 import { Progress } from "./ui/progress";
 
 const productSchema = z.object({
@@ -60,25 +58,13 @@ type ProductFormDialogProps = {
   onSuccess: (product: Product) => void;
 };
 
-type UploadStatus = 'uploading' | 'success' | 'error';
-interface ImageUpload {
-    file: File;
-    id: string;
-    progress: number;
-    status: UploadStatus;
-    downloadURL?: string;
-    error?: string;
-}
-
 export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: ProductFormDialogProps) {
   const { toast } = useToast();
   const [isSaving, startSavingTransition] = useTransition();
   const [categories, setCategories] = useState<Category[]>([]);
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [imageUploads, setImageUploads] = useState<ImageUpload[]>([]);
-  
-  const isUploading = imageUploads.some(u => u.status === 'uploading');
+  const [isUploading, setIsUploading] = useState(false);
 
   const form = useForm<z.infer<typeof productSchema>>({
     resolver: zodResolver(productSchema),
@@ -109,7 +95,6 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
       images: product?.images || [],
       sellerId: user?.id || "",
     });
-    setImageUploads([]);
   }, [product, open, form, user]);
 
   const onSubmit = (values: z.infer<typeof productSchema>) => {
@@ -131,66 +116,46 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     });
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0 || !user) return;
+    
+    setIsUploading(true);
 
-    const newUploads = Array.from(files).map(file => ({
-      file,
-      id: uuidv4(),
-      progress: 0,
-      status: 'uploading' as UploadStatus,
-    }));
+    const formData = new FormData();
+    formData.append('sellerId', user.id);
+    Array.from(files).forEach(file => {
+      formData.append('files', file);
+    });
 
-    setImageUploads(prev => [...prev, ...newUploads]);
+    const result = await uploadImagesAction(formData);
 
-    const uploadPromises = newUploads.map(upload => {
-      return new Promise<string>((resolve, reject) => {
-        const storage = getStorage();
-        const storageRef = ref(storage, `product-images/${upload.id}-${upload.file.name}`);
-        const uploadTask = uploadBytesResumable(storageRef, upload.file);
-
-        uploadTask.on('state_changed',
-          (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            setImageUploads(prev => prev.map(u => u.id === upload.id ? { ...u, progress } : u));
-          },
-          (error) => {
-            console.error("Upload failed:", error);
-            setImageUploads(prev => prev.map(u => u.id === upload.id ? { ...u, status: 'error', error: error.message } : u));
-            reject(error);
-          },
-          () => {
-            getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-              setImageUploads(prev => prev.map(u => u.id === upload.id ? { ...u, status: 'success', downloadURL, progress: 100 } : u));
-              resolve(downloadURL);
-            }).catch(reject);
-          }
-        );
+    if (result.success && result.urls) {
+      const currentImages = form.getValues("images");
+      form.setValue("images", [...currentImages, ...result.urls], { shouldValidate: true });
+      toast({
+        title: "Upload Successful",
+        description: `${result.urls.length} image(s) have been added.`
       });
-    });
-
-    Promise.all(uploadPromises).then(downloadURLs => {
-        form.setValue("images", [...form.getValues("images"), ...downloadURLs], { shouldValidate: true });
-    }).catch(err => {
-        console.error("One or more uploads failed", err);
-        toast({
-            variant: "destructive",
-            title: "Upload Failed",
-            description: "One or more images could not be uploaded. Please try again.",
-        })
-    });
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Upload Failed",
+        description: result.error || "An unknown error occurred during upload.",
+      });
+    }
 
     if(fileInputRef.current) {
         fileInputRef.current.value = "";
     }
+    setIsUploading(false);
   };
 
   const handleRemoveImage = (imageUrlToRemove: string) => {
     const currentImages = form.getValues("images");
     form.setValue("images", currentImages.filter((img) => img !== imageUrlToRemove), { shouldValidate: true });
-    // Also remove from local uploads if it's there
-    setImageUploads(prev => prev.filter(upload => upload.downloadURL !== imageUrlToRemove));
+    // Note: This only removes from the form state. The actual file deletion would need a separate server action
+    // if the product has already been saved. For unsaved products, this is fine.
   };
   
   return (
@@ -311,7 +276,11 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
                             onClick={() => fileInputRef.current?.click()}
                             disabled={isUploading}
                         >
-                           <UploadCloud className="h-6 w-6" />
+                           {isUploading ? (
+                                <Loader2 className="h-6 w-6 animate-spin" />
+                           ) : (
+                                <UploadCloud className="h-6 w-6" />
+                           )}
                            <span className="sr-only">Upload Image</span>
                         </Button>
                     </div>
@@ -322,32 +291,10 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
               )}
             />
 
-            {imageUploads.length > 0 && (
-                <div className="space-y-2">
-                    <h3 className="text-sm font-medium">Uploads</h3>
-                    {imageUploads.map(upload => (
-                        <div key={upload.id} className="p-2 border rounded-md">
-                           <div className="flex items-center justify-between text-sm">
-                                <p className="truncate w-40">{upload.file.name}</p>
-                                <div className="flex items-center gap-2">
-                                     {upload.status === 'success' && <CheckCircle className="h-4 w-4 text-green-500" />}
-                                     {upload.status === 'error' && <XCircle className="h-4 w-4 text-destructive" />}
-                                     {upload.status === 'uploading' && <Loader2 className="h-4 w-4 animate-spin"/>}
-                                     <p className="w-12 text-right">{Math.round(upload.progress)}%</p>
-                                </div>
-                            </div>
-                            <Progress value={upload.progress} className="h-1 mt-1" />
-                            {upload.status === 'error' && <p className="text-xs text-destructive mt-1">{upload.error}</p>}
-                        </div>
-                    ))}
-                </div>
-            )}
-
-
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
               <Button type="submit" disabled={isSaving || isUploading}>
-                {(isSaving || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {product ? "Save Changes" : "Create Product"}
               </Button>
             </DialogFooter>
@@ -357,5 +304,3 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     </Dialog>
   );
 }
-
-    
