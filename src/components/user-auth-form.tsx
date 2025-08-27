@@ -78,6 +78,10 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
     setIsLoading(true);
     try {
       if (mode === "signup") {
+        // Ensure name and role are present for signup, which the schema refinement should already do.
+        if (!values.name || !values.role) {
+            throw new Error("Name and role are required for signup.");
+        }
         const userCredential = await createUserWithEmailAndPassword(
           auth,
           values.email,
@@ -110,10 +114,16 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
       router.push("/");
     } catch (error: any) {
       console.error(error);
+      // Provide a more user-friendly message for invalid credentials
+      const errorMessage =
+        error.code === "auth/invalid-credential"
+          ? "The email or password you entered is incorrect. Please try again."
+          : error.message || "An unexpected error occurred.";
+
       toast({
         variant: "destructive",
         title: "Authentication Failed",
-        description: error.message || "An unexpected error occurred.",
+        description: errorMessage,
       });
     } finally {
       setIsLoading(false);
