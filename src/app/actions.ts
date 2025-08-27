@@ -255,11 +255,17 @@ export async function uploadImagesAction(formData: FormData) {
   try {
     const urls: string[] = [];
     for (const file of files) {
-      const fileBuffer = Buffer.from(await file.arrayBuffer());
+      // Convert the file to a Buffer on the server.
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      
       const storageRef = ref(storage, `product-images/${sellerId}/${uuidv4()}-${file.name}`);
-      await uploadBytes(storageRef, fileBuffer, {
+      
+      // Upload the buffer.
+      await uploadBytes(storageRef, buffer, {
         contentType: file.type,
       });
+
       const downloadURL = await getDownloadURL(storageRef);
       urls.push(downloadURL);
     }
