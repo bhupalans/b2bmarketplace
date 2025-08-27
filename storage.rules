@@ -2,15 +2,18 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Match any file in the bucket
-    match /{allPaths=**} {
-      // Allow public read access
-      allow read: if true;
+    // Allow users to upload product images to a folder corresponding to their user ID.
+    // They can only write to their own folder.
+    // Ensure the uploaded file is an image and is less than 5MB.
+    match /product-images/{userId}/{allPaths=**} {
+      allow write: if request.auth != null && request.auth.uid == userId
+                    && request.resource.size < 5 * 1024 * 1024
+                    && request.resource.contentType.matches('image/.*');
     }
-    // Match files in the 'product-images' folder
+    
+    // Allow public read access to all product images so they can be displayed in the app.
     match /product-images/{allPaths=**} {
-        // Allow write (create, update, delete) access only if the user is authenticated
-        allow write: if request.auth != null;
+      allow read;
     }
   }
 }
