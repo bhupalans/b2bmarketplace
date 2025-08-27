@@ -1,6 +1,10 @@
 # Settings to manage and configure a Firebase App Hosting backend.
 # https://firebase.google.com/docs/app-hosting/configure
 
+# Explicitly set the service account for the backend.
+# This can resolve token generation and permission issues.
+serviceAccount: firebase-app-hosting-compute@b2b-marketplace-udg1v.iam.gserviceaccount.com
+
 runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
