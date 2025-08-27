@@ -246,7 +246,7 @@ export async function uploadImagesAction(formData: FormData) {
   const sellerId = formData.get('sellerId') as string;
 
   if (!sellerId) {
-    return { success: false, error: "User not authenticated." };
+    return { success: false, error: "User not authenticated. Please ensure you are logged in." };
   }
   if (!files || files.length === 0) {
     return { success: false, error: "No files provided." };

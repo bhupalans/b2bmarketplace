@@ -123,7 +123,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     setIsUploading(true);
 
     const formData = new FormData();
-    formData.append('sellerId', user.id);
+    formData.append('sellerId', user.id); // Pass the sellerId to the action
     Array.from(files).forEach(file => {
       formData.append('files', file);
     });
