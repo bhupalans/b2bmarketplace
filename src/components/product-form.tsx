@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "./ui/button";
-import { Loader2, Trash2, Plus, UploadCloud, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, Trash2, UploadCloud, CheckCircle, XCircle } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -42,8 +42,6 @@ import { useAuth } from "@/contexts/auth-context";
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { v4 as uuidv4 } from 'uuid';
 import { Progress } from "./ui/progress";
-import { cn } from "@/lib/utils";
-
 
 const productSchema = z.object({
   id: z.string().optional(),
@@ -54,7 +52,6 @@ const productSchema = z.object({
   images: z.array(z.string().url({ message: "Please enter a valid URL."})).min(1, { message: "Please add at least one image." }),
   sellerId: z.string(),
 });
-
 
 type ProductFormDialogProps = {
   open: boolean;
@@ -75,12 +72,12 @@ interface ImageUpload {
 
 export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: ProductFormDialogProps) {
   const { toast } = useToast();
-  const [isPending, startTransition] = useTransition();
+  const [isSaving, startSavingTransition] = useTransition();
   const [categories, setCategories] = useState<Category[]>([]);
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageUploads, setImageUploads] = useState<ImageUpload[]>([]);
-
+  
   const isUploading = imageUploads.some(u => u.status === 'uploading');
 
   const form = useForm<z.infer<typeof productSchema>>({
@@ -89,7 +86,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
       id: product?.id,
       title: product?.title || "",
       description: product?.description || "",
-      priceUSD: product?.priceUSD || '',
+      priceUSD: '',
       categoryId: product?.categoryId || "",
       images: product?.images || [],
     },
@@ -112,12 +109,11 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
       images: product?.images || [],
       sellerId: user?.id || "",
     });
-    // Reset uploads when dialog opens/product changes
     setImageUploads([]);
   }, [product, open, form, user]);
 
   const onSubmit = (values: z.infer<typeof productSchema>) => {
-    startTransition(async () => {
+    startSavingTransition(async () => {
       const result = await createOrUpdateProductAction(values);
       if (result.success && result.product) {
         toast({
@@ -137,72 +133,51 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files || files.length === 0) return;
+    if (!files) return;
 
-    const newUploads: ImageUpload[] = Array.from(files).map(file => ({
+    const newUploads = Array.from(files).map(file => ({
       file,
       id: uuidv4(),
       progress: 0,
-      status: 'uploading',
+      status: 'uploading' as UploadStatus,
     }));
 
     setImageUploads(prev => [...prev, ...newUploads]);
 
-    const uploadPromises = newUploads.map(upload => {
+    newUploads.forEach(upload => {
       const storage = getStorage();
-      const fileId = uuidv4();
-      const storageRef = ref(storage, `product-images/${fileId}-${upload.file.name}`);
+      const storageRef = ref(storage, `product-images/${upload.id}-${upload.file.name}`);
       const uploadTask = uploadBytesResumable(storageRef, upload.file);
-      
-      return new Promise<string>((resolve, reject) => {
-        uploadTask.on('state_changed',
-          (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-             setImageUploads(prev => prev.map(u => u.id === upload.id ? { ...u, progress } : u));
-          },
-          (error) => {
-            console.error("Upload failed:", error);
-            setImageUploads(prev => prev.map(u => u.id === upload.id ? { ...u, status: 'error', error: error.message } : u));
-            reject(error);
-          },
-          () => {
-            getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-              setImageUploads(prev => prev.map(u => u.id === upload.id ? { ...u, status: 'success', downloadURL, progress: 100 } : u));
-              resolve(downloadURL);
-            });
-          }
-        );
-      });
-    });
 
-    Promise.allSettled(uploadPromises).then(results => {
-      const successfulUploads = results
-        .filter((result): result is PromiseFulfilledResult<string> => result.status === 'fulfilled')
-        .map(result => result.value);
-
-      if (successfulUploads.length > 0) {
-        const currentImages = form.getValues("images");
-        form.setValue("images", [...currentImages, ...successfulUploads], { shouldValidate: true });
-      }
-
-      if (results.some(r => r.status === 'rejected')) {
-          toast({
-              variant: "destructive",
-              title: "Some uploads failed",
-              description: "There was a problem uploading one or more of your images. Please try them again.",
+      uploadTask.on('state_changed',
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setImageUploads(prev => prev.map(u => u.id === upload.id ? { ...u, progress } : u));
+        },
+        (error) => {
+          console.error("Upload failed:", error);
+          setImageUploads(prev => prev.map(u => u.id === upload.id ? { ...u, status: 'error', error: error.message } : u));
+        },
+        () => {
+          getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+            setImageUploads(prev => prev.map(u => u.id === upload.id ? { ...u, status: 'success', downloadURL, progress: 100 } : u));
+            form.setValue("images", [...form.getValues("images"), downloadURL], { shouldValidate: true });
           });
-      }
-       // Reset file input so user can select same file again if needed
-       if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+        }
+      );
     });
+
+    if(fileInputRef.current) {
+        fileInputRef.current.value = "";
+    }
   };
 
-  const handleRemoveImage = (index: number) => {
+  const handleRemoveImage = (index: number, imageUrl: string) => {
     const currentImages = form.getValues("images");
-    form.setValue("images", currentImages.filter((_, i) => i !== index));
-  }
+    form.setValue("images", currentImages.filter((img) => img !== imageUrl), { shouldValidate: true });
+    // Also remove from local uploads if it's there
+    setImageUploads(prev => prev.filter(upload => upload.downloadURL !== imageUrl));
+  };
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -282,29 +257,29 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
                 )}
               />
             </div>
-
+            
             <FormField
               control={form.control}
               name="images"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Product Images</FormLabel>
-                  <div className="flex flex-wrap items-center gap-4">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
                     {field.value.map((img, index) => (
-                        <div key={index} className="relative group">
-                            <Image src={img} alt="Product image" width={100} height={100} className="rounded-md object-cover aspect-square" />
+                        <div key={index} className="relative group aspect-square">
+                            <Image src={img} alt="Product image" fill className="rounded-md object-cover" />
                             <Button
                                 type="button"
                                 variant="destructive"
                                 size="icon"
-                                className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                onClick={() => handleRemoveImage(index)}
+                                className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                onClick={() => handleRemoveImage(index, img)}
                             >
                                 <Trash2 className="h-4 w-4"/>
                             </Button>
                         </div>
                     ))}
-                    <div className="flex items-center justify-center h-24 w-24 flex-shrink-0 border-2 border-dashed rounded-md">
+                    <div className="flex items-center justify-center h-full w-full aspect-square flex-shrink-0 border-2 border-dashed rounded-md">
                         <input
                             type="file"
                             ref={fileInputRef}
@@ -322,12 +297,8 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
                             onClick={() => fileInputRef.current?.click()}
                             disabled={isUploading}
                         >
-                            {isUploading ? (
-                                <Loader2 className="h-6 w-6 animate-spin" />
-                            ) : (
-                                <UploadCloud className="h-6 w-6" />
-                            )}
-                            <span className="sr-only">Upload Image</span>
+                           <UploadCloud className="h-6 w-6" />
+                           <span className="sr-only">Upload Image</span>
                         </Button>
                     </div>
                   </div>
@@ -336,15 +307,18 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
                 </FormItem>
               )}
             />
-            {imageUploads.length > 0 && (
+
+            {imageUploads.filter(u => u.status !== 'success').length > 0 && (
                 <div className="space-y-2">
-                    {imageUploads.map(upload => (
+                    <h3 className="text-sm font-medium">Uploads</h3>
+                    {imageUploads.filter(u => u.status !== 'success').map(upload => (
                         <div key={upload.id} className="p-2 border rounded-md">
                            <div className="flex items-center justify-between text-sm">
                                 <p className="truncate w-40">{upload.file.name}</p>
                                 <div className="flex items-center gap-2">
                                      {upload.status === 'success' && <CheckCircle className="h-4 w-4 text-green-500" />}
                                      {upload.status === 'error' && <XCircle className="h-4 w-4 text-destructive" />}
+                                     {upload.status === 'uploading' && <Loader2 className="h-4 w-4 animate-spin"/>}
                                      <p className="w-12 text-right">{Math.round(upload.progress)}%</p>
                                 </div>
                             </div>
@@ -358,8 +332,8 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
 
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button type="submit" disabled={isPending || isUploading}>
-                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button type="submit" disabled={isSaving || isUploading}>
+                {(isSaving || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {product ? "Save Changes" : "Create Product"}
               </Button>
             </DialogFooter>
@@ -369,5 +343,3 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     </Dialog>
   );
 }
-
-    
