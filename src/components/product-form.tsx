@@ -126,7 +126,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
 
     try {
       const uploadPromises = Array.from(files).map(file => {
-        const filePath = `product-images/${user.id}/${uuidv4()}-${file.name}`;
+        const filePath = `products/${user.id}/${uuidv4()}-${file.name}`;
         const storageRef = ref(storage, filePath);
         return uploadBytes(storageRef, file).then(snapshot => getDownloadURL(snapshot.ref));
       });
