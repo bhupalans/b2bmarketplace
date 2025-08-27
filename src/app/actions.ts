@@ -258,7 +258,12 @@ export async function uploadImagesAction(formData: FormData) {
       const storageRef = ref(storage, `product-images/${sellerId}/${fileId}-${file.name}`);
       
       // Convert file to ArrayBuffer
-      const buffer = await file.arrayBuffer();
+      const stream = file.stream();
+      const chunks = [];
+      for await (const chunk of stream) {
+        chunks.push(chunk);
+      }
+      const buffer = Buffer.concat(chunks);
       
       const snapshot = await uploadBytes(storageRef, buffer, {
         contentType: file.type,
