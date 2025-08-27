@@ -306,5 +306,3 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     </Dialog>
   );
 }
-
-    
