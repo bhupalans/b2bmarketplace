@@ -2,6 +2,7 @@
 "use server";
 
 import { filterContactDetails } from "@/ai/flows/filter-contact-details";
+import { generateImage } from "@/ai/flows/generate-image-flow";
 import { suggestOffer } from "@/ai/flows/suggest-offer";
 import { auth } from "@/lib/firebase";
 import { createOrUpdateProduct, deleteProduct, getProduct } from "@/lib/firestore";
@@ -185,17 +186,18 @@ const productSchema = z.object({
   priceUSD: z.coerce.number().positive(),
   categoryId: z.string().min(1),
   images: z.array(z.string()).min(1),
+  sellerId: z.string(),
 });
 
 export async function createOrUpdateProductAction(values: z.infer<typeof productSchema>) {
-  const sellerId = auth.currentUser?.uid;
-  if (!sellerId) {
+  if (!values.sellerId) {
     return { success: false, error: 'User not authenticated' };
   }
+  const { sellerId, ...productDataWithoutSeller } = values;
 
   try {
     const productData: Omit<Product, 'id'> = {
-      ...values,
+      ...productDataWithoutSeller,
       sellerId,
     };
     
@@ -213,8 +215,7 @@ export async function createOrUpdateProductAction(values: z.infer<typeof product
   }
 }
 
-export async function deleteProductAction(productId: string) {
-    const sellerId = auth.currentUser?.uid;
+export async function deleteProductAction(productId: string, sellerId: string) {
     if (!sellerId) {
         return { success: false, error: 'User not authenticated' };
     }
@@ -236,4 +237,34 @@ export async function deleteProductAction(productId: string) {
     } catch (error: any) {
         return { success: false, error: error.message };
     }
+}
+
+const generateImageSchema = z.object({
+  prompt: z.string().min(3, "Prompt must be at least 3 characters."),
+});
+export async function generateImageAction(prevState: any, formData: FormData) {
+  const validatedFields = generateImageSchema.safeParse({
+    prompt: formData.get("prompt"),
+  });
+
+  if (!validatedFields.success) {
+    return {
+      error: "Invalid prompt.",
+      imageUrl: null,
+    };
+  }
+
+  try {
+    const result = await generateImage({ prompt: validatedFields.data.prompt });
+    return {
+      error: null,
+      imageUrl: result.imageUrl,
+    }
+  } catch (e: any) {
+    console.error(e);
+    return {
+      error: "Failed to generate image. Please try again.",
+      imageUrl: null,
+    }
+  }
 }

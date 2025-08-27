@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "./ui/button";
-import { Loader2, Trash2, Upload } from "lucide-react";
+import { Loader2, Trash2, Wand2 } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -23,10 +23,10 @@ import {
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { z } from "zod";
-import { useForm } from "react-hook-form";
+import { useForm, useFormState } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition, useActionState } from "react";
 import {
   Select,
   SelectContent,
@@ -35,9 +35,11 @@ import {
   SelectValue,
 } from "./ui/select";
 import { Product, Category } from "@/lib/types";
-import { createOrUpdateProductAction } from "@/app/actions";
+import { createOrUpdateProductAction, generateImageAction } from "@/app/actions";
 import { getCategories } from "@/lib/firestore";
 import Image from "next/image";
+import { useAuth } from "@/contexts/auth-context";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 
 const productSchema = z.object({
   id: z.string().optional(),
@@ -45,7 +47,12 @@ const productSchema = z.object({
   description: z.string().min(10, { message: "Description must be at least 10 characters." }),
   priceUSD: z.coerce.number().positive({ message: "Price must be a positive number." }),
   categoryId: z.string().min(1, { message: "Please select a category." }),
-  images: z.array(z.string()).min(1, { message: "Please upload at least one image." }),
+  images: z.array(z.string()).min(1, { message: "Please generate at least one image." }),
+  sellerId: z.string(),
+});
+
+const imagePromptSchema = z.object({
+  prompt: z.string().min(3, "Prompt must be at least 3 characters."),
 });
 
 type ProductFormDialogProps = {
@@ -55,10 +62,66 @@ type ProductFormDialogProps = {
   onSuccess: (product: Product) => void;
 };
 
+function ImageGenerator({ control, onImageGenerated }: { control: any, onImageGenerated: (url: string) => void }) {
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const { toast } = useToast();
+  const [state, formAction] = useActionState(generateImageAction, { error: null, imageUrl: null });
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  useEffect(() => {
+    setIsGenerating(false);
+    if (state.error) {
+      toast({ variant: 'destructive', title: 'Image Generation Failed', description: state.error });
+    }
+    if (state.imageUrl) {
+      onImageGenerated(state.imageUrl);
+      setPopoverOpen(false);
+    }
+  }, [state, toast, onImageGenerated]);
+
+  const onGenerate = () => {
+    setIsGenerating(true);
+    formRef.current?.requestSubmit();
+  }
+
+  return (
+    <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" size="icon" className="h-24 w-24 flex-shrink-0">
+          <Wand2 className="h-6 w-6" />
+          <span className="sr-only">Generate Image</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80">
+        <form ref={formRef} action={formAction}>
+          <div className="grid gap-4">
+            <div className="space-y-2">
+              <h4 className="font-medium leading-none">Generate Image</h4>
+              <p className="text-sm text-muted-foreground">
+                Describe the image you want to create.
+              </p>
+            </div>
+            <div className="grid gap-2">
+              <Input name="prompt" placeholder="e.g. A blue widget on a white background" />
+            </div>
+            <Button onClick={onGenerate} disabled={isGenerating}>
+                {isGenerating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Generate
+            </Button>
+          </div>
+        </form>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+
 export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: ProductFormDialogProps) {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const [categories, setCategories] = useState<Category[]>([]);
+  const { user } = useAuth();
 
   const form = useForm<z.infer<typeof productSchema>>({
     resolver: zodResolver(productSchema),
@@ -77,7 +140,10 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
   }, []);
 
   useEffect(() => {
-    // Reset form when product prop changes
+    if (user?.id) {
+      form.setValue('sellerId', user.id);
+    }
+    // Reset form when product prop changes or dialog opens
     form.reset({
       id: product?.id,
       title: product?.title || "",
@@ -85,8 +151,9 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
       priceUSD: product?.priceUSD || '',
       categoryId: product?.categoryId || "",
       images: product?.images || [],
+      sellerId: user?.id || "",
     });
-  }, [product, open, form]);
+  }, [product, open, form, user]);
 
   const onSubmit = (values: z.infer<typeof productSchema>) => {
     startTransition(async () => {
@@ -107,12 +174,9 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     });
   };
 
-  const handleImageUpload = () => {
-    // In a real app, this would open a file picker and upload to cloud storage.
-    // For this demo, we'll just add a placeholder image URL.
-    const newImage = `https://picsum.photos/600/400?random=${Math.random()}`;
+  const handleImageGenerated = (url: string) => {
     const currentImages = form.getValues("images");
-    form.setValue("images", [...currentImages, newImage]);
+    form.setValue("images", [...currentImages, url]);
   }
 
   const handleRemoveImage = (index: number) => {
@@ -131,7 +195,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            
+            <input type="hidden" {...form.register("sellerId")} />
             <FormField
               control={form.control}
               name="title"
@@ -221,12 +285,10 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
                                 </Button>
                             </div>
                         ))}
-                        <Button type="button" variant="outline" size="icon" className="h-24 w-24 flex-shrink-0" onClick={handleImageUpload}>
-                            <Upload className="h-6 w-6"/>
-                        </Button>
+                        <ImageGenerator control={form.control} onImageGenerated={handleImageGenerated}/>
                     </div>
                   </FormControl>
-                  <FormDescription>The first image will be the main display image.</FormDescription>
+                  <FormDescription>The first image will be the main display image. Click the wand to generate a new one.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
