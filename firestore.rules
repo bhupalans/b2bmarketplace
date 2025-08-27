@@ -7,11 +7,14 @@ service cloud.firestore {
       // Anyone can read products.
       allow read: if true;
       
-      // An authenticated user can create a product.
-      allow create: if request.auth != null;
+      // An authenticated user can create a product if the new document's sellerId is their own UID.
+      allow create: if request.auth != null && request.resource.data.sellerId == request.auth.uid;
       
-      // A user can only update or delete a product if they are the sellerId on that document.
-      allow update, delete: if request.auth != null && get(/databases/$(database)/documents/products/$(productId)).data.sellerId == request.auth.uid;
+      // A user can only update a product if they are the sellerId on that document.
+      allow update: if request.auth != null && resource.data.sellerId == request.auth.uid;
+
+      // A user can only delete a product if they are the sellerId on that document.
+      allow delete: if request.auth != null && resource.data.sellerId == request.auth.uid;
     }
 
     // Categories can be read by anyone, but only written by authenticated users (admins).
