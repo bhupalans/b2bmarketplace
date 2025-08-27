@@ -38,7 +38,7 @@ import { Product, Category } from "@/lib/types";
 import { createOrUpdateProductAction } from "@/app/actions";
 import { getCategories } from "@/lib/firestore";
 import Image from "next/image";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/contexts/auth-context";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 
 const productSchema = z.object({
