@@ -118,8 +118,13 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files || files.length === 0 || !firebaseUser) return;
+    if (!files || files.length === 0) return;
     
+    if (!firebaseUser) {
+        toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in to upload images." });
+        return;
+    }
+
     setIsUploading(true);
 
     try {
