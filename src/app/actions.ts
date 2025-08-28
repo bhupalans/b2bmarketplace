@@ -12,8 +12,7 @@ import { v4 as uuidv4 } from "uuid";
 import { headers } from "next/headers";
 
 const inquirySchema = z.object({
-  buyerName: z.string().min(1, "Name is required."),
-  buyerEmail: z.string().email("A valid email is required."),
+  idToken: z.string(),
   message: z.string().min(10, "Message must be at least 10 characters."),
   sellerId: z.string(),
   productId: z.string().optional(),
@@ -27,14 +26,45 @@ export async function sendInquiryAction(values: z.infer<typeof inquirySchema>) {
         return { success: false, error: "Invalid data." };
     }
     
-    const { buyerName, buyerEmail, message, sellerId, productTitle } = validatedFields.data;
+    const { idToken, message, sellerId, productTitle } = validatedFields.data;
 
-    // NOTE: Email sending functionality has been temporarily disabled.
-    // In a real application, you would use a service like Resend or SendGrid here.
-    console.log("Inquiry received:", { buyerName, buyerEmail, message, sellerId, productTitle });
-    
-    // Simulate a successful send without actually sending an email.
-    return { success: true };
+    let buyerId: string;
+    let buyerName: string;
+    let buyerEmail: string;
+
+    try {
+        const decodedToken = await adminAuth.verifyIdToken(idToken);
+        buyerId = decodedToken.uid;
+        const buyer = await getUser(buyerId);
+        if (!buyer) throw new Error("Buyer profile not found.");
+        buyerName = buyer.name;
+        buyerEmail = buyer.email;
+    } catch(error) {
+        console.error("Authentication error in sendInquiryAction:", error);
+        return { success: false, error: "Authentication failed. Please log in again." };
+    }
+
+    try {
+        // Filter the message for contact details using the AI flow
+        const { modifiedMessage, modificationReason } = await filterContactDetails({ message });
+
+        // In a real app, this is where you would save the message to the database
+        // and trigger a notification to the seller.
+        console.log("Filtered Inquiry received:", { 
+            buyerName, 
+            buyerEmail, 
+            sellerId, 
+            productTitle,
+            originalMessage: message,
+            modifiedMessage,
+            modificationReason,
+        });
+        
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error processing inquiry:", error);
+        return { success: false, error: "There was a problem sending your inquiry." };
+    }
 }
 
 export async function createOrUpdateProductAction(formData: FormData) {

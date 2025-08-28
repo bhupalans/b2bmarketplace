@@ -24,18 +24,14 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import type { Product, User } from "@/lib/types";
 import { sendInquiryAction } from "@/app/actions";
 import { Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import Link from "next/link";
 
 const inquirySchema = z.object({
-  buyerName: z.string().min(1, "Name is required."),
-  buyerEmail: z.string().email("A valid email is required."),
   message: z.string().min(10, "Message must be at least 10 characters."),
 });
 
@@ -53,27 +49,22 @@ export function ContactSellerDialog({ product, seller }: ContactSellerDialogProp
   const form = useForm<z.infer<typeof inquirySchema>>({
     resolver: zodResolver(inquirySchema),
     defaultValues: {
-      buyerName: user?.name || "",
-      buyerEmail: user?.email || "",
       message: "",
     },
   });
 
-  // Update form defaults when user data loads
-  useState(() => {
-    if (user) {
-      form.reset({
-        buyerName: user.name,
-        buyerEmail: user.email,
-        message: "",
-      });
-    }
-  });
-
   const onSubmit = async (values: z.infer<typeof inquirySchema>) => {
+    if (!firebaseUser) {
+        toast({ variant: 'destructive', title: 'Not Authenticated', description: 'You must be logged in to send an inquiry.' });
+        return;
+    }
+
     setIsSending(true);
+    const idToken = await firebaseUser.getIdToken();
+
     const result = await sendInquiryAction({
         ...values,
+        idToken,
         sellerId: seller.uid,
         productId: product?.id,
         productTitle: product?.title,
@@ -114,36 +105,11 @@ export function ContactSellerDialog({ product, seller }: ContactSellerDialogProp
           <DialogTitle>Contact {seller.name}</DialogTitle>
           <DialogDescription>
             {product ? `Send an inquiry for "${product.title}".` : "Send a general inquiry to this seller."}
+            Your name and email will not be shared. All communication happens through the platform.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="buyerName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Your Name</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="buyerEmail"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Your Email</FormLabel>
-                  <FormControl>
-                    <Input type="email" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
             <FormField
               control={form.control}
               name="message"
