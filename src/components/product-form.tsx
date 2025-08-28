@@ -40,13 +40,12 @@ import { useAuth } from "@/contexts/auth-context";
 import { createOrUpdateProductClient } from "@/lib/firebase";
 
 const productSchema = z.object({
-  id: z.string().optional(),
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
   description: z.string().min(10, { message: "Description must be at least 10 characters." }),
   priceUSD: z.coerce.number().positive({ message: "Price must be a positive number." }),
   categoryId: z.string().min(1, { message: "Please select a category." }),
-  existingImages: z.array(z.string().url()).optional(),
-  newImageFiles: z.any().optional(), // We'll use a refine for this
+  existingImages: z.array(z.string().url()),
+  newImageFiles: z.instanceof(FileList).optional(),
 }).refine(data => {
     const hasExistingImages = data.existingImages && data.existingImages.length > 0;
     const hasNewImages = data.newImageFiles && data.newImageFiles.length > 0;
@@ -69,40 +68,38 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess, cate
   const { toast } = useToast();
   const [isSaving, startSavingTransition] = useTransition();
   const { firebaseUser } = useAuth();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const [newImageFiles, setNewImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-
 
   const form = useForm<z.infer<typeof productSchema>>({
     resolver: zodResolver(productSchema),
     defaultValues: {
-      id: product?.id,
-      title: product?.title || "",
-      description: product?.description || "",
-      priceUSD: product?.priceUSD || undefined,
-      categoryId: product?.categoryId || "",
-      existingImages: product?.images || [],
+      title: "",
+      description: "",
+      priceUSD: undefined,
+      categoryId: "",
+      existingImages: [],
     },
   });
 
+  const fileRef = form.register("newImageFiles");
+
   useEffect(() => {
-    // Reset form and local file state when dialog opens or product changes
     if (open) {
       form.reset({
-        id: product?.id,
         title: product?.title || "",
         description: product?.description || "",
         priceUSD: product?.priceUSD || undefined,
         categoryId: product?.categoryId || "",
         existingImages: product?.images || [],
-        newImageFiles: [],
       });
-      setNewImageFiles([]);
       setImagePreviews([]);
+      // Reset the file input visually
+      if (fileRef && 'current' in fileRef && fileRef.current) {
+        fileRef.current.value = "";
+      }
     }
-  }, [product, open, form]);
+  }, [product, open, form, fileRef]);
 
   const onSubmit = (values: z.infer<typeof productSchema>) => {
     startSavingTransition(async () => {
@@ -121,10 +118,10 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess, cate
       try {
         const savedProduct = await createOrUpdateProductClient(
             productData,
-            newImageFiles,
-            values.existingImages || [],
+            values.newImageFiles ? Array.from(values.newImageFiles) : [],
+            values.existingImages,
             firebaseUser.uid,
-            values.id
+            product?.id
         );
 
         toast({
@@ -148,18 +145,10 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess, cate
     const files = event.target.files;
     if (!files || files.length === 0) return;
     
-    const selectedFiles = Array.from(files);
-    const newFiles = [...newImageFiles, ...selectedFiles];
-    setNewImageFiles(newFiles);
-
-    const previewUrls = selectedFiles.map(file => URL.createObjectURL(file));
-    setImagePreviews(prev => [...prev, ...previewUrls]);
-    
-    form.setValue('newImageFiles' as any, newFiles, { shouldValidate: true });
-
-    if(fileInputRef.current) {
-        fileInputRef.current.value = "";
-    }
+    const newPreviews = Array.from(files).map(file => URL.createObjectURL(file));
+    // Revoke old previews to prevent memory leaks
+    imagePreviews.forEach(URL.revokeObjectURL);
+    setImagePreviews(newPreviews);
   };
 
   const handleRemoveExistingImage = (imageUrlToRemove: string) => {
@@ -167,21 +156,15 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess, cate
     form.setValue("existingImages", currentImages.filter((img) => img !== imageUrlToRemove), { shouldValidate: true });
   };
 
+  const existingImages = form.watch('existingImages');
+  const newImageFiles = form.watch('newImageFiles');
 
-
-  const handleRemoveNewImage = (indexToRemove: number) => {
-    const newFiles = newImageFiles.filter((_, index) => index !== indexToRemove);
-    setNewImageFiles(newFiles);
-
-    const newPreviews = imagePreviews.filter((_, index) => index !== indexToRemove);
-    URL.revokeObjectURL(imagePreviews[indexToRemove]);
-    setImagePreviews(newPreviews);
-    
-    form.setValue('newImageFiles' as any, newFiles, { shouldValidate: true });
-  }
-
-  const existingImages = form.watch('existingImages') || [];
-  const totalImageCount = existingImages.length + newImageFiles.length;
+  useEffect(() => {
+    return () => {
+      // Cleanup previews on unmount
+      imagePreviews.forEach(URL.revokeObjectURL);
+    };
+  }, [imagePreviews]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -285,23 +268,18 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess, cate
                     {imagePreviews.map((preview, index) => (
                         <div key={preview} className="relative group aspect-square">
                             <Image src={preview} alt="New product image" fill className="rounded-md object-cover" />
-                            <Button
-                                type="button"
-                                variant="destructive"
-                                size="icon"
-                                className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                                onClick={() => handleRemoveNewImage(index)}
-                            >
-                                <Trash2 className="h-4 w-4"/>
-                            </Button>
+                             {/* No remove button for new previews - user can just select different files */}
                         </div>
                     ))}
 
                     <div className="flex items-center justify-center h-full w-full aspect-square flex-shrink-0 border-2 border-dashed rounded-md">
                         <input
                             type="file"
-                            ref={fileInputRef}
-                            onChange={handleFileChange}
+                            {...fileRef}
+                            onChange={(e) => {
+                              field.onChange(e.target.files);
+                              handleFileChange(e);
+                            }}
                             className="hidden"
                             accept="image/png, image/jpeg, image/gif"
                             disabled={isSaving}
@@ -312,7 +290,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess, cate
                             variant="ghost"
                             size="icon"
                             className="h-full w-full"
-                            onClick={() => fileInputRef.current?.click()}
+                            onClick={() => (document.querySelector(`input[name="${field.name}"]`) as HTMLInputElement)?.click()}
                             disabled={isSaving}
                         >
                            {isSaving ? (
@@ -334,7 +312,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess, cate
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
               <Button type="submit" disabled={isSaving}>
                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {product ? "Submit for Review" : "Submit for Review"}
+                Submit for Review
               </Button>
             </DialogFooter>
           </form>
