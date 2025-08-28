@@ -27,7 +27,7 @@ import {
 import { MoreHorizontal, PlusCircle, Trash2, Edit, Loader2 } from "lucide-react";
 import { Product } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
-import { getSellerProducts } from '@/lib/database';
+import { getSellerProductsClient } from '@/lib/firebase';
 import Image from 'next/image';
 import { ProductFormDialog } from '@/components/product-form';
 import { deleteProductAction } from '@/app/actions';
@@ -56,7 +56,7 @@ export default function MyProductsPage() {
 
   useEffect(() => {
     if (user?.role === 'seller') {
-      getSellerProducts(user.id)
+      getSellerProductsClient(user.id)
         .then(data => {
           setProducts(data);
           setLoading(false);

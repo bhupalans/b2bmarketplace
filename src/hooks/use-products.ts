@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { Product, Category, User } from '@/lib/types';
-import { getProducts, getCategories, getUsers } from '@/lib/database';
+import { getProductsClient, getCategoriesClient, getUsersClient } from '@/lib/firebase';
 
 export function useProducts() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -17,14 +17,15 @@ export function useProducts() {
       try {
         setLoading(true);
         const [productData, categoryData, userData] = await Promise.all([
-          getProducts(),
-          getCategories(),
-          getUsers(),
+          getProductsClient(),
+          getCategoriesClient(),
+          getUsersClient(),
         ]);
         setProducts(productData);
         setCategories(categoryData);
         setUsers(userData);
       } catch (err: any) {
+        console.error("Error fetching data client-side:", err);
         setError(err);
       } finally {
         setLoading(false);

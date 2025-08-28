@@ -36,7 +36,7 @@ import {
 } from "./ui/select";
 import { Product, Category } from "@/lib/types";
 import { createOrUpdateProductAction } from "@/app/actions";
-import { getCategories } from "@/lib/database";
+import { getCategoriesClient } from "@/lib/firebase";
 import Image from "next/image";
 import { useAuth } from "@/contexts/auth-context";
 
@@ -47,9 +47,14 @@ const productSchema = z.object({
   priceUSD: z.coerce.number().positive({ message: "Price must be a positive number." }),
   categoryId: z.string().min(1, { message: "Please select a category." }),
   existingImages: z.array(z.string().url()).optional(),
-}).refine(data => data.existingImages && data.existingImages.length > 0 || (data as any).newImageFiles && (data as any).newImageFiles.length > 0, {
+  newImageFiles: z.any().optional(), // We'll use a refine for this
+}).refine(data => {
+    const hasExistingImages = data.existingImages && data.existingImages.length > 0;
+    const hasNewImages = data.newImageFiles && data.newImageFiles.length > 0;
+    return hasExistingImages || hasNewImages;
+}, {
     message: "Please add at least one image.",
-    path: ["existingImages"], // Attach error to a field for display
+    path: ["newImageFiles"], // Attach error to a field for display
 });
 
 
@@ -84,7 +89,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
   });
 
   useEffect(() => {
-    getCategories().then(setCategories);
+    getCategoriesClient().then(setCategories);
   }, []);
 
   useEffect(() => {
@@ -97,6 +102,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         priceUSD: product?.priceUSD || undefined,
         categoryId: product?.categoryId || "",
         existingImages: product?.images || [],
+        newImageFiles: [],
       });
       setNewImageFiles([]);
       setImagePreviews([]);
@@ -264,72 +270,74 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
               />
             </div>
             
-            <FormItem>
-              <FormLabel>Product Images</FormLabel>
-               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
-                {existingImages.map((img) => (
-                    <div key={img} className="relative group aspect-square">
-                        <Image src={img} alt="Product image" fill className="rounded-md object-cover" />
-                        <Button
-                            type="button"
-                            variant="destructive"
-                            size="icon"
-                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                            onClick={() => handleRemoveExistingImage(img)}
-                        >
-                            <Trash2 className="h-4 w-4"/>
-                        </Button>
-                    </div>
-                ))}
-                {imagePreviews.map((preview, index) => (
-                    <div key={preview} className="relative group aspect-square">
-                        <Image src={preview} alt="New product image" fill className="rounded-md object-cover" />
-                        <Button
-                            type="button"
-                            variant="destructive"
-                            size="icon"
-                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                            onClick={() => handleRemoveNewImage(index)}
-                        >
-                            <Trash2 className="h-4 w-4"/>
-                        </Button>
-                    </div>
-                ))}
+            <FormField
+                control={form.control}
+                name="newImageFiles"
+                render={({ field }) => (
+                 <FormItem>
+                  <FormLabel>Product Images</FormLabel>
+                   <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
+                    {existingImages.map((img) => (
+                        <div key={img} className="relative group aspect-square">
+                            <Image src={img} alt="Product image" fill className="rounded-md object-cover" />
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                size="icon"
+                                className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                onClick={() => handleRemoveExistingImage(img)}
+                            >
+                                <Trash2 className="h-4 w-4"/>
+                            </Button>
+                        </div>
+                    ))}
+                    {imagePreviews.map((preview, index) => (
+                        <div key={preview} className="relative group aspect-square">
+                            <Image src={preview} alt="New product image" fill className="rounded-md object-cover" />
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                size="icon"
+                                className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                onClick={() => handleRemoveNewImage(index)}
+                            >
+                                <Trash2 className="h-4 w-4"/>
+                            </Button>
+                        </div>
+                    ))}
 
-                <div className="flex items-center justify-center h-full w-full aspect-square flex-shrink-0 border-2 border-dashed rounded-md">
-                    <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleFileChange}
-                        className="hidden"
-                        accept="image/png, image/jpeg, image/gif"
-                        disabled={isSaving}
-                        multiple
-                    />
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-full w-full"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={isSaving}
-                    >
-                       {isSaving ? (
-                            <Loader2 className="h-6 w-6 animate-spin" />
-                       ) : (
-                            <UploadCloud className="h-6 w-6" />
-                       )}
-                       <span className="sr-only">Upload Image</span>
-                    </Button>
-                </div>
-              </div>
-              <FormDescription>The first image will be the main display image. You can upload multiple images.</FormDescription>
-                {form.formState.errors.existingImages && (
-                    <p className="text-sm font-medium text-destructive">
-                        {form.formState.errors.existingImages.message}
-                    </p>
-                )}
-            </FormItem>
+                    <div className="flex items-center justify-center h-full w-full aspect-square flex-shrink-0 border-2 border-dashed rounded-md">
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileChange}
+                            className="hidden"
+                            accept="image/png, image/jpeg, image/gif"
+                            disabled={isSaving}
+                            multiple
+                        />
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-full w-full"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isSaving}
+                        >
+                           {isSaving ? (
+                                <Loader2 className="h-6 w-6 animate-spin" />
+                           ) : (
+                                <UploadCloud className="h-6 w-6" />
+                           )}
+                           <span className="sr-only">Upload Image</span>
+                        </Button>
+                    </div>
+                  </div>
+                  <FormDescription>The first image will be the main display image. You can upload multiple images.</FormDescription>
+                    <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
