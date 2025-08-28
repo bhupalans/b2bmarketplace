@@ -1,59 +1,59 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isUserAuthenticated() {
-      return request.auth != null;
+    // Helper functions
+    function isAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    function isUser(userId) {
-      return isUserAuthenticated() && request.auth.uid == userId;
+    function isOwner(userId) {
+      return request.auth.uid == userId;
     }
     
-    function isAdmin() {
-      return isUserAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    function isSeller() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'seller';
     }
 
+    // Users can only read/write to their own document
     match /users/{userId} {
-      allow read, write: if isUser(userId) || isAdmin();
+      allow read, write: if isOwner(userId);
     }
-
+    
+    // Any authenticated user can read categories
     match /categories/{categoryId} {
-      allow read: if true;
-      allow write: if isAdmin();
+        allow read: if request.auth != null;
     }
 
+    // Products
     match /products/{productId} {
       // Anyone can read approved products
-      allow read: if resource.data.status == 'approved';
-
-      // Admins can read any product
-      allow read: if isAdmin();
+      allow get: if resource.data.status == 'approved';
       
-      // An authenticated user can create a product...
-      allow create: if isUserAuthenticated()
-        // ...if they are the seller...
-        && request.resource.data.sellerId == request.auth.uid
-        // ...and they are not trying to approve it themselves.
-        && request.resource.data.status == 'pending';
-      
-      // An existing product can be updated...
-      allow update: if 
-        // ...by an admin (for approval/rejection)
-        isAdmin() || 
-        // ...or by the original seller...
-        (isUser(resource.data.sellerId) 
-          // ...but the seller cannot change the status or sellerId.
-          && request.resource.data.status == 'pending'
-          && request.resource.data.sellerId == resource.data.sellerId);
+      // Logged-in users can list approved products. Sellers can list their own products. Admins can list all.
+      allow list: if request.auth != null;
 
-      // A product can be deleted by its seller or an admin.
-      allow delete: if isUser(resource.data.sellerId) || isAdmin();
+      // Sellers can create products if they are the owner
+      allow create: if isSeller() && request.resource.data.sellerId == request.auth.uid
+                    // Ensure they cannot set the status themselves on create
+                    && request.resource.data.status == 'pending';
+
+      // Sellers can update their own products. Admins can update any product.
+      allow update: if (isSeller() && resource.data.sellerId == request.auth.uid
+                       // Sellers cannot approve their own products
+                       && request.resource.data.status == 'pending'
+                       // Sellers cannot change the sellerId
+                       && request.resource.data.sellerId == resource.data.sellerId)
+                    || isAdmin();
+
+      // Only the seller or an admin can delete a product
+      allow delete: if (isSeller() && resource.data.sellerId == request.auth.uid) || isAdmin();
     }
-
-    // Allow admins to read/write internal documents like seed status
+    
+    // Internal documents (e.g., seed status) should not be client-accessible
     match /internal/{docId} {
-      allow read, write: if isAdmin();
+      allow read, write: if false;
     }
   }
 }
