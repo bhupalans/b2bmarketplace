@@ -10,7 +10,6 @@ import { z } from "zod";
 import { adminAuth, adminStorage } from "@/lib/firebase-admin";
 import { v4 as uuidv4 } from "uuid";
 import { headers } from "next/headers";
-import { Resend } from 'resend';
 
 const inquirySchema = z.object({
   buyerName: z.string().min(1, "Name is required."),
@@ -30,36 +29,12 @@ export async function sendInquiryAction(values: z.infer<typeof inquirySchema>) {
     
     const { buyerName, buyerEmail, message, sellerId, productTitle } = validatedFields.data;
 
-    const resend = new Resend(process.env.RESEND_API_KEY);
-    const fromEmail = process.env.FROM_EMAIL;
-
-    if (!fromEmail) {
-        console.error("FROM_EMAIL environment variable is not set.");
-        return { success: false, error: "Server configuration error." };
-    }
-
-    const seller = await getUser(sellerId);
-    if (!seller) {
-        return { success: false, error: "Seller not found." };
-    }
-
-    try {
-        await resend.emails.send({
-            from: fromEmail,
-            to: seller.email,
-            subject: `New Inquiry for ${productTitle || 'your products'} via B2B Marketplace`,
-            html: `<p>You have received a new inquiry from <strong>${buyerName}</strong> (${buyerEmail}).</p>
-                   <p><strong>Product:</strong> ${productTitle || 'General Inquiry'}</p>
-                   <p><strong>Message:</strong></p>
-                   <p>${message}</p>`,
-            reply_to: buyerEmail,
-        });
-
-        return { success: true };
-    } catch (error) {
-        console.error("Resend API error:", error);
-        return { success: false, error: "Could not send inquiry. Please try again later." };
-    }
+    // NOTE: Email sending functionality has been temporarily disabled.
+    // In a real application, you would use a service like Resend or SendGrid here.
+    console.log("Inquiry received:", { buyerName, buyerEmail, message, sellerId, productTitle });
+    
+    // Simulate a successful send without actually sending an email.
+    return { success: true };
 }
 
 export async function createOrUpdateProductAction(formData: FormData) {

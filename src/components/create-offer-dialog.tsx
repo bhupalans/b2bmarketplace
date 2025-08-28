@@ -95,39 +95,16 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
     }
     setIsSending(true);
 
-    const offerValues = {
-        productId: values.productId,
-        quantity: values.quantity,
-        pricePerUnit: values.pricePerUnit,
-        notes: values.notes,
-    }
-    
-    // This action needs to be created
-    /*
-    const result = await sendMessageAction({
-        message: `New Offer for ${values.productId}`,
-        recipientUid: recipientId,
-        senderUid: firebaseUser.uid,
-        offer: JSON.stringify(offerValues),
+    // This feature is not implemented yet.
+    console.log("Creating offer with values:", values);
+    toast({
+        title: "Feature Not Implemented",
+        description: "Sending offers is not yet functional.",
+        variant: "destructive"
     });
-
-    if (result.error) {
-        toast({
-            variant: "destructive",
-            title: "Offer failed to send",
-            description: result.error,
-        });
-    } else {
-        const product = sellerProducts.find(p => p.id === offerValues.productId);
-        toast({
-            title: "Offer Sent!",
-            description: `Your offer for ${product?.title} has been sent.`
-        });
-        handleOpenChange(false);
-    }
-    */
     
     setIsSending(false);
+    handleOpenChange(false);
   }
   
   const handleOpenChange = (isOpen: boolean) => {
@@ -152,7 +129,7 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
     <Dialog open={open} onOpenChange={handleOpenChange}>
       {!open && !suggestion && (
         <DialogTrigger asChild>
-          <Button>
+          <Button disabled>
             <Gavel className="mr-2 h-4 w-4" />
             Create Offer
           </Button>
