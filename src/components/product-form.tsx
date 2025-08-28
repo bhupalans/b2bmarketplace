@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { memo, useEffect, useState, useTransition } from "react";
+import React, { memo, useEffect, useState, useTransition, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -53,7 +53,7 @@ const productSchema = z.object({
     return hasExistingImages || hasNewImages;
 }, {
     message: "Please add at least one image.",
-    path: ["newImageFiles"], // Attach error to a field for display
+    path: ["newImageFiles"],
 });
 
 
@@ -87,47 +87,57 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
   
   const fileRef = form.register("newImageFiles");
 
+  const resetForm = useCallback(() => {
+    form.reset({
+      title: "",
+      description: "",
+      priceUSD: undefined,
+      categoryId: "",
+      existingImages: [],
+      newImageFiles: undefined,
+    });
+    setImagePreviews([]);
+    // This is a safer way to reset file input
+    const fileInput = document.getElementById('product-images-input') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = "";
+    }
+  }, [form]);
+
   useEffect(() => {
-    const fetchProductAndResetForm = async () => {
-        if (productId) {
-            setIsLoadingProduct(true);
-            try {
-                const fetchedProduct = await getProductClient(productId);
-                if (fetchedProduct) {
-                    form.reset({
-                        title: fetchedProduct.title || "",
-                        description: fetchedProduct.description || "",
-                        priceUSD: fetchedProduct.priceUSD || undefined,
-                        categoryId: fetchedProduct.categoryId || "",
-                        existingImages: fetchedProduct.images || [],
-                        newImageFiles: undefined
-                    });
-                }
-            } catch (error) {
-                console.error("Failed to fetch product", error);
-                toast({ variant: 'destructive', title: "Error", description: "Failed to load product data."})
-            } finally {
-                setIsLoadingProduct(false);
-            }
-        } else {
+    const fetchProduct = async () => {
+      if (productId) {
+        setIsLoadingProduct(true);
+        try {
+          const fetchedProduct = await getProductClient(productId);
+          if (fetchedProduct) {
             form.reset({
-                title: "",
-                description: "",
-                priceUSD: undefined,
-                categoryId: "",
-                existingImages: [],
-                newImageFiles: undefined
+              title: fetchedProduct.title || "",
+              description: fetchedProduct.description || "",
+              priceUSD: fetchedProduct.priceUSD || undefined,
+              categoryId: fetchedProduct.categoryId || "",
+              existingImages: fetchedProduct.images || [],
+              newImageFiles: undefined
             });
+          }
+        } catch (error) {
+          console.error("Failed to fetch product", error);
+          toast({ variant: 'destructive', title: "Error", description: "Failed to load product data."})
+          onOpenChange(false);
+        } finally {
+          setIsLoadingProduct(false);
         }
-        setImagePreviews([]);
-        if (fileRef && 'current' in fileRef && fileRef.current) {
-            fileRef.current.value = "";
-        }
+      } else {
+        resetForm();
+      }
     }
+
     if (open) {
-      fetchProductAndResetForm();
+      fetchProduct();
+    } else {
+        resetForm();
     }
-  }, [productId, open, form, toast, fileRef]);
+  }, [productId, open, form, toast, resetForm, onOpenChange]);
 
   const onSubmit = (values: z.infer<typeof productSchema>) => {
     startSavingTransition(async () => {
@@ -140,13 +150,13 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
 
       try {
         const savedProduct = await createOrUpdateProductClient(
-            productData,
-            Array.from(newImageFiles || []),
-            values.existingImages,
-            firebaseUser.uid,
-            productId
+          { ...productData, priceUSD: Number(productData.priceUSD) },
+          Array.from(newImageFiles || []),
+          values.existingImages,
+          firebaseUser.uid,
+          productId
         );
-
+        
         toast({
             title: productId ? "Product Updated" : "Product Submitted",
             description: productId 
@@ -172,8 +182,9 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
     }
     
     const newPreviews = Array.from(files).map(file => URL.createObjectURL(file));
-    imagePreviews.forEach(URL.revokeObjectURL); // Revoke old previews to prevent memory leaks
+    imagePreviews.forEach(URL.revokeObjectURL);
     setImagePreviews(newPreviews);
+    form.setValue("newImageFiles", files, { shouldValidate: true });
   };
 
   const handleRemoveExistingImage = (imageUrlToRemove: string) => {
@@ -184,8 +195,8 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
   const existingImages = form.watch('existingImages');
   
   useEffect(() => {
+    // Cleanup previews on unmount
     return () => {
-      // Cleanup previews on unmount
       imagePreviews.forEach(URL.revokeObjectURL);
     };
   }, [imagePreviews]);
@@ -307,33 +318,23 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                     ))}
 
                     <div className="flex items-center justify-center h-full w-full aspect-square flex-shrink-0 border-2 border-dashed rounded-md">
-                        <input
-                            type="file"
-                            {...fileRef}
-                            onChange={(e) => {
-                              field.onChange(e.target.files);
-                              handleFileChange(e);
-                            }}
-                            className="hidden"
-                            accept="image/png, image/jpeg, image/gif"
-                            disabled={isSaving}
-                            multiple
-                        />
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-full w-full"
-                            onClick={() => (document.querySelector(`input[name="${field.name}"]`) as HTMLInputElement)?.click()}
-                            disabled={isSaving}
-                        >
-                           {isSaving ? (
+                        <label htmlFor="product-images-input" className="cursor-pointer h-full w-full flex items-center justify-center">
+                            {isSaving ? (
                                 <Loader2 className="h-6 w-6 animate-spin" />
                            ) : (
                                 <UploadCloud className="h-6 w-6" />
                            )}
                            <span className="sr-only">Upload Image</span>
-                        </Button>
+                        </label>
+                        <input
+                            id="product-images-input"
+                            type="file"
+                            className="hidden"
+                            accept="image/png, image/jpeg, image/gif"
+                            disabled={isSaving}
+                            multiple
+                            onChange={handleFileChange}
+                        />
                     </div>
                   </div>
                   <FormDescription>The first image will be the main display image. You can upload multiple images.</FormDescription>

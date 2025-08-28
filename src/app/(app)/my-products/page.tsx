@@ -57,6 +57,7 @@ export default function MyProductsPage() {
   useEffect(() => {
     if (user?.role === 'seller') {
       const fetchData = async () => {
+        setLoading(true);
         try {
           const [productData, categoryData] = await Promise.all([
             getSellerProductsClient(user.id),
@@ -81,41 +82,47 @@ export default function MyProductsPage() {
     }
   }, [user, toast]);
 
+  const handleCreate = useCallback(() => {
+    setSelectedProductId(null);
+    setFormOpen(true);
+  }, []);
+
   const handleEdit = useCallback((productId: string) => {
     setSelectedProductId(productId);
     setFormOpen(true);
   }, []);
 
-  const handleCreate = useCallback(() => {
-    setSelectedProductId(null);
-    setFormOpen(true);
+  const handleDialogClose = useCallback((open: boolean) => {
+    if (!open) {
+      setFormOpen(false);
+      setSelectedProductId(null);
+    } else {
+      setFormOpen(true);
+    }
   }, []);
 
   const handleFormSuccess = useCallback((updatedProduct: Product) => {
     setProducts((prevProducts) => {
       const existingProductIndex = prevProducts.findIndex(p => p.id === updatedProduct.id);
       if (existingProductIndex > -1) {
+        // Replace existing product
         const newProducts = [...prevProducts];
         newProducts[existingProductIndex] = updatedProduct;
         return newProducts;
       } else {
+        // Add new product to the top
         return [updatedProduct, ...prevProducts];
       }
     });
     setFormOpen(false);
     setSelectedProductId(null);
   }, []);
-  
-  const handleDialogClose = useCallback(() => {
-    setFormOpen(false);
-    setSelectedProductId(null);
-  }, []);
 
-  const handleDeleteInitiate = useCallback((product: Product) => {
+  const handleDeleteInitiate = (product: Product) => {
     setProductToDelete(product);
-  }, []);
+  };
 
-  const handleDeleteConfirm = useCallback(() => {
+  const handleDeleteConfirm = () => {
     if (!productToDelete || !user) return;
     
     startDeleteTransition(async () => {
@@ -136,11 +143,11 @@ export default function MyProductsPage() {
         setProductToDelete(null);
       }
     });
-  }, [productToDelete, user, toast]);
+  };
 
-  const handleCloseAlert = useCallback(() => {
+  const handleCloseAlert = () => {
     setProductToDelete(null);
-  }, []);
+  };
 
   if (loading) {
     return <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -265,7 +272,7 @@ export default function MyProductsPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleCloseAlert}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={handleCloseAlert} disabled={isDeleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteConfirm} disabled={isDeleting}>
               {isDeleting && <Loader2 className="mr-2 animate-spin" />}
               Continue

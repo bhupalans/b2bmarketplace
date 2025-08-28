@@ -1,7 +1,7 @@
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc, Timestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Product, Category, User } from './types';
 import { v4 as uuidv4 } from 'uuid';
@@ -118,7 +118,7 @@ export async function getSellerProductsClient(sellerId: string): Promise<Product
     const productsRef = collection(db, "products");
     const q = query(productsRef, where("sellerId", "==", sellerId));
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)).sort((a,b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)).sort((a,b) => ((b.createdAt as Timestamp)?.toMillis() || 0) - ((a.createdAt as Timestamp)?.toMillis() || 0));
 }
 
 // Client-side function to update product status, to be secured by Firestore rules
@@ -130,75 +130,92 @@ export async function updateProductStatus(
   await updateDoc(productRef, { status });
 }
 
+async function uploadImages(files: File[], sellerId: string): Promise<string[]> {
+  const uploadedImageUrls = await Promise.all(
+    files.map(async (file) => {
+      const filePath = `products/${sellerId}/${uuidv4()}-${file.name}`;
+      const storageRef = ref(storage, filePath);
+      await uploadBytes(storageRef, file);
+      return getDownloadURL(storageRef);
+    })
+  );
+  return uploadedImageUrls;
+}
+
+async function deleteImages(urls: string[]): Promise<void> {
+  for (const url of urls) {
+    try {
+      const imageRef = ref(storage, url);
+      await deleteObject(imageRef);
+    } catch (error: any) {
+      if (error.code !== 'storage/object-not-found') {
+        console.error(`Failed to delete image ${url} from storage:`, error);
+      }
+    }
+  }
+}
+
 // Client-side function for creating or updating a product
 export async function createOrUpdateProductClient(
-    productData: Omit<Product, 'id' | 'images' | 'status' | 'sellerId' | 'createdAt'>,
+    productData: Omit<Product, 'id' | 'images' | 'status' | 'sellerId' | 'createdAt'> & { existingImages: string[] },
     newImageFiles: File[],
-    existingImageUrls: string[],
     sellerId: string,
     productId?: string | null
 ): Promise<Product> {
-    
-    // 1. Upload any new images and get their download URLs
-    const uploadedImageUrls = await Promise.all(
-        newImageFiles.map(async (file) => {
-            const filePath = `products/${sellerId}/${uuidv4()}-${file.name}`;
-            const storageRef = ref(storage, filePath);
-            await uploadBytes(storageRef, file);
-            return getDownloadURL(storageRef);
-        })
-    );
 
-    const finalImageUrls = [...existingImageUrls, ...uploadedImageUrls];
-    if (finalImageUrls.length === 0) {
-        throw new Error('At least one image is required to create a product.');
-    }
-    
     // --- UPDATE PATH ---
     if (productId) {
         const productRef = doc(db, 'products', productId);
-        
         const docSnap = await getDoc(productRef);
-        if (docSnap.exists()) {
-            const originalImages: string[] = docSnap.data().images || [];
-            const imagesToDelete = originalImages.filter(url => !existingImageUrls.includes(url));
-
-            for (const url of imagesToDelete) {
-                try {
-                    const imageRef = ref(storage, url);
-                    await deleteObject(imageRef);
-                } catch (error: any) {
-                    if (error.code !== 'storage/object-not-found') {
-                        console.error(`Failed to delete image ${url} from storage:`, error);
-                    }
-                }
-            }
+        if (!docSnap.exists()) {
+            throw new Error("Product to update not found.");
         }
+
+        const originalImages: string[] = docSnap.data().images || [];
+        const imagesToDelete = originalImages.filter(url => !productData.existingImages.includes(url));
+        
+        await deleteImages(imagesToDelete);
+
+        const newUploadedUrls = await uploadImages(newImageFiles, sellerId);
+        const finalImageUrls = [...productData.existingImages, ...newUploadedUrls];
+        if (finalImageUrls.length === 0) {
+            throw new Error('At least one image is required.');
+        }
+
+        const { existingImages, ...dataToSave } = productData;
         
         const finalProductData = {
-            ...productData,
+            ...dataToSave,
             images: finalImageUrls,
             sellerId: sellerId,
             status: 'pending' as const, // Always reset to pending on update
+            updatedAt: Timestamp.now(),
         };
 
         await updateDoc(productRef, finalProductData);
-        const updatedDoc = await getDoc(productRef);
-        return { id: productId, ...updatedDoc.data() } as Product;
+        const updatedDocSnap = await getDoc(productRef);
+        return { id: productId, ...updatedDocSnap.data() } as Product;
     } 
     // --- CREATE PATH ---
     else {
+        const newUploadedUrls = await uploadImages(newImageFiles, sellerId);
+        if (newUploadedUrls.length === 0) {
+            throw new Error('At least one image is required.');
+        }
+
+        const { existingImages, ...dataToSave } = productData;
+
         const finalProductData = {
-            ...productData,
-            images: finalImageUrls,
+            ...dataToSave,
+            images: newUploadedUrls,
             sellerId: sellerId,
             status: 'pending' as const,
-            createdAt: new Date(),
+            createdAt: Timestamp.now(),
         };
         
         const docRef = await addDoc(collection(db, 'products'), finalProductData);
-        const newDoc = await getDoc(docRef);
-        return { id: docRef.id, ...newDoc.data() } as Product;
+        const newDocSnap = await getDoc(docRef);
+        return { id: docRef.id, ...newDocSnap.data() } as Product;
     }
 }
 
@@ -210,18 +227,7 @@ export async function deleteProductClient(product: Product): Promise<void> {
     }
     
     // Delete images from Firebase Storage
-    if (product.images && product.images.length > 0) {
-      for (const imageUrl of product.images) {
-          try {
-              const imageRef = ref(storage, imageUrl);
-              await deleteObject(imageRef);
-          } catch (storageError: any) {
-              if (storageError.code !== 'storage/object-not-found') {
-                   console.error(`Failed to delete image ${imageUrl} from storage:`, storageError.message);
-              }
-          }
-      }
-    }
+    await deleteImages(product.images || []);
     
     // Delete the product document from Firestore
     const productRef = doc(db, 'products', product.id);
