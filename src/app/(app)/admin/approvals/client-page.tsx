@@ -18,13 +18,27 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Check, X, Loader2 } from "lucide-react";
+import { Check, X, Loader2, FileSearch } from "lucide-react";
 import { Product, User } from '@/lib/types';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 import { approveProductAction, rejectProductAction } from '@/app/admin-actions';
-import { cn } from '@/lib/utils';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 
 interface AdminApprovalsClientPageProps {
     initialProducts: Product[];
@@ -38,6 +52,7 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers }: Admi
   const [processingId, setProcessingId] = useState<string | null>(null);
   const { toast } = useToast();
   const { firebaseUser } = useAuth();
+  const [reviewingProduct, setReviewingProduct] = useState<Product | null>(null);
 
   const handleAction = async (action: 'approve' | 'reject', productId: string) => {
     setProcessingId(productId);
@@ -59,6 +74,7 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers }: Admi
                 title: `Product ${action}d`,
                 description: `The product has been successfully ${action}d.`,
             });
+            setReviewingProduct(null); // Close dialog on success
         } else {
             toast({
                 variant: 'destructive',
@@ -73,6 +89,16 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers }: Admi
   const getUserName = (sellerId: string) => {
     return users.find(u => u.id === sellerId)?.name || 'Unknown Seller';
   };
+
+  const handleOpenReview = (product: Product) => {
+    setReviewingProduct(product);
+  }
+
+  const handleCloseReview = () => {
+    if (!isProcessing) {
+      setReviewingProduct(null);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -116,26 +142,10 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers }: Admi
                     <TableCell className="font-medium">{product.title}</TableCell>
                     <TableCell>{getUserName(product.sellerId)}</TableCell>
                     <TableCell>${product.priceUSD.toFixed(2)}</TableCell>
-                    <TableCell className="text-right space-x-2">
-                        <Button 
-                            variant="outline" 
-                            size="icon" 
-                            className="text-green-600 border-green-600 hover:bg-green-100 hover:text-green-700"
-                            onClick={() => handleAction('approve', product.id)}
-                            disabled={isProcessing}
-                        >
-                            {isProcessing && processingId === product.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                            <span className="sr-only">Approve</span>
-                        </Button>
-                        <Button 
-                            variant="outline" 
-                            size="icon" 
-                            className="text-red-600 border-red-600 hover:bg-red-100 hover:text-red-700"
-                            onClick={() => handleAction('reject', product.id)}
-                            disabled={isProcessing}
-                        >
-                           {isProcessing && processingId === product.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
-                            <span className="sr-only">Reject</span>
+                    <TableCell className="text-right">
+                        <Button variant="outline" size="sm" onClick={() => handleOpenReview(product)}>
+                            <FileSearch className="mr-2 h-4 w-4" />
+                            Review
                         </Button>
                     </TableCell>
                   </TableRow>
@@ -151,6 +161,67 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers }: Admi
           </Table>
         </CardContent>
       </Card>
+      
+      {reviewingProduct && (
+        <Dialog open={!!reviewingProduct} onOpenChange={(isOpen) => !isOpen && handleCloseReview()}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Review Product: {reviewingProduct.title}</DialogTitle>
+              <DialogDescription>
+                Sold by: {getUserName(reviewingProduct.sellerId)}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4 max-h-[70vh] overflow-y-auto pr-4">
+              <div className="space-y-4">
+                  <h3 className="font-semibold">Images</h3>
+                  <Carousel className="w-full">
+                    <CarouselContent>
+                      {reviewingProduct.images.map((imgSrc, index) => (
+                        <CarouselItem key={index}>
+                          <div className="relative aspect-square w-full">
+                            <Image
+                              src={imgSrc}
+                              alt={`${reviewingProduct.title} - view ${index + 1}`}
+                              fill
+                              className="object-cover rounded-md"
+                              data-ai-hint="product image"
+                            />
+                          </div>
+                        </CarouselItem>
+                      ))}
+                    </CarouselContent>
+                    <CarouselPrevious className="absolute left-2" />
+                    <CarouselNext className="absolute right-2" />
+                  </Carousel>
+              </div>
+              <div className="space-y-4">
+                <h3 className="font-semibold">Description</h3>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{reviewingProduct.description}</p>
+              </div>
+            </div>
+            <DialogFooter>
+                <Button 
+                    variant="outline"
+                    className="text-red-600 border-red-600 hover:bg-red-100 hover:text-red-700"
+                    onClick={() => handleAction('reject', reviewingProduct.id)}
+                    disabled={isProcessing}
+                >
+                   {isProcessing && processingId === reviewingProduct.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4 mr-2" />}
+                    Reject
+                </Button>
+                <Button 
+                    className="bg-green-600 hover:bg-green-700"
+                    onClick={() => handleAction('approve', reviewingProduct.id)}
+                    disabled={isProcessing}
+                >
+                    {isProcessing && processingId === reviewingProduct.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
+                    Approve
+                </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
     </div>
   );
 }
