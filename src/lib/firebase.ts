@@ -129,16 +129,16 @@ export async function createOrUpdateProductClient(
     sellerId: string,
     productId?: string | null
 ): Promise<Product> {
-
+    
     // 1. Upload new images to Firebase Storage
-    const uploadedImageUrls = [];
-    for (const file of newImageFiles) {
-        const filePath = `products/${sellerId}/${uuidv4()}-${file.name}`;
-        const storageRef = ref(storage, filePath);
-        await uploadBytes(storageRef, file);
-        const downloadURL = await getDownloadURL(storageRef);
-        uploadedImageUrls.push(downloadURL);
-    }
+    const uploadedImageUrls = await Promise.all(
+        newImageFiles.map(async (file) => {
+            const filePath = `products/${sellerId}/${uuidv4()}-${file.name}`;
+            const storageRef = ref(storage, filePath);
+            await uploadBytes(storageRef, file);
+            return getDownloadURL(storageRef);
+        })
+    );
 
     if (productId) {
         // UPDATE PATH
@@ -154,6 +154,7 @@ export async function createOrUpdateProductClient(
                     const imageRef = ref(storage, imageUrl);
                     await deleteObject(imageRef);
                 } catch (storageError: any) {
+                    // Ignore if file doesn't exist, log other errors
                     if (storageError.code !== 'storage/object-not-found') {
                         console.error(`Failed to delete image ${imageUrl} from storage:`, storageError.message);
                     }
@@ -162,11 +163,11 @@ export async function createOrUpdateProductClient(
         }
 
         const finalImageUrls = [...existingImageUrls, ...uploadedImageUrls];
-        const finalProductData: Omit<Product, 'id'> = {
+        const finalProductData = {
             ...productData,
             images: finalImageUrls,
             sellerId: sellerId,
-            status: 'pending',
+            status: 'pending' as const, // Explicitly set status for update
         };
         await updateDoc(productRef, finalProductData);
         return { id: productId, ...finalProductData };
@@ -187,6 +188,7 @@ export async function createOrUpdateProductClient(
         return { id: docRef.id, ...finalProductData };
     }
 }
+
 
 // Client-side function to delete a product and its images
 export async function deleteProductClient(product: Product): Promise<void> {
