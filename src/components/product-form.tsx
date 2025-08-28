@@ -97,8 +97,8 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in." });
         return;
       }
-      const idToken = await firebaseUser.getIdToken();
-      const result = await createOrUpdateProductAction({ productData: values, idToken });
+      
+      const result = await createOrUpdateProductAction({ productData: values });
 
       if (result.success && result.product) {
         toast({
@@ -128,13 +128,10 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     setIsUploading(true);
 
     try {
-      const idToken = await firebaseUser.getIdToken();
-
       const uploadPromises = Array.from(files).map(async file => {
         const { success, error, url, finalFilePath } = await getSignedUploadUrlAction({
             fileName: file.name,
             fileType: file.type,
-            idToken,
         });
         
         if (!success || !url) {
@@ -151,7 +148,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
           throw new Error(`Upload failed for ${file.name}`);
         }
 
-        const publicUrl = `https://firebasestorage.googleapis.com/v0/b/b2b-marketplace-udg1v.appspot.com/o/${encodeURIComponent(finalFilePath!)}?alt=media`;
+        const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}/o/${encodeURIComponent(finalFilePath!)}?alt=media`;
         return publicUrl;
       });
 

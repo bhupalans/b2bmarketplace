@@ -8,7 +8,7 @@ import { createOrUpdateProduct, deleteProduct, getProduct, getSellerProducts, ge
 import { Product } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getAdminApp, adminAuth } from "@/lib/firebase-admin";
+import { adminAuth } from "@/lib/firebase-admin";
 import { v4 as uuidv4 } from "uuid";
 import { headers } from "next/headers";
 import { Resend } from 'resend';
@@ -75,23 +75,27 @@ const productSchema = z.object({
 
 const productActionSchema = z.object({
     productData: productSchema,
-    idToken: z.string(),
 });
 
-async function getAuthenticatedUserUid(idToken: string): Promise<string> {
-    try {
-        const decodedToken = await adminAuth.verifyIdToken(idToken);
-        return decodedToken.uid;
-    } catch (error) {
-         console.error("Error verifying ID token:", error);
-         throw new Error('User not authenticated');
+async function getAuthenticatedUserUid(): Promise<string> {
+    const authorization = headers().get("Authorization");
+    if (authorization?.startsWith("Bearer ")) {
+        const idToken = authorization.split("Bearer ")[1];
+        try {
+            const decodedToken = await adminAuth.verifyIdToken(idToken);
+            return decodedToken.uid;
+        } catch (error) {
+             console.error("Error verifying ID token:", error);
+             throw new Error('User not authenticated.');
+        }
     }
+    throw new Error('User not authenticated.');
 }
 
 export async function createOrUpdateProductAction(values: z.infer<typeof productActionSchema>) {
   let sellerId: string;
   try {
-    sellerId = await getAuthenticatedUserUid(values.idToken);
+    sellerId = await getAuthenticatedUserUid();
   } catch (error: any) {
     console.error("Authentication error:", error.message);
     return { success: false, error: 'User not authenticated' };
@@ -120,13 +124,12 @@ export async function createOrUpdateProductAction(values: z.infer<typeof product
 
 const deleteActionSchema = z.object({
     productId: z.string(),
-    idToken: z.string(),
 });
 
 export async function deleteProductAction(values: z.infer<typeof deleteActionSchema>) {
     let sellerId: string;
     try {
-        sellerId = await getAuthenticatedUserUid(values.idToken);
+        sellerId = await getAuthenticatedUserUid();
     } catch(error: any) {
         return { success: false, error: 'User not authenticated' };
     }
@@ -152,18 +155,17 @@ export async function deleteProductAction(values: z.infer<typeof deleteActionSch
 const signedUrlSchema = z.object({
     fileName: z.string(),
     fileType: z.string(),
-    idToken: z.string(),
 });
 
 export async function getSignedUploadUrlAction(values: z.infer<typeof signedUrlSchema>) {
     let userId: string;
     try {
-        userId = await getAuthenticatedUserUid(values.idToken);
+        userId = await getAuthenticatedUserUid();
     } catch(error: any) {
         return { success: false, error: 'User not authenticated.', url: null, finalFilePath: null };
     }
 
-    const bucket = getAdminApp().storage().bucket();
+    const bucket = adminAuth.storage().bucket();
     const finalFilePath = `products/${userId}/${uuidv4()}-${values.fileName}`;
     const file = bucket.file(finalFilePath);
 

@@ -3,6 +3,11 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '2mb', // Default is 1mb, increase for file uploads
+    },
+  },
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -24,7 +29,7 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
       {
-        protocol: 'https',
+        protocol: 'https,',
         hostname: 'www.bing.com',
         port: '',
         pathname: '/**',
