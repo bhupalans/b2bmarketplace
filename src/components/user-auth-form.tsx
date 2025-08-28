@@ -115,17 +115,22 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
       }
       router.push("/");
     } catch (error: any) {
-      console.error(error);
-      // Provide a more user-friendly message for invalid credentials
-      const errorMessage =
-        error.code === "auth/invalid-credential"
-          ? "The email or password you entered is incorrect. Please try again."
-          : error.message || "An unexpected error occurred.";
+      console.error("Authentication Error:", error.code, error.message);
+      
+      let title = "Authentication Failed";
+      let description = error.message || "An unexpected error occurred.";
+
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+        description = "The email or password you entered is incorrect. Please try again.";
+      } else if (error.code === 'auth/operation-not-allowed' || error.message.includes('identitytoolkit')) {
+        title = "Sign-In Method Disabled";
+        description = "Email/Password sign-in is not enabled for this project. Please enable it in the Firebase console under Authentication > Sign-in method.";
+      }
 
       toast({
         variant: "destructive",
-        title: "Authentication Failed",
-        description: errorMessage,
+        title: title,
+        description: description,
       });
     } finally {
       setIsLoading(false);
