@@ -57,7 +57,13 @@ const signupSchema = baseSchema.refine(
     message: "Name, email, and role are required for signup.",
     path: ["name"], 
   }
-).refine(data => data.loginId.includes('@'), {
+).refine(data => {
+    // Only enforce email format for loginId during signup
+    if (data.loginId && !data.loginId.includes('@')) {
+        return false;
+    }
+    return true;
+}, {
     message: "For signup, please use your email address as the login ID.",
     path: ['loginId']
 });
