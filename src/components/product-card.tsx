@@ -3,7 +3,6 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -14,7 +13,9 @@ import {
 } from "@/components/ui/card";
 import { useCurrency } from "@/contexts/currency-context";
 import { Product } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { ContactSellerDialog } from "./contact-seller-dialog";
+import { useProducts } from "@/hooks/use-products";
+import { Skeleton } from "./ui/skeleton";
 
 interface ProductCardProps {
   product: Product;
@@ -22,6 +23,9 @@ interface ProductCardProps {
 
 export function ProductCard({ product }: ProductCardProps) {
   const { currency, rates } = useCurrency();
+  const { users, loading: usersLoading } = useProducts();
+
+  const seller = users.find(u => u.uid === product.sellerId);
 
   const getConvertedPrice = () => {
     if (currency === "USD") {
@@ -65,9 +69,11 @@ export function ProductCard({ product }: ProductCardProps) {
         <p className="text-2xl font-bold text-primary">{formattedPrice}</p>
       </CardContent>
       <CardFooter className="p-6 pt-0">
-        <Button asChild className="w-full">
-          <Link href={`/messages?recipientId=${product.sellerId}`}>Contact Seller</Link>
-        </Button>
+        {usersLoading ? (
+            <Skeleton className="h-10 w-full" />
+        ) : seller ? (
+            <ContactSellerDialog product={product} seller={seller} />
+        ) : null}
       </CardFooter>
     </Card>
   );

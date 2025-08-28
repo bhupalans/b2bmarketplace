@@ -17,8 +17,7 @@ import {
   MapPin,
   Trophy,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import { ContactSellerDialog } from "@/components/contact-seller-dialog";
 
 export default async function SellerProfilePage({
   params,
@@ -48,9 +47,7 @@ export default async function SellerProfilePage({
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
-            <Button asChild className="w-full">
-              <Link href={`/messages?recipientId=${seller.id}`}>Contact Seller</Link>
-            </Button>
+             <ContactSellerDialog seller={seller} />
           </CardContent>
         </Card>
 

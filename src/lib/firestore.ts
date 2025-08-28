@@ -1,8 +1,8 @@
 
-import { collection, getDocs, doc, getDoc, writeBatch, query, where, addDoc, updateDoc, deleteDoc, serverTimestamp, onSnapshot, orderBy, Timestamp, or } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc, writeBatch, query, where, addDoc, updateDoc, deleteDoc, onSnapshot, orderBy, Timestamp } from "firebase/firestore";
 import { db } from "./firebase";
 import { Product, Category, User, Message } from "./types";
-import { mockProducts, mockCategories, mockOffers } from "./mock-data";
+import { mockProducts, mockCategories } from "./mock-data";
 
 // Function to fetch all products
 export async function getProducts(): Promise<Product[]> {
@@ -29,53 +29,28 @@ export async function getCategories(): Promise<Category[]> {
   return categoryList;
 }
 
+// Function to fetch a single user
+export async function getUser(userId: string): Promise<User | null> {
+    const userRef = doc(db, "users", userId);
+    const userSnap = await getDoc(userRef);
+    if (!userSnap.exists()) return null;
+    return { id: userSnap.id, uid: userSnap.id, ...userSnap.data() } as User;
+}
+
 // Function to fetch all users
 export async function getUsers(): Promise<User[]> {
   const usersCol = collection(db, "users");
   const userSnapshot = await getDocs(usersCol);
-  // Ensure the user object always has a `uid` property.
-  // The document ID is the Firebase Auth UID.
   const userList = userSnapshot.docs.map(doc => {
     const data = doc.data();
     return {
       id: doc.id,
       ...data,
-      uid: doc.id, // Use the document ID as the canonical UID.
+      uid: doc.id,
     } as User;
   });
   return userList;
 }
-
-// Function to get messages between two users with a real-time listener
-export function getMessages(userId: string, otherUserId: string, callback: (messages: Message[]) => void): () => void {
-  const messagesRef = collection(db, 'messages');
-  
-  const participants = [userId, otherUserId].sort();
-  
-  const q = query(messagesRef, 
-    where('participants', '==', participants),
-    orderBy('timestamp', 'asc')
-  );
-
-  const unsubscribe = onSnapshot(q, (snapshot) => {
-    const messages: Message[] = [];
-    snapshot.forEach((doc) => {
-      const data = doc.data();
-      messages.push({
-          id: doc.id,
-          ...data,
-          timestamp: (data.timestamp as Timestamp)?.toMillis() || Date.now(),
-      } as Message);
-    });
-      
-    callback(messages);
-  }, (error) => {
-    console.error("Firestore snapshot error:", error);
-  });
-
-  return unsubscribe;
-}
-
 
 // Function to fetch a single product and its seller
 export async function getProductAndSeller(productId: string): Promise<{ product: Product; seller: User | null } | null> {
@@ -91,12 +66,7 @@ export async function getProductAndSeller(productId: string): Promise<{ product:
   let seller: User | null = null;
   if (product.sellerId) {
     try {
-      const sellerRef = doc(db, "users", product.sellerId);
-      const sellerSnap = await getDoc(sellerRef);
-      if (sellerSnap.exists()) {
-        const sellerData = sellerSnap.data();
-        seller = { id: sellerSnap.id, ...sellerData, uid: sellerSnap.id } as User;
-      }
+        seller = await getUser(product.sellerId);
     } catch (error) {
         console.error(`Failed to fetch seller data for product ${productId}. This might be due to Firestore security rules.`, error);
         seller = null;
@@ -108,15 +78,11 @@ export async function getProductAndSeller(productId: string): Promise<{ product:
 
 // Function to fetch a single seller and their products
 export async function getSellerAndProducts(sellerId: string): Promise<{ seller: User; products: Product[] } | null> {
-  const sellerRef = doc(db, "users", sellerId);
-  const sellerSnap = await getDoc(sellerRef);
+  const seller = await getUser(sellerId);
 
-  if (!sellerSnap.exists() || sellerSnap.data().role !== 'seller') {
+  if (!seller || seller.role !== 'seller') {
     return null;
   }
-
-  const sellerData = sellerSnap.data();
-  const seller = { id: sellerSnap.id, ...sellerData, uid: sellerSnap.id } as User;
 
   const productsQuery = query(collection(db, "products"), where("sellerId", "==", sellerId));
   const productsSnapshot = await getDocs(productsQuery);
@@ -163,18 +129,14 @@ export async function getSellerDashboardData(sellerId: string): Promise<{
 } | null> {
   try {
     const sellerProducts = await getSellerProducts(sellerId);
-    const sellerProductIds = sellerProducts.map(p => p.id);
-
-    // In a real app, offers would be in Firestore. Using mocks for now.
-    const relevantOffers = Object.values(mockOffers).filter(o => sellerProductIds.includes(o.productId));
-
-    const acceptedOffers = relevantOffers.filter(o => o.status === 'accepted');
-    const totalRevenue = acceptedOffers.reduce((sum, offer) => sum + (offer.pricePerUnit * offer.quantity), 0);
-    const acceptedOffersCount = acceptedOffers.length;
+    
+    // This part is a mock as offers are not stored in the database.
+    // In a real app, you would query an 'offers' collection.
+    const acceptedOffersCount = 0; // Mock value
+    const totalRevenue = 0; // Mock value
 
     const productsWithOfferCounts = sellerProducts.map(product => {
-      const offerCount = relevantOffers.filter(o => o.productId === product.id).length;
-      return { ...product, offerCount };
+      return { ...product, offerCount: 0 }; // Mock value
     }).sort((a, b) => b.offerCount - a.offerCount);
 
 

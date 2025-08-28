@@ -11,7 +11,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -35,6 +34,7 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
+import { ContactSellerDialog } from "@/components/contact-seller-dialog";
 
 export default async function ProductDetailPage({
   params,
@@ -162,9 +162,7 @@ export default async function ProductDetailPage({
                 </div>
               </CardHeader>
               <CardContent>
-                <Button asChild className="w-full">
-                  <Link href={`/messages?recipientId=${seller.id}`}>Contact Seller</Link>
-                </Button>
+                <ContactSellerDialog product={product} seller={seller} />
               </CardContent>
             </Card>
           )}

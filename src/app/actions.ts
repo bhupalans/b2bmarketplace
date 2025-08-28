@@ -4,201 +4,63 @@
 import { filterContactDetails } from "@/ai/flows/filter-contact-details";
 import { suggestOffer } from "@/ai/flows/suggest-offer";
 import { db } from "@/lib/firebase";
-import { createOrUpdateProduct, deleteProduct, getProduct, getSellerProducts } from "@/lib/firestore";
-import { mockOffers } from "@/lib/mock-data";
-import { Message, Offer, Product } from "@/lib/types";
+import { createOrUpdateProduct, deleteProduct, getProduct, getSellerProducts, getUser } from "@/lib/firestore";
+import { Product } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { adminAuth } from "@/lib/firebase-admin";
 import { v4 as uuidv4 } from "uuid";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { headers } from "next/headers";
+import { Resend } from 'resend';
 
-const messageSchema = z.object({
-  message: z.string().min(1, { message: "Message cannot be empty." }),
-  offer: z.string().optional(),
-  recipientUid: z.string().min(1, { message: "Recipient is required."}),
-  senderUid: z.string().min(1, { message: "Sender is required."}),
-});
-
-
-export async function sendMessageAction(data: z.infer<typeof messageSchema>) {
-  const validatedFields = messageSchema.safeParse(data);
-
-  if (!validatedFields.success) {
-    const error = "Validation failed.";
-    return {
-      error,
-      message: null,
-      modificationReason: null,
-    };
-  }
-
-  const { recipientUid, message: originalMessage, offer: offerString, senderUid } = validatedFields.data;
-
-  // Handle creating a new offer
-  if (offerString) {
-    const offerData = JSON.parse(offerString) as Omit<Offer, 'id' | 'status' | 'sellerId' | 'buyerId'>;
-    const sellerProducts = await getSellerProducts(senderUid);
-    const product = sellerProducts.find(p => p.id === offerData.productId);
-
-    if (!product) {
-        return { error: "Product not found for offer.", message: null, modificationReason: null };
-    }
-
-    const newOffer: Offer = {
-      ...offerData,
-      id: `offer-${Date.now()}`,
-      status: 'pending',
-      sellerId: senderUid,
-      buyerId: recipientUid,
-    };
-    
-    // In a real app, offers would be saved to Firestore. We'll keep them in-memory for now.
-    mockOffers[newOffer.id] = newOffer;
-
-    const offerMessage = `Offer created for ${product?.title}`;
-
-    const messageDoc: Omit<Message, 'id' | 'timestamp'> = {
-      text: offerMessage,
-      senderId: senderUid,
-      recipientId: recipientUid,
-      participants: [senderUid, recipientUid].sort(),
-      offerId: newOffer.id,
-      timestamp: serverTimestamp(),
-    };
-    
-    try {
-        const docRef = await addDoc(collection(db, 'messages'), messageDoc);
-        return {
-          error: null,
-          modificationReason: null,
-          message: {
-            id: docRef.id,
-            ...messageDoc,
-            timestamp: Date.now(), 
-          }
-        }
-    } catch (error) {
-        console.error("Error saving message:", error);
-        return { error: "Failed to save offer message to the database.", message: null, modificationReason: null };
-    }
-  }
-
-
-  // Handle standard text messages
-  const filterResult = await filterContactDetails({ message: originalMessage });
-
-  const newMessage: Omit<Message, 'id' | 'timestamp'> = {
-      text: filterResult.modifiedMessage,
-      senderId: senderUid,
-      recipientId: recipientUid,
-      participants: [senderUid, recipientUid].sort(),
-      timestamp: serverTimestamp(),
-  };
-
-  try {
-    const docRef = await addDoc(collection(db, 'messages'), newMessage);
-    
-    return {
-      error: null,
-      modificationReason: filterResult.modificationReason || null,
-      message: {
-        id: docRef.id,
-        ...newMessage,
-        timestamp: Date.now(),
-      },
-    };
-
-  } catch (error) {
-    console.error("Error saving message:", error);
-    return { error: "Failed to save message to the database.", message: null, modificationReason: null };
-  }
-}
-
-
-const suggestionSchema = z.object({
-  chatHistory: z.string(),
+const inquirySchema = z.object({
+  buyerName: z.string().min(1, "Name is required."),
+  buyerEmail: z.string().email("A valid email is required."),
+  message: z.string().min(10, "Message must be at least 10 characters."),
   sellerId: z.string(),
+  productId: z.string().optional(),
+  productTitle: z.string().optional(),
 });
 
-export async function suggestOfferAction(prevState: any, formData: FormData) {
-  const validatedFields = suggestionSchema.safeParse({
-    chatHistory: formData.get("chatHistory"),
-    sellerId: formData.get("sellerId"),
-  });
+export async function sendInquiryAction(values: z.infer<typeof inquirySchema>) {
+    const validatedFields = inquirySchema.safeParse(values);
 
-  if (!validatedFields.success) {
-    return {
-      error: "Invalid data for suggestion.",
-    };
-  }
-
-  const { chatHistory, sellerId } = validatedFields.data;
-
-  // In a real app, you'd query the DB for the seller's products.
-  const availableProducts = await getSellerProducts(sellerId);
-
-  try {
-    const suggestion = await suggestOffer({ 
-      chatHistory, 
-      availableProducts: availableProducts.map(({ id, title, priceUSD }) => ({ id, title, priceUSD }))
-    });
-    return {
-      error: null,
-      suggestion,
-    };
-  } catch (e: any) {
-    console.error(e);
-    return {
-      error: "Failed to get AI suggestion. Please try again.",
-      suggestion: null,
+    if (!validatedFields.success) {
+        return { success: false, error: "Invalid data." };
     }
-  }
-}
-
-
-const offerDecisionSchema = z.object({
-  offerId: z.string(),
-  decision: z.enum(['accepted', 'declined']),
-});
-
-// A new, dedicated server action for handling offer decisions.
-export async function decideOnOfferAction(formData: FormData) {
-  const validatedFields = offerDecisionSchema.safeParse({
-    offerId: formData.get('offerId'),
-    decision: formData.get('decision'),
-  });
-
-  if (!validatedFields.success) {
-    return { error: 'Invalid offer decision data.' };
-  }
-  
-  const { offerId, decision } = validatedFields.data;
-  const offer = mockOffers[offerId];
-  
-  if (offer) {
-    offer.status = decision;
     
-    const product = await getProduct(offer.productId);
+    const { buyerName, buyerEmail, message, sellerId, productTitle } = validatedFields.data;
 
-    // This creates the system message.
-    const systemMessage: Omit<Message, 'id' | 'timestamp'> = {
-      text: `Offer ${decision}: ${product?.title}`,
-      senderId: 'system',
-      recipientId: offer.sellerId,
-      participants: [offer.buyerId, offer.sellerId].sort(),
-      isSystemMessage: true, 
-      timestamp: serverTimestamp(),
-    };
-    
-    // Save system message to Firestore
-    await addDoc(collection(db, 'messages'), systemMessage);
-    
-    return { success: true };
-  }
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const fromEmail = process.env.FROM_EMAIL;
 
-  return { error: 'Offer not found.' };
+    if (!fromEmail) {
+        console.error("FROM_EMAIL environment variable is not set.");
+        return { success: false, error: "Server configuration error." };
+    }
+
+    const seller = await getUser(sellerId);
+    if (!seller) {
+        return { success: false, error: "Seller not found." };
+    }
+
+    try {
+        await resend.emails.send({
+            from: fromEmail,
+            to: seller.email,
+            subject: `New Inquiry for ${productTitle || 'your products'} via B2B Marketplace`,
+            html: `<p>You have received a new inquiry from <strong>${buyerName}</strong> (${buyerEmail}).</p>
+                   <p><strong>Product:</strong> ${productTitle || 'General Inquiry'}</p>
+                   <p><strong>Message:</strong></p>
+                   <p>${message}</p>`,
+            reply_to: buyerEmail,
+        });
+
+        return { success: true };
+    } catch (error) {
+        console.error("Resend API error:", error);
+        return { success: false, error: "Could not send inquiry. Please try again later." };
+    }
 }
 
 
