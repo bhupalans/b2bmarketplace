@@ -21,6 +21,7 @@ const messageSchema = z.object({
   senderUid: z.string().min(1, { message: "Sender is required."}),
 });
 
+
 export async function sendMessageAction(data: z.infer<typeof messageSchema>) {
   const validatedFields = messageSchema.safeParse(data);
 

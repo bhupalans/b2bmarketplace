@@ -1,7 +1,7 @@
 
 import { collection, getDocs, doc, getDoc, writeBatch, query, where, addDoc, updateDoc, deleteDoc, serverTimestamp, onSnapshot, orderBy, Timestamp, or } from "firebase/firestore";
 import { db } from "./firebase";
-import { Product, Category, User, Offer, Message } from "./types";
+import { Product, Category, User, Message } from "./types";
 import { mockProducts, mockCategories, mockOffers } from "./mock-data";
 
 // Function to fetch all products
@@ -34,14 +34,13 @@ export async function getUsers(): Promise<User[]> {
   const usersCol = collection(db, "users");
   const userSnapshot = await getDocs(usersCol);
   // Ensure the user object always has a `uid` property.
-  // If the `uid` field is missing from the doc (for older users),
-  // we use the document ID as the uid, which is the correct Auth UID.
+  // The document ID is the Firebase Auth UID.
   const userList = userSnapshot.docs.map(doc => {
     const data = doc.data();
     return {
       id: doc.id,
       ...data,
-      uid: data.uid || doc.id,
+      uid: doc.id, // Use the document ID as the canonical UID.
     } as User;
   });
   return userList;
@@ -96,7 +95,7 @@ export async function getProductAndSeller(productId: string): Promise<{ product:
       const sellerSnap = await getDoc(sellerRef);
       if (sellerSnap.exists()) {
         const sellerData = sellerSnap.data();
-        seller = { id: sellerSnap.id, ...sellerData, uid: sellerData.uid || sellerSnap.id } as User;
+        seller = { id: sellerSnap.id, ...sellerData, uid: sellerSnap.id } as User;
       }
     } catch (error) {
         console.error(`Failed to fetch seller data for product ${productId}. This might be due to Firestore security rules.`, error);
@@ -117,7 +116,7 @@ export async function getSellerAndProducts(sellerId: string): Promise<{ seller: 
   }
 
   const sellerData = sellerSnap.data();
-  const seller = { id: sellerSnap.id, ...sellerData, uid: sellerData.uid || sellerSnap.id } as User;
+  const seller = { id: sellerSnap.id, ...sellerData, uid: sellerSnap.id } as User;
 
   const productsQuery = query(collection(db, "products"), where("sellerId", "==", sellerId));
   const productsSnapshot = await getDocs(productsQuery);
