@@ -2,7 +2,8 @@
 import type { FieldValue, Timestamp } from "firebase/firestore";
 
 export type User = {
-  id: string;
+  id: string; // This is the Firestore document ID, which is the same as the uid
+  uid: string; // This is the Firebase Auth UID
   name: string;
   email: string;
   avatar: string;
@@ -26,7 +27,7 @@ export type Product = {
   description: string;
   images: string[];
   priceUSD: number;
-  sellerId: string;
+  sellerId: string; // This should be the seller's UID
   categoryId: string;
   specifications?: { name: string; value: string }[];
 };
@@ -46,9 +47,9 @@ export type Message = {
   id: string;
   text: string;
   timestamp: number | FieldValue | Timestamp;
-  senderId: string;
-  recipientId: string;
-  participants: string[]; // Added for efficient querying
+  senderId: string; // UID of the sender
+  recipientId: string; // UID of the recipient
+  participants: string[]; // Array of participant UIDs
   offerId?: string;
   isSystemMessage?: boolean;
 };

@@ -33,7 +33,7 @@ import { getUsers, getMessages } from "@/lib/firestore";
 function ChatContent() {
   const { user: loggedInUser, firebaseUser } = useAuth();
   const searchParams = useSearchParams();
-  const recipientId = searchParams.get('recipientId');
+  const recipientUid = searchParams.get('recipientId');
 
   const [users, setUsers] = useState<User[]>([]);
   const { toast } = useToast();
@@ -51,17 +51,17 @@ function ChatContent() {
     getUsers().then(setUsers);
   }, []);
 
-  const usersByUid = React.useMemo(() => Object.fromEntries(users.map(u => [u.id, u])), [users]);
-  const recipient = recipientId ? usersByUid[recipientId] : null;
+  const usersByUid = React.useMemo(() => Object.fromEntries(users.map(u => [u.uid, u])), [users]);
+  const recipient = recipientUid ? usersByUid[recipientUid] : null;
 
   useEffect(() => {
-    if (firebaseUser && recipientId) {
-      const unsubscribe = getMessages(firebaseUser.uid, recipientId, (newMessages) => {
+    if (firebaseUser && recipientUid) {
+      const unsubscribe = getMessages(firebaseUser.uid, recipientUid, (newMessages) => {
         setMessages(newMessages);
       });
       return () => unsubscribe();
     }
-  }, [firebaseUser, recipientId]);
+  }, [firebaseUser, recipientUid]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -74,14 +74,14 @@ function ChatContent() {
   }
   
   const handleSendMessage = useCallback(async () => {
-    if (!messageText.trim() || !recipient || isSending || !firebaseUser) return;
+    if (!messageText.trim() || !recipient || !firebaseUser || isSending) return;
 
     setIsSending(true);
 
     const result = await sendMessageAction({
       message: messageText,
-      recipientId: recipient.id,
-      senderId: firebaseUser.uid,
+      recipientUid: recipient.uid,
+      senderUid: firebaseUser.uid,
     });
 
     setIsSending(false);
@@ -109,7 +109,7 @@ function ChatContent() {
   }
   
   const conversationList = users.filter(user => {
-    if (user.id === firebaseUser.uid) return false;
+    if (user.uid === firebaseUser.uid) return false;
     if (loggedInUser.role === 'buyer') return user.role === 'seller';
     if (loggedInUser.role === 'seller') return user.role === 'buyer';
     return false;
@@ -117,7 +117,7 @@ function ChatContent() {
 
   const isFormDisabled = isSending || !recipient;
 
-  if (!recipientId) {
+  if (!recipientUid) {
     return (
       <div className="grid min-h-[calc(100vh-8rem)] w-full grid-cols-[260px_1fr] rounded-lg border">
         <div className="flex flex-col border-r bg-muted/40">
@@ -131,7 +131,7 @@ function ChatContent() {
               {conversationList.map(user => (
                 <Link
                   key={user.id}
-                  href={`/messages?recipientId=${user.id}`}
+                  href={`/messages?recipientId=${user.uid}`}
                   className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
                 >
                   <Avatar className="h-8 w-8 border">
@@ -156,7 +156,7 @@ function ChatContent() {
     );
   }
 
-  const allUsersAndSystem = { ...usersByUid, system: { id: 'system', name: 'System', avatar: '', email: '', role: 'admin' as const }};
+  const allUsersAndSystem = { ...usersByUid, system: { id: 'system', uid: 'system', name: 'System', avatar: '', email: '', role: 'admin' as const }};
   
   return (
     <div className="grid min-h-[calc(100vh-8rem)] w-full grid-cols-[260px_1fr] rounded-lg border">
@@ -171,10 +171,10 @@ function ChatContent() {
              {conversationList.map(user => (
                 <Link
                   key={user.id}
-                  href={`/messages?recipientId=${user.id}`}
+                  href={`/messages?recipientId=${user.uid}`}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
-                    recipientId === user.id && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                    recipientUid === user.uid && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
                   )}
                 >
                   <Avatar className="h-8 w-8 border">
@@ -210,7 +210,7 @@ function ChatContent() {
                     }
                 }} ref={suggestionFormRef} className="contents">
                     <input type="hidden" name="chatHistory" value={messages.map(m => `${allUsersAndSystem[m.senderId]?.name || 'User'}: ${m.text}`).join('\n')} />
-                    <input type="hidden" name="sellerId" value={loggedInUser.id} />
+                    <input type="hidden" name="sellerId" value={loggedInUser.uid} />
                     <Button variant="outline" size="sm" onClick={handleSuggestOffer} disabled={isSuggesting}>
                       {isSuggesting ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -226,7 +226,7 @@ function ChatContent() {
                   open={isCreateOfferOpen}
                   onOpenChange={setCreateOfferOpen}
                   onClose={() => setSuggestion(null)}
-                  recipientId={recipient.id}
+                  recipientId={recipient.uid}
                 />
               </>
             )}

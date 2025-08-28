@@ -91,12 +91,14 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
         
         // Add user profile to Firestore
         const userProfile = {
+          uid: user.uid, // Store the Firebase Auth UID
           name: values.name,
           email: values.email,
           role: values.role,
           avatar: `https://i.pravatar.cc/150?u=${user.uid}`,
         };
 
+        // Use the UID as the document ID for consistency
         await setDoc(doc(db, "users", user.uid), userProfile);
         
         toast({
