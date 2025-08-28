@@ -140,50 +140,26 @@ export async function createOrUpdateProductClient(
         })
     );
 
+    const allImageUrls = [...existingImageUrls, ...uploadedImageUrls];
+    
+    const finalProductData = {
+        ...productData,
+        images: allImageUrls,
+        sellerId: sellerId,
+        status: 'pending' as const,
+    };
+
     if (productId) {
         // UPDATE PATH
         const productRef = doc(db, 'products', productId);
-        const currentDoc = await getDoc(productRef);
-        
-        if (currentDoc.exists()) {
-            const originalImages = currentDoc.data().images || [];
-            const imagesToDelete = originalImages.filter((img: string) => !existingImageUrls.includes(img));
-            
-            for (const imageUrl of imagesToDelete) {
-                try {
-                    const imageRef = ref(storage, imageUrl);
-                    await deleteObject(imageRef);
-                } catch (storageError: any) {
-                    // Ignore if file doesn't exist, log other errors
-                    if (storageError.code !== 'storage/object-not-found') {
-                        console.error(`Failed to delete image ${imageUrl} from storage:`, storageError.message);
-                    }
-                }
-            }
-        }
-
-        const finalImageUrls = [...existingImageUrls, ...uploadedImageUrls];
-        const finalProductData = {
-            ...productData,
-            images: finalImageUrls,
-            sellerId: sellerId,
-            status: 'pending' as const, // Explicitly set status for update
-        };
         await updateDoc(productRef, finalProductData);
         return { id: productId, ...finalProductData };
 
     } else {
         // CREATE PATH
-        if (uploadedImageUrls.length === 0) {
+        if (allImageUrls.length === 0) {
             throw new Error('At least one image is required to create a product.');
         }
-
-        const finalProductData: Omit<Product, 'id'> = {
-            ...productData,
-            images: uploadedImageUrls,
-            sellerId: sellerId,
-            status: 'pending',
-        };
         const docRef = await addDoc(collection(db, 'products'), finalProductData);
         return { id: docRef.id, ...finalProductData };
     }
