@@ -1,9 +1,10 @@
 
 "use client";
 
-import React, { useEffect, useRef, useState, useActionState, startTransition } from "react";
+import React, { useEffect, useRef, useState, useActionState, startTransition, Suspense } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
+import { useSearchParams } from 'next/navigation'
 import {
   File,
   ListFilter,
@@ -65,9 +66,11 @@ const SubmitButton = () => {
   );
 };
 
-export function Chat() {
+function ChatContent() {
   const { user: loggedInUser } = useAuth();
-  // We combine mock messages with a state for new messages for instant updates
+  const searchParams = useSearchParams();
+  const recipientId = searchParams.get('recipientId');
+
   const [newMessages, setNewMessages] = useState<Message[]>([]);
   const [suggestion, setSuggestion] = useState<OfferSuggestion | null>(null);
   const [isSuggesting, setIsSuggesting] = useState(false);
@@ -88,6 +91,8 @@ export function Chat() {
     suggestion: null,
   });
 
+  // In a real app, messages would be filtered by recipientId.
+  // For this demo, we'll continue to show all mock messages.
   const allMessages = [...mockMessages, ...newMessages];
 
   useEffect(() => {
@@ -151,18 +156,52 @@ export function Chat() {
     setIsSuggesting(true);
     suggestionFormRef.current?.requestSubmit();
   }
+  
+  const recipient = recipientId ? mockUsers[recipientId] : null;
+  const otherSellers = Object.values(mockUsers).filter(u => u.role === 'seller' && u.id !== loggedInUser?.id);
 
-  // This is a temporary setup. In a real app, you'd have a system to select conversation partners.
-  const otherUsers = Object.values(mockUsers).filter(u => u.id !== loggedInUser?.id && u.role !== 'admin');
-  const recipient = otherUsers[0] || null; // Fallback for now
-  const activeUser = recipient;
+  if (!loggedInUser) {
+    // This could be a loading spinner
+    return <div className="flex h-full items-center justify-center text-muted-foreground">Loading...</div>;
+  }
 
-  if (!loggedInUser || !recipient) {
+  if (!recipient) {
     return (
-      <div className="flex h-full items-center justify-center text-muted-foreground">
-        Select a conversation to start chatting.
+      <div className="grid min-h-[calc(100vh-8rem)] w-full grid-cols-[260px_1fr] rounded-lg border">
+        <div className="flex flex-col border-r bg-muted/40">
+          <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
+            <Link href="/" className="flex items-center gap-2 font-semibold">
+              <span className="">Conversations</span>
+            </Link>
+          </div>
+          <div className="flex-1 overflow-auto py-2">
+             <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+              {otherSellers.map(seller => (
+                <Link
+                  key={seller.id}
+                  href={`/messages?recipientId=${seller.id}`}
+                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
+                >
+                  <Avatar className="h-8 w-8 border">
+                    <AvatarImage src={seller.avatar} alt={seller.name} />
+                    <AvatarFallback>{seller.name.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 truncate">
+                    <div className="font-semibold">{seller.name}</div>
+                  </div>
+                </Link>
+              ))}
+            </nav>
+          </div>
+        </div>
+        <div className="flex h-full flex-col items-center justify-center bg-muted/40">
+           <div className="text-center">
+            <h2 className="text-2xl font-semibold">Select a conversation</h2>
+            <p className="text-muted-foreground">Choose a seller from the list to start chatting.</p>
+           </div>
+        </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -172,31 +211,27 @@ export function Chat() {
           <Link href="/" className="flex items-center gap-2 font-semibold">
             <span className="">Conversations</span>
           </Link>
-          <Button variant="outline" size="icon" className="ml-auto h-8 w-8">
-            <PlusCircle className="h-4 w-4" />
-            <span className="sr-only">New Conversation</span>
-          </Button>
         </div>
         <div className="flex-1 overflow-auto py-2">
           <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-            <Link
-              href="#"
-              className="flex items-center gap-3 rounded-lg bg-primary px-3 py-2 text-primary-foreground transition-all"
-            >
-              <Avatar className="h-8 w-8 border">
-                <AvatarImage src={activeUser.avatar} alt={activeUser.name} />
-                <AvatarFallback>{activeUser.name.charAt(0)}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 truncate">
-                <div className="font-semibold">{activeUser.name}</div>
-                <div className="text-xs text-primary-foreground/80">
-                  RE: Industrial Grade Widgets
-                </div>
-              </div>
-              <Badge className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
-                1
-              </Badge>
-            </Link>
+             {otherSellers.map(seller => (
+                <Link
+                  key={seller.id}
+                  href={`/messages?recipientId=${seller.id}`}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
+                    recipientId === seller.id && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                  )}
+                >
+                  <Avatar className="h-8 w-8 border">
+                    <AvatarImage src={seller.avatar} alt={seller.name} />
+                    <AvatarFallback>{seller.name.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 truncate">
+                    <div className="font-semibold">{seller.name}</div>
+                  </div>
+                </Link>
+              ))}
           </nav>
         </div>
       </div>
@@ -317,4 +352,12 @@ export function Chat() {
       </div>
     </div>
   );
+}
+
+export function Chat() {
+  return (
+    <Suspense fallback={<div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+      <ChatContent />
+    </Suspense>
+  )
 }

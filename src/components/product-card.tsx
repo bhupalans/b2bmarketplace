@@ -66,7 +66,7 @@ export function ProductCard({ product }: ProductCardProps) {
       </CardContent>
       <CardFooter className="p-6 pt-0">
         <Button asChild className="w-full">
-          <Link href="/messages">Contact Seller</Link>
+          <Link href={`/messages?recipientId=${product.sellerId}`}>Contact Seller</Link>
         </Button>
       </CardFooter>
     </Card>

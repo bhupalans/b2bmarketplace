@@ -49,7 +49,7 @@ export default async function SellerProfilePage({
           </CardHeader>
           <CardContent className="text-center">
             <Button asChild className="w-full">
-              <Link href="/messages">Contact Seller</Link>
+              <Link href={`/messages?recipientId=${seller.id}`}>Contact Seller</Link>
             </Button>
           </CardContent>
         </Card>
