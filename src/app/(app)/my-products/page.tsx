@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useTransition } from 'react';
+import React, { useState, useEffect, useTransition, useCallback } from 'react';
 import {
   Table,
   TableBody,
@@ -95,7 +95,7 @@ export default function MyProductsPage() {
     setFormOpen(true);
   };
 
-  const handleFormSuccess = (updatedProduct: Product) => {
+  const handleFormSuccess = useCallback((updatedProduct: Product) => {
     if(selectedProduct) {
         // Edit
         setProducts(products.map(p => p.id === updatedProduct.id ? updatedProduct : p));
@@ -104,7 +104,8 @@ export default function MyProductsPage() {
         setProducts([...products, updatedProduct]);
     }
     setFormOpen(false);
-  };
+    setSelectedProduct(undefined);
+  }, [products, selectedProduct]);
 
   const handleDelete = (productToDelete: Product) => {
     startDeleteTransition(async () => {
@@ -114,7 +115,7 @@ export default function MyProductsPage() {
         }
 
         try {
-            await deleteProductClient(productToDelete);
+            await deleteProductClient(productToDelete.id, productToDelete.images);
             setProducts(products.filter(p => p.id !== productToDelete.id));
             toast({
                 title: 'Product Deleted',
