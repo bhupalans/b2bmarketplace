@@ -71,7 +71,6 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
   const { firebaseUser } = useAuth();
   
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  const [product, setProduct] = useState<Product | null>(null);
   const [isLoadingProduct, setIsLoadingProduct] = useState(false);
 
   const form = useForm<z.infer<typeof productSchema>>({
@@ -89,12 +88,21 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
   const fileRef = form.register("newImageFiles");
 
   useEffect(() => {
-    const fetchProduct = async () => {
+    const fetchProductAndResetForm = async () => {
         if (productId) {
             setIsLoadingProduct(true);
             try {
                 const fetchedProduct = await getProductClient(productId);
-                setProduct(fetchedProduct);
+                if (fetchedProduct) {
+                    form.reset({
+                        title: fetchedProduct.title || "",
+                        description: fetchedProduct.description || "",
+                        priceUSD: fetchedProduct.priceUSD || undefined,
+                        categoryId: fetchedProduct.categoryId || "",
+                        existingImages: fetchedProduct.images || [],
+                        newImageFiles: undefined
+                    });
+                }
             } catch (error) {
                 console.error("Failed to fetch product", error);
                 toast({ variant: 'destructive', title: "Error", description: "Failed to load product data."})
@@ -102,31 +110,24 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                 setIsLoadingProduct(false);
             }
         } else {
-            setProduct(null);
+            form.reset({
+                title: "",
+                description: "",
+                priceUSD: undefined,
+                categoryId: "",
+                existingImages: [],
+                newImageFiles: undefined
+            });
+        }
+        setImagePreviews([]);
+        if (fileRef && 'current' in fileRef && fileRef.current) {
+            fileRef.current.value = "";
         }
     }
     if (open) {
-      fetchProduct();
+      fetchProductAndResetForm();
     }
-  }, [productId, open, toast]);
-
-
-  useEffect(() => {
-    if (open) {
-      form.reset({
-        title: product?.title || "",
-        description: product?.description || "",
-        priceUSD: product?.priceUSD || undefined,
-        categoryId: product?.categoryId || "",
-        existingImages: product?.images || [],
-        newImageFiles: undefined
-      });
-      setImagePreviews([]);
-      if (fileRef && 'current' in fileRef && fileRef.current) {
-        fileRef.current.value = "";
-      }
-    }
-  }, [product, open, form, fileRef]);
+  }, [productId, open, form, toast, fileRef]);
 
   const onSubmit = (values: z.infer<typeof productSchema>) => {
     startSavingTransition(async () => {
@@ -143,12 +144,12 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
             Array.from(newImageFiles || []),
             values.existingImages,
             firebaseUser.uid,
-            product?.id
+            productId
         );
 
         toast({
-            title: product ? "Product Updated" : "Product Submitted",
-            description: product 
+            title: productId ? "Product Updated" : "Product Submitted",
+            description: productId 
                 ? `Your changes to "${savedProduct.title}" have been submitted for review.`
                 : `Your product "${savedProduct.title}" has been submitted for review.`,
         });
@@ -171,8 +172,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
     }
     
     const newPreviews = Array.from(files).map(file => URL.createObjectURL(file));
-    // Revoke old previews to prevent memory leaks
-    imagePreviews.forEach(URL.revokeObjectURL);
+    imagePreviews.forEach(URL.revokeObjectURL); // Revoke old previews to prevent memory leaks
     setImagePreviews(newPreviews);
   };
 

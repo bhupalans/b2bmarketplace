@@ -96,12 +96,10 @@ export default function MyProductsPage() {
     setProducts((prevProducts) => {
       const existingProductIndex = prevProducts.findIndex(p => p.id === updatedProduct.id);
       if (existingProductIndex > -1) {
-        // Edit
         const newProducts = [...prevProducts];
         newProducts[existingProductIndex] = updatedProduct;
         return newProducts;
       } else {
-        // Create
         return [updatedProduct, ...prevProducts];
       }
     });
