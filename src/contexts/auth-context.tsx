@@ -25,19 +25,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setFirebaseUser(fbUser);
       if (fbUser) {
-        // User is signed in. Fetch their profile from Firestore.
         const userDocRef = doc(db, 'users', fbUser.uid);
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists()) {
           setUser({ id: userDoc.id, ...userDoc.data() } as User);
         } else {
-            // This can happen if the user record exists in Auth but not Firestore.
-            // This is unlikely in an email/pass flow but good to handle.
             console.warn("No user profile found in Firestore for UID:", fbUser.uid);
             setUser(null); 
         }
       } else {
-        // User is signed out.
         setUser(null);
       }
       setLoading(false);

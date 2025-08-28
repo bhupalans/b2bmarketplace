@@ -14,20 +14,6 @@ import {
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Tooltip,
@@ -65,11 +51,10 @@ function ChatContent() {
     getUsers().then(setUsers);
   }, []);
 
-  const usersById = React.useMemo(() => Object.fromEntries(users.map(u => [u.id, u])), [users]);
-  const recipient = recipientId ? usersById[recipientId] : null;
+  const usersByUid = React.useMemo(() => Object.fromEntries(users.map(u => [u.id, u])), [users]);
+  const recipient = recipientId ? usersByUid[recipientId] : null;
 
   useEffect(() => {
-    // We need firebaseUser to exist to set up the listener, since the rules depend on auth.uid
     if (firebaseUser && recipientId) {
       const unsubscribe = getMessages(firebaseUser.uid, recipientId, (newMessages) => {
         setMessages(newMessages);
@@ -96,7 +81,7 @@ function ChatContent() {
     const result = await sendMessageAction({
       message: messageText,
       recipientId: recipient.id,
-      senderId: firebaseUser.uid, // Pass the correct Firebase Auth UID
+      senderId: firebaseUser.uid,
     });
 
     setIsSending(false);
@@ -108,7 +93,7 @@ function ChatContent() {
         description: result.error,
       });
     } else {
-      setMessageText(""); // Clear the input on success
+      setMessageText("");
       if (result.modificationReason) {
         toast({
           title: "Message Modified",
@@ -119,12 +104,12 @@ function ChatContent() {
   }, [messageText, recipient, isSending, toast, firebaseUser]);
 
 
-  if (!loggedInUser) {
+  if (!loggedInUser || !firebaseUser) {
     return <div className="flex h-full items-center justify-center text-muted-foreground"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
   
   const conversationList = users.filter(user => {
-    if (user.id === loggedInUser.id) return false;
+    if (user.id === firebaseUser.uid) return false;
     if (loggedInUser.role === 'buyer') return user.role === 'seller';
     if (loggedInUser.role === 'seller') return user.role === 'buyer';
     return false;
@@ -171,7 +156,7 @@ function ChatContent() {
     );
   }
 
-  const allUsersAndSystem = { ...usersById, system: { id: 'system', name: 'System', avatar: '', email: '', role: 'admin' as const }};
+  const allUsersAndSystem = { ...usersByUid, system: { id: 'system', name: 'System', avatar: '', email: '', role: 'admin' as const }};
   
   return (
     <div className="grid min-h-[calc(100vh-8rem)] w-full grid-cols-[260px_1fr] rounded-lg border">
@@ -259,10 +244,10 @@ function ChatContent() {
                 key={message.id}
                 className={cn(
                   "flex items-start gap-3",
-                  message.isSystemMessage ? "justify-center" : (message.senderId === firebaseUser?.uid && "justify-end")
+                  message.isSystemMessage ? "justify-center" : (message.senderId === firebaseUser.uid && "justify-end")
                 )}
               >
-                {message.senderId !== firebaseUser?.uid && !message.isSystemMessage && (
+                {message.senderId !== firebaseUser.uid && !message.isSystemMessage && (
                   <Avatar className="h-8 w-8 border">
                     <AvatarImage src={allUsersAndSystem[message.senderId]?.avatar} />
                     <AvatarFallback>
@@ -275,7 +260,7 @@ function ChatContent() {
                     "max-w-xs rounded-lg p-3 text-sm",
                     message.isSystemMessage 
                       ? "bg-accent text-accent-foreground" 
-                      : (message.senderId === firebaseUser?.uid
+                      : (message.senderId === firebaseUser.uid
                           ? "bg-primary text-primary-foreground"
                           : "bg-muted"),
                     message.offerId && "max-w-md bg-transparent p-0"
@@ -287,7 +272,7 @@ function ChatContent() {
                     <p>{message.text}</p>
                   )}
                 </div>
-                {message.senderId === firebaseUser?.uid && !message.isSystemMessage && (
+                {message.senderId === firebaseUser.uid && !message.isSystemMessage && (
                    <Avatar className="h-8 w-8 border">
                     <AvatarImage src={(loggedInUser as User)?.avatar} />
                     <AvatarFallback>

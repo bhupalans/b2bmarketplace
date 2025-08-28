@@ -41,10 +41,8 @@ export async function getUsers(): Promise<User[]> {
 export function getMessages(userId: string, otherUserId: string, callback: (messages: Message[]) => void): () => void {
   const messagesRef = collection(db, 'messages');
   
-  // Create a consistent key for the conversation by sorting the participant IDs
   const participants = [userId, otherUserId].sort();
   
-  // This query is now fully secure and matches the Firestore rules.
   const q = query(messagesRef, 
     where('participants', '==', participants),
     orderBy('timestamp', 'asc')
@@ -64,7 +62,6 @@ export function getMessages(userId: string, otherUserId: string, callback: (mess
     callback(messages);
   }, (error) => {
     console.error("Firestore snapshot error:", error);
-    // This callback will be triggered on permission denied errors
   });
 
   return unsubscribe;
@@ -92,8 +89,6 @@ export async function getProductAndSeller(productId: string): Promise<{ product:
       }
     } catch (error) {
         console.error(`Failed to fetch seller data for product ${productId}. This might be due to Firestore security rules.`, error);
-        // If fetching the seller fails (e.g., due to permissions for a public user),
-        // we'll proceed without the seller data instead of crashing the page.
         seller = null;
     }
   }
@@ -156,7 +151,6 @@ export async function getSellerDashboardData(sellerId: string): Promise<{
   productsWithOfferCounts: (Product & { offerCount: number })[];
 } | null> {
   try {
-    // For this demo, we'll calculate from mock data. In a real app, you'd use Firestore queries/aggregations.
     const sellerProducts = mockProducts.filter(p => p.sellerId === sellerId);
     const sellerProductIds = sellerProducts.map(p => p.id);
 
@@ -190,12 +184,10 @@ export async function createOrUpdateProduct(
   productId?: string
 ): Promise<Product> {
   if (productId) {
-    // Update existing product
     const productRef = doc(db, 'products', productId);
     await updateDoc(productRef, productData);
     return { id: productId, ...productData };
   } else {
-    // Create new product
     const docRef = await addDoc(collection(db, 'products'), productData);
     return { id: docRef.id, ...productData };
   }
@@ -209,11 +201,9 @@ export async function deleteProduct(productId: string): Promise<void> {
 
 
 // --- Seeding Function ---
-// This is a one-time function to populate the database with mock data.
 export async function seedDatabase() {
   const batch = writeBatch(db);
 
-  // Check if products are already seeded
   const productsSnapshot = await getDocs(collection(db, "products"));
   if (productsSnapshot.empty) {
     console.log("Seeding products...");
@@ -225,7 +215,6 @@ export async function seedDatabase() {
     console.log("Products collection is not empty. Skipping seed.");
   }
 
-  // Check if categories are already seeded
   const categoriesSnapshot = await getDocs(collection(db, "categories"));
   if (categoriesSnapshot.empty) {
     console.log("Seeding categories...");
