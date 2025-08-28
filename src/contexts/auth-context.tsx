@@ -28,7 +28,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const userDocRef = doc(db, 'users', fbUser.uid);
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists()) {
-          setUser({ id: userDoc.id, ...userDoc.data() } as User);
+          setUser({ id: userDoc.id, uid: fbUser.uid, ...userDoc.data() } as User);
         } else {
             console.warn("No user profile found in Firestore for UID:", fbUser.uid);
             setUser(null); 

@@ -39,7 +39,7 @@ interface UserAuthFormProps extends React.HTMLAttributes<HTMLDivElement> {
   mode: "login" | "signup";
 }
 
-const formSchema = z.object({
+const baseSchema = z.object({
   name: z.string().optional(),
   loginId: z.string().min(1, { message: "This field is required." }),
   email: z.string().email({ message: "Please enter a valid email." }).optional(),
@@ -49,16 +49,16 @@ const formSchema = z.object({
   role: z.enum(["buyer", "seller"]).optional(),
 });
 
-const signupSchema = formSchema.refine(
+const signupSchema = baseSchema.refine(
   (data) => {
     return !!data.name && !!data.role && !!data.email;
   },
   {
-    message: "Name, a valid email, and role are required for signup.",
+    message: "Name, email, and role are required for signup.",
     path: ["name"], 
   }
 ).refine(data => data.loginId.includes('@'), {
-    message: "For signup, please use your email address.",
+    message: "For signup, please use your email address as the login ID.",
     path: ['loginId']
 });
 
@@ -68,7 +68,7 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
 
-  const finalSchema = mode === 'signup' ? signupSchema : formSchema;
+  const finalSchema = mode === 'signup' ? signupSchema : baseSchema;
 
   const form = useForm<z.infer<typeof finalSchema>>({
     resolver: zodResolver(finalSchema),
