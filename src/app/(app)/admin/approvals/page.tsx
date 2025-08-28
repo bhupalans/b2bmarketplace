@@ -36,7 +36,9 @@ export default function AdminApprovalsPage() {
       }
     }
 
-    fetchData();
+    if (user) {
+        fetchData();
+    }
   }, [user]);
 
   if (loading) {
