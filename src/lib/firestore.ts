@@ -33,7 +33,17 @@ export async function getCategories(): Promise<Category[]> {
 export async function getUsers(): Promise<User[]> {
   const usersCol = collection(db, "users");
   const userSnapshot = await getDocs(usersCol);
-  const userList = userSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+  // Ensure the user object always has a `uid` property.
+  // If the `uid` field is missing from the doc (for older users),
+  // we use the document ID as the uid, which is the correct Auth UID.
+  const userList = userSnapshot.docs.map(doc => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      uid: data.uid || doc.id,
+    } as User;
+  });
   return userList;
 }
 
@@ -85,7 +95,8 @@ export async function getProductAndSeller(productId: string): Promise<{ product:
       const sellerRef = doc(db, "users", product.sellerId);
       const sellerSnap = await getDoc(sellerRef);
       if (sellerSnap.exists()) {
-        seller = { id: sellerSnap.id, ...sellerSnap.data() } as User;
+        const sellerData = sellerSnap.data();
+        seller = { id: sellerSnap.id, ...sellerData, uid: sellerData.uid || sellerSnap.id } as User;
       }
     } catch (error) {
         console.error(`Failed to fetch seller data for product ${productId}. This might be due to Firestore security rules.`, error);
@@ -105,7 +116,8 @@ export async function getSellerAndProducts(sellerId: string): Promise<{ seller: 
     return null;
   }
 
-  const seller = { id: sellerSnap.id, ...sellerSnap.data() } as User;
+  const sellerData = sellerSnap.data();
+  const seller = { id: sellerSnap.id, ...sellerData, uid: sellerData.uid || sellerSnap.id } as User;
 
   const productsQuery = query(collection(db, "products"), where("sellerId", "==", sellerId));
   const productsSnapshot = await getDocs(productsQuery);
