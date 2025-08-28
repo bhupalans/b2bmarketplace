@@ -29,6 +29,13 @@ export async function getProductsClient(): Promise<Product[]> {
   return productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
 }
 
+export async function getPendingProducts(): Promise<Product[]> {
+    const productsCol = collection(db, "products");
+    const q = query(productsCol, where("status", "==", "pending"));
+    const productSnapshot = await getDocs(q);
+    return productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+}
+
 export async function getCategoriesClient(): Promise<Category[]> {
   const categoriesCol = collection(db, "categories");
   const categorySnapshot = await getDocs(categoriesCol);

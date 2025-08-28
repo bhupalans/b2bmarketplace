@@ -46,10 +46,12 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers }: Admi
              toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in.' });
              return;
         }
+        
+        const idToken = await firebaseUser.getIdToken();
 
         const result = action === 'approve' 
-            ? await approveProductAction({ productId })
-            : await rejectProductAction({ productId });
+            ? await approveProductAction({ productId, idToken })
+            : await rejectProductAction({ productId, idToken });
 
         if(result.success) {
             setPendingProducts(prev => prev.filter(p => p.id !== productId));

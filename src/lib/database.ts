@@ -77,13 +77,6 @@ export async function getProducts(): Promise<Product[]> {
   return productList;
 }
 
-export async function getPendingProducts(): Promise<Product[]> {
-    const productsCol = adminDb.collection("products").where("status", "==", "pending");
-    const productSnapshot = await productsCol.get();
-    const productList = productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-    return productList;
-}
-
 export async function getProduct(productId: string): Promise<Product | null> {
     const productRef = adminDb.collection("products").doc(productId);
     const productSnap = await productRef.get();

@@ -3,29 +3,30 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { headers } from "next/headers";
 import { adminAuth } from '@/lib/firebase-admin';
 import { getUser, updateProductStatus } from '@/lib/database';
 
 const productActionSchema = z.object({
     productId: z.string(),
+    idToken: z.string(),
 });
 
-async function verifyAdmin() {
-    // When calling server actions from the client, the Authorization header isn't automatically passed.
-    // Instead, we should rely on the Firebase Admin SDK to verify the token if needed,
-    // or trust the route protection in middleware/layouts. For this action, we'll
-    // assume the user is an admin if they can reach this server action, as the route is protected.
-    // A more robust solution might involve passing the token explicitly.
-    
-    // For now, let's remove the check that relies on the header.
-    // The layout already protects the admin routes.
+async function verifyAdmin(idToken: string) {
+    if (!idToken) {
+        throw new Error('Authentication token is missing.');
+    }
+    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    const user = await getUser(decodedToken.uid);
+
+    if (!user || user.role !== 'admin') {
+        throw new Error('User is not authorized to perform this action.');
+    }
     return true;
 }
 
 export async function approveProductAction(values: z.infer<typeof productActionSchema>) {
     try {
-        await verifyAdmin();
+        await verifyAdmin(values.idToken);
         const { productId } = productActionSchema.parse(values);
         await updateProductStatus(productId, 'approved');
 
@@ -42,7 +43,7 @@ export async function approveProductAction(values: z.infer<typeof productActionS
 
 export async function rejectProductAction(values: z.infer<typeof productActionSchema>) {
     try {
-        await verifyAdmin();
+        await verifyAdmin(values.idToken);
         const { productId } = productActionSchema.parse(values);
         await updateProductStatus(productId, 'rejected');
 
