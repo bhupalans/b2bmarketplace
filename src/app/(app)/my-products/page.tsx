@@ -25,9 +25,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, PlusCircle, Trash2, Edit, Loader2 } from "lucide-react";
-import { Product } from '@/lib/types';
+import { Category, Product } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
-import { getSellerProductsClient } from '@/lib/firebase';
+import { getSellerProductsClient, getCategoriesClient } from '@/lib/firebase';
 import Image from 'next/image';
 import { ProductFormDialog } from '@/components/product-form';
 import { deleteProductAction } from '@/app/actions';
@@ -50,6 +50,7 @@ import { cn } from '@/lib/utils';
 export default function MyProductsPage() {
   const { user, firebaseUser } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFormOpen, setFormOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>(undefined);
@@ -57,15 +58,33 @@ export default function MyProductsPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (user?.role === 'seller') {
-      getSellerProductsClient(user.id)
-        .then(data => {
-          setProducts(data);
-          setLoading(false);
-        })
-        .catch(console.error);
+    async function fetchData() {
+        if (user?.role === 'seller') {
+            try {
+                const [productData, categoryData] = await Promise.all([
+                    getSellerProductsClient(user.id),
+                    getCategoriesClient()
+                ]);
+                setProducts(productData);
+                setCategories(categoryData);
+            } catch (error) {
+                console.error("Failed to fetch data for My Products page:", error);
+                toast({
+                    variant: 'destructive',
+                    title: 'Error',
+                    description: 'Could not load your products and categories.',
+                });
+            } finally {
+                setLoading(false);
+            }
+        } else {
+            setLoading(false);
+        }
     }
-  }, [user]);
+    if (user) {
+        fetchData();
+    }
+  }, [user, toast]);
 
   const handleEdit = (product: Product) => {
     setSelectedProduct(product);
@@ -136,6 +155,7 @@ export default function MyProductsPage() {
         onOpenChange={setFormOpen}
         product={selectedProduct}
         onSuccess={handleFormSuccess}
+        categories={categories}
       />
 
       <Card>

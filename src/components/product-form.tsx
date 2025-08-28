@@ -36,7 +36,6 @@ import {
 } from "./ui/select";
 import { Product, Category } from "@/lib/types";
 import { createOrUpdateProductAction } from "@/app/actions";
-import { getCategoriesClient } from "@/lib/firebase";
 import Image from "next/image";
 import { useAuth } from "@/contexts/auth-context";
 
@@ -63,12 +62,12 @@ type ProductFormDialogProps = {
   onOpenChange: (open: boolean) => void;
   product?: Product;
   onSuccess: (product: Product) => void;
+  categories: Category[];
 };
 
-export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: ProductFormDialogProps) {
+export function ProductFormDialog({ open, onOpenChange, product, onSuccess, categories }: ProductFormDialogProps) {
   const { toast } = useToast();
   const [isSaving, startSavingTransition] = useTransition();
-  const [categories, setCategories] = useState<Category[]>([]);
   const { firebaseUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -87,10 +86,6 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
       existingImages: product?.images || [],
     },
   });
-
-  useEffect(() => {
-    getCategoriesClient().then(setCategories);
-  }, []);
 
   useEffect(() => {
     // Reset form and local file state when dialog opens or product changes
