@@ -26,7 +26,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   Select,
   SelectContent,
@@ -45,7 +45,7 @@ const productSchema = z.object({
   priceUSD: z.coerce.number().positive({ message: "Price must be a positive number." }),
   categoryId: z.string().min(1, { message: "Please select a category." }),
   existingImages: z.array(z.string().url()),
-  newImageFiles: z.instanceof(FileList).optional(),
+  newImageFiles: z.custom<FileList>((val) => val instanceof FileList, "Please upload a file").optional(),
 }).refine(data => {
     const hasExistingImages = data.existingImages && data.existingImages.length > 0;
     const hasNewImages = data.newImageFiles && data.newImageFiles.length > 0;
@@ -79,6 +79,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess, cate
       priceUSD: undefined,
       categoryId: "",
       existingImages: [],
+      newImageFiles: undefined,
     },
   });
 
@@ -92,14 +93,14 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess, cate
         priceUSD: product?.priceUSD || undefined,
         categoryId: product?.categoryId || "",
         existingImages: product?.images || [],
+        newImageFiles: undefined
       });
       setImagePreviews([]);
-      // Reset the file input visually
       if (fileRef && 'current' in fileRef && fileRef.current) {
         fileRef.current.value = "";
       }
     }
-  }, [product, open, form, fileRef]);
+  }, [product, open, form.reset, fileRef]);
 
   const onSubmit = (values: z.infer<typeof productSchema>) => {
     startSavingTransition(async () => {
@@ -143,7 +144,10 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess, cate
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0) {
+      setImagePreviews([]);
+      return;
+    }
     
     const newPreviews = Array.from(files).map(file => URL.createObjectURL(file));
     // Revoke old previews to prevent memory leaks
@@ -157,8 +161,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess, cate
   };
 
   const existingImages = form.watch('existingImages');
-  const newImageFiles = form.watch('newImageFiles');
-
+  
   useEffect(() => {
     return () => {
       // Cleanup previews on unmount
@@ -265,10 +268,9 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess, cate
                             </Button>
                         </div>
                     ))}
-                    {imagePreviews.map((preview, index) => (
+                    {imagePreviews.map((preview) => (
                         <div key={preview} className="relative group aspect-square">
                             <Image src={preview} alt="New product image" fill className="rounded-md object-cover" />
-                             {/* No remove button for new previews - user can just select different files */}
                         </div>
                     ))}
 
