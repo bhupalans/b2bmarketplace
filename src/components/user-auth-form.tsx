@@ -39,33 +39,20 @@ interface UserAuthFormProps extends React.HTMLAttributes<HTMLDivElement> {
   mode: "login" | "signup";
 }
 
-const baseSchema = z.object({
-  name: z.string().optional(),
+const loginSchema = z.object({
   loginId: z.string().min(1, { message: "This field is required." }),
-  email: z.string().email({ message: "Please enter a valid email." }).optional(),
+  password: z
+    .string()
+    .min(1, { message: "Password is required." }),
+});
+
+const signupSchema = z.object({
+  name: z.string().min(1, { message: "Name is required."}),
+  email: z.string().email({ message: "Please enter a valid email." }),
   password: z
     .string()
     .min(6, { message: "Password must be at least 6 characters." }),
-  role: z.enum(["buyer", "seller"]).optional(),
-});
-
-const signupSchema = baseSchema.refine(
-  (data) => {
-    return !!data.name && !!data.role && !!data.email;
-  },
-  {
-    message: "Name, email, and role are required for signup.",
-    path: ["name"], 
-  }
-).refine(data => {
-    // Only enforce email format for loginId during signup
-    if (data.loginId && !data.loginId.includes('@')) {
-        return false;
-    }
-    return true;
-}, {
-    message: "For signup, please use your email address as the login ID.",
-    path: ['loginId']
+  role: z.enum(["buyer", "seller"]),
 });
 
 
@@ -74,47 +61,36 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
 
-  const finalSchema = mode === 'signup' ? signupSchema : baseSchema;
-
-  const form = useForm<z.infer<typeof finalSchema>>({
-    resolver: zodResolver(finalSchema),
+  const form = useForm({
+    resolver: zodResolver(mode === 'login' ? loginSchema : signupSchema),
     defaultValues: {
-      name: "",
       loginId: "",
+      name: "",
       email: "",
       password: "",
       role: "buyer",
     },
   });
   
-  const loginIdValue = form.watch("loginId");
-  React.useEffect(() => {
-    if (mode === 'signup' && loginIdValue?.includes('@')) {
-      form.setValue('email', loginIdValue);
-    }
-  }, [loginIdValue, mode, form]);
-
-  async function onSubmit(values: z.infer<typeof finalSchema>) {
+  async function onSubmit(values: z.infer<typeof loginSchema> | z.infer<typeof signupSchema>) {
     setIsLoading(true);
     try {
       if (mode === "signup") {
-        if (!values.name || !values.role || !values.email) {
-            throw new Error("Name, email, and role are required for signup.");
-        }
+        const signupValues = values as z.infer<typeof signupSchema>;
         const userCredential = await createUserWithEmailAndPassword(
           auth,
-          values.email,
-          values.password
+          signupValues.email,
+          signupValues.password
         );
         const user = userCredential.user;
         
         const userProfile = {
           uid: user.uid,
-          name: values.name,
-          email: values.email,
-          role: values.role,
+          name: signupValues.name,
+          email: signupValues.email,
+          role: signupValues.role,
           avatar: `https://i.pravatar.cc/150?u=${user.uid}`,
-          username: values.name.toLowerCase().replace(/\s+/g, '') + Math.floor(Math.random() * 1000)
+          username: signupValues.name.toLowerCase().replace(/\s+/g, '') + Math.floor(Math.random() * 1000)
         };
 
         await setDoc(doc(db, "users", user.uid), userProfile);
@@ -125,7 +101,9 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
         });
         
       } else { // Login mode
-        let emailToLogin = values.loginId;
+        const loginValues = values as z.infer<typeof loginSchema>;
+        let emailToLogin = loginValues.loginId;
+        
         if (!emailToLogin.includes('@')) {
             const user = await findUserByUsername(emailToLogin);
             if (user) {
@@ -134,7 +112,7 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
                 throw new Error("User not found.");
             }
         }
-        await signInWithEmailAndPassword(auth, emailToLogin, values.password);
+        await signInWithEmailAndPassword(auth, emailToLogin, loginValues.password);
         toast({
           title: "Signed In",
           description: "You have successfully signed in.",
@@ -172,6 +150,7 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
            {mode === "signup" && (
+            <>
             <FormField
               control={form.control}
               name="name"
@@ -189,17 +168,16 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
                 </FormItem>
               )}
             />
-          )}
-          <FormField
+            <FormField
             control={form.control}
-            name="loginId"
+            name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{mode === 'login' ? 'Email or Username' : 'Email'}</FormLabel>
+                <FormLabel>Email</FormLabel>
                 <FormControl>
                   <Input
-                    placeholder={mode === 'login' ? 'name@example.com or username' : 'name@example.com'}
-                    type="text"
+                    placeholder='name@example.com'
+                    type="email"
                     autoCapitalize="none"
                     autoComplete="email"
                     autoCorrect="off"
@@ -211,6 +189,32 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
               </FormItem>
             )}
           />
+          </>
+          )}
+          { mode === "login" && (
+             <FormField
+              control={form.control}
+              name="loginId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email or Username</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder='name@example.com or username'
+                      type="text"
+                      autoCapitalize="none"
+                      autoComplete="email"
+                      autoCorrect="off"
+                      disabled={isLoading}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+
           <FormField
             control={form.control}
             name="password"
