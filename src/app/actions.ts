@@ -7,7 +7,6 @@ import { getUser } from "@/lib/database";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { adminAuth } from "@/lib/firebase-admin";
-import { headers } from "next/headers";
 
 const inquirySchema = z.object({
   message: z.string().min(10, "Message must be at least 10 characters."),
@@ -21,8 +20,8 @@ export async function sendInquiryAction(
         message: formData.get('message'),
     });
 
-    // This is a server action, so we can securely get the user's ID token from headers
-    const idToken = headers().get('Authorization')?.split('Bearer ')[1];
+    // The idToken is now passed in the form data
+    const idToken = formData.get('idToken') as string | null;
     
     if (!idToken) {
         return { success: false, error: "Authentication failed. Please log in again." };

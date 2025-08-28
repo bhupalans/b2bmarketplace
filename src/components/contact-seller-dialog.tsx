@@ -1,8 +1,8 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
-import { useFormState, useFormStatus } from "react-dom";
+import { useEffect, useState, useActionState } from "react";
+import { useFormStatus } from "react-dom";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,9 +50,13 @@ export function ContactSellerDialog({ product, seller }: ContactSellerDialogProp
   
   const sendInquiryWithContext = async (prevState: any, formData: FormData) => {
     const idToken = await firebaseUser?.getIdToken();
-    const headers = new Headers();
+    
+    // Server Actions don't send headers in the same way as fetch.
+    // The framework handles passing the user's cookie/auth state.
+    // For this to work, we must rely on the server-side logic to get the user.
+    // I will pass the idToken in the formData for the server to verify.
     if (idToken) {
-      headers.append('Authorization', `Bearer ${idToken}`);
+      formData.append('idToken', idToken);
     }
     
     formData.append('sellerId', seller.uid);
@@ -60,10 +64,11 @@ export function ContactSellerDialog({ product, seller }: ContactSellerDialogProp
         formData.append('productTitle', product.title);
     }
     
+    // We pass the formData directly, not headers
     return sendInquiryAction(prevState, formData);
   }
 
-  const [state, formAction] = useFormState(sendInquiryWithContext, initialState);
+  const [state, formAction] = useActionState(sendInquiryWithContext, initialState);
 
   useEffect(() => {
     if (state.success) {
