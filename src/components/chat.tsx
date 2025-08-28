@@ -44,9 +44,9 @@ import { CreateOfferDialog } from "./create-offer-dialog";
 import { useAuth } from "@/contexts/auth-context";
 import { getUsers, getMessages } from "@/lib/firestore";
 
-const SubmitButton = ({ isSending }: { isSending: boolean }) => {
+const SubmitButton = ({ isSending, disabled }: { isSending: boolean, disabled: boolean }) => {
   return (
-    <Button type="submit" size="icon" disabled={isSending}>
+    <Button type="submit" size="icon" disabled={isSending || disabled}>
       {isSending ? (
         <Loader2 className="h-4 w-4 animate-spin" />
       ) : (
@@ -63,7 +63,6 @@ function ChatContent() {
   const recipientId = searchParams.get('recipientId');
 
   const [users, setUsers] = useState<User[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
   const { toast } = useToast();
 
   const [isSuggesting, startSuggesting] = useTransition();
@@ -72,6 +71,7 @@ function ChatContent() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isCreateOfferOpen, setCreateOfferOpen] = useState(false);
   const [suggestion, setSuggestion] = useState<OfferSuggestion | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
 
   const [state, formAction, isSending] = useActionState(sendMessageAction, {
     error: null,
@@ -102,6 +102,9 @@ function ChatContent() {
     getUsers().then(setUsers);
   }, []);
 
+  const usersById = React.useMemo(() => Object.fromEntries(users.map(u => [u.id, u])), [users]);
+  const recipient = recipientId ? usersById[recipientId] : null;
+
   useEffect(() => {
     if (loggedInUser && recipientId) {
       const unsubscribe = getMessages(loggedInUser.id, recipientId, (newMessages) => {
@@ -116,9 +119,6 @@ function ChatContent() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
   
-  const usersById = Object.fromEntries(users.map(u => [u.id, u]));
-  const recipient = recipientId ? usersById[recipientId] : null;
-
   const handleSuggestOffer = () => {
     startSuggesting(() => {
         suggestionFormRef.current?.requestSubmit();
@@ -136,7 +136,7 @@ function ChatContent() {
     return false;
   });
 
-  if (!recipient) {
+  if (!recipientId) {
     return (
       <div className="grid min-h-[calc(100vh-8rem)] w-full grid-cols-[260px_1fr] rounded-lg border">
         <div className="flex flex-col border-r bg-muted/40">
@@ -212,12 +212,12 @@ function ChatContent() {
         <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6">
           <div className="flex-1">
             <h1 className="text-lg font-semibold md:text-xl">
-              {recipient.name}
+              {recipient ? recipient.name : 'Loading...'}
             </h1>
-            <p className="text-sm text-muted-foreground">Online</p>
+            {recipient && <p className="text-sm text-muted-foreground">Online</p>}
           </div>
           <div className="flex flex-1 items-center justify-end gap-2">
-            {loggedInUser.role === 'seller' && (
+            {loggedInUser.role === 'seller' && recipient && (
               <>
                 <form action={async (formData) => {
                     const result = await suggestOfferAction(null, formData);
@@ -313,7 +313,7 @@ function ChatContent() {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button type="button" variant="ghost" size="icon">
+                  <Button type="button" variant="ghost" size="icon" disabled={!recipient}>
                     <Paperclip className="h-4 w-4" />
                     <span className="sr-only">Attach file</span>
                   </Button>
@@ -323,12 +323,12 @@ function ChatContent() {
             </TooltipProvider>
             <Textarea
               name="message"
-              placeholder="Type your message here..."
+              placeholder={recipient ? "Type your message here..." : "Loading conversation..."}
               className="min-h-12 flex-1 resize-none rounded-full px-4 py-3"
-              disabled={isSending}
+              disabled={isSending || !recipient}
             />
-            <input type="hidden" name="recipientId" value={recipient.id} />
-            <SubmitButton isSending={isSending} />
+            {recipient && <input type="hidden" name="recipientId" value={recipient.id} />}
+            <SubmitButton isSending={isSending} disabled={!recipient} />
           </form>
         </footer>
       </div>
