@@ -73,7 +73,9 @@ export function ProductCard({ product }: ProductCardProps) {
             <Skeleton className="h-10 w-full" />
         ) : seller ? (
             <ContactSellerDialog product={product} seller={seller} />
-        ) : null}
+        ) : (
+            <Skeleton className="h-10 w-full" />
+        )}
       </CardFooter>
     </Card>
   );
