@@ -28,6 +28,14 @@ export async function getCategories(): Promise<Category[]> {
   return categoryList;
 }
 
+// Function to fetch all users
+export async function getUsers(): Promise<User[]> {
+  const usersCol = collection(db, "users");
+  const userSnapshot = await getDocs(usersCol);
+  const userList = userSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+  return userList;
+}
+
 // Function to fetch a single product and its seller
 export async function getProductAndSeller(productId: string): Promise<{ product: Product; seller: User | null } | null> {
   const productRef = doc(db, "products", productId);

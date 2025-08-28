@@ -51,6 +51,7 @@ import { useToast } from "@/hooks/use-toast";
 import { OfferCard } from "./offer-card";
 import { CreateOfferDialog } from "./create-offer-dialog";
 import { useAuth } from "@/contexts/auth-context";
+import { getUsers } from "@/lib/firestore";
 
 const SubmitButton = () => {
   const { pending } = useFormStatus();
@@ -71,6 +72,7 @@ function ChatContent() {
   const searchParams = useSearchParams();
   const recipientId = searchParams.get('recipientId');
 
+  const [users, setUsers] = useState<User[]>([]);
   const [newMessages, setNewMessages] = useState<Message[]>([]);
   const [suggestion, setSuggestion] = useState<OfferSuggestion | null>(null);
   const [isSuggesting, setIsSuggesting] = useState(false);
@@ -91,6 +93,12 @@ function ChatContent() {
     suggestion: null,
   });
 
+  useEffect(() => {
+    getUsers().then(setUsers);
+  }, []);
+
+  const allMockUsers = { ...mockUsers, ...Object.fromEntries(users.map(u => [u.id, u]))};
+  
   // In a real app, messages would be filtered by recipientId.
   // For this demo, we'll continue to show all mock messages.
   const allMessages = [...mockMessages, ...newMessages];
@@ -157,13 +165,19 @@ function ChatContent() {
     suggestionFormRef.current?.requestSubmit();
   }
   
-  const recipient = recipientId ? mockUsers[recipientId] : null;
-  const otherSellers = Object.values(mockUsers).filter(u => u.role === 'seller' && u.id !== loggedInUser?.id);
+  const recipient = recipientId ? allMockUsers[recipientId] : null;
 
   if (!loggedInUser) {
     // This could be a loading spinner
-    return <div className="flex h-full items-center justify-center text-muted-foreground">Loading...</div>;
+    return <div className="flex h-full items-center justify-center text-muted-foreground"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
+
+  const conversationList = users.filter(user => {
+    if (user.id === loggedInUser.id) return false; // Exclude self
+    if (loggedInUser.role === 'buyer') return user.role === 'seller';
+    if (loggedInUser.role === 'seller') return user.role === 'buyer';
+    return false;
+  });
 
   if (!recipient) {
     return (
@@ -176,18 +190,18 @@ function ChatContent() {
           </div>
           <div className="flex-1 overflow-auto py-2">
              <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-              {otherSellers.map(seller => (
+              {conversationList.map(user => (
                 <Link
-                  key={seller.id}
-                  href={`/messages?recipientId=${seller.id}`}
+                  key={user.id}
+                  href={`/messages?recipientId=${user.id}`}
                   className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
                 >
                   <Avatar className="h-8 w-8 border">
-                    <AvatarImage src={seller.avatar} alt={seller.name} />
-                    <AvatarFallback>{seller.name.charAt(0)}</AvatarFallback>
+                    <AvatarImage src={user.avatar} alt={user.name} />
+                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 truncate">
-                    <div className="font-semibold">{seller.name}</div>
+                    <div className="font-semibold">{user.name}</div>
                   </div>
                 </Link>
               ))}
@@ -197,7 +211,7 @@ function ChatContent() {
         <div className="flex h-full flex-col items-center justify-center bg-muted/40">
            <div className="text-center">
             <h2 className="text-2xl font-semibold">Select a conversation</h2>
-            <p className="text-muted-foreground">Choose a seller from the list to start chatting.</p>
+            <p className="text-muted-foreground">Choose someone from the list to start chatting.</p>
            </div>
         </div>
       </div>
@@ -214,21 +228,21 @@ function ChatContent() {
         </div>
         <div className="flex-1 overflow-auto py-2">
           <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-             {otherSellers.map(seller => (
+             {conversationList.map(user => (
                 <Link
-                  key={seller.id}
-                  href={`/messages?recipientId=${seller.id}`}
+                  key={user.id}
+                  href={`/messages?recipientId=${user.id}`}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
-                    recipientId === seller.id && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                    recipientId === user.id && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
                   )}
                 >
                   <Avatar className="h-8 w-8 border">
-                    <AvatarImage src={seller.avatar} alt={seller.name} />
-                    <AvatarFallback>{seller.name.charAt(0)}</AvatarFallback>
+                    <AvatarImage src={user.avatar} alt={user.name} />
+                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 truncate">
-                    <div className="font-semibold">{seller.name}</div>
+                    <div className="font-semibold">{user.name}</div>
                   </div>
                 </Link>
               ))}
@@ -247,7 +261,7 @@ function ChatContent() {
             {loggedInUser.role === 'seller' && (
               <>
                 <form ref={suggestionFormRef} action={suggestionAction} className="hidden">
-                  <input type="hidden" name="chatHistory" value={allMessages.map(m => `${mockUsers[m.senderId]?.name || 'System'}: ${m.text}`).join('\n')} />
+                  <input type="hidden" name="chatHistory" value={allMessages.map(m => `${allMockUsers[m.senderId]?.name || 'System'}: ${m.text}`).join('\n')} />
                   <input type="hidden" name="sellerId" value={loggedInUser.id} />
                 </form>
                 <Button variant="outline" size="sm" onClick={handleSuggestOffer} disabled={isSuggesting}>
@@ -288,9 +302,9 @@ function ChatContent() {
               >
                 {message.senderId !== loggedInUser.id && !message.isSystemMessage && (
                   <Avatar className="h-8 w-8 border">
-                    <AvatarImage src={mockUsers[message.senderId]?.avatar} />
+                    <AvatarImage src={allMockUsers[message.senderId]?.avatar} />
                     <AvatarFallback>
-                      {mockUsers[message.senderId]?.name.charAt(0)}
+                      {allMockUsers[message.senderId]?.name.charAt(0)}
                     </AvatarFallback>
                   </Avatar>
                 )}
