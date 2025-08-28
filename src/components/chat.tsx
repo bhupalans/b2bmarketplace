@@ -60,7 +60,7 @@ function ChatContent() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageText, setMessageText] = useState("");
   const [isSending, setIsSending] = useState(false);
-
+  
   useEffect(() => {
     getUsers().then(setUsers);
   }, []);
@@ -88,13 +88,14 @@ function ChatContent() {
   }
   
   const handleSendMessage = useCallback(async () => {
-    if (!messageText.trim() || !recipient || isSending) return;
+    if (!messageText.trim() || !recipient || isSending || !loggedInUser) return;
 
     setIsSending(true);
 
     const result = await sendMessageAction({
       message: messageText,
       recipientId: recipient.id,
+      senderId: loggedInUser.id,
     });
 
     setIsSending(false);
@@ -114,7 +115,7 @@ function ChatContent() {
         });
       }
     }
-  }, [messageText, recipient, isSending, toast]);
+  }, [messageText, recipient, isSending, toast, loggedInUser]);
 
   if (!loggedInUser) {
     return <div className="flex h-full items-center justify-center text-muted-foreground"><Loader2 className="h-8 w-8 animate-spin" /></div>;

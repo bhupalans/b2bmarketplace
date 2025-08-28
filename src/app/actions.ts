@@ -3,7 +3,7 @@
 
 import { filterContactDetails } from "@/ai/flows/filter-contact-details";
 import { suggestOffer } from "@/ai/flows/suggest-offer";
-import { auth, db } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import { createOrUpdateProduct, deleteProduct, getProduct, getUsers } from "@/lib/firestore";
 import { mockOffers, mockProducts } from "@/lib/mock-data";
 import { Message, Offer, Product } from "@/lib/types";
@@ -17,9 +17,10 @@ const messageSchema = z.object({
   message: z.string().min(1, { message: "Message cannot be empty." }),
   offer: z.string().optional(), // Stringified JSON of the new offer
   recipientId: z.string().min(1, { message: "Recipient is required."}),
+  senderId: z.string().min(1, { message: "Sender is required."}),
 });
 
-export async function sendMessageAction(data: { message: string, recipientId: string, offer?: string }) {
+export async function sendMessageAction(data: { message: string, recipientId: string, senderId: string, offer?: string }) {
   const validatedFields = messageSchema.safeParse(data);
 
   if (!validatedFields.success) {
@@ -32,13 +33,8 @@ export async function sendMessageAction(data: { message: string, recipientId: st
       modificationReason: null,
     };
   }
-
-  const senderId = auth.currentUser?.uid;
-  if (!senderId) {
-    return { error: "User not authenticated.", message: null, modificationReason: null };
-  }
   
-  const { recipientId, message: originalMessage, offer: offerString } = validatedFields.data;
+  const { recipientId, message: originalMessage, offer: offerString, senderId } = validatedFields.data;
 
   // Handle creating a new offer
   if (offerString) {
