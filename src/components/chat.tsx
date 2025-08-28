@@ -1,24 +1,18 @@
 
 "use client";
 
-import React, { useEffect, useRef, useState, useTransition, Suspense } from "react";
+import React, { useEffect, useRef, useState, useTransition, Suspense, useActionState } from "react";
 import Link from "next/link";
 import { useSearchParams } from 'next/navigation'
 import {
-  File,
-  ListFilter,
   MoreHorizontal,
   Paperclip,
-  PlusCircle,
-  Search,
   Send,
-  Gavel,
   Wand2,
   Loader2,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -34,7 +28,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Tooltip,
@@ -42,7 +35,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { mockProducts, mockOffers } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import type { Message, OfferSuggestion, User } from "@/lib/types";
 import { sendMessageAction, suggestOfferAction } from "@/app/actions";
@@ -72,15 +64,40 @@ function ChatContent() {
 
   const [users, setUsers] = useState<User[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [messageText, setMessageText] = useState("");
-  const [isSending, setIsSending] = useState(false);
-  const [suggestion, setSuggestion] = useState<OfferSuggestion | null>(null);
-  const [isSuggesting, setIsSuggesting] = useTransition();
   const { toast } = useToast();
+
+  const [isSuggesting, startSuggesting] = useTransition();
   const suggestionFormRef = useRef<HTMLFormElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+
   const [isCreateOfferOpen, setCreateOfferOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+
+  const [state, formAction, isSending] = useActionState(sendMessageAction, {
+    error: null,
+    message: null,
+    modificationReason: null,
+  });
+
+  useEffect(() => {
+    if (state.error) {
+      toast({
+        variant: "destructive",
+        title: "Message failed to send",
+        description: state.error,
+      });
+    }
+    if (state.modificationReason) {
+      toast({
+        title: "Message Modified",
+        description: state.modificationReason,
+      });
+    }
+    if (state.message) {
+      formRef.current?.reset();
+    }
+  }, [state, toast]);
 
   useEffect(() => {
     getUsers().then(setUsers);
@@ -108,40 +125,8 @@ function ChatContent() {
   const usersById = Object.fromEntries(users.map(u => [u.id, u]));
   const recipient = recipientId ? usersById[recipientId] : null;
 
-  const handleSendMessage = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!messageText.trim() || !recipient) return;
-
-    setIsSending(true);
-
-    const formData = new FormData();
-    formData.append('message', messageText);
-    formData.append('recipientId', recipient.id);
-
-    const result = await sendMessageAction(formData);
-
-    if (result.error) {
-        toast({
-            variant: "destructive",
-            title: "Message failed to send",
-            description: result.error,
-        });
-    }
-    if (result.modificationReason) {
-        toast({
-            title: "Message Modified",
-            description: result.modificationReason,
-        });
-    }
-    if (result.message) {
-        setMessageText(""); // Clear the input field on success
-    }
-    
-    setIsSending(false);
-  };
-  
   const handleSuggestOffer = () => {
-    setIsSuggesting(() => {
+    startSuggesting(() => {
         suggestionFormRef.current?.requestSubmit();
     });
   }
@@ -152,7 +137,6 @@ function ChatContent() {
   
   const conversationList = users.filter(user => {
     if (user.id === loggedInUser.id) return false;
-    // This logic ensures we only see conversations between buyers and sellers.
     if (loggedInUser.role === 'buyer') return user.role === 'seller';
     if (loggedInUser.role === 'seller') return user.role === 'buyer';
     return false;
@@ -198,6 +182,7 @@ function ChatContent() {
   }
 
   const allUsersAndSystem = { ...usersById, system: { id: 'system', name: 'System', avatar: '', email: '', role: 'admin' as const }};
+  const [suggestion, setSuggestion] = useState<OfferSuggestion | null>(null);
 
   return (
     <div className="grid min-h-[calc(100vh-8rem)] w-full grid-cols-[260px_1fr] rounded-lg border">
@@ -241,18 +226,26 @@ function ChatContent() {
           <div className="flex flex-1 items-center justify-end gap-2">
             {loggedInUser.role === 'seller' && (
               <>
-                <form ref={suggestionFormRef} action={suggestOfferAction} className="hidden">
-                  <input type="hidden" name="chatHistory" value={messages.map(m => `${allUsersAndSystem[m.senderId]?.name || 'User'}: ${m.text}`).join('\n')} />
-                  <input type="hidden" name="sellerId" value={loggedInUser.id} />
+                <form action={async (formData) => {
+                    const result = await suggestOfferAction(null, formData);
+                    if (result.suggestion) {
+                        setSuggestion(result.suggestion);
+                        setCreateOfferOpen(true);
+                    } else if (result.error) {
+                        toast({ variant: 'destructive', title: 'Suggestion Failed', description: result.error });
+                    }
+                }} ref={suggestionFormRef} className="contents">
+                    <input type="hidden" name="chatHistory" value={messages.map(m => `${allUsersAndSystem[m.senderId]?.name || 'User'}: ${m.text}`).join('\n')} />
+                    <input type="hidden" name="sellerId" value={loggedInUser.id} />
+                    <Button variant="outline" size="sm" onClick={handleSuggestOffer} disabled={isSuggesting}>
+                      {isSuggesting ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Wand2 className="mr-2 h-4 w-4" />
+                      )}
+                      Suggest Offer
+                    </Button>
                 </form>
-                <Button variant="outline" size="sm" onClick={handleSuggestOffer} disabled={isSuggesting}>
-                  {isSuggesting ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Wand2 className="mr-2 h-4 w-4" />
-                  )}
-                  Suggest Offer
-                </Button>
 
                 <CreateOfferDialog
                   suggestion={suggestion}
@@ -320,7 +313,8 @@ function ChatContent() {
         </main>
         <footer className="border-t bg-muted/40 p-4">
           <form
-            onSubmit={handleSendMessage}
+            ref={formRef}
+            action={formAction}
             className="relative flex items-center gap-2"
           >
             <TooltipProvider>
@@ -338,16 +332,15 @@ function ChatContent() {
               name="message"
               placeholder="Type your message here..."
               className="min-h-12 flex-1 resize-none rounded-full px-4 py-3"
-              value={messageText}
-              onChange={(e) => setMessageText(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    handleSendMessage(e as any);
+                    formRef.current?.requestSubmit();
                 }
               }}
               disabled={isSending}
             />
+            <input type="hidden" name="recipientId" value={recipient.id} />
             <SubmitButton isSending={isSending} />
           </form>
         </footer>
@@ -363,3 +356,5 @@ export function Chat() {
     </Suspense>
   )
 }
+
+    

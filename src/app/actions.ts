@@ -16,10 +16,10 @@ import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 const messageSchema = z.object({
   message: z.string().min(1, { message: "Message cannot be empty." }),
   offer: z.string().optional(), // Stringified JSON of the new offer
-  recipientId: z.string().min(1), // Who the offer is for or message
+  recipientId: z.string().min(1, { message: "Recipient is required."}),
 });
 
-export async function sendMessageAction(formData: FormData) {
+export async function sendMessageAction(prevState: any, formData: FormData) {
   const validatedFields = messageSchema.safeParse({
     message: formData.get("message"),
     offer: formData.get("offer") as string | undefined,
@@ -27,8 +27,9 @@ export async function sendMessageAction(formData: FormData) {
   });
 
   if (!validatedFields.success) {
-    // Flatten the error messages to be more easily displayed
-    const error = validatedFields.error.flatten().fieldErrors.message?.[0] || "Validation failed.";
+    const error = validatedFields.error.flatten().fieldErrors.message?.[0] 
+      || validatedFields.error.flatten().fieldErrors.recipientId?.[0]
+      || "Validation failed.";
     return {
       error,
       message: null,
@@ -283,3 +284,5 @@ export async function getSignedUploadUrlAction(fileName: string, fileType: strin
         return { success: false, error: 'Could not get upload URL.', url: null, finalFilePath: null };
     }
 }
+
+    
