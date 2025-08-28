@@ -4,8 +4,8 @@
 import { filterContactDetails } from "@/ai/flows/filter-contact-details";
 import { suggestOffer } from "@/ai/flows/suggest-offer";
 import { db } from "@/lib/firebase";
-import { createOrUpdateProduct, deleteProduct, getProduct } from "@/lib/firestore";
-import { mockOffers, mockProducts } from "@/lib/mock-data";
+import { createOrUpdateProduct, deleteProduct, getProduct, getSellerProducts } from "@/lib/firestore";
+import { mockOffers } from "@/lib/mock-data";
 import { Message, Offer, Product } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -39,6 +39,13 @@ export async function sendMessageAction(data: z.infer<typeof messageSchema>) {
   // Handle creating a new offer
   if (offerString) {
     const offerData = JSON.parse(offerString) as Omit<Offer, 'id' | 'status' | 'sellerId' | 'buyerId'>;
+    const sellerProducts = await getSellerProducts(senderUid);
+    const product = sellerProducts.find(p => p.id === offerData.productId);
+
+    if (!product) {
+        return { error: "Product not found for offer.", message: null, modificationReason: null };
+    }
+
     const newOffer: Offer = {
       ...offerData,
       id: `offer-${Date.now()}`,
@@ -47,9 +54,9 @@ export async function sendMessageAction(data: z.infer<typeof messageSchema>) {
       buyerId: recipientUid,
     };
     
+    // In a real app, offers would be saved to Firestore. We'll keep them in-memory for now.
     mockOffers[newOffer.id] = newOffer;
 
-    const product = mockProducts.find(p => p.id === newOffer.productId);
     const offerMessage = `Offer created for ${product?.title}`;
 
     const messageDoc: Omit<Message, 'id' | 'timestamp'> = {
@@ -130,7 +137,7 @@ export async function suggestOfferAction(prevState: any, formData: FormData) {
   const { chatHistory, sellerId } = validatedFields.data;
 
   // In a real app, you'd query the DB for the seller's products.
-  const availableProducts = mockProducts.filter(p => p.sellerId === sellerId);
+  const availableProducts = await getSellerProducts(sellerId);
 
   try {
     const suggestion = await suggestOffer({ 
@@ -173,7 +180,7 @@ export async function decideOnOfferAction(formData: FormData) {
   if (offer) {
     offer.status = decision;
     
-    const product = mockProducts.find(p => p.id === offer.productId);
+    const product = await getProduct(offer.productId);
 
     // This creates the system message.
     const systemMessage: Omit<Message, 'id' | 'timestamp'> = {
@@ -208,8 +215,13 @@ async function getAuthenticatedUserUid(): Promise<string> {
     const authorization = headers().get('Authorization');
     if (authorization?.startsWith('Bearer ')) {
         const idToken = authorization.split('Bearer ')[1];
-        const decodedToken = await adminAuth.verifyIdToken(idToken);
-        return decodedToken.uid;
+        try {
+            const decodedToken = await adminAuth.verifyIdToken(idToken);
+            return decodedToken.uid;
+        } catch (error) {
+             console.error("Error verifying ID token:", error);
+             throw new Error('User not authenticated.');
+        }
     }
     throw new Error('User not authenticated.');
 }

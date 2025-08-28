@@ -162,9 +162,10 @@ export async function getSellerDashboardData(sellerId: string): Promise<{
   productsWithOfferCounts: (Product & { offerCount: number })[];
 } | null> {
   try {
-    const sellerProducts = mockProducts.filter(p => p.sellerId === sellerId);
+    const sellerProducts = await getSellerProducts(sellerId);
     const sellerProductIds = sellerProducts.map(p => p.id);
 
+    // In a real app, offers would be in Firestore. Using mocks for now.
     const relevantOffers = Object.values(mockOffers).filter(o => sellerProductIds.includes(o.productId));
 
     const acceptedOffers = relevantOffers.filter(o => o.status === 'accepted');
