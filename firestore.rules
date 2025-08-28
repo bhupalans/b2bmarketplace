@@ -1,59 +1,59 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper functions
-    function isAdmin() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    
+    function isAuth() {
+      return request.auth != null;
     }
 
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return isAuth() && request.auth.uid == userId;
     }
     
-    function isSeller() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'seller';
+    function isAdmin() {
+      // Check for auth first to prevent errors on unauthed requests
+      return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Users can only read/write to their own document
+    // Admins have full access, which is useful for the approval workflow.
+    match /{path=**} {
+      allow read, write: if isAdmin();
+    }
+
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read, update: if isOwner(userId);
+      allow create: if isAuth(); // Allow creation during signup.
     }
-    
-    // Any authenticated user can read categories
+
     match /categories/{categoryId} {
-        allow read: if request.auth != null;
+      // Any authenticated user can read categories for the dropdown.
+      allow get, list: if isAuth();
     }
 
-    // Products
     match /products/{productId} {
-      // Anyone can read approved products
-      allow get: if resource.data.status == 'approved';
+      // READ: Anyone can view an approved product.
+      // A seller can view their own product regardless of status.
+      allow get: if resource.data.status == 'approved' || (isAuth() && request.auth.uid == resource.data.sellerId);
       
-      // Logged-in users can list approved products. Sellers can list their own products. Admins can list all.
-      allow list: if request.auth != null;
+      // LIST: Anyone can see the list of approved products.
+      allow list: if query.filters.map(f => f[0]).hasOnly(['status']) && query.filters[0][2] == 'approved';
 
-      // Sellers can create products if they are the owner
-      allow create: if isSeller() && request.resource.data.sellerId == request.auth.uid
-                    // Ensure they cannot set the status themselves on create
+      // CREATE: An authenticated user can create a product if they are the owner and set the status to 'pending'.
+      allow create: if isAuth() 
+                    && request.resource.data.sellerId == request.auth.uid
                     && request.resource.data.status == 'pending';
 
-      // Sellers can update their own products. Admins can update any product.
-      allow update: if (isSeller() && resource.data.sellerId == request.auth.uid
-                       // Sellers cannot approve their own products
-                       && request.resource.data.status == 'pending'
-                       // Sellers cannot change the sellerId
-                       && request.resource.data.sellerId == resource.data.sellerId)
-                    || isAdmin();
+      // UPDATE: A seller can update their own product IF they don't try to change the sellerId or status.
+      // The status must be reset to 'pending' on update.
+      allow update: if isAuth() 
+                    && request.auth.uid == resource.data.sellerId
+                    && request.resource.data.sellerId == resource.data.sellerId
+                    && request.resource.data.status == 'pending';
 
-      // Only the seller or an admin can delete a product
-      allow delete: if (isSeller() && resource.data.sellerId == request.auth.uid) || isAdmin();
-    }
-    
-    // Internal documents (e.g., seed status) should not be client-accessible
-    match /internal/{docId} {
-      allow read, write: if false;
+      // DELETE: A seller can delete their own product.
+      allow delete: if isAuth() && request.auth.uid == resource.data.sellerId;
     }
   }
 }
