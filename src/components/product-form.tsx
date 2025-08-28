@@ -38,7 +38,6 @@ import { Product, Category } from "@/lib/types";
 import Image from "next/image";
 import { useAuth } from "@/contexts/auth-context";
 import { createOrUpdateProductClient } from "@/lib/firebase";
-import { revalidatePath } from "next/cache";
 
 const productSchema = z.object({
   id: z.string().optional(),
