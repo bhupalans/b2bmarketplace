@@ -41,34 +41,33 @@ export async function getUsers(): Promise<User[]> {
 export function getMessages(userId: string, otherUserId: string, callback: (messages: Message[]) => void): () => void {
   const messagesRef = collection(db, 'messages');
   
-  // A more efficient query that Firestore security rules can validate.
-  // It fetches all messages where the current user is a participant.
-  // We will filter for the specific conversation on the client side.
+  // This query is optimized to work with Firestore security rules.
+  // It securely fetches all conversations the current user is a part of.
   const q = query(messagesRef, 
-    where('participants', 'array-contains', userId),
-    orderBy('timestamp', 'asc')
+    where('participants', 'array-contains', userId)
   );
 
   const unsubscribe = onSnapshot(q, (snapshot) => {
-    const allMessages: Message[] = [];
+    const allUserMessages: Message[] = [];
     snapshot.forEach((doc) => {
       const data = doc.data();
-      // Client-side filter to get messages only for the selected conversation
-      if (data.participants.includes(otherUserId)) {
-         allMessages.push({
-            id: doc.id,
-            ...data,
-            timestamp: (data.timestamp as Timestamp)?.toMillis() || Date.now(),
-        } as Message);
-      }
+      allUserMessages.push({
+          id: doc.id,
+          ...data,
+          timestamp: (data.timestamp as Timestamp)?.toMillis() || Date.now(),
+      } as Message);
     });
-    callback(allMessages);
+
+    // Filter for the specific conversation and sort by timestamp on the client
+    const conversationMessages = allUserMessages
+      .filter(m => m.participants.includes(otherUserId))
+      .sort((a, b) => (a.timestamp as number) - (b.timestamp as number));
+      
+    callback(conversationMessages);
   }, (error) => {
     console.error("Firestore snapshot error:", error);
-    // You might want to handle this error in the UI as well
   });
 
-  // Return a function that unsubscribes from the listener
   return unsubscribe;
 }
 
