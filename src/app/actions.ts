@@ -81,7 +81,6 @@ async function getAuthenticatedUserUid(): Promise<string> {
 export async function createOrUpdateProductAction(formData: FormData) {
   let sellerId: string;
   try {
-    // We get the ID token from the FormData instead of headers now
     const idToken = formData.get('idToken') as string;
     if (!idToken) throw new Error('No ID token provided.');
     const decodedToken = await adminAuth.verifyIdToken(idToken);
@@ -108,7 +107,7 @@ export async function createOrUpdateProductAction(formData: FormData) {
 
   try {
     for (const file of newImageFiles) {
-        if (file.size === 0) continue; // Skip empty file inputs
+        if (file.size === 0) continue; 
         const fileBuffer = Buffer.from(await file.arrayBuffer());
         const finalFilePath = `products/${sellerId}/${uuidv4()}-${file.name}`;
         const fileUpload = bucket.file(finalFilePath);
@@ -119,7 +118,6 @@ export async function createOrUpdateProductAction(formData: FormData) {
             },
         });
         
-        // Make the file public and get its URL
         await fileUpload.makePublic();
         uploadedImageUrls.push(fileUpload.publicUrl());
     }
