@@ -1,55 +1,59 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users can only manage their own profile.
-    match /users/{userId} {
-      allow read, write: if request.auth.uid == userId;
+    function isUserAuthenticated() {
+      return request.auth != null;
     }
 
-    // Admins can read all user documents.
-    match /users/{userId} {
-      allow get, list: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    function isUser(userId) {
+      return isUserAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isUserAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Categories are public.
+    match /users/{userId} {
+      allow read, write: if isUser(userId) || isAdmin();
+    }
+
     match /categories/{categoryId} {
       allow read: if true;
-      // You might want to restrict write access to admins in the future:
-      // allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow write: if isAdmin();
     }
 
-    // Internal documents, like the seed status, should be protected.
-    match /internal/{docId} {
-      allow read, write: if false; // Or restrict to admin if needed
-    }
-
-    // Products have more complex rules.
     match /products/{productId} {
-      // Rule 1: Anyone can read a product if it's approved.
-      allow get: if resource.data.status == 'approved';
-      // Rule 2: Anyone can list approved products.
-      allow list: if request.query.get("where")[0][2] == "approved";
+      // Anyone can read approved products
+      allow read: if resource.data.status == 'approved';
 
-      // Rule 3: Authenticated users can create a product if they are the owner.
-      // - They must be logged in.
-      // - The new product's sellerId must match their own UID.
-      // - They can only set the initial status to 'pending'.
-      allow create: if request.auth != null
-                    && request.resource.data.sellerId == request.auth.uid
-                    && request.resource.data.status == 'pending';
-
-      // Rule 4: The original seller can update their product.
-      // - The status must be reset to 'pending' on update for re-approval.
-      allow update: if request.auth.uid == resource.data.sellerId
-                    && request.resource.data.status == 'pending';
+      // Admins can read any product
+      allow read: if isAdmin();
       
-      // Rule 5: The original seller can delete their own product.
-      allow delete: if request.auth.uid == resource.data.sellerId;
+      // An authenticated user can create a product...
+      allow create: if isUserAuthenticated()
+        // ...if they are the seller...
+        && request.resource.data.sellerId == request.auth.uid
+        // ...and they are not trying to approve it themselves.
+        && request.resource.data.status == 'pending';
+      
+      // An existing product can be updated...
+      allow update: if 
+        // ...by an admin (for approval/rejection)
+        isAdmin() || 
+        // ...or by the original seller...
+        (isUser(resource.data.sellerId) 
+          // ...but the seller cannot change the status or sellerId.
+          && request.resource.data.status == 'pending'
+          && request.resource.data.sellerId == resource.data.sellerId);
 
-      // Rule 6: Admins can update any product (e.g., to approve or reject it).
-      allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // A product can be deleted by its seller or an admin.
+      allow delete: if isUser(resource.data.sellerId) || isAdmin();
+    }
+
+    // Allow admins to read/write internal documents like seed status
+    match /internal/{docId} {
+      allow read, write: if isAdmin();
     }
   }
 }
