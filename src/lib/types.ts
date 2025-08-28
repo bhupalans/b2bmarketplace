@@ -6,6 +6,7 @@ export type User = {
   uid: string; // This is the Firebase Auth UID
   name: string;
   email: string;
+  username?: string; // Add username as an optional field
   avatar: string;
   role: 'buyer' | 'seller' | 'admin';
   businessType?: 'Manufacturer' | 'Distributor' | 'Trading Company' | 'Agent';

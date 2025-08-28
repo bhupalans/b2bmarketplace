@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building, Home, PanelLeft, Loader2, LayoutDashboard, Package } from "lucide-react";
+import { Building, Home, PanelLeft, Loader2, LayoutDashboard, Package, Shield } from "lucide-react";
 import {
   SidebarProvider,
   Sidebar,
@@ -28,21 +28,24 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    // Define protected routes and seller-only routes
-    const protectedRoutes = ['/dashboard', '/my-products'];
+    const protectedRoutes = ['/dashboard', '/my-products', '/admin'];
     const sellerOnlyRoutes = ['/dashboard', '/my-products'];
+    const adminOnlyRoutes = ['/admin'];
 
-    // Find if the current path is one of the protected routes
     const isProtectedRoute = protectedRoutes.some(path => pathname.startsWith(path));
     const isSellerOnlyRoute = sellerOnlyRoutes.some(path => pathname.startsWith(path));
+    const isAdminOnlyRoute = adminOnlyRoutes.some(path => pathname.startsWith(path));
 
     if (!loading) {
       if (!firebaseUser && isProtectedRoute) {
-        // If not logged in and trying to access a protected route, redirect to login
         router.push("/login");
-      } else if (firebaseUser && isSellerOnlyRoute && user?.role !== 'seller') {
-        // If logged in, but not a seller, and trying to access a seller-only route, redirect to home
-        router.push("/");
+      } else if (firebaseUser) {
+        if (isSellerOnlyRoute && user?.role !== 'seller') {
+          router.push("/");
+        }
+        if (isAdminOnlyRoute && user?.role !== 'admin') {
+          router.push("/");
+        }
       }
     }
   }, [firebaseUser, user, loading, router, pathname]);
@@ -55,8 +58,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // While loading or if redirection is pending, we might show a loader or nothing
-  const isProtectedRoute = ['/dashboard', '/my-products'].some(path => pathname.startsWith(path));
+  const isProtectedRoute = ['/dashboard', '/my-products', '/admin'].some(path => pathname.startsWith(path));
   if (isProtectedRoute && !firebaseUser) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -65,7 +67,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
   
-  if (pathname.startsWith('/dashboard') && user?.role !== 'seller') {
+  if ((pathname.startsWith('/dashboard') && user?.role !== 'seller') || (pathname.startsWith('/admin') && user?.role !== 'admin')) {
       return (
         <div className="flex h-screen items-center justify-center">
             <p>Access Denied. Redirecting...</p>
@@ -129,6 +131,20 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </>
+            )}
+             {user?.role === 'admin' && (
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname.startsWith("/admin")}
+                  tooltip="Admin"
+                >
+                  <Link href="/admin/approvals">
+                    <Shield />
+                    <span className="sr-only">Admin</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             )}
           </SidebarMenu>
         </SidebarContent>

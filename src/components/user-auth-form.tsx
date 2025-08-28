@@ -12,6 +12,7 @@ import {
 } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { findUserByUsername } from "@/lib/database";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -40,7 +41,8 @@ interface UserAuthFormProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const formSchema = z.object({
   name: z.string().optional(),
-  email: z.string().email({ message: "Please enter a valid email." }),
+  loginId: z.string().min(1, { message: "This field is required." }),
+  email: z.string().email({ message: "Please enter a valid email." }).optional(),
   password: z
     .string()
     .min(6, { message: "Password must be at least 6 characters." }),
@@ -49,13 +51,17 @@ const formSchema = z.object({
 
 const signupSchema = formSchema.refine(
   (data) => {
-    return !!data.name && !!data.role;
+    return !!data.name && !!data.role && !!data.email;
   },
   {
-    message: "Name and role are required for signup.",
-    path: ["name"], // you can specify which field to attach the error to
+    message: "Name, a valid email, and role are required for signup.",
+    path: ["name"], 
   }
-);
+).refine(data => data.loginId.includes('@'), {
+    message: "For signup, please use your email address.",
+    path: ['loginId']
+});
+
 
 export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
   const router = useRouter();
@@ -68,19 +74,26 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
     resolver: zodResolver(finalSchema),
     defaultValues: {
       name: "",
+      loginId: "",
       email: "",
       password: "",
       role: "buyer",
     },
   });
+  
+  const loginIdValue = form.watch("loginId");
+  React.useEffect(() => {
+    if (mode === 'signup' && loginIdValue?.includes('@')) {
+      form.setValue('email', loginIdValue);
+    }
+  }, [loginIdValue, mode, form]);
 
   async function onSubmit(values: z.infer<typeof finalSchema>) {
     setIsLoading(true);
     try {
       if (mode === "signup") {
-        // Ensure name and role are present for signup, which the schema refinement should already do.
-        if (!values.name || !values.role) {
-            throw new Error("Name and role are required for signup.");
+        if (!values.name || !values.role || !values.email) {
+            throw new Error("Name, email, and role are required for signup.");
         }
         const userCredential = await createUserWithEmailAndPassword(
           auth,
@@ -89,16 +102,15 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
         );
         const user = userCredential.user;
         
-        // Add user profile to Firestore
         const userProfile = {
-          uid: user.uid, // Store the Firebase Auth UID
+          uid: user.uid,
           name: values.name,
           email: values.email,
           role: values.role,
           avatar: `https://i.pravatar.cc/150?u=${user.uid}`,
+          username: values.name.toLowerCase().replace(/\s+/g, '') + Math.floor(Math.random() * 1000)
         };
 
-        // Use the UID as the document ID for consistency
         await setDoc(doc(db, "users", user.uid), userProfile);
         
         toast({
@@ -106,8 +118,17 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
           description: "You have been successfully signed up.",
         });
         
-      } else {
-        await signInWithEmailAndPassword(auth, values.email, values.password);
+      } else { // Login mode
+        let emailToLogin = values.loginId;
+        if (!emailToLogin.includes('@')) {
+            const user = await findUserByUsername(emailToLogin);
+            if (user) {
+                emailToLogin = user.email;
+            } else {
+                throw new Error("User not found.");
+            }
+        }
+        await signInWithEmailAndPassword(auth, emailToLogin, values.password);
         toast({
           title: "Signed In",
           description: "You have successfully signed in.",
@@ -118,14 +139,17 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
       console.error("Authentication Error:", error.code, error.message);
       
       let title = "Authentication Failed";
-      let description = error.message || "An unexpected error occurred.";
+      let description = "An unexpected error occurred.";
 
-      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
-        description = "The email or password you entered is incorrect. Please try again.";
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.message === 'User not found.') {
+        description = "The username/email or password you entered is incorrect.";
       } else if (error.code === 'auth/operation-not-allowed' || (error.message && error.message.includes('identitytoolkit'))) {
         title = "Sign-In Method Disabled";
         description = "Email/Password sign-in is not enabled for this project. Please enable it in the Firebase console under Authentication > Sign-in method. You may also need to enable the Identity Toolkit API in Google Cloud.";
+      } else if (error.code === 'auth/email-already-in-use') {
+        description = "This email address is already in use by another account."
       }
+
 
       toast({
         variant: "destructive",
@@ -162,14 +186,14 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
           )}
           <FormField
             control={form.control}
-            name="email"
+            name="loginId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Email</FormLabel>
+                <FormLabel>{mode === 'login' ? 'Email or Username' : 'Email'}</FormLabel>
                 <FormControl>
                   <Input
-                    placeholder="name@example.com"
-                    type="email"
+                    placeholder={mode === 'login' ? 'name@example.com or username' : 'name@example.com'}
+                    type="text"
                     autoCapitalize="none"
                     autoComplete="email"
                     autoCorrect="off"

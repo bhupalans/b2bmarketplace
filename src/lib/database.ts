@@ -17,6 +17,13 @@ export async function getProducts(): Promise<Product[]> {
   return productList;
 }
 
+export async function getPendingProducts(): Promise<Product[]> {
+    const productsCol = adminDb.collection("products").where("status", "==", "pending");
+    const productSnapshot = await productsCol.get();
+    const productList = productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+    return productList;
+}
+
 export async function getProduct(productId: string): Promise<Product | null> {
     const productRef = adminDb.collection("products").doc(productId);
     const productSnap = await productRef.get();
@@ -37,6 +44,18 @@ export async function getUser(userId: string): Promise<User | null> {
     if (!userSnap.exists) return null;
     return { id: userSnap.id, uid: userSnap.id, ...userSnap.data() } as User;
 }
+
+export async function findUserByUsername(username: string): Promise<User | null> {
+    const usersRef = adminDb.collection('users');
+    const snapshot = await usersRef.where('username', '==', username).limit(1).get();
+
+    if (snapshot.empty) {
+        return null;
+    }
+    const userDoc = snapshot.docs[0];
+    return { id: userDoc.id, uid: userDoc.id, ...userDoc.data() } as User;
+}
+
 
 export async function getUsers(): Promise<User[]> {
   const usersCol = adminDb.collection("users");
@@ -164,4 +183,12 @@ export async function createOrUpdateProduct(
 export async function deleteProduct(productId: string): Promise<void> {
   const productRef = adminDb.collection('products').doc(productId);
   await productRef.delete();
+}
+
+export async function updateProductStatus(
+  productId: string,
+  status: 'approved' | 'rejected'
+): Promise<void> {
+  const productRef = adminDb.collection('products').doc(productId);
+  await productRef.update({ status });
 }
