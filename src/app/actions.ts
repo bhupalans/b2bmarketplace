@@ -55,6 +55,8 @@ export async function sendInquiryAction(
     try {
         const { modifiedMessage, modificationReason } = await filterContactDetails({ message });
 
+        // The actual sending logic (e.g., creating a message thread in Firestore) is not implemented.
+        // For now, we just log the filtered inquiry to the console to demonstrate the AI filter works.
         console.log("Filtered Inquiry received:", { 
             buyerName, 
             sellerId, 
@@ -83,7 +85,7 @@ export async function createOrUpdateProductAction(formData: FormData) {
     return { success: false, error: 'User not authenticated' };
   }
   
-  const productId = formData.get('id') as string | undefined;
+  const productId = formData.get('id') as string | null;
   const existingImageUrls = formData.getAll('existingImages[]').filter(url => typeof url === 'string') as string[];
 
   const productData = {
@@ -132,7 +134,8 @@ export async function createOrUpdateProductAction(formData: FormData) {
       finalProductData.status = 'pending';
     }
 
-    const savedProduct = await createOrUpdateProduct(finalProductData, productId);
+    const finalProductId = productId || undefined;
+    const savedProduct = await createOrUpdateProduct(finalProductData, finalProductId);
 
     revalidatePath('/');
     revalidatePath(`/products/${savedProduct.id}`);
@@ -166,13 +169,27 @@ export async function deleteProductAction(values: z.infer<typeof deleteActionSch
     }
 
     const bucket = adminStorage.bucket();
+    const bucketName = bucket.name;
 
     // Delete images from Firebase Storage
     for (const imageUrl of product.images) {
         try {
-            const url = new URL(imageUrl);
-            const path = decodeURIComponent(url.pathname.split('/').slice(3).join('/'));
-            await bucket.file(path).delete();
+            // Construct the base URL for the bucket to remove it from the full URL
+            const baseUrl = `https://storage.googleapis.com/${bucketName}/`;
+            if (imageUrl.startsWith(baseUrl)) {
+                // The file path is the part of the URL after the base URL
+                let filePath = imageUrl.substring(baseUrl.length);
+                // The public URL might have query parameters like ?alt=media&token=...
+                // We need to remove them before decoding.
+                const queryIndex = filePath.indexOf('?');
+                if (queryIndex !== -1) {
+                    filePath = filePath.substring(0, queryIndex);
+                }
+                const decodedPath = decodeURIComponent(filePath);
+                await bucket.file(decodedPath).delete();
+            } else {
+                 console.warn(`Image URL ${imageUrl} does not match expected format.`);
+            }
         } catch (storageError: any) {
             // Log the error but don't block the product deletion
             console.error(`Failed to delete image ${imageUrl} from storage:`, storageError.message);
