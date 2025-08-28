@@ -18,27 +18,10 @@ const messageSchema = z.object({
   message: z.string().min(1, { message: "Message cannot be empty." }),
   offer: z.string().optional(), // Stringified JSON of the new offer
   recipientId: z.string().min(1, { message: "Recipient is required."}),
+  senderId: z.string().min(1, { message: "Sender is required."}),
 });
 
-async function getAuthenticatedUserUid(): Promise<string> {
-    const authorization = headers().get('Authorization');
-    if (authorization?.startsWith('Bearer ')) {
-        const idToken = authorization.split('Bearer ')[1];
-        const decodedToken = await adminAuth.verifyIdToken(idToken);
-        return decodedToken.uid;
-    }
-    throw new Error('User not authenticated.');
-}
-
-export async function sendMessageAction(data: { message: string, recipientId: string, offer?: string }) {
-  let senderId: string;
-  try {
-    senderId = await getAuthenticatedUserUid();
-  } catch (error: any) {
-    console.error("Authentication error:", error.message);
-    return { error: "User not authenticated.", message: null, modificationReason: null };
-  }
-  
+export async function sendMessageAction(data: { message: string, recipientId: string, senderId: string, offer?: string }) {
   const validatedFields = messageSchema.safeParse(data);
 
   if (!validatedFields.success) {
@@ -52,7 +35,7 @@ export async function sendMessageAction(data: { message: string, recipientId: st
     };
   }
   
-  const { recipientId, message: originalMessage, offer: offerString } = validatedFields.data;
+  const { recipientId, message: originalMessage, offer: offerString, senderId } = validatedFields.data;
 
   // Handle creating a new offer
   if (offerString) {
@@ -220,6 +203,16 @@ const productSchema = z.object({
   categoryId: z.string().min(1),
   images: z.array(z.string().url()).min(1),
 });
+
+async function getAuthenticatedUserUid(): Promise<string> {
+    const authorization = headers().get('Authorization');
+    if (authorization?.startsWith('Bearer ')) {
+        const idToken = authorization.split('Bearer ')[1];
+        const decodedToken = await adminAuth.verifyIdToken(idToken);
+        return decodedToken.uid;
+    }
+    throw new Error('User not authenticated.');
+}
 
 export async function createOrUpdateProductAction(values: z.infer<typeof productSchema>) {
   let sellerId: string;

@@ -56,10 +56,10 @@ function ChatContent() {
   const suggestionFormRef = useRef<HTMLFormElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isCreateOfferOpen, setCreateOfferOpen] = useState(false);
-  const [suggestion, setSuggestion] = useState<OfferSuggestion | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageText, setMessageText] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [suggestion, setSuggestion] = useState<OfferSuggestion | null>(null);
   
   useEffect(() => {
     getUsers().then(setUsers);
@@ -89,13 +89,14 @@ function ChatContent() {
   }
   
   const handleSendMessage = useCallback(async () => {
-    if (!messageText.trim() || !recipient || isSending || !loggedInUser) return;
+    if (!messageText.trim() || !recipient || isSending || !firebaseUser) return;
 
     setIsSending(true);
 
     const result = await sendMessageAction({
       message: messageText,
       recipientId: recipient.id,
+      senderId: firebaseUser.uid, // Pass the correct Firebase Auth UID
     });
 
     setIsSending(false);
@@ -115,7 +116,8 @@ function ChatContent() {
         });
       }
     }
-  }, [messageText, recipient, isSending, toast, loggedInUser]);
+  }, [messageText, recipient, isSending, toast, firebaseUser]);
+
 
   if (!loggedInUser) {
     return <div className="flex h-full items-center justify-center text-muted-foreground"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -127,6 +129,8 @@ function ChatContent() {
     if (loggedInUser.role === 'seller') return user.role === 'buyer';
     return false;
   });
+
+  const isFormDisabled = isSending || !recipient;
 
   if (!recipientId) {
     return (
@@ -301,7 +305,7 @@ function ChatContent() {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button type="button" variant="ghost" size="icon" disabled={!recipient}>
+                  <Button type="button" variant="ghost" size="icon" disabled={isFormDisabled}>
                     <Paperclip className="h-4 w-4" />
                     <span className="sr-only">Attach file</span>
                   </Button>
@@ -320,9 +324,9 @@ function ChatContent() {
                     handleSendMessage();
                 }
               }}
-              disabled={isSending || !recipient}
+              disabled={isFormDisabled}
             />
-            <Button type="button" size="icon" onClick={handleSendMessage} disabled={isSending || !recipient}>
+            <Button type="button" size="icon" onClick={handleSendMessage} disabled={isFormDisabled}>
               {isSending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
