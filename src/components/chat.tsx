@@ -72,15 +72,14 @@ function ChatContent() {
 
   const [users, setUsers] = useState<User[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [messageText, setMessageText] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [suggestion, setSuggestion] = useState<OfferSuggestion | null>(null);
   const [isSuggesting, setIsSuggesting] = useTransition();
   const { toast } = useToast();
-  const formRef = useRef<HTMLFormElement>(null);
   const suggestionFormRef = useRef<HTMLFormElement>(null);
   const [isCreateOfferOpen, setCreateOfferOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
 
   useEffect(() => {
@@ -107,19 +106,17 @@ function ChatContent() {
   
 
   const usersById = Object.fromEntries(users.map(u => [u.id, u]));
+  const recipient = recipientId ? usersById[recipientId] : null;
 
   const handleSendMessage = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!formRef.current) return;
-
-    const formData = new FormData(formRef.current);
-    const messageText = formData.get('message') as string;
-
-    if (!messageText || !messageText.trim()) {
-      return; 
-    }
+    if (!messageText.trim() || !recipient) return;
 
     setIsSending(true);
+
+    const formData = new FormData();
+    formData.append('message', messageText);
+    formData.append('recipientId', recipient.id);
 
     const result = await sendMessageAction(formData);
 
@@ -137,27 +134,17 @@ function ChatContent() {
         });
     }
     if (result.message) {
-        formRef.current.reset();
-        textAreaRef.current?.focus();
+        setMessageText(""); // Clear the input field on success
     }
     
     setIsSending(false);
   };
   
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        formRef.current?.requestSubmit();
-    }
-  };
-
   const handleSuggestOffer = () => {
     setIsSuggesting(() => {
         suggestionFormRef.current?.requestSubmit();
     });
   }
-
-  const recipient = recipientId ? usersById[recipientId] : null;
 
   if (!loggedInUser) {
     return <div className="flex h-full items-center justify-center text-muted-foreground"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -333,7 +320,6 @@ function ChatContent() {
         </main>
         <footer className="border-t bg-muted/40 p-4">
           <form
-            ref={formRef}
             onSubmit={handleSendMessage}
             className="relative flex items-center gap-2"
           >
@@ -349,14 +335,19 @@ function ChatContent() {
               </Tooltip>
             </TooltipProvider>
             <Textarea
-              ref={textAreaRef}
               name="message"
               placeholder="Type your message here..."
               className="min-h-12 flex-1 resize-none rounded-full px-4 py-3"
-              onKeyDown={handleKeyDown}
+              value={messageText}
+              onChange={(e) => setMessageText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage(e as any);
+                }
+              }}
               disabled={isSending}
             />
-            <input type="hidden" name="recipientId" value={recipient.id} />
             <SubmitButton isSending={isSending} />
           </form>
         </footer>
