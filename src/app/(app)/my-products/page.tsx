@@ -49,7 +49,6 @@ export default function MyProductsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFormOpen, setFormOpen] = useState(false);
-  const [isAlertOpen, setAlertOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [isDeleting, startDeleteTransition] = useTransition();
@@ -112,10 +111,8 @@ export default function MyProductsPage() {
     setSelectedProductId(null);
   }, []);
 
-
   const handleDeleteInitiate = useCallback((product: Product) => {
     setProductToDelete(product);
-    setAlertOpen(true);
   }, []);
 
   const handleDeleteConfirm = useCallback(() => {
@@ -136,7 +133,6 @@ export default function MyProductsPage() {
           description: error.message || 'An unknown error occurred.',
         });
       } finally {
-        setAlertOpen(false);
         setProductToDelete(null);
       }
     });
@@ -144,7 +140,6 @@ export default function MyProductsPage() {
 
   const handleCloseAlert = useCallback(() => {
     setProductToDelete(null);
-    setAlertOpen(false);
   }, []);
 
   if (loading) {
@@ -260,7 +255,7 @@ export default function MyProductsPage() {
         </Card>
       </div>
 
-      <AlertDialog open={isAlertOpen} onOpenChange={setAlertOpen}>
+      <AlertDialog open={!!productToDelete} onOpenChange={(isOpen) => !isOpen && handleCloseAlert()}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
