@@ -84,7 +84,7 @@ async function getAuthenticatedUserUid(idToken: string): Promise<string> {
         return decodedToken.uid;
     } catch (error) {
          console.error("Error verifying ID token:", error);
-         throw new Error('User not authenticated.');
+         throw new Error('User not authenticated');
     }
 }
 
@@ -160,10 +160,10 @@ export async function getSignedUploadUrlAction(values: z.infer<typeof signedUrlS
     try {
         userId = await getAuthenticatedUserUid(values.idToken);
     } catch(error: any) {
-        return { success: false, error: 'User not authenticated', url: null, finalFilePath: null };
+        return { success: false, error: 'User not authenticated.', url: null, finalFilePath: null };
     }
 
-    const bucket = adminAuth.storage().bucket('b2b-marketplace-udg1v.appspot.com');
+    const bucket = adminAuth.storage().bucket();
     const finalFilePath = `products/${userId}/${uuidv4()}-${values.fileName}`;
     const file = bucket.file(finalFilePath);
 
