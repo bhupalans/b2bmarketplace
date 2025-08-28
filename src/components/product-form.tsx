@@ -39,7 +39,6 @@ import { createOrUpdateProductAction, getSignedUploadUrlAction } from "@/app/act
 import { getCategories } from "@/lib/firestore";
 import Image from "next/image";
 import { useAuth } from "@/contexts/auth-context";
-import { v4 as uuidv4 } from "uuid";
 
 const productSchema = z.object({
   id: z.string().optional(),
@@ -61,7 +60,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
   const { toast } = useToast();
   const [isSaving, startSavingTransition] = useTransition();
   const [categories, setCategories] = useState<Category[]>([]);
-  const { user } = useAuth();
+  const { firebaseUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -94,7 +93,13 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
 
   const onSubmit = (values: z.infer<typeof productSchema>) => {
     startSavingTransition(async () => {
-      const result = await createOrUpdateProductAction(values);
+      if (!firebaseUser) {
+        toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in." });
+        return;
+      }
+      const idToken = await firebaseUser.getIdToken();
+      const result = await createOrUpdateProductAction({ productData: values, idToken });
+
       if (result.success && result.product) {
         toast({
           title: product ? "Product Updated" : "Product Created",
@@ -113,33 +118,34 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files || files.length === 0 || !user) return;
+    if (!files || files.length === 0 || !firebaseUser) return;
     
     setIsUploading(true);
 
     try {
+      const idToken = await firebaseUser.getIdToken();
+
       const uploadPromises = Array.from(files).map(async file => {
-        // 1. Get a signed URL from the server
-        const { success, error, url, finalFilePath } = await getSignedUploadUrlAction(file.name, file.type);
+        const { success, error, url, finalFilePath } = await getSignedUploadUrlAction({
+            fileName: file.name,
+            fileType: file.type,
+            idToken,
+        });
         
         if (!success || !url) {
           throw new Error(error || 'Could not get an upload URL.');
         }
 
-        // 2. Upload the file to the signed URL
         const uploadResponse = await fetch(url, {
           method: 'PUT',
           body: file,
-          headers: {
-            'Content-Type': file.type,
-          },
+          headers: { 'Content-Type': file.type },
         });
 
         if (!uploadResponse.ok) {
           throw new Error(`Upload failed for ${file.name}`);
         }
 
-        // 3. Construct the final public URL
         const publicUrl = `https://firebasestorage.googleapis.com/v0/b/b2b-marketplace-udg1v.appspot.com/o/${encodeURIComponent(finalFilePath!)}?alt=media`;
         return publicUrl;
       });

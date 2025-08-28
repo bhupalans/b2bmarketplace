@@ -46,7 +46,7 @@ import {
 
 
 export default function MyProductsPage() {
-  const { user } = useAuth();
+  const { user, firebaseUser } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFormOpen, setFormOpen] = useState(false);
@@ -88,7 +88,13 @@ export default function MyProductsPage() {
 
   const handleDelete = (productId: string) => {
     startDeleteTransition(async () => {
-        const result = await deleteProductAction(productId);
+        if (!firebaseUser) {
+             toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in.' });
+             return;
+        }
+        const idToken = await firebaseUser.getIdToken();
+        const result = await deleteProductAction({ productId, idToken });
+
         if(result.success) {
             setProducts(products.filter(p => p.id !== productId));
             toast({

@@ -73,41 +73,40 @@ const productSchema = z.object({
   images: z.array(z.string().url()).min(1),
 });
 
-async function getAuthenticatedUserUid(): Promise<string> {
-    const authorization = headers().get('Authorization');
-    if (authorization?.startsWith('Bearer ')) {
-        const idToken = authorization.split('Bearer ')[1];
-        try {
-            const decodedToken = await adminAuth.verifyIdToken(idToken);
-            return decodedToken.uid;
-        } catch (error) {
-             console.error("Error verifying ID token:", error);
-             throw new Error('User not authenticated.');
-        }
+const productActionSchema = z.object({
+    productData: productSchema,
+    idToken: z.string(),
+});
+
+async function getAuthenticatedUserUid(idToken: string): Promise<string> {
+    try {
+        const decodedToken = await adminAuth.verifyIdToken(idToken);
+        return decodedToken.uid;
+    } catch (error) {
+         console.error("Error verifying ID token:", error);
+         throw new Error('User not authenticated.');
     }
-    throw new Error('User not authenticated.');
 }
 
-export async function createOrUpdateProductAction(values: z.infer<typeof productSchema>) {
+export async function createOrUpdateProductAction(values: z.infer<typeof productActionSchema>) {
   let sellerId: string;
   try {
-    sellerId = await getAuthenticatedUserUid();
+    sellerId = await getAuthenticatedUserUid(values.idToken);
   } catch (error: any) {
     console.error("Authentication error:", error.message);
     return { success: false, error: 'User not authenticated' };
   }
 
-  const { ...productDataWithoutSeller } = values;
+  const { ...productDataWithoutSeller } = values.productData;
 
   try {
-    const productData: Omit<Product, 'id'> = {
+    const finalProductData: Omit<Product, 'id'> = {
       ...productDataWithoutSeller,
       sellerId,
     };
     
-    const savedProduct = await createOrUpdateProduct(productData, values.id);
+    const savedProduct = await createOrUpdateProduct(finalProductData, values.productData.id);
 
-    // Revalidate paths to update caches
     revalidatePath('/');
     revalidatePath(`/products/${savedProduct.id}`);
     revalidatePath(`/sellers/${sellerId}`);
@@ -119,21 +118,26 @@ export async function createOrUpdateProductAction(values: z.infer<typeof product
   }
 }
 
-export async function deleteProductAction(productId: string) {
+const deleteActionSchema = z.object({
+    productId: z.string(),
+    idToken: z.string(),
+});
+
+export async function deleteProductAction(values: z.infer<typeof deleteActionSchema>) {
     let sellerId: string;
     try {
-        sellerId = await getAuthenticatedUserUid();
+        sellerId = await getAuthenticatedUserUid(values.idToken);
     } catch(error: any) {
         return { success: false, error: 'User not authenticated' };
     }
     
-    const product = await getProduct(productId);
+    const product = await getProduct(values.productId);
     if (!product || product.sellerId !== sellerId) {
         return { success: false, error: 'Permission denied or product not found' };
     }
 
     try {
-        await deleteProduct(productId);
+        await deleteProduct(values.productId);
         
         revalidatePath('/');
         revalidatePath(`/sellers/${sellerId}`);
@@ -145,17 +149,22 @@ export async function deleteProductAction(productId: string) {
     }
 }
 
+const signedUrlSchema = z.object({
+    fileName: z.string(),
+    fileType: z.string(),
+    idToken: z.string(),
+});
 
-export async function getSignedUploadUrlAction(fileName: string, fileType: string) {
+export async function getSignedUploadUrlAction(values: z.infer<typeof signedUrlSchema>) {
     let userId: string;
     try {
-        userId = await getAuthenticatedUserUid();
+        userId = await getAuthenticatedUserUid(values.idToken);
     } catch(error: any) {
         return { success: false, error: 'User not authenticated', url: null, finalFilePath: null };
     }
 
     const bucket = adminAuth.storage().bucket('b2b-marketplace-udg1v.appspot.com');
-    const finalFilePath = `products/${userId}/${uuidv4()}-${fileName}`;
+    const finalFilePath = `products/${userId}/${uuidv4()}-${values.fileName}`;
     const file = bucket.file(finalFilePath);
 
     const expires = Date.now() + 60 * 5 * 1000; // 5 minutes
@@ -164,7 +173,7 @@ export async function getSignedUploadUrlAction(fileName: string, fileType: strin
         const [url] = await file.getSignedUrl({
             action: 'write',
             expires,
-            contentType: fileType,
+            contentType: values.fileType,
             version: 'v4',
         });
         return { success: true, url, finalFilePath };
