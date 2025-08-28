@@ -8,7 +8,7 @@ import { createOrUpdateProduct, deleteProduct, getProduct, getSellerProducts, ge
 import { Product } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { adminAuth } from "@/lib/firebase-admin";
+import { adminAuth, adminStorage } from "@/lib/firebase-admin";
 import { v4 as uuidv4 } from "uuid";
 import { headers } from "next/headers";
 import { Resend } from 'resend';
@@ -104,7 +104,7 @@ export async function createOrUpdateProductAction(formData: FormData) {
   const newImageFiles = formData.getAll('newImages') as File[];
   const uploadedImageUrls: string[] = [];
 
-  const bucket = adminAuth.storage().bucket();
+  const bucket = adminStorage.bucket();
 
   try {
     for (const file of newImageFiles) {

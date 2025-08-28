@@ -22,6 +22,8 @@ function getAdminApp() {
   );
 }
 
-const adminAuth = getAdminApp().auth();
+const adminApp = getAdminApp();
+const adminAuth = adminApp.auth();
+const adminStorage = adminApp.storage();
 
-export { getAdminApp, adminAuth };
+export { adminApp, adminAuth, adminStorage };
