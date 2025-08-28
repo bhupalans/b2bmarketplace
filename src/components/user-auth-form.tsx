@@ -122,9 +122,9 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
 
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
         description = "The email or password you entered is incorrect. Please try again.";
-      } else if (error.code === 'auth/operation-not-allowed' || error.message.includes('identitytoolkit')) {
+      } else if (error.code === 'auth/operation-not-allowed' || (error.message && error.message.includes('identitytoolkit'))) {
         title = "Sign-In Method Disabled";
-        description = "Email/Password sign-in is not enabled for this project. Please enable it in the Firebase console under Authentication > Sign-in method.";
+        description = "Email/Password sign-in is not enabled for this project. Please enable it in the Firebase console under Authentication > Sign-in method. You may also need to enable the Identity Toolkit API in Google Cloud.";
       }
 
       toast({
