@@ -12,13 +12,11 @@ function getAdminApp() {
     return admin.app(appName);
   }
 
-  // When running on Google Cloud (like App Hosting), the SDK can automatically
-  // find the service account credentials. We initialize with the application
-  // default credentials which App Hosting provides.
+  // Explicitly setting the project ID and storage bucket makes initialization more robust.
   return admin.initializeApp(
     {
       credential: admin.credential.applicationDefault(),
-      // The storageBucket is required for Storage operations.
+      projectId: 'b2b-marketplace-udg1v',
       storageBucket: 'b2b-marketplace-udg1v.appspot.com',
     },
     appName
