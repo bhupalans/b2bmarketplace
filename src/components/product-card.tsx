@@ -12,7 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useCurrency } from "@/contexts/currency-context";
-import { Product } from "@/lib/types";
+import { Product, User } from "@/lib/types";
 import { ContactSellerDialog } from "./contact-seller-dialog";
 import { useProducts } from "@/hooks/use-products";
 import { Skeleton } from "./ui/skeleton";
@@ -25,7 +25,7 @@ export function ProductCard({ product }: ProductCardProps) {
   const { currency, rates } = useCurrency();
   const { users, loading: usersLoading } = useProducts();
 
-  const seller = users.find(u => u.uid === product.sellerId);
+  const seller = users.find((u) => u.uid === product.sellerId);
 
   const getConvertedPrice = () => {
     if (currency === "USD") {
@@ -74,7 +74,7 @@ export function ProductCard({ product }: ProductCardProps) {
         ) : seller ? (
             <ContactSellerDialog product={product} seller={seller} />
         ) : (
-            <Skeleton className="h-10 w-full" />
+            <div className="text-sm text-muted-foreground">Seller not available</div>
         )}
       </CardFooter>
     </Card>
