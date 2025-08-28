@@ -19,12 +19,8 @@ const messageSchema = z.object({
   recipientId: z.string().min(1, { message: "Recipient is required."}),
 });
 
-export async function sendMessageAction(prevState: any, formData: FormData) {
-  const validatedFields = messageSchema.safeParse({
-    message: formData.get("message"),
-    offer: formData.get("offer") as string | undefined,
-    recipientId: formData.get("recipientId") as string | undefined,
-  });
+export async function sendMessageAction(data: { message: string, recipientId: string, offer?: string }) {
+  const validatedFields = messageSchema.safeParse(data);
 
   if (!validatedFields.success) {
     const error = validatedFields.error.flatten().fieldErrors.message?.[0] 
@@ -284,5 +280,3 @@ export async function getSignedUploadUrlAction(fileName: string, fileType: strin
         return { success: false, error: 'Could not get upload URL.', url: null, finalFilePath: null };
     }
 }
-
-    

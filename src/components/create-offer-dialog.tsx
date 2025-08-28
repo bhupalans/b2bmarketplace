@@ -26,7 +26,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Select,
   SelectContent,
@@ -34,7 +34,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { mockProducts } from "@/lib/mock-data";
 import { OfferSuggestion, Product } from "@/lib/types";
 import { useAuth } from "@/contexts/auth-context";
 import { sendMessageAction } from "@/app/actions";
@@ -99,12 +98,12 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
         pricePerUnit: values.pricePerUnit,
         notes: values.notes,
     }
-    const formData = new FormData();
-    formData.append('offer', JSON.stringify(offerValues));
-    formData.append('recipientId', recipientId);
-    formData.append('message', `New Offer for ${values.productId}`);
-
-    const result = await sendMessageAction(formData);
+    
+    const result = await sendMessageAction({
+        message: `New Offer for ${values.productId}`,
+        recipientId: recipientId,
+        offer: JSON.stringify(offerValues),
+    });
 
     if (result.error) {
         toast({

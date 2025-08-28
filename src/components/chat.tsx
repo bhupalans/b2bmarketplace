@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect, useRef, useState, useTransition, Suspense, useActionState } from "react";
+import React, { useEffect, useRef, useState, useTransition, Suspense, useCallback } from "react";
 import Link from "next/link";
 import { useSearchParams } from 'next/navigation'
 import {
@@ -44,19 +44,6 @@ import { CreateOfferDialog } from "./create-offer-dialog";
 import { useAuth } from "@/contexts/auth-context";
 import { getUsers, getMessages } from "@/lib/firestore";
 
-const SubmitButton = ({ isSending, disabled }: { isSending: boolean, disabled: boolean }) => {
-  return (
-    <Button type="submit" size="icon" disabled={isSending || disabled}>
-      {isSending ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : (
-        <Send className="h-4 w-4" />
-      )}
-      <span className="sr-only">Send</span>
-    </Button>
-  );
-};
-
 function ChatContent() {
   const { user: loggedInUser } = useAuth();
   const searchParams = useSearchParams();
@@ -67,36 +54,12 @@ function ChatContent() {
 
   const [isSuggesting, startSuggesting] = useTransition();
   const suggestionFormRef = useRef<HTMLFormElement>(null);
-  const formRef = useRef<HTMLFormElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isCreateOfferOpen, setCreateOfferOpen] = useState(false);
   const [suggestion, setSuggestion] = useState<OfferSuggestion | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-
-  const [state, formAction, isSending] = useActionState(sendMessageAction, {
-    error: null,
-    message: null,
-    modificationReason: null,
-  });
-
-  useEffect(() => {
-    if (state.error) {
-      toast({
-        variant: "destructive",
-        title: "Message failed to send",
-        description: state.error,
-      });
-    }
-    if (state.modificationReason) {
-      toast({
-        title: "Message Modified",
-        description: state.modificationReason,
-      });
-    }
-    if (state.message) {
-      formRef.current?.reset();
-    }
-  }, [state, toast]);
+  const [messageText, setMessageText] = useState("");
+  const [isSending, setIsSending] = useState(false);
 
   useEffect(() => {
     getUsers().then(setUsers);
@@ -110,7 +73,6 @@ function ChatContent() {
       const unsubscribe = getMessages(loggedInUser.id, recipientId, (newMessages) => {
         setMessages(newMessages);
       });
-      // Cleanup subscription on component unmount
       return () => unsubscribe();
     }
   }, [loggedInUser, recipientId]);
@@ -124,6 +86,35 @@ function ChatContent() {
         suggestionFormRef.current?.requestSubmit();
     });
   }
+  
+  const handleSendMessage = useCallback(async () => {
+    if (!messageText.trim() || !recipient || isSending) return;
+
+    setIsSending(true);
+
+    const result = await sendMessageAction({
+      message: messageText,
+      recipientId: recipient.id,
+    });
+
+    setIsSending(false);
+
+    if (result.error) {
+      toast({
+        variant: "destructive",
+        title: "Message failed to send",
+        description: result.error,
+      });
+    } else {
+      setMessageText(""); // Clear the input on success
+      if (result.modificationReason) {
+        toast({
+          title: "Message Modified",
+          description: result.modificationReason,
+        });
+      }
+    }
+  }, [messageText, recipient, isSending, toast]);
 
   if (!loggedInUser) {
     return <div className="flex h-full items-center justify-center text-muted-foreground"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -305,11 +296,7 @@ function ChatContent() {
           </div>
         </main>
         <footer className="border-t bg-muted/40 p-4">
-          <form
-            ref={formRef}
-            action={formAction}
-            className="relative flex items-center gap-2"
-          >
+          <div className="relative flex items-center gap-2">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -322,14 +309,27 @@ function ChatContent() {
               </Tooltip>
             </TooltipProvider>
             <Textarea
-              name="message"
               placeholder={recipient ? "Type your message here..." : "Loading conversation..."}
               className="min-h-12 flex-1 resize-none rounded-full px-4 py-3"
+              value={messageText}
+              onChange={(e) => setMessageText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                }
+              }}
               disabled={isSending || !recipient}
             />
-            {recipient && <input type="hidden" name="recipientId" value={recipient.id} />}
-            <SubmitButton isSending={isSending} disabled={!recipient} />
-          </form>
+            <Button type="button" size="icon" onClick={handleSendMessage} disabled={isSending || !recipient}>
+              {isSending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+              <span className="sr-only">Send</span>
+            </Button>
+          </div>
         </footer>
       </div>
     </div>
