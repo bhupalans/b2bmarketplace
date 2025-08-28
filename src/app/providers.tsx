@@ -4,7 +4,6 @@
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/contexts/auth-context";
 import { CurrencyProvider } from "@/contexts/currency-context";
-import { seedDatabase } from "@/lib/database";
 import { useEffect, useState } from "react";
 
 async function getFxRates() {
@@ -22,17 +21,6 @@ async function getFxRates() {
   }
 }
 
-// A simple component to trigger the one-time database seed.
-function DatabaseSeeder() {
-  useEffect(() => {
-    // This is a server action, but we can call it from the client.
-    // It has internal logic to only run once.
-    seedDatabase();
-  }, []);
-
-  return null; // This component renders nothing.
-}
-
 export function Providers({ children }: { children: React.ReactNode }) {
   const [rates, setRates] = useState<{ [key: string]: number }>({ USD: 1 });
 
@@ -43,7 +31,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
       <CurrencyProvider rates={rates}>
-        <DatabaseSeeder />
         {children}
         <Toaster />
       </CurrencyProvider>
