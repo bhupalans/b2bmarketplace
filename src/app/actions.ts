@@ -92,7 +92,7 @@ export async function createOrUpdateProductAction(formData: FormData) {
   }
   
   const productId = formData.get('id') as string | undefined;
-  const existingImageUrls = formData.getAll('existingImages[]') as string[];
+  const existingImageUrls = formData.getAll('existingImages[]').filter(url => typeof url === 'string') as string[];
 
   const productData = {
       title: formData.get('title') as string,
@@ -108,6 +108,7 @@ export async function createOrUpdateProductAction(formData: FormData) {
 
   try {
     for (const file of newImageFiles) {
+        if (file.size === 0) continue; // Skip empty file inputs
         const fileBuffer = Buffer.from(await file.arrayBuffer());
         const finalFilePath = `products/${sellerId}/${uuidv4()}-${file.name}`;
         const fileUpload = bucket.file(finalFilePath);

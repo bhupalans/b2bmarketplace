@@ -46,7 +46,6 @@ const productSchema = z.object({
   description: z.string().min(10, { message: "Description must be at least 10 characters." }),
   priceUSD: z.coerce.number().positive({ message: "Price must be a positive number." }),
   categoryId: z.string().min(1, { message: "Please select a category." }),
-  // The 'images' field now refers only to existing images. New files are handled separately.
   images: z.array(z.string().url()).optional(),
 });
 
@@ -315,7 +314,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
                 </div>
               </div>
               <FormDescription>The first image will be the main display image. You can upload multiple images.</FormDescription>
-               {totalImageCount === 0 && (
+               {totalImageCount === 0 && open && (
                 <p className="text-sm font-medium text-destructive">Please add at least one image.</p>
               )}
             </FormItem>
