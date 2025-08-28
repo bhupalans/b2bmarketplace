@@ -69,10 +69,9 @@ function ChatContent() {
   const [isSuggesting, startSuggesting] = useTransition();
   const suggestionFormRef = useRef<HTMLFormElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
-
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isCreateOfferOpen, setCreateOfferOpen] = useState(false);
   const [suggestion, setSuggestion] = useState<OfferSuggestion | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [state, formAction, isSending] = useActionState(sendMessageAction, {
     error: null,
@@ -113,12 +112,8 @@ function ChatContent() {
     }
   }, [loggedInUser, recipientId]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
   useEffect(() => {
-    scrollToBottom();
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
   
   const usersById = Object.fromEntries(users.map(u => [u.id, u]));
@@ -330,14 +325,6 @@ function ChatContent() {
               name="message"
               placeholder="Type your message here..."
               className="min-h-12 flex-1 resize-none rounded-full px-4 py-3"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    if (formRef.current && (formRef.current.elements.namedItem('message') as HTMLTextAreaElement).value.trim()) {
-                      formRef.current.requestSubmit();
-                    }
-                }
-              }}
               disabled={isSending}
             />
             <input type="hidden" name="recipientId" value={recipient.id} />
@@ -356,5 +343,3 @@ export function Chat() {
     </Suspense>
   )
 }
-
-    
