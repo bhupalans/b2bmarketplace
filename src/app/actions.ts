@@ -8,7 +8,7 @@ import { createOrUpdateProduct, deleteProduct, getProduct, getSellerProducts, ge
 import { Product } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { adminAuth } from "@/lib/firebase-admin";
+import { getAdminApp } from "@/lib/firebase-admin";
 import { v4 as uuidv4 } from "uuid";
 import { headers } from "next/headers";
 import { Resend } from 'resend';
@@ -80,7 +80,7 @@ const productActionSchema = z.object({
 
 async function getAuthenticatedUserUid(idToken: string): Promise<string> {
     try {
-        const decodedToken = await adminAuth.verifyIdToken(idToken);
+        const decodedToken = await getAdminApp().auth().verifyIdToken(idToken);
         return decodedToken.uid;
     } catch (error) {
          console.error("Error verifying ID token:", error);
@@ -163,7 +163,7 @@ export async function getSignedUploadUrlAction(values: z.infer<typeof signedUrlS
         return { success: false, error: 'User not authenticated.', url: null, finalFilePath: null };
     }
 
-    const bucket = adminAuth.storage().bucket();
+    const bucket = getAdminApp().storage().bucket();
     const finalFilePath = `products/${userId}/${uuidv4()}-${values.fileName}`;
     const file = bucket.file(finalFilePath);
 
