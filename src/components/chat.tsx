@@ -167,7 +167,7 @@ function ChatContent() {
   }
   
   const conversationList = users.filter(user => {
-    if (user.id === loggedInUser.id) return false; // Exclude self
+    if (user.id === loggedInUser.id) return false;
     if (loggedInUser.role === 'buyer') return user.role === 'seller';
     if (loggedInUser.role === 'seller') return user.role === 'buyer';
     return false;
@@ -372,3 +372,5 @@ export function Chat() {
     </Suspense>
   )
 }
+
+    
