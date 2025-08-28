@@ -2,32 +2,32 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    // Users can read all profiles (for listing sellers, etc.)
-    // but can only write to their own user document.
+
+    // Allow public read for products and categories for browsing
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == request.resource.data.sellerId;
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if false; // Categories are not written from the client
+    }
+
+    // Users can be read by anyone authenticated, but only written by the user themselves.
     match /users/{userId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == userId;
     }
-    
-    // Products and Categories are public to all users, including unauthenticated ones.
-    match /products/{productId} {
-      allow read: if true;
-      // Only allow writes if the product's sellerId matches the user's ID.
-      allow write: if request.auth != null && request.resource.data.sellerId == request.auth.uid;
-    }
-    
-    match /categories/{categoryId} {
-      allow read: if true;
-      allow write: if false; // Categories are not writeable from the client.
-    }
 
-    // Messages can be created by the sender.
-    // Messages can only be read by the sender or the recipient.
+    // Messages can only be read by the sender or recipient.
+    // A user can only create a message if they are the sender.
     match /messages/{messageId} {
       allow read: if request.auth != null && (request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.recipientId);
-      allow create: if request.auth != null && request.resource.data.senderId == request.auth.uid;
-      allow update, delete: if false; // Messages are immutable.
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.senderId;
+      allow update, delete: if false; // Don't allow editing/deleting messages
     }
   }
 }
+
+    
