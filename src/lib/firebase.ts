@@ -139,8 +139,8 @@ export async function createOrUpdateProductClient(
         })
     );
 
+    // UPDATE path
     if (productId) {
-        // UPDATE PATH
         const productRef = doc(db, 'products', productId);
         const currentDoc = await getDoc(productRef);
         
@@ -170,9 +170,9 @@ export async function createOrUpdateProductClient(
 
         await updateDoc(productRef, finalProductData);
         return { id: productId, ...finalProductData };
-
-    } else {
-        // CREATE PATH
+    } 
+    // CREATE path
+    else {
         if (uploadedImageUrls.length === 0) {
             throw new Error('At least one image is required to create a product.');
         }
