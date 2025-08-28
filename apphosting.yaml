@@ -9,3 +9,10 @@ runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
+
+# Add required API services to be enabled for the backend.
+requiredAPIs:
+  - service: firestore.googleapis.com
+    reason: To allow the backend to access Firestore.
+  - service: identitytoolkit.googleapis.com
+    reason: To allow the backend to verify Firebase Auth tokens.
