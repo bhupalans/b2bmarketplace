@@ -33,7 +33,7 @@ import { getUsers, getMessages } from "@/lib/firestore";
 function ChatContent() {
   const { user: loggedInUser, firebaseUser } = useAuth();
   const searchParams = useSearchParams();
-  const recipientUid = searchParams.get('recipientId');
+  const currentRecipientUid = searchParams.get('recipientId');
 
   const [users, setUsers] = useState<User[]>([]);
   const { toast } = useToast();
@@ -52,16 +52,16 @@ function ChatContent() {
   }, []);
 
   const usersByUid = React.useMemo(() => Object.fromEntries(users.map(u => [u.uid, u])), [users]);
-  const recipient = recipientUid ? usersByUid[recipientUid] : null;
+  const recipient = currentRecipientUid ? usersByUid[currentRecipientUid] : null;
 
   useEffect(() => {
-    if (firebaseUser && recipientUid) {
-      const unsubscribe = getMessages(firebaseUser.uid, recipientUid, (newMessages) => {
+    if (firebaseUser && currentRecipientUid) {
+      const unsubscribe = getMessages(firebaseUser.uid, currentRecipientUid, (newMessages) => {
         setMessages(newMessages);
       });
       return () => unsubscribe();
     }
-  }, [firebaseUser, recipientUid]);
+  }, [firebaseUser, currentRecipientUid]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -74,13 +74,16 @@ function ChatContent() {
   }
   
   const handleSendMessage = useCallback(async () => {
-    if (!messageText.trim() || !recipient || !firebaseUser || isSending) return;
+    // Read recipientId directly from URL search params for reliability
+    const recipientIdFromUrl = searchParams.get('recipientId');
+
+    if (!messageText.trim() || !recipientIdFromUrl || !firebaseUser || isSending) return;
 
     setIsSending(true);
 
     const result = await sendMessageAction({
       message: messageText,
-      recipientUid: recipient.uid,
+      recipientUid: recipientIdFromUrl,
       senderUid: firebaseUser.uid,
     });
 
@@ -101,7 +104,7 @@ function ChatContent() {
         });
       }
     }
-  }, [messageText, recipient, isSending, toast, firebaseUser]);
+  }, [messageText, searchParams, isSending, toast, firebaseUser]);
 
 
   if (!loggedInUser || !firebaseUser) {
@@ -117,7 +120,7 @@ function ChatContent() {
 
   const isFormDisabled = isSending || !recipient;
 
-  if (!recipientUid) {
+  if (!currentRecipientUid) {
     return (
       <div className="grid min-h-[calc(100vh-8rem)] w-full grid-cols-[260px_1fr] rounded-lg border">
         <div className="flex flex-col border-r bg-muted/40">
@@ -130,7 +133,7 @@ function ChatContent() {
              <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
               {conversationList.map(user => (
                 <Link
-                  key={user.id}
+                  key={user.uid}
                   href={`/messages?recipientId=${user.uid}`}
                   className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
                 >
@@ -170,11 +173,11 @@ function ChatContent() {
           <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
              {conversationList.map(user => (
                 <Link
-                  key={user.id}
+                  key={user.uid}
                   href={`/messages?recipientId=${user.uid}`}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
-                    recipientUid === user.uid && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                    currentRecipientUid === user.uid && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
                   )}
                 >
                   <Avatar className="h-8 w-8 border">
