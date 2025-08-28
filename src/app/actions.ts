@@ -123,17 +123,13 @@ export async function createOrUpdateProductAction(formData: FormData) {
         return { success: false, error: 'At least one image is required.' };
     }
 
-    const finalProductData: Omit<Product, 'id' | 'status'> & { status?: Product['status'] } = {
+    const finalProductData: Omit<Product, 'id'> = {
       ...productData,
       images: allImageUrls,
       sellerId: sellerId,
+      status: 'pending', // Always set to pending for review
     };
     
-    // Set status to 'pending' only for new products
-    if (!productId) {
-      finalProductData.status = 'pending';
-    }
-
     const finalProductId = productId || undefined;
     const savedProduct = await createOrUpdateProduct(finalProductData, finalProductId);
 

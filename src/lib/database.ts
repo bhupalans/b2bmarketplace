@@ -151,19 +151,13 @@ export async function createOrUpdateProduct(
     : adminDb.collection('products').doc();
 
   if (productId) {
-    // Updating existing product, we don't change the status
     await productRef.update(productData);
-    const doc = await productRef.get();
-    return { id: doc.id, ...doc.data() } as Product;
   } else {
-    // Creating new product, status should be 'pending'
-    const newProductData = {
-      ...productData,
-      status: productData.status || 'pending', // Default to pending
-    };
-    await productRef.set(newProductData);
-    return { id: productRef.id, ...newProductData } as Product;
+    await productRef.set(productData);
   }
+  
+  const doc = await productRef.get();
+  return { id: doc.id, ...doc.data() } as Product;
 }
 
 
