@@ -57,7 +57,7 @@ type CreateOfferDialogProps = {
 
 export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, recipientId }: CreateOfferDialogProps) {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { firebaseUser } = useAuth();
   const [isSending, setIsSending] = useState(false);
   const [sellerProducts, setSellerProducts] = useState<Product[]>([]);
   
@@ -72,10 +72,10 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
   });
 
   useEffect(() => {
-    if (user?.role === 'seller') {
-        getSellerProducts(user.id).then(setSellerProducts);
+    if (firebaseUser) {
+        getSellerProducts(firebaseUser.uid).then(setSellerProducts);
     }
-  }, [user]);
+  }, [firebaseUser]);
 
   useEffect(() => {
     if (suggestion) {
@@ -90,6 +90,10 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
   }, [suggestion, form, open, sellerProducts]);
   
   const handleAction = async (values: z.infer<typeof offerSchema>) => {
+    if (!firebaseUser) {
+      toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in to send an offer." });
+      return;
+    }
     setIsSending(true);
 
     const offerValues = {
@@ -101,7 +105,8 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
     
     const result = await sendMessageAction({
         message: `New Offer for ${values.productId}`,
-        recipientId: recipientId,
+        recipientUid: recipientId,
+        senderUid: firebaseUser.uid,
         offer: JSON.stringify(offerValues),
     });
 
