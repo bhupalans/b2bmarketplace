@@ -2,7 +2,7 @@
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, writeBatch, getDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Product, Category, User } from './types';
 import { v4 as uuidv4 } from 'uuid';
@@ -30,6 +30,52 @@ export async function getProductsClient(): Promise<Product[]> {
   const productSnapshot = await getDocs(q);
   return productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
 }
+
+export async function getProductAndSellerClient(productId: string): Promise<{ product: Product; seller: User | null } | null> {
+  const productRef = doc(db, 'products', productId);
+  const productSnap = await getDoc(productRef);
+  if (!productSnap.exists() || productSnap.data().status !== 'approved') {
+    return null;
+  }
+  const product = { id: productSnap.id, ...productSnap.data() } as Product;
+  
+  let seller: User | null = null;
+  if (product.sellerId) {
+    try {
+        const userRef = doc(db, 'users', product.sellerId);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+            seller = { id: userSnap.id, uid: userSnap.id, ...userSnap.data() } as User;
+        }
+    } catch (error) {
+        console.error(`Failed to fetch seller data for product ${productId}.`, error);
+        seller = null;
+    }
+  }
+
+  return { product, seller };
+}
+
+export async function getCategoryPathClient(categoryId: string): Promise<Category[]> {
+    const path: Category[] = [];
+    let currentId: string | null = categoryId;
+  
+    while (currentId) {
+      const categoryRef = doc(db, 'categories', currentId);
+      const categorySnap = await getDoc(categoryRef);
+  
+      if (categorySnap.exists()) {
+        const categoryData = { id: categorySnap.id, ...categorySnap.data() } as Category;
+        path.unshift(categoryData);
+        currentId = categoryData.parentId;
+      } else {
+        currentId = null;
+      }
+    }
+    
+    return path;
+}
+
 
 export async function getPendingProducts(): Promise<Product[]> {
     const productsCol = collection(db, "products");

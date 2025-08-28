@@ -1,9 +1,11 @@
 
-import React from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { getProductAndSeller, getCategoryPath } from "@/lib/database";
+import { notFound, useParams } from "next/navigation";
+import { getProductAndSellerClient } from "@/lib/firebase";
 import {
   Card,
   CardContent,
@@ -35,27 +37,85 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import { ContactSellerDialog } from "@/components/contact-seller-dialog";
+import { Product, User, Category } from "@/lib/types";
+import { getCategoryPathClient } from "@/lib/firebase";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useCurrency } from "@/contexts/currency-context";
+import { Loader2 } from "lucide-react";
 
-export default async function ProductDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const productData = await getProductAndSeller(params.id);
+type ProductData = {
+  product: Product;
+  seller: User | null;
+}
+
+export default function ProductDetailPage() {
+  const params = useParams();
+  const { id } = params;
+  const { currency, rates } = useCurrency();
+
+  const [productData, setProductData] = useState<ProductData | null>(null);
+  const [categoryPath, setCategoryPath] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  useEffect(() => {
+    async function fetchData() {
+      if (typeof id !== 'string') return;
+      
+      try {
+        setLoading(true);
+        const data = await getProductAndSellerClient(id);
+        if (!data) {
+          setError("Product not found.");
+          return;
+        }
+        setProductData(data);
+        
+        if (data.product.categoryId) {
+            const path = await getCategoryPathClient(data.product.categoryId);
+            setCategoryPath(path);
+        }
+      } catch (e: any) {
+        console.error("Failed to fetch product data:", e);
+        setError("Failed to load product details.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchData();
+  }, [id]);
+
+  const getConvertedPrice = (priceUSD: number) => {
+    if (currency === "USD" || !rates[currency]) {
+      return priceUSD;
+    }
+    return priceUSD * rates[currency];
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-full">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+  
+  if (error) {
+     return <div className="text-center py-10">{error}</div>;
+  }
 
   if (!productData) {
     notFound();
   }
 
   const { product, seller } = productData;
-  const categoryPath = await getCategoryPath(product.categoryId);
 
-  // We can't use the useCurrency hook here because this is a Server Component.
-  // We'll just display the price in USD for now.
-  const formattedPrice = new Intl.NumberFormat("en-US", {
+  const formattedPrice = new Intl.NumberFormat(undefined, {
     style: "currency",
-    currency: "USD",
-  }).format(product.priceUSD);
+    currency: currency,
+  }).format(getConvertedPrice(product.priceUSD));
+
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
@@ -73,7 +133,6 @@ export default async function ProductDetailPage({
                 {index === categoryPath.length - 1 ? (
                   <BreadcrumbPage>{cat.name}</BreadcrumbPage>
                 ) : (
-                  // This link is disabled for now, but could lead to a category page
                   <span className="cursor-not-allowed">{cat.name}</span>
                 )}
               </BreadcrumbItem>
@@ -135,7 +194,7 @@ export default async function ProductDetailPage({
               <p className="text-3xl font-bold text-primary">
                 {formattedPrice}
               </p>
-              <p className="mt-4 text-muted-foreground">
+              <p className="mt-4 text-muted-foreground whitespace-pre-wrap">
                 {product.description}
               </p>
             </CardContent>

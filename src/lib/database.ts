@@ -118,39 +118,3 @@ export async function getSellerDashboardData(sellerId: string): Promise<{
     return null;
   }
 }
-
-// NOTE: Product write/update/delete operations have been moved to client-side
-// functions in `src/lib/firebase.ts` to resolve server-side auth issues.
-// The server-side functions below are no longer used by the application.
-
-export async function createOrUpdateProduct(
-  productData: Omit<Product, 'id'>,
-  productId?: string
-): Promise<Product> {
-  const productRef = productId
-    ? adminDb.collection('products').doc(productId)
-    : adminDb.collection('products').doc();
-
-  if (productId) {
-    await productRef.update(productData);
-  } else {
-    await productRef.set(productData);
-  }
-  
-  const doc = await productRef.get();
-  return { id: doc.id, ...doc.data() } as Product;
-}
-
-
-export async function deleteProduct(productId: string): Promise<void> {
-  const productRef = adminDb.collection('products').doc(productId);
-  await productRef.delete();
-}
-
-export async function updateProductStatus(
-  productId: string,
-  status: 'approved' | 'rejected'
-): Promise<void> {
-  const productRef = adminDb.collection('products').doc(productId);
-  await productRef.update({ status });
-}
