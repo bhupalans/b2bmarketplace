@@ -35,8 +35,10 @@ import {
   SelectValue,
 } from "./ui/select";
 import { mockProducts } from "@/lib/mock-data";
-import { OfferSuggestion } from "@/lib/types";
+import { OfferSuggestion, Product } from "@/lib/types";
 import { useAuth } from "@/contexts/auth-context";
+import { sendMessageAction } from "@/app/actions";
+import { getSellerProducts } from "@/lib/firestore";
 
 const offerSchema = z.object({
   productId: z.string().min(1, { message: "Please select a product." }),
@@ -51,35 +53,42 @@ type CreateOfferDialogProps = {
   onOpenChange?: (open: boolean) => void;
   onClose?: () => void;
   recipientId: string;
-  formAction: (payload: FormData) => void;
 };
 
 
-export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, recipientId, formAction }: CreateOfferDialogProps) {
+export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, recipientId }: CreateOfferDialogProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const [isSending, setIsSending] = useState(false);
+  const [sellerProducts, setSellerProducts] = useState<Product[]>([]);
   
   const form = useForm<z.infer<typeof offerSchema>>({
     resolver: zodResolver(offerSchema),
     defaultValues: {
       productId: "",
-      quantity: '',
-      pricePerUnit: '',
+      quantity: undefined,
+      pricePerUnit: undefined,
       notes: "",
     },
   });
 
   useEffect(() => {
+    if (user?.role === 'seller') {
+        getSellerProducts(user.id).then(setSellerProducts);
+    }
+  }, [user]);
+
+  useEffect(() => {
     if (suggestion) {
+      const product = sellerProducts.find(p => p.id === suggestion.productId);
       form.reset({
         productId: suggestion.productId || "",
-        quantity: suggestion.quantity || '',
-        pricePerUnit: suggestion.pricePerUnit || '',
+        quantity: suggestion.quantity || undefined,
+        pricePerUnit: suggestion.pricePerUnit || product?.priceUSD || undefined,
         notes: "",
       });
     }
-  }, [suggestion, form, open]);
+  }, [suggestion, form, open, sellerProducts]);
   
   const handleAction = async (values: z.infer<typeof offerSchema>) => {
     setIsSending(true);
@@ -93,23 +102,27 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
     const formData = new FormData();
     formData.append('offer', JSON.stringify(offerValues));
     formData.append('recipientId', recipientId);
-    // The message here is a placeholder because the action expects it,
-    // but the actual visible message is created on the server based on the offer.
     formData.append('message', `New Offer for ${values.productId}`);
 
-    await formAction(formData);
+    const result = await sendMessageAction(formData);
 
-    const product = mockProducts.find(p => p.id === offerValues.productId);
-    toast({
-        title: "Offer Sent!",
-        description: `Your offer for ${product?.title} has been sent.`
-    });
+    if (result.error) {
+        toast({
+            variant: "destructive",
+            title: "Offer failed to send",
+            description: result.error,
+        });
+    } else {
+        const product = sellerProducts.find(p => p.id === offerValues.productId);
+        toast({
+            title: "Offer Sent!",
+            description: `Your offer for ${product?.title} has been sent.`
+        });
+        handleOpenChange(false);
+    }
     
     setIsSending(false);
-    handleOpenChange(false);
   }
-
-  const sellerProducts = mockProducts.filter(p => p.sellerId === user?.id);
   
   const handleOpenChange = (isOpen: boolean) => {
     if (onOpenChange) {
@@ -121,8 +134,8 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
     if (!isOpen) {
       form.reset({
         productId: "",
-        quantity: '',
-        pricePerUnit: '',
+        quantity: undefined,
+        pricePerUnit: undefined,
         notes: "",
       });
     }
@@ -131,7 +144,7 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      {!open && (
+      {!open && !suggestion && (
         <DialogTrigger asChild>
           <Button>
             <Gavel className="mr-2 h-4 w-4" />
@@ -186,7 +199,7 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
                   <FormItem>
                     <FormLabel>Quantity</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} />
+                      <Input type="number" {...field} value={field.value ?? ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -199,7 +212,7 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
                   <FormItem>
                     <FormLabel>Price per Unit (USD)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" {...field} />
+                      <Input type="number" step="0.01" {...field} value={field.value ?? ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -224,6 +237,7 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
               )}
             />
             <DialogFooter>
+                <Button type="button" variant="ghost" onClick={() => handleOpenChange(false)}>Cancel</Button>
                 <Button type="submit" disabled={isSending}>
                     {isSending && (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />

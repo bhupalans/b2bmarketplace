@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect, useRef, useState, useActionState, startTransition, Suspense } from "react";
+import React, { useEffect, useRef, useState, useTransition, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from 'next/navigation'
 import {
@@ -74,7 +74,7 @@ function ChatContent() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [suggestion, setSuggestion] = useState<OfferSuggestion | null>(null);
-  const [isSuggesting, setIsSuggesting] = useState(false);
+  const [isSuggesting, setIsSuggesting] = useTransition();
   const { toast } = useToast();
   const formRef = useRef<HTMLFormElement>(null);
   const suggestionFormRef = useRef<HTMLFormElement>(null);
@@ -82,11 +82,6 @@ function ChatContent() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
-
-  const [suggestionState, suggestionAction] = useActionState(suggestOfferAction, {
-    error: null,
-    suggestion: null,
-  });
 
   useEffect(() => {
     getUsers().then(setUsers);
@@ -113,32 +108,18 @@ function ChatContent() {
 
   const usersById = Object.fromEntries(users.map(u => [u.id, u]));
 
-  useEffect(() => {
-    if (suggestionState.error) {
-      toast({
-        variant: "destructive",
-        title: "Suggestion Failed",
-        description: suggestionState.error,
-      });
-      setIsSuggesting(false);
-    }
-    if (suggestionState.suggestion) {
-      setSuggestion(suggestionState.suggestion);
-      setCreateOfferOpen(true);
-      setIsSuggesting(false);
-    }
-  }, [suggestionState, toast]);
-
   const handleSendMessage = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!formRef.current || !recipient) return;
+    if (!formRef.current) return;
 
-    setIsSending(true);
     const formData = new FormData(formRef.current);
     const messageText = formData.get('message') as string;
-    
-    // Explicitly add recipientId to formData
-    formData.append('recipientId', recipient.id);
+
+    if (!messageText || !messageText.trim()) {
+      return; 
+    }
+
+    setIsSending(true);
 
     const result = await sendMessageAction(formData);
 
@@ -157,16 +138,11 @@ function ChatContent() {
     }
     if (result.message) {
         formRef.current.reset();
+        textAreaRef.current?.focus();
     }
     
     setIsSending(false);
-    textAreaRef.current?.focus();
   };
-
-  const handleSuggestOffer = () => {
-    setIsSuggesting(true);
-    suggestionFormRef.current?.requestSubmit();
-  }
   
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -174,6 +150,12 @@ function ChatContent() {
         formRef.current?.requestSubmit();
     }
   };
+
+  const handleSuggestOffer = () => {
+    setIsSuggesting(() => {
+        suggestionFormRef.current?.requestSubmit();
+    });
+  }
 
   const recipient = recipientId ? usersById[recipientId] : null;
 
@@ -183,6 +165,7 @@ function ChatContent() {
   
   const conversationList = users.filter(user => {
     if (user.id === loggedInUser.id) return false;
+    // This logic ensures we only see conversations between buyers and sellers.
     if (loggedInUser.role === 'buyer') return user.role === 'seller';
     if (loggedInUser.role === 'seller') return user.role === 'buyer';
     return false;
@@ -271,7 +254,7 @@ function ChatContent() {
           <div className="flex flex-1 items-center justify-end gap-2">
             {loggedInUser.role === 'seller' && (
               <>
-                <form ref={suggestionFormRef} action={suggestionAction} className="hidden">
+                <form ref={suggestionFormRef} action={suggestOfferAction} className="hidden">
                   <input type="hidden" name="chatHistory" value={messages.map(m => `${allUsersAndSystem[m.senderId]?.name || 'User'}: ${m.text}`).join('\n')} />
                   <input type="hidden" name="sellerId" value={loggedInUser.id} />
                 </form>
@@ -290,7 +273,6 @@ function ChatContent() {
                   onOpenChange={setCreateOfferOpen}
                   onClose={() => setSuggestion(null)}
                   recipientId={recipient.id}
-                  formAction={sendMessageAction}
                 />
               </>
             )}
@@ -374,6 +356,7 @@ function ChatContent() {
               onKeyDown={handleKeyDown}
               disabled={isSending}
             />
+            <input type="hidden" name="recipientId" value={recipient.id} />
             <SubmitButton isSending={isSending} />
           </form>
         </footer>
