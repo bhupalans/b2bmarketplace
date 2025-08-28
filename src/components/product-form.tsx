@@ -139,8 +139,10 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
 
       if (result.success && result.product) {
         toast({
-          title: product ? "Product Updated" : "Product Created",
-          description: `The product "${result.product.title}" has been saved.`,
+          title: product ? "Product Updated" : "Product Submitted",
+          description: product 
+            ? `Your changes to "${result.product.title}" have been saved.`
+            : `Your product "${result.product.title}" has been submitted for review.`,
         });
         onSuccess(result.product);
       } else {
@@ -198,7 +200,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         <DialogHeader>
           <DialogTitle>{product ? "Edit Product" : "Create New Product"}</DialogTitle>
           <DialogDescription>
-            Fill out the details below for your product listing.
+            {product ? "Edit the details for your product listing." : "Fill out the details below. Your product will be submitted for admin review."}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -343,7 +345,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
               <Button type="submit" disabled={isSaving}>
                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {product ? "Save Changes" : "Create Product"}
+                {product ? "Save Changes" : "Submit for Review"}
               </Button>
             </DialogFooter>
           </form>

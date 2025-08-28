@@ -23,7 +23,9 @@ const storage = getStorage(app);
 // Client-side data fetching functions
 export async function getProductsClient(): Promise<Product[]> {
   const productsCol = collection(db, "products");
-  const productSnapshot = await getDocs(productsCol);
+  // Only fetch approved products for the public-facing client pages
+  const q = query(productsCol, where("status", "==", "approved"));
+  const productSnapshot = await getDocs(q);
   return productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
 }
 
@@ -47,6 +49,7 @@ export async function getUsersClient(): Promise<User[]> {
   return userList;
 }
 
+// Fetches ALL of a seller's products for their "My Products" page
 export async function getSellerProductsClient(sellerId: string): Promise<Product[]> {
     const productsRef = collection(db, "products");
     const q = query(productsRef, where("sellerId", "==", sellerId));

@@ -3,7 +3,6 @@
 
 import { adminDb } from "./firebase-admin";
 import { Product, Category, User, Message } from "./types";
-import { mockProducts, mockCategories } from "./mock-data";
 
 // This file contains server-side only database logic.
 // It uses the Firebase Admin SDK, which has super-user privileges
@@ -12,7 +11,7 @@ import { mockProducts, mockCategories } from "./mock-data";
 // --- Read Operations ---
 
 export async function getProducts(): Promise<Product[]> {
-  const productsCol = adminDb.collection("products");
+  const productsCol = adminDb.collection("products").where("status", "==", "approved");
   const productSnapshot = await productsCol.get();
   const productList = productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
   return productList;
@@ -55,7 +54,8 @@ export async function getUsers(): Promise<User[]> {
 
 export async function getProductAndSeller(productId: string): Promise<{ product: Product; seller: User | null } | null> {
   const product = await getProduct(productId);
-  if (!product) {
+  // Only show approved products on the detail page
+  if (!product || product.status !== 'approved') {
     return null;
   }
   
@@ -75,17 +75,24 @@ export async function getProductAndSeller(productId: string): Promise<{ product:
 export async function getSellerAndProducts(sellerId: string): Promise<{ seller: User; products: Product[] } | null> {
   const seller = await getUser(sellerId);
 
-  if (!seller || seller.role !== 'seller') {
+  if (!seller) {
     return null;
   }
-
-  const productsSnapshot = await adminDb.collection("products").where("sellerId", "==", sellerId).get();
+  
+  // Public seller profile should only show approved products
+  const productsSnapshot = await adminDb.collection("products")
+    .where("sellerId", "==", sellerId)
+    .where("status", "==", "approved")
+    .get();
   const products = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
 
   return { seller, products };
 }
 
+
 export async function getSellerProducts(sellerId: string): Promise<Product[]> {
+    // This server function gets ALL products for a seller, regardless of status,
+    // for use in the seller's own dashboard/views.
     const querySnapshot = await adminDb.collection("products").where("sellerId", "==", sellerId).get();
     return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
 }
@@ -139,15 +146,26 @@ export async function createOrUpdateProduct(
   productData: Omit<Product, 'id'>,
   productId?: string
 ): Promise<Product> {
+  const productRef = productId
+    ? adminDb.collection('products').doc(productId)
+    : adminDb.collection('products').doc();
+
   if (productId) {
-    const productRef = adminDb.collection('products').doc(productId);
+    // Updating existing product, we don't change the status
     await productRef.update(productData);
-    return { id: productId, ...productData };
+    const doc = await productRef.get();
+    return { id: doc.id, ...doc.data() } as Product;
   } else {
-    const docRef = await adminDb.collection('products').add(productData);
-    return { id: docRef.id, ...productData };
+    // Creating new product, status should be 'pending'
+    const newProductData = {
+      ...productData,
+      status: productData.status || 'pending', // Default to pending
+    };
+    await productRef.set(newProductData);
+    return { id: productRef.id, ...newProductData } as Product;
   }
 }
+
 
 export async function deleteProduct(productId: string): Promise<void> {
   const productRef = adminDb.collection('products').doc(productId);

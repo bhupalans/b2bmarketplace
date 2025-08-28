@@ -29,6 +29,7 @@ export type Product = {
   priceUSD: number;
   sellerId: string; // This should be the seller's UID
   categoryId: string;
+  status: 'pending' | 'approved' | 'rejected';
   specifications?: { name: string; value: string }[];
 };
 

@@ -12,25 +12,34 @@ import { v4 as uuidv4 } from "uuid";
 import { headers } from "next/headers";
 
 const inquirySchema = z.object({
-  idToken: z.string(),
   message: z.string().min(10, "Message must be at least 10 characters."),
-  sellerId: z.string(),
-  productId: z.string().optional(),
-  productTitle: z.string().optional(),
 });
 
-export async function sendInquiryAction(values: z.infer<typeof inquirySchema>) {
-    const validatedFields = inquirySchema.safeParse(values);
+export async function sendInquiryAction(
+  prevState: any,
+  formData: FormData
+) {
+    const validatedFields = inquirySchema.safeParse({
+        message: formData.get('message'),
+    });
+
+    // This is a server action, so we can securely get the user's ID token from headers
+    const idToken = headers().get('Authorization')?.split('Bearer ')[1];
+    
+    if (!idToken) {
+        return { success: false, error: "Authentication failed. Please log in again." };
+    }
 
     if (!validatedFields.success) {
         return { success: false, error: "Invalid data." };
     }
     
-    const { idToken, message, sellerId, productTitle } = validatedFields.data;
+    const { message } = validatedFields.data;
+    const sellerId = formData.get('sellerId') as string;
+    const productTitle = formData.get('productTitle') as string | undefined;
 
     let buyerId: string;
     let buyerName: string;
-    let buyerEmail: string;
 
     try {
         const decodedToken = await adminAuth.verifyIdToken(idToken);
@@ -38,21 +47,16 @@ export async function sendInquiryAction(values: z.infer<typeof inquirySchema>) {
         const buyer = await getUser(buyerId);
         if (!buyer) throw new Error("Buyer profile not found.");
         buyerName = buyer.name;
-        buyerEmail = buyer.email;
     } catch(error) {
         console.error("Authentication error in sendInquiryAction:", error);
         return { success: false, error: "Authentication failed. Please log in again." };
     }
 
     try {
-        // Filter the message for contact details using the AI flow
         const { modifiedMessage, modificationReason } = await filterContactDetails({ message });
 
-        // In a real app, this is where you would save the message to the database
-        // and trigger a notification to the seller.
         console.log("Filtered Inquiry received:", { 
             buyerName, 
-            buyerEmail, 
             sellerId, 
             productTitle,
             originalMessage: message,
@@ -60,7 +64,7 @@ export async function sendInquiryAction(values: z.infer<typeof inquirySchema>) {
             modificationReason,
         });
         
-        return { success: true };
+        return { success: true, message: "Inquiry sent successfully!" };
     } catch (error: any) {
         console.error("Error processing inquiry:", error);
         return { success: false, error: "There was a problem sending your inquiry." };
@@ -117,12 +121,17 @@ export async function createOrUpdateProductAction(formData: FormData) {
         return { success: false, error: 'At least one image is required.' };
     }
 
-    const finalProductData: Omit<Product, 'id'> = {
+    const finalProductData: Omit<Product, 'id' | 'status'> & { status?: Product['status'] } = {
       ...productData,
       images: allImageUrls,
-      sellerId: sellerId, // Use the verified sellerId
+      sellerId: sellerId,
     };
     
+    // Set status to 'pending' only for new products
+    if (!productId) {
+      finalProductData.status = 'pending';
+    }
+
     const savedProduct = await createOrUpdateProduct(finalProductData, productId);
 
     revalidatePath('/');

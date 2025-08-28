@@ -42,7 +42,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 
 export default function MyProductsPage() {
@@ -150,6 +152,7 @@ export default function MyProductsPage() {
                 <TableHead className="hidden w-[100px] sm:table-cell">Image</TableHead>
                 <TableHead>Title</TableHead>
                 <TableHead>Price (USD)</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -169,6 +172,20 @@ export default function MyProductsPage() {
                     </TableCell>
                     <TableCell className="font-medium">{product.title}</TableCell>
                     <TableCell>${product.priceUSD.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          product.status === 'approved'
+                            ? 'default'
+                            : product.status === 'rejected'
+                            ? 'destructive'
+                            : 'secondary'
+                        }
+                        className="capitalize"
+                      >
+                        {product.status}
+                      </Badge>
+                    </TableCell>
                     <TableCell>
                       <AlertDialog>
                         <DropdownMenu>
@@ -213,7 +230,7 @@ export default function MyProductsPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
+                  <TableCell colSpan={5} className="h-24 text-center">
                     No products found. Get started by creating one!
                   </TableCell>
                 </TableRow>
