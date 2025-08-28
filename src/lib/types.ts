@@ -48,6 +48,7 @@ export type Message = {
   timestamp: number | FieldValue | Timestamp;
   senderId: string;
   recipientId: string;
+  participants: string[]; // Added for efficient querying
   offerId?: string;
   isSystemMessage?: boolean;
 };

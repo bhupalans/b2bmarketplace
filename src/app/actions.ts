@@ -61,6 +61,7 @@ export async function sendMessageAction(prevState: any, formData: FormData) {
       text: offerMessage,
       senderId: senderId,
       recipientId: recipientId,
+      participants: [senderId, recipientId],
       offerId: newOffer.id,
       timestamp: serverTimestamp(),
     };
@@ -85,12 +86,15 @@ export async function sendMessageAction(prevState: any, formData: FormData) {
       text: filterResult.modifiedMessage, // Use the (potentially modified) message
       senderId: senderId,
       recipientId: recipientId,
+      participants: [senderId, recipientId],
       timestamp: serverTimestamp(),
   };
 
   try {
     const docRef = await addDoc(collection(db, 'messages'), newMessage);
-    revalidatePath('/messages');
+    
+    // No need to revalidate path, as we are using a real-time listener
+    // revalidatePath('/messages');
 
     return {
       error: null,
@@ -178,8 +182,8 @@ export async function decideOnOfferAction(formData: FormData) {
     const systemMessage: Omit<Message, 'id' | 'timestamp'> = {
       text: `Offer ${decision}: ${product?.title}`,
       senderId: 'system',
-      // This message should go to both parties, but for simplicity, we'll send it to the seller
-      recipientId: offer.sellerId,
+      recipientId: offer.sellerId, // The recipient here is arbitrary for system messages
+      participants: [offer.buyerId, offer.sellerId],
       isSystemMessage: true, 
       timestamp: serverTimestamp(),
     };
@@ -187,7 +191,8 @@ export async function decideOnOfferAction(formData: FormData) {
     // Save system message to Firestore
     await addDoc(collection(db, 'messages'), systemMessage);
     
-    revalidatePath('/messages');
+    // No revalidation needed due to real-time listener
+    // revalidatePath('/messages');
     return { success: true };
   }
 
