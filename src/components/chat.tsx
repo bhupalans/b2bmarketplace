@@ -160,6 +160,13 @@ function ChatContent() {
     suggestionFormRef.current?.requestSubmit();
   }
   
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        formRef.current?.requestSubmit();
+    }
+  };
+
   const recipient = recipientId ? usersById[recipientId] : null;
 
   if (!loggedInUser) {
@@ -355,6 +362,7 @@ function ChatContent() {
               name="message"
               placeholder="Type your message here..."
               className="min-h-12 flex-1 resize-none rounded-full px-4 py-3"
+              onKeyDown={handleKeyDown}
             />
              <input type="hidden" name="recipientId" value={recipient.id} />
             <SubmitButton />
@@ -372,5 +380,3 @@ export function Chat() {
     </Suspense>
   )
 }
-
-    
