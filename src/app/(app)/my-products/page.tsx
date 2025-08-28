@@ -27,10 +27,9 @@ import {
 import { MoreHorizontal, PlusCircle, Trash2, Edit, Loader2 } from "lucide-react";
 import { Category, Product } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
-import { getSellerProductsClient, getCategoriesClient } from '@/lib/firebase';
+import { getSellerProductsClient, getCategoriesClient, deleteProductClient } from '@/lib/firebase';
 import Image from 'next/image';
 import { ProductFormDialog } from '@/components/product-form';
-import { deleteProductAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -48,7 +47,7 @@ import { cn } from '@/lib/utils';
 
 
 export default function MyProductsPage() {
-  const { user, firebaseUser } = useAuth();
+  const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,26 +106,25 @@ export default function MyProductsPage() {
     setFormOpen(false);
   };
 
-  const handleDelete = (productId: string) => {
+  const handleDelete = (productToDelete: Product) => {
     startDeleteTransition(async () => {
-        if (!firebaseUser) {
+        if (!user) {
              toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in.' });
              return;
         }
-        const idToken = await firebaseUser.getIdToken();
-        const result = await deleteProductAction({ productId, idToken });
 
-        if(result.success) {
-            setProducts(products.filter(p => p.id !== productId));
+        try {
+            await deleteProductClient(productToDelete);
+            setProducts(products.filter(p => p.id !== productToDelete.id));
             toast({
                 title: 'Product Deleted',
                 description: 'The product has been successfully removed.',
             });
-        } else {
+        } catch (error: any) {
             toast({
                 variant: 'destructive',
                 title: 'Error Deleting Product',
-                description: result.error || 'An unknown error occurred.',
+                description: error.message || 'An unknown error occurred.',
             });
         }
     });
@@ -238,7 +236,7 @@ export default function MyProductsPage() {
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDelete(product.id)} disabled={isDeleting}>
+                              <AlertDialogAction onClick={() => handleDelete(product)} disabled={isDeleting}>
                                 {isDeleting && <Loader2 className="mr-2 animate-spin" />}
                                 Continue
                               </AlertDialogAction>

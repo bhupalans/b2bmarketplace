@@ -1,9 +1,11 @@
 
+
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, collection, getDocs, query, where, doc, updateDoc } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
+import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Product, Category, User } from './types';
+import { v4 as uuidv4 } from 'uuid';
 
 const firebaseConfig = {
   projectId: 'b2b-marketplace-udg1v',
@@ -71,6 +73,74 @@ export async function updateProductStatus(
 ): Promise<void> {
   const productRef = doc(db, 'products', productId);
   await updateDoc(productRef, { status });
+}
+
+// Client-side function for creating or updating a product
+export async function createOrUpdateProductClient(
+    productData: Omit<Product, 'id' | 'images' | 'status'>,
+    newImageFiles: File[],
+    existingImageUrls: string[],
+    sellerId: string,
+    productId?: string | null
+): Promise<Product> {
+
+    // 1. Upload new images to Firebase Storage
+    const uploadedImageUrls = [];
+    for (const file of newImageFiles) {
+        const filePath = `products/${sellerId}/${uuidv4()}-${file.name}`;
+        const storageRef = ref(storage, filePath);
+        await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(storageRef);
+        uploadedImageUrls.push(downloadURL);
+    }
+
+    const allImageUrls = [...existingImageUrls, ...uploadedImageUrls];
+    if (allImageUrls.length === 0) {
+        throw new Error('At least one image is required.');
+    }
+
+    // 2. Prepare data for Firestore
+    const finalProductData: Omit<Product, 'id'> = {
+        ...productData,
+        images: allImageUrls,
+        sellerId: sellerId,
+        status: 'pending', // Always set to pending for review
+    };
+    
+    // 3. Write to Firestore
+    if (productId) {
+        // Update existing product
+        const productRef = doc(db, 'products', productId);
+        await updateDoc(productRef, finalProductData);
+        return { id: productId, ...finalProductData };
+    } else {
+        // Create new product
+        const productRef = await addDoc(collection(db, 'products'), finalProductData);
+        return { id: productRef.id, ...finalProductData };
+    }
+}
+
+// Client-side function to delete a product and its images
+export async function deleteProductClient(product: Product): Promise<void> {
+    if (!product || !product.id) {
+        throw new Error("Product data is invalid.");
+    }
+    
+    // Delete images from Firebase Storage
+    for (const imageUrl of product.images) {
+        try {
+            const imageRef = ref(storage, imageUrl);
+            await deleteObject(imageRef);
+        } catch (storageError: any) {
+            if (storageError.code !== 'storage/object-not-found') {
+                 console.error(`Failed to delete image ${imageUrl} from storage:`, storageError.message);
+            }
+        }
+    }
+    
+    // Delete the product document from Firestore
+    const productRef = doc(db, 'products', product.id);
+    await deleteDoc(productRef);
 }
 
 

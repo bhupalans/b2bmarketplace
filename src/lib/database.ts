@@ -119,7 +119,9 @@ export async function getSellerDashboardData(sellerId: string): Promise<{
   }
 }
 
-// --- Write Operations ---
+// NOTE: Product write/update/delete operations have been moved to client-side
+// functions in `src/lib/firebase.ts` to resolve server-side auth issues.
+// The server-side functions below are no longer used by the application.
 
 export async function createOrUpdateProduct(
   productData: Omit<Product, 'id'>,

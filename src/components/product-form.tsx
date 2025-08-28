@@ -35,9 +35,10 @@ import {
   SelectValue,
 } from "./ui/select";
 import { Product, Category } from "@/lib/types";
-import { createOrUpdateProductAction } from "@/app/actions";
 import Image from "next/image";
 import { useAuth } from "@/contexts/auth-context";
+import { createOrUpdateProductClient } from "@/lib/firebase";
+import { revalidatePath } from "next/cache";
 
 const productSchema = z.object({
   id: z.string().optional(),
@@ -111,40 +112,34 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess, cate
         return;
       }
       
-      const formData = new FormData();
+      const productData = {
+          title: values.title,
+          description: values.description,
+          priceUSD: values.priceUSD,
+          categoryId: values.categoryId,
+      };
 
-      // Append text data
-      if (values.id) formData.append('id', values.id);
-      formData.append('title', values.title);
-      formData.append('description', values.description);
-      formData.append('priceUSD', values.priceUSD.toString());
-      formData.append('categoryId', values.categoryId);
+      try {
+        const savedProduct = await createOrUpdateProductClient(
+            productData,
+            newImageFiles,
+            values.existingImages || [],
+            firebaseUser.uid,
+            values.id
+        );
 
-      // Append existing image URLs
-      (values.existingImages || []).forEach(img => formData.append('existingImages[]', img));
-      
-      // Append new image files
-      newImageFiles.forEach(file => formData.append('newImages', file));
-      
-      // Append auth token
-      const idToken = await firebaseUser.getIdToken();
-      formData.append('idToken', idToken);
-      
-      const result = await createOrUpdateProductAction(formData);
-
-      if (result.success && result.product) {
         toast({
-          title: product ? "Product Updated" : "Product Submitted",
-          description: product 
-            ? `Your changes to "${result.product.title}" have been submitted for review.`
-            : `Your product "${result.product.title}" has been submitted for review.`,
+            title: product ? "Product Updated" : "Product Submitted",
+            description: product 
+                ? `Your changes to "${savedProduct.title}" have been submitted for review.`
+                : `Your product "${savedProduct.title}" has been submitted for review.`,
         });
-        onSuccess(result.product);
-      } else {
-        toast({
+        onSuccess(savedProduct);
+      } catch (error: any) {
+         toast({
           variant: "destructive",
           title: "An error occurred",
-          description: result.error || "Something went wrong.",
+          description: error.message || "Something went wrong.",
         });
       }
     });
