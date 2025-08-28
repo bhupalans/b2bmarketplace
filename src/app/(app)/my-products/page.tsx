@@ -82,15 +82,15 @@ export default function MyProductsPage() {
     }
   }, [user, toast]);
 
-  const handleEdit = (product: Product) => {
+  const handleEdit = useCallback((product: Product) => {
     setSelectedProduct(product);
     setFormOpen(true);
-  };
+  }, []);
 
-  const handleCreate = () => {
+  const handleCreate = useCallback(() => {
     setSelectedProduct(undefined);
     setFormOpen(true);
-  };
+  }, []);
 
   const handleFormSuccess = useCallback((updatedProduct: Product) => {
     setProducts((prevProducts) => {
@@ -109,12 +109,12 @@ export default function MyProductsPage() {
     setSelectedProduct(undefined);
   }, []);
 
-  const handleDeleteInitiate = (product: Product) => {
+  const handleDeleteInitiate = useCallback((product: Product) => {
     setProductToDelete(product);
     setAlertOpen(true);
-  };
+  }, []);
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = useCallback(() => {
     if (!productToDelete || !user) return;
     
     startDeleteTransition(async () => {
@@ -136,7 +136,12 @@ export default function MyProductsPage() {
         setProductToDelete(null);
       }
     });
-  };
+  }, [productToDelete, user, toast]);
+
+  const handleCloseAlert = useCallback(() => {
+    setProductToDelete(null);
+    setAlertOpen(false);
+  }, []);
 
   if (loading) {
     return <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -261,7 +266,7 @@ export default function MyProductsPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setProductToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={handleCloseAlert}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteConfirm} disabled={isDeleting}>
               {isDeleting && <Loader2 className="mr-2 animate-spin" />}
               Continue

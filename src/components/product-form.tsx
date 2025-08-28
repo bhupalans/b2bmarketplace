@@ -1,6 +1,7 @@
 
 "use client";
 
+import React, { memo, useEffect, useState, useTransition } from "react";
 import {
   Dialog,
   DialogContent,
@@ -26,7 +27,6 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
-import { useEffect, useState, useTransition } from "react";
 import {
   Select,
   SelectContent,
@@ -64,7 +64,7 @@ type ProductFormDialogProps = {
   categories: Category[];
 };
 
-export function ProductFormDialog({ open, onOpenChange, product, onSuccess, categories }: ProductFormDialogProps) {
+const ProductFormDialogComponent = ({ open, onOpenChange, product, onSuccess, categories }: ProductFormDialogProps) => {
   const { toast } = useToast();
   const [isSaving, startSavingTransition] = useTransition();
   const { firebaseUser } = useAuth();
@@ -109,18 +109,9 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess, cate
         return;
       }
       
-      const productData = {
-          title: values.title,
-          description: values.description,
-          priceUSD: values.priceUSD,
-          categoryId: values.categoryId,
-      };
-
       try {
         const savedProduct = await createOrUpdateProductClient(
-            productData,
-            values.newImageFiles ? Array.from(values.newImageFiles) : [],
-            values.existingImages,
+            values,
             firebaseUser.uid,
             product?.id
         );
@@ -323,3 +314,5 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess, cate
     </Dialog>
   );
 }
+
+export const ProductFormDialog = memo(ProductFormDialogComponent);
