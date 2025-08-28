@@ -23,7 +23,6 @@ import { Product, User } from '@/lib/types';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
-import { approveProductAction, rejectProductAction } from '@/app/admin-actions';
 import {
   Dialog,
   DialogContent,
@@ -39,6 +38,7 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
+import { updateProductStatus } from '@/lib/firebase';
 
 interface AdminApprovalsClientPageProps {
     initialProducts: Product[];
@@ -48,41 +48,39 @@ interface AdminApprovalsClientPageProps {
 export function AdminApprovalsClientPage({ initialProducts, initialUsers }: AdminApprovalsClientPageProps) {
   const [pendingProducts, setPendingProducts] = useState<Product[]>(initialProducts);
   const [users, setUsers] = useState<User[]>(initialUsers);
-  const [isProcessing, startTransition] = useTransition();
-  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [processingState, setProcessingState] = useState<'approving' | 'rejecting' | null>(null);
   const { toast } = useToast();
-  const { firebaseUser } = useAuth();
+  const { user } = useAuth();
   const [reviewingProduct, setReviewingProduct] = useState<Product | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   const handleAction = async (action: 'approve' | 'reject', productId: string) => {
-    setProcessingId(productId);
+    setProcessingState(action === 'approve' ? 'approving' : 'rejecting');
     startTransition(async () => {
-        if (!firebaseUser) {
-             toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in.' });
+        if (!user || user.role !== 'admin') {
+             toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be an admin to perform this action.' });
+             setProcessingState(null);
              return;
         }
-        
-        const idToken = await firebaseUser.getIdToken();
 
-        const result = action === 'approve' 
-            ? await approveProductAction({ productId, idToken })
-            : await rejectProductAction({ productId, idToken });
-
-        if(result.success) {
+        try {
+            await updateProductStatus(productId, action === 'approve' ? 'approved' : 'rejected');
             setPendingProducts(prev => prev.filter(p => p.id !== productId));
             toast({
                 title: `Product ${action}d`,
                 description: `The product has been successfully ${action}d.`,
             });
             setReviewingProduct(null); // Close dialog on success
-        } else {
+        } catch (error: any) {
+            console.error("Error updating product status:", error);
             toast({
                 variant: 'destructive',
                 title: `Error ${action}ing Product`,
-                description: result.error || 'An unknown error occurred.',
+                description: error.message || 'An unknown error occurred. Check Firestore rules and permissions.',
             });
+        } finally {
+            setProcessingState(null);
         }
-        setProcessingId(null);
     });
   };
   
@@ -95,7 +93,7 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers }: Admi
   }
 
   const handleCloseReview = () => {
-    if (!isProcessing) {
+    if (!processingState) {
       setReviewingProduct(null);
     }
   }
@@ -204,17 +202,17 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers }: Admi
                     variant="outline"
                     className="text-red-600 border-red-600 hover:bg-red-100 hover:text-red-700"
                     onClick={() => handleAction('reject', reviewingProduct.id)}
-                    disabled={isProcessing}
+                    disabled={!!processingState}
                 >
-                   {isProcessing && processingId === reviewingProduct.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4 mr-2" />}
+                   {processingState === 'rejecting' ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4 mr-2" />}
                     Reject
                 </Button>
                 <Button 
                     className="bg-green-600 hover:bg-green-700"
                     onClick={() => handleAction('approve', reviewingProduct.id)}
-                    disabled={isProcessing}
+                    disabled={!!processingState}
                 >
-                    {isProcessing && processingId === reviewingProduct.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
+                    {processingState === 'approving' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
                     Approve
                 </Button>
             </DialogFooter>

@@ -1,7 +1,7 @@
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, collection, getDocs, query, where } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, query, where, doc, updateDoc } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { Product, Category, User } from './types';
 
@@ -63,5 +63,15 @@ export async function getSellerProductsClient(sellerId: string): Promise<Product
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
 }
+
+// Client-side function to update product status, to be secured by Firestore rules
+export async function updateProductStatus(
+  productId: string,
+  status: 'approved' | 'rejected'
+): Promise<void> {
+  const productRef = doc(db, 'products', productId);
+  await updateDoc(productRef, { status });
+}
+
 
 export { app, auth, db, storage };

@@ -1,32 +1,65 @@
 
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    match /users/{userId} {
-      // Anyone can read user profiles (for seller pages, etc.)
-      allow read: if true;
-      // Only the authenticated user can write to their own document.
-      allow write: if request.auth != null && request.auth.uid == userId;
+    
+    // Helper function to check if a user is an admin
+    function isAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    match /products/{productId} {
-      // Anyone can read product listings.
-      allow read: if true;
-      
-      // A logged-in user can create a product if the sellerId matches their own UID.
-      allow create: if request.auth != null && request.resource.data.sellerId == request.auth.uid;
-      
-      // The owner of a product can update or delete it.
-      allow update, delete: if request.auth != null && resource.data.sellerId == request.auth.uid;
-    }
-
+    // Categories can be read by anyone, but only created/written by admins
     match /categories/{categoryId} {
-        // Anyone can read categories
-        allow read: if true;
-        // No one should write to categories from the client
-        allow write: if false;
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Products can be read by anyone if they are 'approved'
+    match /products/{productId} {
+      allow read: if resource.data.status == 'approved';
+      
+      // Allow create only if the user is a seller and the data belongs to them.
+      allow create: if request.auth.uid != null 
+                    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'seller'
+                    && request.resource.data.sellerId == request.auth.uid;
+                    
+      // Allow update for the owner (seller) or an admin
+      // Sellers can only update their own products and cannot change the 'status'
+      // Admins can only update the 'status' field
+      allow update: if request.auth.uid != null && (
+        ( // Seller's permission
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'seller'
+          && resource.data.sellerId == request.auth.uid
+          && request.resource.data.status == resource.data.status // Prevent seller from changing status
+        ) || ( // Admin's permission
+          isAdmin()
+          && request.resource.diff(resource).affectedKeys().hasOnly(['status']) // Admin can ONLY change status
+        )
+      );
+
+      // Allow delete only for the product owner (seller)
+      allow delete: if request.auth.uid != null 
+                     && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'seller'
+                     && resource.data.sellerId == request.auth.uid;
+    }
+    
+    // Users can be read by anyone (for seller profiles)
+    // Users can only create their own user document
+    // Users can only update their own document
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if request.auth.uid == userId;
+      allow update: if request.auth.uid == userId;
+    }
+    
+    // This allows the initial database seeding to happen
+    match /internal/{docId} {
+      allow read, write: if true;
+    }
+
+    // Default deny all other reads/writes
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
