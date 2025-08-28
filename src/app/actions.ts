@@ -4,18 +4,19 @@
 import { filterContactDetails } from "@/ai/flows/filter-contact-details";
 import { suggestOffer } from "@/ai/flows/suggest-offer";
 import { auth, db } from "@/lib/firebase";
-import { createOrUpdateProduct, deleteProduct, getProduct } from "@/lib/firestore";
-import { mockOffers, mockProducts, mockUsers } from "@/lib/mock-data";
-import { Offer, Product } from "@/lib/types";
+import { createOrUpdateProduct, deleteProduct, getProduct, getUsers } from "@/lib/firestore";
+import { mockOffers, mockProducts } from "@/lib/mock-data";
+import { Message, Offer, Product } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getAdminApp } from "@/lib/firebase-admin";
 import { v4 as uuidv4 } from "uuid";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 
 const messageSchema = z.object({
   message: z.string().min(1),
   offer: z.string().optional(), // Stringified JSON of the new offer
-  recipientId: z.string().optional(), // Who the offer is for
+  recipientId: z.string().min(1), // Who the offer is for or message
 });
 
 export async function sendMessageAction(prevState: any, formData: FormData) {
@@ -37,59 +38,74 @@ export async function sendMessageAction(prevState: any, formData: FormData) {
     return { error: "User not authenticated." };
   }
   
+  const { recipientId, message: originalMessage, offer: offerString } = validatedFields.data;
+
   // Handle creating a new offer
-  if (validatedFields.data.offer && validatedFields.data.recipientId) {
-    const offerData = JSON.parse(validatedFields.data.offer) as Omit<Offer, 'id' | 'status' | 'sellerId' | 'buyerId'>;
+  if (offerString) {
+    const offerData = JSON.parse(offerString) as Omit<Offer, 'id' | 'status' | 'sellerId' | 'buyerId'>;
     const newOffer: Offer = {
       ...offerData,
       id: `offer-${Date.now()}`,
       status: 'pending',
       sellerId: senderId,
-      buyerId: validatedFields.data.recipientId,
+      buyerId: recipientId,
     };
     
     // In a real app, you'd save this to a database.
     mockOffers[newOffer.id] = newOffer;
 
     const product = mockProducts.find(p => p.id === newOffer.productId);
+    const offerMessage = `Offer created for ${product?.title}`;
 
-    // Return a new message that contains the offer
+    const messageDoc: Omit<Message, 'id' | 'timestamp'> = {
+      text: offerMessage,
+      senderId: senderId,
+      recipientId: recipientId,
+      offerId: newOffer.id,
+      timestamp: serverTimestamp(),
+    };
+
+    const docRef = await addDoc(collection(db, 'messages'), messageDoc);
+
     return {
       error: null,
       message: {
-        id: `msg-${Date.now()}`,
-        text: `Offer created for ${product?.title}`, // This text isn't displayed but good for context
-        timestamp: Date.now(),
-        senderId: senderId, 
-        recipientId: validatedFields.data.recipientId,
-        offerId: newOffer.id,
+        id: docRef.id,
+        ...messageDoc,
+        timestamp: Date.now(), // Use client-side timestamp for immediate display
       }
     }
   }
 
 
   // Handle standard text messages
-  const originalMessage = validatedFields.data.message;
-  const result = await filterContactDetails({ message: originalMessage });
+  const filterResult = await filterContactDetails({ message: originalMessage });
 
-  // In a real app, you'd have a way to determine the recipient
-  const recipientId = Object.keys(mockUsers).find(id => id !== senderId && id !== 'system');
-  if (!recipientId) {
-      return { error: "Could not determine recipient." };
-  }
-
-  // Always succeed, but include the modification reason if there was one.
-  return {
-    error: null,
-    modificationReason: result.modificationReason || null,
-    message: {
-      id: `msg-${Date.now()}`,
-      text: result.modifiedMessage, // Use the (potentially modified) message
-      timestamp: Date.now(),
+  const newMessage: Omit<Message, 'id' | 'timestamp'> = {
+      text: filterResult.modifiedMessage, // Use the (potentially modified) message
       senderId: senderId,
       recipientId: recipientId,
-    },
+      timestamp: serverTimestamp(),
   };
+
+  try {
+    const docRef = await addDoc(collection(db, 'messages'), newMessage);
+    revalidatePath('/messages');
+
+    return {
+      error: null,
+      modificationReason: filterResult.modificationReason || null,
+      message: {
+        id: docRef.id,
+        ...newMessage,
+        timestamp: Date.now(), // Use client-side timestamp for immediate UI update
+      },
+    };
+
+  } catch (error) {
+    console.error("Error saving message:", error);
+    return { error: "Failed to save message to the database." };
+  }
 }
 
 
@@ -158,19 +174,18 @@ export async function decideOnOfferAction(formData: FormData) {
     
     const product = mockProducts.find(p => p.id === offer.productId);
 
-    // This creates the system message. In a real app, you'd save this to a DB.
-    const systemMessage = {
-      id: `msg-${Date.now()}`,
+    // This creates the system message.
+    const systemMessage: Omit<Message, 'id' | 'timestamp'> = {
       text: `Offer ${decision}: ${product?.title}`,
-      timestamp: Date.now(),
       senderId: 'system',
+      // This message should go to both parties, but for simplicity, we'll send it to the seller
       recipientId: offer.sellerId,
       isSystemMessage: true, 
+      timestamp: serverTimestamp(),
     };
-
-    // This is a placeholder for where you would push the new message to a real-time system.
-    // For now, we rely on revalidating the path to show the new status.
-    console.log("New system message created:", systemMessage);
+    
+    // Save system message to Firestore
+    await addDoc(collection(db, 'messages'), systemMessage);
     
     revalidatePath('/messages');
     return { success: true };

@@ -43,7 +43,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { mockMessages, mockProducts, mockOffers } from "@/lib/mock-data";
+import { mockProducts, mockOffers } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import type { Message, OfferSuggestion, User } from "@/lib/types";
 import { sendMessageAction, suggestOfferAction } from "@/app/actions";
@@ -51,7 +51,7 @@ import { useToast } from "@/hooks/use-toast";
 import { OfferCard } from "./offer-card";
 import { CreateOfferDialog } from "./create-offer-dialog";
 import { useAuth } from "@/contexts/auth-context";
-import { getUsers } from "@/lib/firestore";
+import { getUsers, getMessages } from "@/lib/firestore";
 
 const SubmitButton = () => {
   const { pending } = useFormStatus();
@@ -73,13 +73,14 @@ function ChatContent() {
   const recipientId = searchParams.get('recipientId');
 
   const [users, setUsers] = useState<User[]>([]);
-  const [newMessages, setNewMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [suggestion, setSuggestion] = useState<OfferSuggestion | null>(null);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const { toast } = useToast();
   const formRef = useRef<HTMLFormElement>(null);
   const suggestionFormRef = useRef<HTMLFormElement>(null);
   const [isCreateOfferOpen, setCreateOfferOpen] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
 
   const [state, formAction] = useActionState(sendMessageAction, {
@@ -97,11 +98,26 @@ function ChatContent() {
     getUsers().then(setUsers);
   }, []);
 
-  const usersById = Object.fromEntries(users.map(u => [u.id, u]));
+  useEffect(() => {
+    if (loggedInUser && recipientId) {
+      const unsubscribe = getMessages(loggedInUser.id, recipientId, (newMessages) => {
+        setMessages(newMessages);
+      });
+      // Cleanup subscription on component unmount
+      return () => unsubscribe();
+    }
+  }, [loggedInUser, recipientId]);
 
-  // In a real app, messages would be filtered by recipientId.
-  // For this demo, we'll continue to show all mock messages.
-  const allMessages = [...mockMessages, ...newMessages];
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+  
+
+  const usersById = Object.fromEntries(users.map(u => [u.id, u]));
 
   useEffect(() => {
     if (state.error) {
@@ -112,28 +128,7 @@ function ChatContent() {
       });
     }
     if (state.message) {
-      // In a real app, this would come from a real-time subscription (e.g. Firestore)
-      // For the demo, we just add it to our local state.
-      const message = state.message as Message;
-      startTransition(() => {
-        setNewMessages((prev) => [...prev, message]);
-        // If the new message is an offer, we also add the system message
-        if (message.offerId) {
-            const product = mockProducts.find(p => p.id === mockOffers[message.offerId!].productId);
-            const decision = mockOffers[message.offerId!].status;
-            if (decision !== 'pending') {
-                const systemMessage = {
-                    id: `msg-${Date.now()}`,
-                    text: `Offer ${decision}: ${product?.title}`,
-                    timestamp: Date.now(),
-                    senderId: 'system',
-                    recipientId: message.recipientId,
-                    isSystemMessage: true,
-                };
-                setNewMessages((prev) => [...prev, systemMessage]);
-            }
-        }
-      });
+      // Message is now added via real-time listener, but we can clear the form.
       formRef.current?.reset();
     }
     if (state.modificationReason) {
@@ -168,10 +163,9 @@ function ChatContent() {
   const recipient = recipientId ? usersById[recipientId] : null;
 
   if (!loggedInUser) {
-    // This could be a loading spinner
     return <div className="flex h-full items-center justify-center text-muted-foreground"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
-
+  
   const conversationList = users.filter(user => {
     if (user.id === loggedInUser.id) return false; // Exclude self
     if (loggedInUser.role === 'buyer') return user.role === 'seller';
@@ -263,7 +257,7 @@ function ChatContent() {
             {loggedInUser.role === 'seller' && (
               <>
                 <form ref={suggestionFormRef} action={suggestionAction} className="hidden">
-                  <input type="hidden" name="chatHistory" value={allMessages.map(m => `${allUsersAndSystem[m.senderId]?.name || 'User'}: ${m.text}`).join('\n')} />
+                  <input type="hidden" name="chatHistory" value={messages.map(m => `${allUsersAndSystem[m.senderId]?.name || 'User'}: ${m.text}`).join('\n')} />
                   <input type="hidden" name="sellerId" value={loggedInUser.id} />
                 </form>
                 <Button variant="outline" size="sm" onClick={handleSuggestOffer} disabled={isSuggesting}>
@@ -294,7 +288,7 @@ function ChatContent() {
 
         <main className="flex-1 overflow-auto p-4">
           <div className="space-y-4">
-            {allMessages.map((message) => (
+            {messages.map((message) => (
               <div
                 key={message.id}
                 className={cn(
@@ -337,6 +331,7 @@ function ChatContent() {
                 )}
               </div>
             ))}
+            <div ref={messagesEndRef} />
           </div>
         </main>
         <footer className="border-t bg-muted/40 p-4">

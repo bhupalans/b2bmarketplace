@@ -1,4 +1,6 @@
 
+import type { FieldValue, Timestamp } from "firebase/firestore";
+
 export type User = {
   id: string;
   name: string;
@@ -43,7 +45,7 @@ export type Offer = {
 export type Message = {
   id: string;
   text: string;
-  timestamp: number;
+  timestamp: number | FieldValue | Timestamp;
   senderId: string;
   recipientId: string;
   offerId?: string;

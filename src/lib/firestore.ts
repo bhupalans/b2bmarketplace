@@ -1,6 +1,7 @@
-import { collection, getDocs, doc, getDoc, writeBatch, query, where, addDoc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+
+import { collection, getDocs, doc, getDoc, writeBatch, query, where, addDoc, updateDoc, deleteDoc, serverTimestamp, onSnapshot, orderBy, Timestamp } from "firebase/firestore";
 import { db } from "./firebase";
-import { Product, Category, User, Offer } from "./types";
+import { Product, Category, User, Offer, Message } from "./types";
 import { mockProducts, mockCategories, mockOffers } from "./mock-data";
 
 // Function to fetch all products
@@ -35,6 +36,71 @@ export async function getUsers(): Promise<User[]> {
   const userList = userSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
   return userList;
 }
+
+// Function to get messages between two users with a real-time listener
+export function getMessages(userId1: string, userId2: string, callback: (messages: Message[]) => void): () => void {
+  const messagesRef = collection(db, 'messages');
+  
+  // Query for messages where sender is userId1 and recipient is userId2
+  const q1 = query(messagesRef, 
+    where('senderId', '==', userId1), 
+    where('recipientId', '==', userId2)
+  );
+
+  // Query for messages where sender is userId2 and recipient is userId1
+  const q2 = query(messagesRef, 
+    where('senderId', '==', userId2), 
+    where('recipientId', '==', userId1)
+  );
+
+  let messages: Message[] = [];
+
+  const processSnapshot = () => {
+    // Sort combined messages by timestamp
+    const sortedMessages = messages.sort((a, b) => (a.timestamp as number) - (b.timestamp as number));
+    callback(sortedMessages);
+  };
+  
+  const unsub1 = onSnapshot(q1, (snapshot) => {
+    snapshot.docChanges().forEach((change) => {
+      const data = change.doc.data();
+      const message: Message = {
+        id: change.doc.id,
+        ...data,
+        // Convert Firestore Timestamp to JS number
+        timestamp: (data.timestamp as Timestamp)?.toMillis() || Date.now(),
+      } as Message;
+
+      if (change.type === "added") {
+        messages = [...messages, message];
+      }
+    });
+    processSnapshot();
+  });
+
+  const unsub2 = onSnapshot(q2, (snapshot) => {
+    snapshot.docChanges().forEach((change) => {
+       const data = change.doc.data();
+      const message: Message = {
+        id: change.doc.id,
+        ...data,
+        timestamp: (data.timestamp as Timestamp)?.toMillis() || Date.now(),
+      } as Message;
+      
+      if (change.type === "added") {
+        messages = [...messages, message];
+      }
+    });
+    processSnapshot();
+  });
+
+  // Return a function that unsubscribes from both listeners
+  return () => {
+    unsub1();
+    unsub2();
+  };
+}
+
 
 // Function to fetch a single product and its seller
 export async function getProductAndSeller(productId: string): Promise<{ product: Product; seller: User | null } | null> {
