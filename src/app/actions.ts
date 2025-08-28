@@ -165,6 +165,20 @@ export async function deleteProductAction(values: z.infer<typeof deleteActionSch
         return { success: false, error: 'Permission denied or product not found' };
     }
 
+    const bucket = adminStorage.bucket();
+
+    // Delete images from Firebase Storage
+    for (const imageUrl of product.images) {
+        try {
+            const url = new URL(imageUrl);
+            const path = decodeURIComponent(url.pathname.split('/').slice(3).join('/'));
+            await bucket.file(path).delete();
+        } catch (storageError: any) {
+            // Log the error but don't block the product deletion
+            console.error(`Failed to delete image ${imageUrl} from storage:`, storageError.message);
+        }
+    }
+
     try {
         await deleteProduct(values.productId);
         
