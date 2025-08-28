@@ -35,7 +35,7 @@ import {
   SelectValue,
 } from "./ui/select";
 import { Product, Category } from "@/lib/types";
-import { createOrUpdateProductAction, getSignedUploadUrlAction } from "@/app/actions";
+import { createOrUpdateProductAction } from "@/app/actions";
 import { getCategories } from "@/lib/firestore";
 import Image from "next/image";
 import { useAuth } from "@/contexts/auth-context";
@@ -46,7 +46,7 @@ const productSchema = z.object({
   description: z.string().min(10, { message: "Description must be at least 10 characters." }),
   priceUSD: z.coerce.number().positive({ message: "Price must be a positive number." }),
   categoryId: z.string().min(1, { message: "Please select a category." }),
-  images: z.array(z.string().url({ message: "Please enter a valid URL."})).min(1, { message: "Please add at least one image." }),
+  images: z.array(z.string().url()).min(1, "Please add at least one image."),
 });
 
 type ProductFormDialogProps = {
@@ -62,7 +62,10 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
   const [categories, setCategories] = useState<Category[]>([]);
   const { firebaseUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isUploading, setIsUploading] = useState(false);
+  
+  const [newImageFiles, setNewImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+
 
   const form = useForm<z.infer<typeof productSchema>>({
     resolver: zodResolver(productSchema),
@@ -81,14 +84,19 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
   }, []);
 
   useEffect(() => {
-    form.reset({
-      id: product?.id,
-      title: product?.title || "",
-      description: product?.description || "",
-      priceUSD: product?.priceUSD || undefined,
-      categoryId: product?.categoryId || "",
-      images: product?.images || [],
-    });
+    // Reset form and local file state when dialog opens or product changes
+    if (open) {
+      form.reset({
+        id: product?.id,
+        title: product?.title || "",
+        description: product?.description || "",
+        priceUSD: product?.priceUSD || undefined,
+        categoryId: product?.categoryId || "",
+        images: product?.images || [],
+      });
+      setNewImageFiles([]);
+      setImagePreviews([]);
+    }
   }, [product, open, form]);
 
   const onSubmit = (values: z.infer<typeof productSchema>) => {
@@ -98,7 +106,26 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         return;
       }
       
-      const result = await createOrUpdateProductAction({ productData: values });
+      const formData = new FormData();
+
+      // Append text data
+      if (values.id) formData.append('id', values.id);
+      formData.append('title', values.title);
+      formData.append('description', values.description);
+      formData.append('priceUSD', values.priceUSD.toString());
+      formData.append('categoryId', values.categoryId);
+
+      // Append existing image URLs
+      values.images.forEach(img => formData.append('existingImages[]', img));
+      
+      // Append new image files
+      newImageFiles.forEach(file => formData.append('newImages', file));
+      
+      // Append auth token
+      const idToken = await firebaseUser.getIdToken();
+      formData.append('idToken', idToken);
+      
+      const result = await createOrUpdateProductAction(formData);
 
       if (result.success && result.product) {
         toast({
@@ -120,66 +147,34 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     const files = event.target.files;
     if (!files || files.length === 0) return;
     
-    if (!firebaseUser) {
-        toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in to upload images." });
-        return;
-    }
+    const selectedFiles = Array.from(files);
+    setNewImageFiles(prev => [...prev, ...selectedFiles]);
 
-    setIsUploading(true);
-
-    try {
-      const uploadPromises = Array.from(files).map(async file => {
-        const { success, error, url, finalFilePath } = await getSignedUploadUrlAction({
-            fileName: file.name,
-            fileType: file.type,
-        });
-        
-        if (!success || !url) {
-          throw new Error(error || 'Could not get an upload URL.');
-        }
-
-        const uploadResponse = await fetch(url, {
-          method: 'PUT',
-          body: file,
-          headers: { 'Content-Type': file.type },
-        });
-
-        if (!uploadResponse.ok) {
-          throw new Error(`Upload failed for ${file.name}`);
-        }
-
-        const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}/o/${encodeURIComponent(finalFilePath!)}?alt=media`;
-        return publicUrl;
-      });
-
-      const urls = await Promise.all(uploadPromises);
-
-      const currentImages = form.getValues("images");
-      form.setValue("images", [...currentImages, ...urls], { shouldValidate: true });
-      toast({
-        title: "Upload Successful",
-        description: `${urls.length} image(s) have been added.`
-      });
-
-    } catch (error: any) {
-        console.error("Upload failed in component:", error);
-        toast({
-            variant: "destructive",
-            title: "Upload Failed",
-            description: error.message || "Could not upload files.",
-        });
-    } finally {
-        if(fileInputRef.current) {
-            fileInputRef.current.value = "";
-        }
-        setIsUploading(false);
+    const previewUrls = selectedFiles.map(file => URL.createObjectURL(file));
+    setImagePreviews(prev => [...prev, ...previewUrls]);
+    
+    // We don't upload here anymore, so form doesn't need updating with URLs
+    if(fileInputRef.current) {
+        fileInputRef.current.value = "";
     }
   };
 
-  const handleRemoveImage = (imageUrlToRemove: string) => {
+  const handleRemoveExistingImage = (imageUrlToRemove: string) => {
     const currentImages = form.getValues("images");
     form.setValue("images", currentImages.filter((img) => img !== imageUrlToRemove), { shouldValidate: true });
   };
+
+  const handleRemoveNewImage = (indexToRemove: number) => {
+    setNewImageFiles(prev => prev.filter((_, index) => index !== indexToRemove));
+    setImagePreviews(prev => {
+        const newPreviews = prev.filter((_, index) => index !== indexToRemove);
+        // Clean up object URL
+        URL.revokeObjectURL(prev[indexToRemove]);
+        return newPreviews;
+    });
+  }
+
+  const allImages = [...form.getValues('images'), ...imagePreviews];
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -259,63 +254,74 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
               />
             </div>
             
-            <FormField
-              control={form.control}
-              name="images"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Product Images</FormLabel>
-                   <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
-                    {field.value.map((img, index) => (
-                        <div key={index} className="relative group aspect-square">
-                            <Image src={img} alt="Product image" fill className="rounded-md object-cover" />
-                            <Button
-                                type="button"
-                                variant="destructive"
-                                size="icon"
-                                className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                                onClick={() => handleRemoveImage(img)}
-                            >
-                                <Trash2 className="h-4 w-4"/>
-                            </Button>
-                        </div>
-                    ))}
-                    <div className="flex items-center justify-center h-full w-full aspect-square flex-shrink-0 border-2 border-dashed rounded-md">
-                        <input
-                            type="file"
-                            ref={fileInputRef}
-                            onChange={handleFileChange}
-                            className="hidden"
-                            accept="image/png, image/jpeg, image/gif"
-                            disabled={isUploading}
-                            multiple
-                        />
+            <FormItem>
+              <FormLabel>Product Images</FormLabel>
+               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
+                {form.getValues('images').map((img, index) => (
+                    <div key={img} className="relative group aspect-square">
+                        <Image src={img} alt="Product image" fill className="rounded-md object-cover" />
                         <Button
                             type="button"
-                            variant="ghost"
+                            variant="destructive"
                             size="icon"
-                            className="h-full w-full"
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={isUploading}
+                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                            onClick={() => handleRemoveExistingImage(img)}
                         >
-                           {isUploading ? (
-                                <Loader2 className="h-6 w-6 animate-spin" />
-                           ) : (
-                                <UploadCloud className="h-6 w-6" />
-                           )}
-                           <span className="sr-only">Upload Image</span>
+                            <Trash2 className="h-4 w-4"/>
                         </Button>
                     </div>
-                  </div>
-                  <FormDescription>The first image will be the main display image. You can upload multiple images.</FormDescription>
-                  <FormMessage />
-                </FormItem>
+                ))}
+                {imagePreviews.map((preview, index) => (
+                    <div key={preview} className="relative group aspect-square">
+                        <Image src={preview} alt="New product image" fill className="rounded-md object-cover" />
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                            onClick={() => handleRemoveNewImage(index)}
+                        >
+                            <Trash2 className="h-4 w-4"/>
+                        </Button>
+                    </div>
+                ))}
+
+                <div className="flex items-center justify-center h-full w-full aspect-square flex-shrink-0 border-2 border-dashed rounded-md">
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        className="hidden"
+                        accept="image/png, image/jpeg, image/gif"
+                        disabled={isSaving}
+                        multiple
+                    />
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-full w-full"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isSaving}
+                    >
+                       {isSaving ? (
+                            <Loader2 className="h-6 w-6 animate-spin" />
+                       ) : (
+                            <UploadCloud className="h-6 w-6" />
+                       )}
+                       <span className="sr-only">Upload Image</span>
+                    </Button>
+                </div>
+              </div>
+              <FormDescription>The first image will be the main display image. You can upload multiple images.</FormDescription>
+               {allImages.length === 0 && (
+                <p className="text-sm font-medium text-destructive">Please add at least one image.</p>
               )}
-            />
+            </FormItem>
 
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button type="submit" disabled={isSaving || isUploading}>
+              <Button type="submit" disabled={isSaving || allImages.length === 0}>
                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {product ? "Save Changes" : "Create Product"}
               </Button>
@@ -326,3 +332,4 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     </Dialog>
   );
 }
+

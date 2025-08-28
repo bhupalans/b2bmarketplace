@@ -63,20 +63,6 @@ export async function sendInquiryAction(values: z.infer<typeof inquirySchema>) {
     }
 }
 
-
-const productSchema = z.object({
-  id: z.string().optional(),
-  title: z.string().min(3),
-  description: z.string().min(10),
-  priceUSD: z.coerce.number().positive(),
-  categoryId: z.string().min(1),
-  images: z.array(z.string().url()).min(1),
-});
-
-const productActionSchema = z.object({
-    productData: productSchema,
-});
-
 async function getAuthenticatedUserUid(): Promise<string> {
     const authorization = headers().get("Authorization");
     if (authorization?.startsWith("Bearer ")) {
@@ -92,24 +78,64 @@ async function getAuthenticatedUserUid(): Promise<string> {
     throw new Error('User not authenticated.');
 }
 
-export async function createOrUpdateProductAction(values: z.infer<typeof productActionSchema>) {
+export async function createOrUpdateProductAction(formData: FormData) {
   let sellerId: string;
   try {
-    sellerId = await getAuthenticatedUserUid();
+    // We get the ID token from the FormData instead of headers now
+    const idToken = formData.get('idToken') as string;
+    if (!idToken) throw new Error('No ID token provided.');
+    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    sellerId = decodedToken.uid;
   } catch (error: any) {
     console.error("Authentication error:", error.message);
     return { success: false, error: 'User not authenticated' };
   }
+  
+  const productId = formData.get('id') as string | undefined;
+  const existingImageUrls = formData.getAll('existingImages[]') as string[];
 
-  const { ...productDataWithoutSeller } = values.productData;
+  const productData = {
+      title: formData.get('title') as string,
+      description: formData.get('description') as string,
+      priceUSD: parseFloat(formData.get('priceUSD') as string),
+      categoryId: formData.get('categoryId') as string,
+  };
+
+  const newImageFiles = formData.getAll('newImages') as File[];
+  const uploadedImageUrls: string[] = [];
+
+  const bucket = adminAuth.storage().bucket();
 
   try {
+    for (const file of newImageFiles) {
+        const fileBuffer = Buffer.from(await file.arrayBuffer());
+        const finalFilePath = `products/${sellerId}/${uuidv4()}-${file.name}`;
+        const fileUpload = bucket.file(finalFilePath);
+
+        await fileUpload.save(fileBuffer, {
+            metadata: {
+                contentType: file.type,
+            },
+        });
+        
+        // Make the file public and get its URL
+        await fileUpload.makePublic();
+        uploadedImageUrls.push(fileUpload.publicUrl());
+    }
+
+    const allImageUrls = [...existingImageUrls, ...uploadedImageUrls];
+    
+    if (allImageUrls.length === 0) {
+        return { success: false, error: 'At least one image is required.' };
+    }
+
     const finalProductData: Omit<Product, 'id'> = {
-      ...productDataWithoutSeller,
+      ...productData,
+      images: allImageUrls,
       sellerId,
     };
     
-    const savedProduct = await createOrUpdateProduct(finalProductData, values.productData.id);
+    const savedProduct = await createOrUpdateProduct(finalProductData, productId);
 
     revalidatePath('/');
     revalidatePath(`/products/${savedProduct.id}`);
@@ -118,18 +144,21 @@ export async function createOrUpdateProductAction(values: z.infer<typeof product
 
     return { success: true, product: savedProduct };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    console.error("Error in createOrUpdateProductAction:", error);
+    return { success: false, error: error.message || 'An unknown error occurred during product creation.' };
   }
 }
 
 const deleteActionSchema = z.object({
     productId: z.string(),
+    idToken: z.string(),
 });
 
 export async function deleteProductAction(values: z.infer<typeof deleteActionSchema>) {
     let sellerId: string;
     try {
-        sellerId = await getAuthenticatedUserUid();
+        const decodedToken = await adminAuth.verifyIdToken(values.idToken);
+        sellerId = decodedToken.uid;
     } catch(error: any) {
         return { success: false, error: 'User not authenticated' };
     }
@@ -149,38 +178,5 @@ export async function deleteProductAction(values: z.infer<typeof deleteActionSch
         return { success: true };
     } catch (error: any) {
         return { success: false, error: error.message };
-    }
-}
-
-const signedUrlSchema = z.object({
-    fileName: z.string(),
-    fileType: z.string(),
-});
-
-export async function getSignedUploadUrlAction(values: z.infer<typeof signedUrlSchema>) {
-    let userId: string;
-    try {
-        userId = await getAuthenticatedUserUid();
-    } catch(error: any) {
-        return { success: false, error: 'User not authenticated.', url: null, finalFilePath: null };
-    }
-
-    const bucket = adminAuth.storage().bucket();
-    const finalFilePath = `products/${userId}/${uuidv4()}-${values.fileName}`;
-    const file = bucket.file(finalFilePath);
-
-    const expires = Date.now() + 60 * 5 * 1000; // 5 minutes
-
-    try {
-        const [url] = await file.getSignedUrl({
-            action: 'write',
-            expires,
-            contentType: values.fileType,
-            version: 'v4',
-        });
-        return { success: true, url, finalFilePath };
-    } catch (error: any) {
-        console.error("Error getting signed URL:", error);
-        return { success: false, error: 'Could not get upload URL.', url: null, finalFilePath: null };
     }
 }
