@@ -40,11 +40,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
-
 
 export default function MyProductsPage() {
   const { user } = useAuth();
@@ -52,36 +49,36 @@ export default function MyProductsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFormOpen, setFormOpen] = useState(false);
+  const [isAlertOpen, setAlertOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>(undefined);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [isDeleting, startDeleteTransition] = useTransition();
   const { toast } = useToast();
 
   useEffect(() => {
-    async function fetchData() {
-        if (user?.role === 'seller') {
-            try {
-                const [productData, categoryData] = await Promise.all([
-                    getSellerProductsClient(user.id),
-                    getCategoriesClient()
-                ]);
-                setProducts(productData);
-                setCategories(categoryData);
-            } catch (error) {
-                console.error("Failed to fetch data for My Products page:", error);
-                toast({
-                    variant: 'destructive',
-                    title: 'Error',
-                    description: 'Could not load your products and categories.',
-                });
-            } finally {
-                setLoading(false);
-            }
-        } else {
-            setLoading(false);
+    if (user?.role === 'seller') {
+      const fetchData = async () => {
+        try {
+          const [productData, categoryData] = await Promise.all([
+            getSellerProductsClient(user.id),
+            getCategoriesClient(),
+          ]);
+          setProducts(productData);
+          setCategories(categoryData);
+        } catch (error) {
+          console.error("Failed to fetch data for My Products page:", error);
+          toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Could not load your products and categories.',
+          });
+        } finally {
+          setLoading(false);
         }
-    }
-    if (user) {
-        fetchData();
+      };
+      fetchData();
+    } else if (user) {
+      setLoading(false);
     }
   }, [user, toast]);
 
@@ -96,117 +93,127 @@ export default function MyProductsPage() {
   };
 
   const handleFormSuccess = useCallback((updatedProduct: Product) => {
-    if(selectedProduct) {
+    setProducts((prevProducts) => {
+      const existingProductIndex = prevProducts.findIndex(p => p.id === updatedProduct.id);
+      if (existingProductIndex > -1) {
         // Edit
-        setProducts(products.map(p => p.id === updatedProduct.id ? updatedProduct : p));
-    } else {
+        const newProducts = [...prevProducts];
+        newProducts[existingProductIndex] = updatedProduct;
+        return newProducts;
+      } else {
         // Create
-        setProducts([...products, updatedProduct]);
-    }
+        return [...prevProducts, updatedProduct];
+      }
+    });
     setFormOpen(false);
     setSelectedProduct(undefined);
-  }, [products, selectedProduct]);
+  }, []);
 
-  const handleDelete = (productToDelete: Product) => {
+  const handleDeleteInitiate = (product: Product) => {
+    setProductToDelete(product);
+    setAlertOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (!productToDelete || !user) return;
+    
     startDeleteTransition(async () => {
-        if (!user) {
-             toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in.' });
-             return;
-        }
-
-        try {
-            await deleteProductClient(productToDelete.id, productToDelete.images);
-            setProducts(products.filter(p => p.id !== productToDelete.id));
-            toast({
-                title: 'Product Deleted',
-                description: 'The product has been successfully removed.',
-            });
-        } catch (error: any) {
-            toast({
-                variant: 'destructive',
-                title: 'Error Deleting Product',
-                description: error.message || 'An unknown error occurred.',
-            });
-        }
+      try {
+        await deleteProductClient(productToDelete);
+        setProducts((prev) => prev.filter(p => p.id !== productToDelete.id));
+        toast({
+          title: 'Product Deleted',
+          description: 'The product has been successfully removed.',
+        });
+      } catch (error: any) {
+        toast({
+          variant: 'destructive',
+          title: 'Error Deleting Product',
+          description: error.message || 'An unknown error occurred.',
+        });
+      } finally {
+        setAlertOpen(false);
+        setProductToDelete(null);
+      }
     });
-  }
-
+  };
 
   if (loading) {
     return <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">My Products</h1>
-          <p className="text-muted-foreground">Manage your product listings.</p>
+    <>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">My Products</h1>
+            <p className="text-muted-foreground">Manage your product listings.</p>
+          </div>
+          <Button onClick={handleCreate}>
+            <PlusCircle className="mr-2" />
+            Create Product
+          </Button>
         </div>
-        <Button onClick={handleCreate}>
-          <PlusCircle className="mr-2" />
-          Create Product
-        </Button>
-      </div>
 
-      <ProductFormDialog
-        open={isFormOpen}
-        onOpenChange={setFormOpen}
-        product={selectedProduct}
-        onSuccess={handleFormSuccess}
-        categories={categories}
-      />
+        <ProductFormDialog
+          key={selectedProduct ? selectedProduct.id : 'new'}
+          open={isFormOpen}
+          onOpenChange={setFormOpen}
+          product={selectedProduct}
+          onSuccess={handleFormSuccess}
+          categories={categories}
+        />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Product List</CardTitle>
-          <CardDescription>
-            You have {products.length} product(s) listed.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="hidden w-[100px] sm:table-cell">Image</TableHead>
-                <TableHead>Title</TableHead>
-                <TableHead>Price (USD)</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {products.length > 0 ? (
-                products.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell className="hidden sm:table-cell">
-                      <div className="relative h-16 w-16 overflow-hidden rounded-md">
-                        <Image
-                            src={product.images[0] || 'https://placehold.co/100x100'}
-                            alt={product.title}
-                            fill
-                            className="object-cover"
-                        />
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-medium">{product.title}</TableCell>
-                    <TableCell>${product.priceUSD.toFixed(2)}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          product.status === 'approved'
-                            ? 'default'
-                            : product.status === 'rejected'
-                            ? 'destructive'
-                            : 'secondary'
-                        }
-                        className="capitalize"
-                      >
-                        {product.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <AlertDialog>
+        <Card>
+          <CardHeader>
+            <CardTitle>Product List</CardTitle>
+            <CardDescription>
+              You have {products.length} product(s) listed.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="hidden w-[100px] sm:table-cell">Image</TableHead>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Price (USD)</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {products.length > 0 ? (
+                  products.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell className="hidden sm:table-cell">
+                        <div className="relative h-16 w-16 overflow-hidden rounded-md">
+                          <Image
+                              src={product.images[0] || 'https://placehold.co/100x100'}
+                              alt={product.title}
+                              fill
+                              className="object-cover"
+                          />
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-medium">{product.title}</TableCell>
+                      <TableCell>${product.priceUSD.toFixed(2)}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            product.status === 'approved'
+                              ? 'default'
+                              : product.status === 'rejected'
+                              ? 'destructive'
+                              : 'secondary'
+                          }
+                          className="capitalize"
+                        >
+                          {product.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" className="h-8 w-8 p-0">
@@ -215,49 +222,53 @@ export default function MyProductsPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                             <DropdownMenuItem onClick={() => handleEdit(product)}>
+                            <DropdownMenuItem onClick={() => handleEdit(product)}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 <span>Edit</span>
-                             </DropdownMenuItem>
-                             <AlertDialogTrigger asChild>
-                                <DropdownMenuItem className="text-red-500 hover:text-red-600 focus:text-red-600">
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    <span>Delete</span>
-                                </DropdownMenuItem>
-                            </AlertDialogTrigger>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              className="text-red-500 hover:text-red-600 focus:text-red-600"
+                              onClick={() => handleDeleteInitiate(product)}
+                            >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                <span>Delete</span>
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
-                         <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This action cannot be undone. This will permanently delete your product
-                                and remove its data from our servers.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDelete(product)} disabled={isDeleting}>
-                                {isDeleting && <Loader2 className="mr-2 animate-spin" />}
-                                Continue
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                      </AlertDialog>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center">
+                      No products found. Get started by creating one!
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
-                    No products found. Get started by creating one!
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+
+      <AlertDialog open={isAlertOpen} onOpenChange={setAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete your product
+              and remove its data from our servers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setProductToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} disabled={isDeleting}>
+              {isDeleting && <Loader2 className="mr-2 animate-spin" />}
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
