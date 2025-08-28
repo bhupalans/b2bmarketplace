@@ -131,21 +131,14 @@ function ChatContent() {
 
   const handleSendMessage = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!formRef.current) return;
+    if (!formRef.current || !recipient) return;
 
     setIsSending(true);
     const formData = new FormData(formRef.current);
     const messageText = formData.get('message') as string;
     
-    if (!messageText.trim()) {
-        toast({
-            variant: "destructive",
-            title: "Message failed to send",
-            description: "Message cannot be empty.",
-        });
-        setIsSending(false);
-        return;
-    }
+    // Explicitly add recipientId to formData
+    formData.append('recipientId', recipient.id);
 
     const result = await sendMessageAction(formData);
 
@@ -178,7 +171,7 @@ function ChatContent() {
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
-        formRef.current?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+        formRef.current?.requestSubmit();
     }
   };
 
@@ -381,7 +374,6 @@ function ChatContent() {
               onKeyDown={handleKeyDown}
               disabled={isSending}
             />
-             <input type="hidden" name="recipientId" value={recipient.id} />
             <SubmitButton isSending={isSending} />
           </form>
         </footer>
