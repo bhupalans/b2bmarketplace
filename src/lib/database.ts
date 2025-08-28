@@ -3,10 +3,70 @@
 
 import { adminDb } from "./firebase-admin";
 import { Product, Category, User, Message } from "./types";
+import { mockCategories, mockProducts } from "./mock-data";
 
-// This file contains server-side only database logic.
-// It uses the Firebase Admin SDK, which has super-user privileges
-// and bypasses security rules.
+// --- Seeding Operation ---
+
+export async function seedDatabase() {
+  console.log("Checking if database needs seeding...");
+
+  const seedCheckRef = adminDb.collection('internal').doc('seedStatus');
+  const seedCheckSnap = await seedCheckRef.get();
+
+  if (seedCheckSnap.exists && seedCheckSnap.data()?.completed) {
+    console.log("Database already seeded. Skipping.");
+    return { success: true, message: "Database already seeded." };
+  }
+
+  console.log("Seeding database with initial data...");
+
+  const batch = adminDb.batch();
+
+  // 1. Seed Categories
+  mockCategories.forEach(category => {
+    const docRef = adminDb.collection('categories').doc(category.id);
+    batch.set(docRef, category);
+  });
+  console.log("-> Prepared categories for seeding.");
+
+  // 2. Seed Products
+  mockProducts.forEach(product => {
+    // We remove the hardcoded ID to let Firestore auto-generate one
+    // but for this seeding purpose, we will keep the IDs consistent.
+    const { id, ...productData } = product;
+    const docRef = adminDb.collection('products').doc(id);
+    // Add a default 'approved' status for seeded products
+    batch.set(docRef, { ...productData, status: 'approved' });
+  });
+  console.log("-> Prepared products for seeding.");
+
+  // 3. Seed the Admin User
+  const adminUid = 'mNLTRIhyPGeOxlUSUZGq2mgcCZF2';
+  const adminUser: Omit<User, 'id'> = {
+      uid: adminUid,
+      email: 'admin@b2b.com',
+      name: 'Admin',
+      role: 'admin',
+      username: 'admin',
+      avatar: `https://i.pravatar.cc/150?u=${adminUid}`
+  };
+  const adminRef = adminDb.collection('users').doc(adminUid);
+  batch.set(adminRef, adminUser);
+  console.log("-> Prepared admin user for seeding.");
+
+  // 4. Mark seeding as complete
+  batch.set(seedCheckRef, { completed: true, timestamp: new Date() });
+
+  try {
+    await batch.commit();
+    console.log("Database seeding completed successfully!");
+    return { success: true, message: "Database seeded successfully." };
+  } catch (error) {
+    console.error("Error seeding database:", error);
+    return { success: false, message: "Error seeding database." };
+  }
+}
+
 
 // --- Read Operations ---
 
