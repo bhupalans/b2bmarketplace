@@ -46,7 +46,8 @@ const productSchema = z.object({
   description: z.string().min(10, { message: "Description must be at least 10 characters." }),
   priceUSD: z.coerce.number().positive({ message: "Price must be a positive number." }),
   categoryId: z.string().min(1, { message: "Please select a category." }),
-  images: z.array(z.string().url()).min(1, "Please add at least one image."),
+  // The 'images' field now refers only to existing images. New files are handled separately.
+  images: z.array(z.string().url()).optional(),
 });
 
 type ProductFormDialogProps = {
@@ -116,7 +117,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
       formData.append('categoryId', values.categoryId);
 
       // Append existing image URLs
-      values.images.forEach(img => formData.append('existingImages[]', img));
+      (values.images || []).forEach(img => formData.append('existingImages[]', img));
       
       // Append new image files
       newImageFiles.forEach(file => formData.append('newImages', file));
@@ -143,7 +144,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     });
   };
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
     
@@ -153,14 +154,13 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     const previewUrls = selectedFiles.map(file => URL.createObjectURL(file));
     setImagePreviews(prev => [...prev, ...previewUrls]);
     
-    // We don't upload here anymore, so form doesn't need updating with URLs
     if(fileInputRef.current) {
         fileInputRef.current.value = "";
     }
   };
 
   const handleRemoveExistingImage = (imageUrlToRemove: string) => {
-    const currentImages = form.getValues("images");
+    const currentImages = form.getValues("images") || [];
     form.setValue("images", currentImages.filter((img) => img !== imageUrlToRemove), { shouldValidate: true });
   };
 
@@ -174,8 +174,9 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     });
   }
 
-  const allImages = [...form.getValues('images'), ...imagePreviews];
-  
+  const existingImages = form.watch('images') || [];
+  const totalImageCount = existingImages.length + newImageFiles.length;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -257,7 +258,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
             <FormItem>
               <FormLabel>Product Images</FormLabel>
                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
-                {form.getValues('images').map((img, index) => (
+                {existingImages.map((img) => (
                     <div key={img} className="relative group aspect-square">
                         <Image src={img} alt="Product image" fill className="rounded-md object-cover" />
                         <Button
@@ -314,14 +315,14 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
                 </div>
               </div>
               <FormDescription>The first image will be the main display image. You can upload multiple images.</FormDescription>
-               {allImages.length === 0 && (
+               {totalImageCount === 0 && (
                 <p className="text-sm font-medium text-destructive">Please add at least one image.</p>
               )}
             </FormItem>
 
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button type="submit" disabled={isSaving || allImages.length === 0}>
+              <Button type="submit" disabled={isSaving || totalImageCount === 0}>
                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {product ? "Save Changes" : "Create Product"}
               </Button>
@@ -332,4 +333,3 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     </Dialog>
   );
 }
-
