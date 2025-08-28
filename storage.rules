@@ -1,15 +1,16 @@
-
 rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // This rule allows public read access to all files.
-    // The security is handled by using unguessable UUIDs in the filenames.
-    // Write access is controlled by the server generating signed URLs,
-    // which is a more secure and flexible pattern.
-    match /{allPaths=**} {
-      allow read;
-      allow write: if false; // No direct client writes allowed.
+    // Match any file in the 'products' folder
+    match /products/{sellerId}/{imageId} {
+      // Allow read access to anyone (for displaying images)
+      allow read: if true;
+      
+      // Allow write access (create, update, delete) only if the user is authenticated
+      // and their UID matches the 'sellerId' in the file path.
+      // This ensures users can only upload images to their own folder.
+      allow write: if request.auth != null && request.auth.uid == sellerId;
     }
   }
 }

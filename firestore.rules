@@ -1,50 +1,55 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
+    // Users can only manage their own profile.
     match /users/{userId} {
-      allow read;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth.uid == userId;
     }
 
+    // Admins can read all user documents.
+    match /users/{userId} {
+      allow get, list: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Categories are public.
     match /categories/{categoryId} {
-      allow read;
+      allow read: if true;
+      // You might want to restrict write access to admins in the future:
+      // allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    match /products/{productId} {
-      // READ:
-      // 1. Anyone can read an approved product.
-      // 2. Admins can read any product.
-      // 3. A seller can read their own product, regardless of status.
-      allow read: if resource.data.status == 'approved'
-        || (request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
-        || (request.auth != null && request.auth.uid == resource.data.sellerId);
-      
-      // WRITE:
-      // - CREATE: Allow a seller to create a product.
-      // - UPDATE:
-      //   1. Allow a seller to update their own product.
-      //   2. Allow an admin to update the status of any product.
-      // - DELETE: Allow a seller to delete their own product.
-      allow write: if request.auth != null && (
-        (request.resource.data.sellerId == request.auth.uid && request.method != 'update') ||
-        (request.method == 'update' && (
-          (request.resource.data.sellerId == request.auth.uid) ||
-          (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
-        )) ||
-        (request.method == 'delete' && resource.data.sellerId == request.auth.uid)
-      );
-    }
-
+    // Internal documents, like the seed status, should be protected.
     match /internal/{docId} {
-      allow read, write: if false; // Internal collection, should not be client-accessible
+      allow read, write: if false; // Or restrict to admin if needed
     }
 
-    // Default deny all other collections
-    match /{document=**} {
-      allow read, write: if false;
+    // Products have more complex rules.
+    match /products/{productId} {
+      // Rule 1: Anyone can read a product if it's approved.
+      allow get: if resource.data.status == 'approved';
+      // Rule 2: Anyone can list approved products.
+      allow list: if request.query.get("where")[0][2] == "approved";
+
+      // Rule 3: Authenticated users can create a product if they are the owner.
+      // - They must be logged in.
+      // - The new product's sellerId must match their own UID.
+      // - They can only set the initial status to 'pending'.
+      allow create: if request.auth != null
+                    && request.resource.data.sellerId == request.auth.uid
+                    && request.resource.data.status == 'pending';
+
+      // Rule 4: The original seller can update their product.
+      // - The status must be reset to 'pending' on update for re-approval.
+      allow update: if request.auth.uid == resource.data.sellerId
+                    && request.resource.data.status == 'pending';
+      
+      // Rule 5: The original seller can delete their own product.
+      allow delete: if request.auth.uid == resource.data.sellerId;
+
+      // Rule 6: Admins can update any product (e.g., to approve or reject it).
+      allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
   }
 }
