@@ -50,7 +50,7 @@ export default function MyProductsPage() {
   const [loading, setLoading] = useState(true);
   const [isFormOpen, setFormOpen] = useState(false);
   const [isAlertOpen, setAlertOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<Product | undefined>(undefined);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [isDeleting, startDeleteTransition] = useTransition();
   const { toast } = useToast();
@@ -82,13 +82,13 @@ export default function MyProductsPage() {
     }
   }, [user, toast]);
 
-  const handleEdit = useCallback((product: Product) => {
-    setSelectedProduct(product);
+  const handleEdit = useCallback((productId: string) => {
+    setSelectedProductId(productId);
     setFormOpen(true);
   }, []);
 
   const handleCreate = useCallback(() => {
-    setSelectedProduct(undefined);
+    setSelectedProductId(null);
     setFormOpen(true);
   }, []);
 
@@ -102,12 +102,18 @@ export default function MyProductsPage() {
         return newProducts;
       } else {
         // Create
-        return [...prevProducts, updatedProduct];
+        return [updatedProduct, ...prevProducts];
       }
     });
     setFormOpen(false);
-    setSelectedProduct(undefined);
+    setSelectedProductId(null);
   }, []);
+  
+  const handleDialogClose = useCallback(() => {
+    setFormOpen(false);
+    setSelectedProductId(null);
+  }, []);
+
 
   const handleDeleteInitiate = useCallback((product: Product) => {
     setProductToDelete(product);
@@ -162,10 +168,10 @@ export default function MyProductsPage() {
         </div>
 
         <ProductFormDialog
-          key={selectedProduct ? selectedProduct.id : 'new'}
+          key={selectedProductId || 'new'}
           open={isFormOpen}
-          onOpenChange={setFormOpen}
-          product={selectedProduct}
+          onOpenChange={handleDialogClose}
+          productId={selectedProductId}
           onSuccess={handleFormSuccess}
           categories={categories}
         />
@@ -227,7 +233,7 @@ export default function MyProductsPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEdit(product)}>
+                            <DropdownMenuItem onClick={() => handleEdit(product.id)}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 <span>Edit</span>
                             </DropdownMenuItem>

@@ -37,7 +37,8 @@ import {
 import { Product, Category } from "@/lib/types";
 import Image from "next/image";
 import { useAuth } from "@/contexts/auth-context";
-import { createOrUpdateProductClient } from "@/lib/firebase";
+import { createOrUpdateProductClient, getProductClient } from "@/lib/firebase";
+import { Skeleton } from "./ui/skeleton";
 
 const productSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -59,17 +60,19 @@ const productSchema = z.object({
 type ProductFormDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  product?: Product;
+  productId?: string | null;
   onSuccess: (product: Product) => void;
   categories: Category[];
 };
 
-const ProductFormDialogComponent = ({ open, onOpenChange, product, onSuccess, categories }: ProductFormDialogProps) => {
+const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, categories }: ProductFormDialogProps) => {
   const { toast } = useToast();
   const [isSaving, startSavingTransition] = useTransition();
   const { firebaseUser } = useAuth();
   
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [isLoadingProduct, setIsLoadingProduct] = useState(false);
 
   const form = useForm<z.infer<typeof productSchema>>({
     resolver: zodResolver(productSchema),
@@ -82,8 +85,31 @@ const ProductFormDialogComponent = ({ open, onOpenChange, product, onSuccess, ca
       newImageFiles: undefined,
     },
   });
-
+  
   const fileRef = form.register("newImageFiles");
+
+  useEffect(() => {
+    const fetchProduct = async () => {
+        if (productId) {
+            setIsLoadingProduct(true);
+            try {
+                const fetchedProduct = await getProductClient(productId);
+                setProduct(fetchedProduct);
+            } catch (error) {
+                console.error("Failed to fetch product", error);
+                toast({ variant: 'destructive', title: "Error", description: "Failed to load product data."})
+            } finally {
+                setIsLoadingProduct(false);
+            }
+        } else {
+            setProduct(null);
+        }
+    }
+    if (open) {
+      fetchProduct();
+    }
+  }, [productId, open, toast]);
+
 
   useEffect(() => {
     if (open) {
@@ -100,7 +126,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, product, onSuccess, ca
         fileRef.current.value = "";
       }
     }
-  }, [product, open, form.reset, fileRef]);
+  }, [product, open, form, fileRef]);
 
   const onSubmit = (values: z.infer<typeof productSchema>) => {
     startSavingTransition(async () => {
@@ -109,9 +135,13 @@ const ProductFormDialogComponent = ({ open, onOpenChange, product, onSuccess, ca
         return;
       }
       
+      const { newImageFiles, ...productData } = values;
+
       try {
         const savedProduct = await createOrUpdateProductClient(
-            values,
+            productData,
+            Array.from(newImageFiles || []),
+            values.existingImages,
             firebaseUser.uid,
             product?.id
         );
@@ -164,11 +194,22 @@ const ProductFormDialogComponent = ({ open, onOpenChange, product, onSuccess, ca
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{product ? "Edit Product" : "Create New Product"}</DialogTitle>
+          <DialogTitle>{productId ? "Edit Product" : "Create New Product"}</DialogTitle>
           <DialogDescription>
-            {product ? "Edit the details for your product listing. Your product will be sent for re-approval." : "Fill out the details below. Your product will be submitted for admin review."}
+            {productId ? "Edit the details for your product listing. Your product will be sent for re-approval." : "Fill out the details below. Your product will be submitted for admin review."}
           </DialogDescription>
         </DialogHeader>
+        {isLoadingProduct ? (
+            <div className="space-y-6 py-4">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-20 w-full" />
+                <div className="grid grid-cols-2 gap-4">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                </div>
+                <Skeleton className="h-24 w-full" />
+            </div>
+        ) : (
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
@@ -310,6 +351,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, product, onSuccess, ca
             </DialogFooter>
           </form>
         </Form>
+        )}
       </DialogContent>
     </Dialog>
   );
