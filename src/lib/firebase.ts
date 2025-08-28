@@ -130,7 +130,6 @@ export async function createOrUpdateProductClient(
     productId?: string | null
 ): Promise<Product> {
     
-    // Upload new images to Firebase Storage first
     const uploadedImageUrls = await Promise.all(
         newImageFiles.map(async (file) => {
             const filePath = `products/${sellerId}/${uuidv4()}-${file.name}`;
@@ -144,17 +143,19 @@ export async function createOrUpdateProductClient(
         // UPDATE PATH
         const productRef = doc(db, 'products', productId);
         const currentDoc = await getDoc(productRef);
-        const originalImages: string[] = currentDoc.exists() ? currentDoc.data().images : [];
+        
+        if (currentDoc.exists()) {
+            const originalImages: string[] = currentDoc.data().images || [];
+            const imagesToDelete = originalImages.filter(url => !existingImageUrls.includes(url));
 
-        const imagesToDelete = originalImages.filter(url => !existingImageUrls.includes(url));
-
-        for (const url of imagesToDelete) {
-            try {
-                const imageRef = ref(storage, url);
-                await deleteObject(imageRef);
-            } catch (error: any) {
-                if (error.code !== 'storage/object-not-found') {
-                    console.error(`Failed to delete image ${url} from storage:`, error);
+            for (const url of imagesToDelete) {
+                try {
+                    const imageRef = ref(storage, url);
+                    await deleteObject(imageRef);
+                } catch (error: any) {
+                    if (error.code !== 'storage/object-not-found') {
+                        console.error(`Failed to delete image ${url} from storage:`, error);
+                    }
                 }
             }
         }
@@ -178,7 +179,7 @@ export async function createOrUpdateProductClient(
 
         const finalProductData = {
             ...productData,
-            images: uploadedImageUrls, // Only new images for a new product
+            images: uploadedImageUrls,
             sellerId: sellerId,
             status: 'pending' as const,
         };
