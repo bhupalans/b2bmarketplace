@@ -1,33 +1,33 @@
-rules_version = '2';
 
+rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    match /products/{productId} {
-      // Anyone can read products.
-      allow read: if true;
-      
-      // An authenticated user can create a product if the new document's sellerId is their own UID.
-      allow create: if request.auth != null && request.resource.data.sellerId == request.auth.uid;
-      
-      // A user can only update a product if they are the sellerId on that document.
-      allow update: if request.auth != null && resource.data.sellerId == request.auth.uid;
-
-      // A user can only delete a product if they are the sellerId on that document.
-      allow delete: if request.auth != null && resource.data.sellerId == request.auth.uid;
+  
+    // Users can read all profiles (for listing sellers, etc.)
+    // but can only write to their own user document.
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
-
-    // Categories can be read by anyone, but only written by authenticated users (admins).
+    
+    // Products and Categories are public to all users, including unauthenticated ones.
+    match /products/{productId} {
+      allow read: if true;
+      // Only allow writes if the product's sellerId matches the user's ID.
+      allow write: if request.auth != null && request.resource.data.sellerId == request.auth.uid;
+    }
+    
     match /categories/{categoryId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if false; // Categories are not writeable from the client.
     }
 
-    // User profiles can be read by anyone (for seller profiles), 
-    // but a user can only write to their own document.
-    match /users/{userId} {
-      allow read: if true;
-      allow write: if request.auth != null && request.auth.uid == userId;
+    // Messages can be created by the sender.
+    // Messages can only be read by the sender or the recipient.
+    match /messages/{messageId} {
+      allow read: if request.auth != null && (request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.recipientId);
+      allow create: if request.auth != null && request.resource.data.senderId == request.auth.uid;
+      allow update, delete: if false; // Messages are immutable.
     }
   }
 }
