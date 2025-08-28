@@ -36,7 +36,7 @@ import {
 } from "./ui/select";
 import { Product, Category } from "@/lib/types";
 import { createOrUpdateProductAction } from "@/app/actions";
-import { getCategories } from "@/lib/firestore";
+import { getCategories } from "@/lib/database";
 import Image from "next/image";
 import { useAuth } from "@/contexts/auth-context";
 
@@ -46,8 +46,12 @@ const productSchema = z.object({
   description: z.string().min(10, { message: "Description must be at least 10 characters." }),
   priceUSD: z.coerce.number().positive({ message: "Price must be a positive number." }),
   categoryId: z.string().min(1, { message: "Please select a category." }),
-  images: z.array(z.string().url()).optional(),
+  existingImages: z.array(z.string().url()).optional(),
+}).refine(data => data.existingImages && data.existingImages.length > 0 || (data as any).newImageFiles && (data as any).newImageFiles.length > 0, {
+    message: "Please add at least one image.",
+    path: ["existingImages"], // Attach error to a field for display
 });
+
 
 type ProductFormDialogProps = {
   open: boolean;
@@ -75,7 +79,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
       description: product?.description || "",
       priceUSD: product?.priceUSD || undefined,
       categoryId: product?.categoryId || "",
-      images: product?.images || [],
+      existingImages: product?.images || [],
     },
   });
 
@@ -92,7 +96,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         description: product?.description || "",
         priceUSD: product?.priceUSD || undefined,
         categoryId: product?.categoryId || "",
-        images: product?.images || [],
+        existingImages: product?.images || [],
       });
       setNewImageFiles([]);
       setImagePreviews([]);
@@ -116,7 +120,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
       formData.append('categoryId', values.categoryId);
 
       // Append existing image URLs
-      (values.images || []).forEach(img => formData.append('existingImages[]', img));
+      (values.existingImages || []).forEach(img => formData.append('existingImages[]', img));
       
       // Append new image files
       newImageFiles.forEach(file => formData.append('newImages', file));
@@ -148,32 +152,38 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     if (!files || files.length === 0) return;
     
     const selectedFiles = Array.from(files);
-    setNewImageFiles(prev => [...prev, ...selectedFiles]);
+    const newFiles = [...newImageFiles, ...selectedFiles];
+    setNewImageFiles(newFiles);
 
     const previewUrls = selectedFiles.map(file => URL.createObjectURL(file));
     setImagePreviews(prev => [...prev, ...previewUrls]);
     
+    form.setValue('newImageFiles' as any, newFiles, { shouldValidate: true });
+
     if(fileInputRef.current) {
         fileInputRef.current.value = "";
     }
   };
 
   const handleRemoveExistingImage = (imageUrlToRemove: string) => {
-    const currentImages = form.getValues("images") || [];
-    form.setValue("images", currentImages.filter((img) => img !== imageUrlToRemove), { shouldValidate: true });
+    const currentImages = form.getValues("existingImages") || [];
+    form.setValue("existingImages", currentImages.filter((img) => img !== imageUrlToRemove), { shouldValidate: true });
   };
 
+
+
   const handleRemoveNewImage = (indexToRemove: number) => {
-    setNewImageFiles(prev => prev.filter((_, index) => index !== indexToRemove));
-    setImagePreviews(prev => {
-        const newPreviews = prev.filter((_, index) => index !== indexToRemove);
-        // Clean up object URL
-        URL.revokeObjectURL(prev[indexToRemove]);
-        return newPreviews;
-    });
+    const newFiles = newImageFiles.filter((_, index) => index !== indexToRemove);
+    setNewImageFiles(newFiles);
+
+    const newPreviews = imagePreviews.filter((_, index) => index !== indexToRemove);
+    URL.revokeObjectURL(imagePreviews[indexToRemove]);
+    setImagePreviews(newPreviews);
+    
+    form.setValue('newImageFiles' as any, newFiles, { shouldValidate: true });
   }
 
-  const existingImages = form.watch('images') || [];
+  const existingImages = form.watch('existingImages') || [];
   const totalImageCount = existingImages.length + newImageFiles.length;
 
   return (
@@ -314,14 +324,16 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
                 </div>
               </div>
               <FormDescription>The first image will be the main display image. You can upload multiple images.</FormDescription>
-               {totalImageCount === 0 && open && (
-                <p className="text-sm font-medium text-destructive">Please add at least one image.</p>
-              )}
+                {form.formState.errors.existingImages && (
+                    <p className="text-sm font-medium text-destructive">
+                        {form.formState.errors.existingImages.message}
+                    </p>
+                )}
             </FormItem>
 
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button type="submit" disabled={isSaving || totalImageCount === 0}>
+              <Button type="submit" disabled={isSaving}>
                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {product ? "Save Changes" : "Create Product"}
               </Button>

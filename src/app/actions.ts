@@ -3,8 +3,7 @@
 
 import { filterContactDetails } from "@/ai/flows/filter-contact-details";
 import { suggestOffer } from "@/ai/flows/suggest-offer";
-import { db } from "@/lib/firebase";
-import { createOrUpdateProduct, deleteProduct, getProduct, getSellerProducts, getUser } from "@/lib/firestore";
+import { createOrUpdateProduct, deleteProduct, getProduct, getUser } from "@/lib/database";
 import { Product } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -63,21 +62,6 @@ export async function sendInquiryAction(values: z.infer<typeof inquirySchema>) {
     }
 }
 
-async function getAuthenticatedUserUid(): Promise<string> {
-    const authorization = headers().get("Authorization");
-    if (authorization?.startsWith("Bearer ")) {
-        const idToken = authorization.split("Bearer ")[1];
-        try {
-            const decodedToken = await adminAuth.verifyIdToken(idToken);
-            return decodedToken.uid;
-        } catch (error) {
-             console.error("Error verifying ID token:", error);
-             throw new Error('User not authenticated.');
-        }
-    }
-    throw new Error('User not authenticated.');
-}
-
 export async function createOrUpdateProductAction(formData: FormData) {
   let sellerId: string;
   try {
@@ -131,7 +115,7 @@ export async function createOrUpdateProductAction(formData: FormData) {
     const finalProductData: Omit<Product, 'id'> = {
       ...productData,
       images: allImageUrls,
-      sellerId,
+      sellerId: sellerId, // Use the verified sellerId
     };
     
     const savedProduct = await createOrUpdateProduct(finalProductData, productId);

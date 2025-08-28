@@ -2,7 +2,7 @@
 "use client";
 
 import { useAuth } from "@/contexts/auth-context";
-import { getSellerDashboardData } from "@/lib/firestore";
+import { getSellerDashboardData } from "@/lib/database";
 import { Product } from "@/lib/types";
 import { useEffect, useState } from "react";
 import {

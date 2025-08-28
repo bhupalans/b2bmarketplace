@@ -1,6 +1,6 @@
 
 import { notFound } from "next/navigation";
-import { getSellerAndProducts } from "@/lib/firestore";
+import { getSellerAndProducts } from "@/lib/database";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Card,

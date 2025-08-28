@@ -27,7 +27,7 @@ import {
 import { MoreHorizontal, PlusCircle, Trash2, Edit, Loader2 } from "lucide-react";
 import { Product } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
-import { getSellerProducts } from '@/lib/firestore';
+import { getSellerProducts } from '@/lib/database';
 import Image from 'next/image';
 import { ProductFormDialog } from '@/components/product-form';
 import { deleteProductAction } from '@/app/actions';

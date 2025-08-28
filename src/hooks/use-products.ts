@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { Product, Category, User } from '@/lib/types';
-import { getProducts, getCategories, getUsers } from '@/lib/firestore';
+import { getProducts, getCategories, getUsers } from '@/lib/database';
 
 export function useProducts() {
   const [products, setProducts] = useState<Product[]>([]);

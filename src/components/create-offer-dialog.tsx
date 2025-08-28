@@ -36,8 +36,7 @@ import {
 } from "./ui/select";
 import { OfferSuggestion, Product } from "@/lib/types";
 import { useAuth } from "@/contexts/auth-context";
-import { sendMessageAction } from "@/app/actions";
-import { getSellerProducts } from "@/lib/firestore";
+import { getSellerProducts } from "@/lib/database";
 
 const offerSchema = z.object({
   productId: z.string().min(1, { message: "Please select a product." }),
@@ -103,6 +102,8 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
         notes: values.notes,
     }
     
+    // This action needs to be created
+    /*
     const result = await sendMessageAction({
         message: `New Offer for ${values.productId}`,
         recipientUid: recipientId,
@@ -124,6 +125,7 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
         });
         handleOpenChange(false);
     }
+    */
     
     setIsSending(false);
   }
