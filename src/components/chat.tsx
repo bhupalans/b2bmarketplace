@@ -43,7 +43,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { mockMessages, mockUsers, mockProducts, mockOffers } from "@/lib/mock-data";
+import { mockMessages, mockProducts, mockOffers } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import type { Message, OfferSuggestion, User } from "@/lib/types";
 import { sendMessageAction, suggestOfferAction } from "@/app/actions";
@@ -97,8 +97,8 @@ function ChatContent() {
     getUsers().then(setUsers);
   }, []);
 
-  const allMockUsers = { ...mockUsers, ...Object.fromEntries(users.map(u => [u.id, u]))};
-  
+  const usersById = Object.fromEntries(users.map(u => [u.id, u]));
+
   // In a real app, messages would be filtered by recipientId.
   // For this demo, we'll continue to show all mock messages.
   const allMessages = [...mockMessages, ...newMessages];
@@ -165,7 +165,7 @@ function ChatContent() {
     suggestionFormRef.current?.requestSubmit();
   }
   
-  const recipient = recipientId ? allMockUsers[recipientId] : null;
+  const recipient = recipientId ? usersById[recipientId] : null;
 
   if (!loggedInUser) {
     // This could be a loading spinner
@@ -218,6 +218,8 @@ function ChatContent() {
     );
   }
 
+  const allUsersAndSystem = { ...usersById, system: { id: 'system', name: 'System', avatar: '', email: '', role: 'admin' as const }};
+
   return (
     <div className="grid min-h-[calc(100vh-8rem)] w-full grid-cols-[260px_1fr] rounded-lg border">
       <div className="flex flex-col border-r bg-muted/40">
@@ -261,7 +263,7 @@ function ChatContent() {
             {loggedInUser.role === 'seller' && (
               <>
                 <form ref={suggestionFormRef} action={suggestionAction} className="hidden">
-                  <input type="hidden" name="chatHistory" value={allMessages.map(m => `${allMockUsers[m.senderId]?.name || 'System'}: ${m.text}`).join('\n')} />
+                  <input type="hidden" name="chatHistory" value={allMessages.map(m => `${allUsersAndSystem[m.senderId]?.name || 'User'}: ${m.text}`).join('\n')} />
                   <input type="hidden" name="sellerId" value={loggedInUser.id} />
                 </form>
                 <Button variant="outline" size="sm" onClick={handleSuggestOffer} disabled={isSuggesting}>
@@ -302,9 +304,9 @@ function ChatContent() {
               >
                 {message.senderId !== loggedInUser.id && !message.isSystemMessage && (
                   <Avatar className="h-8 w-8 border">
-                    <AvatarImage src={allMockUsers[message.senderId]?.avatar} />
+                    <AvatarImage src={allUsersAndSystem[message.senderId]?.avatar} />
                     <AvatarFallback>
-                      {allMockUsers[message.senderId]?.name.charAt(0)}
+                      {allUsersAndSystem[message.senderId]?.name.charAt(0)}
                     </AvatarFallback>
                   </Avatar>
                 )}
