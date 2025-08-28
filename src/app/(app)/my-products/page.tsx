@@ -87,9 +87,8 @@ export default function MyProductsPage() {
   };
 
   const handleDelete = (productId: string) => {
-    if (!user) return;
     startDeleteTransition(async () => {
-        const result = await deleteProductAction(productId, user.id);
+        const result = await deleteProductAction(productId);
         if(result.success) {
             setProducts(products.filter(p => p.id !== productId));
             toast({

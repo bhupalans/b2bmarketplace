@@ -9,18 +9,36 @@ import { mockOffers, mockProducts } from "@/lib/mock-data";
 import { Message, Offer, Product } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getAdminApp } from "@/lib/firebase-admin";
+import { getAdminApp, adminAuth } from "@/lib/firebase-admin";
 import { v4 as uuidv4 } from "uuid";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { headers } from "next/headers";
 
 const messageSchema = z.object({
   message: z.string().min(1, { message: "Message cannot be empty." }),
   offer: z.string().optional(), // Stringified JSON of the new offer
   recipientId: z.string().min(1, { message: "Recipient is required."}),
-  senderId: z.string().min(1, { message: "Sender is required."}),
 });
 
-export async function sendMessageAction(data: { message: string, recipientId: string, senderId: string, offer?: string }) {
+async function getAuthenticatedUserUid(): Promise<string> {
+    const authorization = headers().get('Authorization');
+    if (authorization?.startsWith('Bearer ')) {
+        const idToken = authorization.split('Bearer ')[1];
+        const decodedToken = await adminAuth.verifyIdToken(idToken);
+        return decodedToken.uid;
+    }
+    throw new Error('User not authenticated.');
+}
+
+export async function sendMessageAction(data: { message: string, recipientId: string, offer?: string }) {
+  let senderId: string;
+  try {
+    senderId = await getAuthenticatedUserUid();
+  } catch (error: any) {
+    console.error("Authentication error:", error.message);
+    return { error: "User not authenticated.", message: null, modificationReason: null };
+  }
+  
   const validatedFields = messageSchema.safeParse(data);
 
   if (!validatedFields.success) {
@@ -34,7 +52,7 @@ export async function sendMessageAction(data: { message: string, recipientId: st
     };
   }
   
-  const { recipientId, message: originalMessage, offer: offerString, senderId } = validatedFields.data;
+  const { recipientId, message: originalMessage, offer: offerString } = validatedFields.data;
 
   // Handle creating a new offer
   if (offerString) {
@@ -201,14 +219,18 @@ const productSchema = z.object({
   priceUSD: z.coerce.number().positive(),
   categoryId: z.string().min(1),
   images: z.array(z.string().url()).min(1),
-  sellerId: z.string(),
 });
 
 export async function createOrUpdateProductAction(values: z.infer<typeof productSchema>) {
-  if (!values.sellerId) {
+  let sellerId: string;
+  try {
+    sellerId = await getAuthenticatedUserUid();
+  } catch (error: any) {
+    console.error("Authentication error:", error.message);
     return { success: false, error: 'User not authenticated' };
   }
-  const { sellerId, ...productDataWithoutSeller } = values;
+
+  const { ...productDataWithoutSeller } = values;
 
   try {
     const productData: Omit<Product, 'id'> = {
@@ -230,8 +252,11 @@ export async function createOrUpdateProductAction(values: z.infer<typeof product
   }
 }
 
-export async function deleteProductAction(productId: string, sellerId: string) {
-    if (!sellerId) {
+export async function deleteProductAction(productId: string) {
+    let sellerId: string;
+    try {
+        sellerId = await getAuthenticatedUserUid();
+    } catch(error: any) {
         return { success: false, error: 'User not authenticated' };
     }
     
@@ -255,7 +280,14 @@ export async function deleteProductAction(productId: string, sellerId: string) {
 }
 
 
-export async function getSignedUploadUrlAction(fileName: string, fileType: string, userId: string) {
+export async function getSignedUploadUrlAction(fileName: string, fileType: string) {
+    let userId: string;
+    try {
+        userId = await getAuthenticatedUserUid();
+    } catch(error: any) {
+        return { success: false, error: 'User not authenticated', url: null, finalFilePath: null };
+    }
+
     const adminApp = getAdminApp();
     const bucket = adminApp.storage().bucket();
     const finalFilePath = `products/${userId}/${uuidv4()}-${fileName}`;

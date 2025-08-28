@@ -45,7 +45,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { getUsers, getMessages } from "@/lib/firestore";
 
 function ChatContent() {
-  const { user: loggedInUser } = useAuth();
+  const { user: loggedInUser, firebaseUser } = useAuth();
   const searchParams = useSearchParams();
   const recipientId = searchParams.get('recipientId');
 
@@ -69,13 +69,14 @@ function ChatContent() {
   const recipient = recipientId ? usersById[recipientId] : null;
 
   useEffect(() => {
-    if (loggedInUser && recipientId) {
-      const unsubscribe = getMessages(loggedInUser.id, recipientId, (newMessages) => {
+    // We need firebaseUser to exist to set up the listener, since the rules depend on auth.uid
+    if (firebaseUser && recipientId) {
+      const unsubscribe = getMessages(firebaseUser.uid, recipientId, (newMessages) => {
         setMessages(newMessages);
       });
       return () => unsubscribe();
     }
-  }, [loggedInUser, recipientId]);
+  }, [firebaseUser, recipientId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -95,7 +96,6 @@ function ChatContent() {
     const result = await sendMessageAction({
       message: messageText,
       recipientId: recipient.id,
-      senderId: loggedInUser.id,
     });
 
     setIsSending(false);
@@ -255,10 +255,10 @@ function ChatContent() {
                 key={message.id}
                 className={cn(
                   "flex items-start gap-3",
-                  message.isSystemMessage ? "justify-center" : (message.senderId === loggedInUser.id && "justify-end")
+                  message.isSystemMessage ? "justify-center" : (message.senderId === firebaseUser?.uid && "justify-end")
                 )}
               >
-                {message.senderId !== loggedInUser.id && !message.isSystemMessage && (
+                {message.senderId !== firebaseUser?.uid && !message.isSystemMessage && (
                   <Avatar className="h-8 w-8 border">
                     <AvatarImage src={allUsersAndSystem[message.senderId]?.avatar} />
                     <AvatarFallback>
@@ -271,7 +271,7 @@ function ChatContent() {
                     "max-w-xs rounded-lg p-3 text-sm",
                     message.isSystemMessage 
                       ? "bg-accent text-accent-foreground" 
-                      : (message.senderId === loggedInUser.id
+                      : (message.senderId === firebaseUser?.uid
                           ? "bg-primary text-primary-foreground"
                           : "bg-muted"),
                     message.offerId && "max-w-md bg-transparent p-0"
@@ -283,7 +283,7 @@ function ChatContent() {
                     <p>{message.text}</p>
                   )}
                 </div>
-                {message.senderId === loggedInUser.id && !message.isSystemMessage && (
+                {message.senderId === firebaseUser?.uid && !message.isSystemMessage && (
                    <Avatar className="h-8 w-8 border">
                     <AvatarImage src={(loggedInUser as User)?.avatar} />
                     <AvatarFallback>
@@ -310,7 +310,7 @@ function ChatContent() {
               </Tooltip>
             </TooltipProvider>
             <Textarea
-              placeholder={recipient ? "Type your message here..." : "Loading conversation..."}
+              placeholder={recipient ? "Type your message here..." : "Select a conversation to start messaging"}
               className="min-h-12 flex-1 resize-none rounded-full px-4 py-3"
               value={messageText}
               onChange={(e) => setMessageText(e.target.value)}

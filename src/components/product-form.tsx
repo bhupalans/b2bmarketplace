@@ -48,7 +48,6 @@ const productSchema = z.object({
   priceUSD: z.coerce.number().positive({ message: "Price must be a positive number." }),
   categoryId: z.string().min(1, { message: "Please select a category." }),
   images: z.array(z.string().url({ message: "Please enter a valid URL."})).min(1, { message: "Please add at least one image." }),
-  sellerId: z.string(),
 });
 
 type ProductFormDialogProps = {
@@ -72,7 +71,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
       id: product?.id,
       title: product?.title || "",
       description: product?.description || "",
-      priceUSD: '',
+      priceUSD: product?.priceUSD || undefined,
       categoryId: product?.categoryId || "",
       images: product?.images || [],
     },
@@ -83,19 +82,15 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
   }, []);
 
   useEffect(() => {
-    if (user?.id) {
-      form.setValue('sellerId', user.id);
-    }
     form.reset({
       id: product?.id,
       title: product?.title || "",
       description: product?.description || "",
-      priceUSD: product?.priceUSD || '',
+      priceUSD: product?.priceUSD || undefined,
       categoryId: product?.categoryId || "",
       images: product?.images || [],
-      sellerId: user?.id || "",
     });
-  }, [product, open, form, user]);
+  }, [product, open, form]);
 
   const onSubmit = (values: z.infer<typeof productSchema>) => {
     startSavingTransition(async () => {
@@ -125,7 +120,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     try {
       const uploadPromises = Array.from(files).map(async file => {
         // 1. Get a signed URL from the server
-        const { success, error, url, finalFilePath } = await getSignedUploadUrlAction(file.name, file.type, user.id);
+        const { success, error, url, finalFilePath } = await getSignedUploadUrlAction(file.name, file.type);
         
         if (!success || !url) {
           throw new Error(error || 'Could not get an upload URL.');
@@ -145,7 +140,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         }
 
         // 3. Construct the final public URL
-        const publicUrl = `https://firebasestorage.googleapis.com/v0/b/b2b-marketplace-udg1v.appspot.com/o/${encodeURIComponent(finalFilePath)}?alt=media`;
+        const publicUrl = `https://firebasestorage.googleapis.com/v0/b/b2b-marketplace-udg1v.appspot.com/o/${encodeURIComponent(finalFilePath!)}?alt=media`;
         return publicUrl;
       });
 
@@ -189,7 +184,6 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <input type="hidden" {...form.register("sellerId")} />
             <FormField
               control={form.control}
               name="title"
