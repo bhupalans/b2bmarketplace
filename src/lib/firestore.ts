@@ -41,31 +41,30 @@ export async function getUsers(): Promise<User[]> {
 export function getMessages(userId: string, otherUserId: string, callback: (messages: Message[]) => void): () => void {
   const messagesRef = collection(db, 'messages');
   
-  // This query is optimized to work with Firestore security rules.
-  // It securely fetches all conversations the current user is a part of.
+  // Create a consistent key for the conversation by sorting the participant IDs
+  const participants = [userId, otherUserId].sort();
+  
+  // This query is now fully secure and matches the Firestore rules.
   const q = query(messagesRef, 
-    where('participants', 'array-contains', userId)
+    where('participants', '==', participants),
+    orderBy('timestamp', 'asc')
   );
 
   const unsubscribe = onSnapshot(q, (snapshot) => {
-    const allUserMessages: Message[] = [];
+    const messages: Message[] = [];
     snapshot.forEach((doc) => {
       const data = doc.data();
-      allUserMessages.push({
+      messages.push({
           id: doc.id,
           ...data,
           timestamp: (data.timestamp as Timestamp)?.toMillis() || Date.now(),
       } as Message);
     });
-
-    // Filter for the specific conversation and sort by timestamp on the client
-    const conversationMessages = allUserMessages
-      .filter(m => m.participants.includes(otherUserId))
-      .sort((a, b) => (a.timestamp as number) - (b.timestamp as number));
       
-    callback(conversationMessages);
+    callback(messages);
   }, (error) => {
     console.error("Firestore snapshot error:", error);
+    // This callback will be triggered on permission denied errors
   });
 
   return unsubscribe;

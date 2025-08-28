@@ -61,7 +61,7 @@ export async function sendMessageAction(prevState: any, formData: FormData) {
       text: offerMessage,
       senderId: senderId,
       recipientId: recipientId,
-      participants: [senderId, recipientId],
+      participants: [senderId, recipientId].sort(),
       offerId: newOffer.id,
       timestamp: serverTimestamp(),
     };
@@ -86,7 +86,7 @@ export async function sendMessageAction(prevState: any, formData: FormData) {
       text: filterResult.modifiedMessage, // Use the (potentially modified) message
       senderId: senderId,
       recipientId: recipientId,
-      participants: [senderId, recipientId],
+      participants: [senderId, recipientId].sort(),
       timestamp: serverTimestamp(),
   };
 
@@ -183,7 +183,7 @@ export async function decideOnOfferAction(formData: FormData) {
       text: `Offer ${decision}: ${product?.title}`,
       senderId: 'system',
       recipientId: offer.sellerId, // The recipient here is arbitrary for system messages
-      participants: [offer.buyerId, offer.sellerId],
+      participants: [offer.buyerId, offer.sellerId].sort(),
       isSystemMessage: true, 
       timestamp: serverTimestamp(),
     };
