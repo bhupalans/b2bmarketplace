@@ -130,7 +130,7 @@ export async function createOrUpdateProductClient(
     productId?: string | null
 ): Promise<Product> {
     
-    // 1. Upload new images to Firebase Storage
+    // Upload new images to Firebase Storage first
     const uploadedImageUrls = await Promise.all(
         newImageFiles.map(async (file) => {
             const filePath = `products/${sellerId}/${uuidv4()}-${file.name}`;
@@ -140,26 +140,49 @@ export async function createOrUpdateProductClient(
         })
     );
 
-    const allImageUrls = [...existingImageUrls, ...uploadedImageUrls];
-    
-    const finalProductData = {
-        ...productData,
-        images: allImageUrls,
-        sellerId: sellerId,
-        status: 'pending' as const,
-    };
-
     if (productId) {
         // UPDATE PATH
         const productRef = doc(db, 'products', productId);
+        const currentDoc = await getDoc(productRef);
+        const originalImages: string[] = currentDoc.exists() ? currentDoc.data().images : [];
+
+        const imagesToDelete = originalImages.filter(url => !existingImageUrls.includes(url));
+
+        for (const url of imagesToDelete) {
+            try {
+                const imageRef = ref(storage, url);
+                await deleteObject(imageRef);
+            } catch (error: any) {
+                if (error.code !== 'storage/object-not-found') {
+                    console.error(`Failed to delete image ${url} from storage:`, error);
+                }
+            }
+        }
+        
+        const finalImageUrls = [...existingImageUrls, ...uploadedImageUrls];
+        const finalProductData = {
+            ...productData,
+            images: finalImageUrls,
+            sellerId: sellerId,
+            status: 'pending' as const,
+        };
+
         await updateDoc(productRef, finalProductData);
         return { id: productId, ...finalProductData };
 
     } else {
         // CREATE PATH
-        if (allImageUrls.length === 0) {
+        if (uploadedImageUrls.length === 0) {
             throw new Error('At least one image is required to create a product.');
         }
+
+        const finalProductData = {
+            ...productData,
+            images: uploadedImageUrls, // Only new images for a new product
+            sellerId: sellerId,
+            status: 'pending' as const,
+        };
+        
         const docRef = await addDoc(collection(db, 'products'), finalProductData);
         return { id: docRef.id, ...finalProductData };
     }
