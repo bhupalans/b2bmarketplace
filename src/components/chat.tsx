@@ -71,8 +71,8 @@ function ChatContent() {
   const formRef = useRef<HTMLFormElement>(null);
 
   const [isCreateOfferOpen, setCreateOfferOpen] = useState(false);
+  const [suggestion, setSuggestion] = useState<OfferSuggestion | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
 
   const [state, formAction, isSending] = useActionState(sendMessageAction, {
     error: null,
@@ -121,7 +121,6 @@ function ChatContent() {
     scrollToBottom();
   }, [messages]);
   
-
   const usersById = Object.fromEntries(users.map(u => [u.id, u]));
   const recipient = recipientId ? usersById[recipientId] : null;
 
@@ -182,8 +181,7 @@ function ChatContent() {
   }
 
   const allUsersAndSystem = { ...usersById, system: { id: 'system', name: 'System', avatar: '', email: '', role: 'admin' as const }};
-  const [suggestion, setSuggestion] = useState<OfferSuggestion | null>(null);
-
+  
   return (
     <div className="grid min-h-[calc(100vh-8rem)] w-full grid-cols-[260px_1fr] rounded-lg border">
       <div className="flex flex-col border-r bg-muted/40">
@@ -335,7 +333,9 @@ function ChatContent() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    formRef.current?.requestSubmit();
+                    if (formRef.current && (formRef.current.elements.namedItem('message') as HTMLTextAreaElement).value.trim()) {
+                      formRef.current.requestSubmit();
+                    }
                 }
               }}
               disabled={isSending}
