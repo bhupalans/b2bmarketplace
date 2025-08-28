@@ -8,7 +8,7 @@ import { createOrUpdateProduct, deleteProduct, getProduct, getSellerProducts, ge
 import { Product } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getAdminApp } from "@/lib/firebase-admin";
+import { getAdminApp, adminAuth } from "@/lib/firebase-admin";
 import { v4 as uuidv4 } from "uuid";
 import { headers } from "next/headers";
 import { Resend } from 'resend';
@@ -80,7 +80,7 @@ const productActionSchema = z.object({
 
 async function getAuthenticatedUserUid(idToken: string): Promise<string> {
     try {
-        const decodedToken = await getAdminApp().auth().verifyIdToken(idToken);
+        const decodedToken = await adminAuth.verifyIdToken(idToken);
         return decodedToken.uid;
     } catch (error) {
          console.error("Error verifying ID token:", error);
