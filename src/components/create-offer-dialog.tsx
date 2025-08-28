@@ -26,7 +26,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Select,
   SelectContent,
@@ -36,7 +36,6 @@ import {
 } from "./ui/select";
 import { mockProducts } from "@/lib/mock-data";
 import { OfferSuggestion } from "@/lib/types";
-import { useFormStatus } from "react-dom";
 import { useAuth } from "@/contexts/auth-context";
 
 const offerSchema = z.object({
@@ -55,23 +54,11 @@ type CreateOfferDialogProps = {
   formAction: (payload: FormData) => void;
 };
 
-function SubmitButton() {
-    const { pending } = useFormStatus();
-    return (
-        <Button type="submit" disabled={pending}>
-            {pending && (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            )}
-            Send Offer
-        </Button>
-    )
-}
-
 
 export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, recipientId, formAction }: CreateOfferDialogProps) {
   const { toast } = useToast();
   const { user } = useAuth();
-  const formRef = useRef<HTMLFormElement>(null);
+  const [isSending, setIsSending] = useState(false);
   
   const form = useForm<z.infer<typeof offerSchema>>({
     resolver: zodResolver(offerSchema),
@@ -94,19 +81,23 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
     }
   }, [suggestion, form, open]);
   
-  const handleAction = (formData: FormData) => {
-    const values = form.getValues();
+  const handleAction = async (values: z.infer<typeof offerSchema>) => {
+    setIsSending(true);
+
     const offerValues = {
         productId: values.productId,
         quantity: values.quantity,
         pricePerUnit: values.pricePerUnit,
         notes: values.notes,
     }
+    const formData = new FormData();
     formData.append('offer', JSON.stringify(offerValues));
     formData.append('recipientId', recipientId);
-    formData.append('message', 'New Offer'); // Required for the action
+    // The message here is a placeholder because the action expects it,
+    // but the actual visible message is created on the server based on the offer.
+    formData.append('message', `New Offer for ${values.productId}`);
 
-    formAction(formData);
+    await formAction(formData);
 
     const product = mockProducts.find(p => p.id === offerValues.productId);
     toast({
@@ -114,6 +105,7 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
         description: `Your offer for ${product?.title} has been sent.`
     });
     
+    setIsSending(false);
     handleOpenChange(false);
   }
 
@@ -156,8 +148,7 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
         </DialogHeader>
         <Form {...form}>
           <form 
-            ref={formRef}
-            action={handleAction}
+            onSubmit={form.handleSubmit(handleAction)}
             className="space-y-4"
           >
             <FormField
@@ -233,7 +224,12 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
               )}
             />
             <DialogFooter>
-               <SubmitButton />
+                <Button type="submit" disabled={isSending}>
+                    {isSending && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    Send Offer
+                </Button>
             </DialogFooter>
           </form>
         </Form>

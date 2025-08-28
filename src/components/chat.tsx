@@ -2,7 +2,6 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useActionState, startTransition, Suspense } from "react";
-import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { useSearchParams } from 'next/navigation'
 import {
@@ -53,11 +52,10 @@ import { CreateOfferDialog } from "./create-offer-dialog";
 import { useAuth } from "@/contexts/auth-context";
 import { getUsers, getMessages } from "@/lib/firestore";
 
-const SubmitButton = () => {
-  const { pending } = useFormStatus();
+const SubmitButton = ({ isSending }: { isSending: boolean }) => {
   return (
-    <Button type="submit" size="icon" disabled={pending}>
-      {pending ? (
+    <Button type="submit" size="icon" disabled={isSending}>
+      {isSending ? (
         <Loader2 className="h-4 w-4 animate-spin" />
       ) : (
         <Send className="h-4 w-4" />
@@ -74,6 +72,7 @@ function ChatContent() {
 
   const [users, setUsers] = useState<User[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [isSending, setIsSending] = useState(false);
   const [suggestion, setSuggestion] = useState<OfferSuggestion | null>(null);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const { toast } = useToast();
@@ -81,13 +80,8 @@ function ChatContent() {
   const suggestionFormRef = useRef<HTMLFormElement>(null);
   const [isCreateOfferOpen, setCreateOfferOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
-
-  const [state, formAction] = useActionState(sendMessageAction, {
-    error: null,
-    message: null,
-    modificationReason: null,
-  });
 
   const [suggestionState, suggestionAction] = useActionState(suggestOfferAction, {
     error: null,
@@ -120,26 +114,6 @@ function ChatContent() {
   const usersById = Object.fromEntries(users.map(u => [u.id, u]));
 
   useEffect(() => {
-    if (state.error) {
-      toast({
-        variant: "destructive",
-        title: "Message failed to send",
-        description: state.error,
-      });
-    }
-    if (state.message) {
-      // Message is now added via real-time listener, but we can clear the form.
-      formRef.current?.reset();
-    }
-    if (state.modificationReason) {
-      toast({
-        title: "Message Modified",
-        description: state.modificationReason,
-      });
-    }
-  }, [state, toast]);
-
-  useEffect(() => {
     if (suggestionState.error) {
       toast({
         variant: "destructive",
@@ -155,6 +129,47 @@ function ChatContent() {
     }
   }, [suggestionState, toast]);
 
+  const handleSendMessage = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!formRef.current) return;
+
+    setIsSending(true);
+    const formData = new FormData(formRef.current);
+    const messageText = formData.get('message') as string;
+    
+    if (!messageText.trim()) {
+        toast({
+            variant: "destructive",
+            title: "Message failed to send",
+            description: "Message cannot be empty.",
+        });
+        setIsSending(false);
+        return;
+    }
+
+    const result = await sendMessageAction(formData);
+
+    if (result.error) {
+        toast({
+            variant: "destructive",
+            title: "Message failed to send",
+            description: result.error,
+        });
+    }
+    if (result.modificationReason) {
+        toast({
+            title: "Message Modified",
+            description: result.modificationReason,
+        });
+    }
+    if (result.message) {
+        formRef.current.reset();
+    }
+    
+    setIsSending(false);
+    textAreaRef.current?.focus();
+  };
+
   const handleSuggestOffer = () => {
     setIsSuggesting(true);
     suggestionFormRef.current?.requestSubmit();
@@ -163,7 +178,7 @@ function ChatContent() {
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
-        formRef.current?.requestSubmit();
+        formRef.current?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
     }
   };
 
@@ -282,7 +297,7 @@ function ChatContent() {
                   onOpenChange={setCreateOfferOpen}
                   onClose={() => setSuggestion(null)}
                   recipientId={recipient.id}
-                  formAction={formAction}
+                  formAction={sendMessageAction}
                 />
               </>
             )}
@@ -344,13 +359,13 @@ function ChatContent() {
         <footer className="border-t bg-muted/40 p-4">
           <form
             ref={formRef}
-            action={formAction}
+            onSubmit={handleSendMessage}
             className="relative flex items-center gap-2"
           >
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon">
+                  <Button type="button" variant="ghost" size="icon">
                     <Paperclip className="h-4 w-4" />
                     <span className="sr-only">Attach file</span>
                   </Button>
@@ -359,13 +374,15 @@ function ChatContent() {
               </Tooltip>
             </TooltipProvider>
             <Textarea
+              ref={textAreaRef}
               name="message"
               placeholder="Type your message here..."
               className="min-h-12 flex-1 resize-none rounded-full px-4 py-3"
               onKeyDown={handleKeyDown}
+              disabled={isSending}
             />
              <input type="hidden" name="recipientId" value={recipient.id} />
-            <SubmitButton />
+            <SubmitButton isSending={isSending} />
           </form>
         </footer>
       </div>

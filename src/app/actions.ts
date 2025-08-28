@@ -14,12 +14,12 @@ import { v4 as uuidv4 } from "uuid";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 
 const messageSchema = z.object({
-  message: z.string().min(1),
+  message: z.string().min(1, { message: "Message cannot be empty." }),
   offer: z.string().optional(), // Stringified JSON of the new offer
   recipientId: z.string().min(1), // Who the offer is for or message
 });
 
-export async function sendMessageAction(prevState: any, formData: FormData) {
+export async function sendMessageAction(formData: FormData) {
   const validatedFields = messageSchema.safeParse({
     message: formData.get("message"),
     offer: formData.get("offer") as string | undefined,
@@ -27,15 +27,18 @@ export async function sendMessageAction(prevState: any, formData: FormData) {
   });
 
   if (!validatedFields.success) {
+    // Flatten the error messages to be more easily displayed
+    const error = validatedFields.error.flatten().fieldErrors.message?.[0] || "Validation failed.";
     return {
-      ...prevState,
-      error: "Message cannot be empty.",
+      error,
+      message: null,
+      modificationReason: null,
     };
   }
 
   const senderId = auth.currentUser?.uid;
   if (!senderId) {
-    return { error: "User not authenticated." };
+    return { error: "User not authenticated.", message: null, modificationReason: null };
   }
   
   const { recipientId, message: originalMessage, offer: offerString } = validatedFields.data;
@@ -70,6 +73,7 @@ export async function sendMessageAction(prevState: any, formData: FormData) {
 
     return {
       error: null,
+      modificationReason: null,
       message: {
         id: docRef.id,
         ...messageDoc,
@@ -93,9 +97,6 @@ export async function sendMessageAction(prevState: any, formData: FormData) {
   try {
     const docRef = await addDoc(collection(db, 'messages'), newMessage);
     
-    // No need to revalidate path, as we are using a real-time listener
-    // revalidatePath('/messages');
-
     return {
       error: null,
       modificationReason: filterResult.modificationReason || null,
@@ -108,7 +109,7 @@ export async function sendMessageAction(prevState: any, formData: FormData) {
 
   } catch (error) {
     console.error("Error saving message:", error);
-    return { error: "Failed to save message to the database." };
+    return { error: "Failed to save message to the database.", message: null, modificationReason: null };
   }
 }
 
