@@ -1,39 +1,57 @@
 rules_version = '2';
 
+// Helper functions to improve readability
+function isOwner(userId) {
+  return request.auth != null && request.auth.uid == userId;
+}
+
+function isSignedIn() {
+  return request.auth != null;
+}
+
+function isAdmin() {
+  return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+}
+
+function isSeller() {
+  return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'seller';
+}
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- TEMPORARY SEEDING RULES ---
-    // These rules are intentionally relaxed to allow the initial database seed to run from the client.
-    // After successfully seeding the database, these should be replaced with more secure rules.
-
-    // Allow public read on categories and products.
-    // Allow any authenticated user to write/create for the seeding process.
+    // Publicly readable, admin-writable
     match /categories/{categoryId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isAdmin();
     }
 
+    // Products can be read if approved.
+    // Writes are restricted to the product owner (seller) or an admin.
     match /products/{productId} {
-      allow read: if true;
-      allow write: if request.auth != null;
+      allow read: if resource.data.status == 'approved';
+      
+      // A seller can create a product.
+      allow create: if isSeller() && isOwner(request.resource.data.sellerId);
+
+      // An owner can update their product, but cannot change the status.
+      // An admin can update any product, including the status.
+      allow update: if (isOwner(resource.data.sellerId) && request.resource.data.status == resource.data.status) || isAdmin();
+      
+      // An owner or an admin can delete a product.
+      allow delete: if isOwner(resource.data.sellerId) || isAdmin();
     }
 
-    // Allow public read on user profiles.
-    // Allow any authenticated user to create user documents for the seeding process.
+    // User documents can be read by anyone.
+    // A user can only write to their own document. Admins can write to any.
     match /users/{userId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isOwner(userId) || isAdmin();
     }
 
-    // Allow the seeder to write the status document.
+    // Internal documents are read/write for admins only.
     match /internal/{docId} {
-        allow read, write: if request.auth != null;
-    }
-
-    // Default deny all other collections.
-    match /{document=**} {
-      allow read, write: if false;
+      allow read, write: if isAdmin();
     }
   }
 }
