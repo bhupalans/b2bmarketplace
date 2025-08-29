@@ -133,15 +133,22 @@ export async function updateProductStatus(
 async function uploadImages(files: File[], sellerId: string): Promise<string[]> {
   if (!files || files.length === 0) return [];
   
-  const uploadedImageUrls = await Promise.all(
-    files.map(async (file) => {
+  try {
+    const uploadPromises = files.map(async (file) => {
       const filePath = `products/${sellerId}/${uuidv4()}-${file.name}`;
       const storageRef = ref(storage, filePath);
       await uploadBytes(storageRef, file);
-      return getDownloadURL(storageRef);
-    })
-  );
-  return uploadedImageUrls;
+      const downloadUrl = await getDownloadURL(storageRef);
+      return downloadUrl;
+    });
+
+    const urls = await Promise.all(uploadPromises);
+    return urls;
+  } catch (error) {
+    console.error("Error during image upload:", error);
+    // This will cause the calling function's catch block to execute.
+    throw new Error("One or more image uploads failed. Please try again.");
+  }
 }
 
 async function deleteImages(urls: string[]): Promise<void> {
@@ -163,7 +170,6 @@ async function deleteImages(urls: string[]): Promise<void> {
     await Promise.all(deletePromises);
 }
 
-// Rewritten function to be robust and correct.
 export async function createOrUpdateProductClient(
   productData: Omit<Product, 'id' | 'images' | 'status' | 'sellerId' | 'createdAt' | 'updatedAt'>,
   newImageFiles: File[],
@@ -174,6 +180,7 @@ export async function createOrUpdateProductClient(
 
     // UPDATE PATH
     if (productId) {
+      try {
         const productRef = doc(db, 'products', productId);
         const docSnap = await getDoc(productRef);
         if (!docSnap.exists()) {
@@ -202,13 +209,18 @@ export async function createOrUpdateProductClient(
         await updateDoc(productRef, dataToUpdate);
         const updatedDocSnap = await getDoc(productRef);
         return { id: productId, ...updatedDocSnap.data() } as Product;
+      } catch (error) {
+        console.error("Error updating product:", error);
+        throw error; // Re-throw to be caught by the form
+      }
     } 
     // CREATE PATH
     else {
-        if (newImageFiles.length === 0) {
-            throw new Error('At least one image is required to create a product.');
-        }
-
+      if (newImageFiles.length === 0) {
+        throw new Error('At least one image is required to create a product.');
+      }
+      
+      try {
         const newUploadedUrls = await uploadImages(newImageFiles, sellerId);
         
         const dataToCreate = {
@@ -223,6 +235,10 @@ export async function createOrUpdateProductClient(
         const docRef = await addDoc(collection(db, 'products'), dataToCreate);
         const newDocSnap = await getDoc(docRef);
         return { id: docRef.id, ...newDocSnap.data() } as Product;
+      } catch(error) {
+        console.error("Error creating new product:", error);
+        throw error; // Re-throw to be caught by the form
+      }
     }
 }
 
