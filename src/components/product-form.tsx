@@ -334,6 +334,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                                 disabled={isSaving}
                                 multiple
                                 {...fieldProps}
+                                value={undefined}
                                 onChange={(event) => {
                                   onChange(event.target.files)
                                 }}
