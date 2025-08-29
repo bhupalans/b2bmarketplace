@@ -46,16 +46,15 @@ const productSchema = z.object({
   priceUSD: z.coerce.number().positive({ message: "Price must be a positive number." }),
   categoryId: z.string().min(1, { message: "Please select a category." }),
   existingImages: z.array(z.string().url()).optional(),
-  newImageFiles: z.custom<FileList>((val) => val instanceof FileList, "Please upload a file").optional(),
+  newImageFiles: z.custom<FileList>().optional(),
 }).refine(data => {
     const hasExistingImages = data.existingImages && data.existingImages.length > 0;
     const hasNewImages = data.newImageFiles && data.newImageFiles.length > 0;
     return hasExistingImages || hasNewImages;
 }, {
     message: "Please add at least one image.",
-    path: ["newImageFiles"], // Attach error to this field for display
+    path: ["newImageFiles"], 
 });
-
 
 type ProductFormDialogProps = {
   open: boolean;
@@ -85,9 +84,8 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
     },
   });
   
-  // Watch form fields to react to changes
-  const watchedExistingImages = form.watch('existingImages', []);
   const watchedNewImageFiles = form.watch('newImageFiles');
+  const watchedExistingImages = form.watch('existingImages', []);
 
   const resetForm = useCallback(() => {
     form.reset({
@@ -98,7 +96,6 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
       existingImages: [],
       newImageFiles: undefined,
     });
-    setNewImagePreviews([]);
   }, [form]);
 
   useEffect(() => {
@@ -108,14 +105,12 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
         try {
           const fetchedProduct = await getProductClient(productId);
           if (fetchedProduct) {
-            form.reset({
-              title: fetchedProduct.title || "",
-              description: fetchedProduct.description || "",
-              priceUSD: fetchedProduct.priceUSD || undefined,
-              categoryId: fetchedProduct.categoryId || "",
-              existingImages: fetchedProduct.images || [],
-              newImageFiles: undefined
-            });
+            form.setValue('title', fetchedProduct.title);
+            form.setValue('description', fetchedProduct.description);
+            form.setValue('priceUSD', fetchedProduct.priceUSD);
+            form.setValue('categoryId', fetchedProduct.categoryId);
+            form.setValue('existingImages', fetchedProduct.images);
+            form.setValue('newImageFiles', undefined); // Reset file input
           }
         } catch (error) {
           console.error("Failed to fetch product", error);
@@ -135,7 +130,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
       resetForm();
     }
   }, [productId, open, form, toast, resetForm, onOpenChange]);
-
+  
   useEffect(() => {
     if (watchedNewImageFiles && watchedNewImageFiles.length > 0) {
         const objectUrls = Array.from(watchedNewImageFiles).map(file => URL.createObjectURL(file));
@@ -156,13 +151,12 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
         return;
       }
       
-      const { newImageFiles, existingImages, ...productData } = values;
+      const { newImageFiles, ...productData } = values;
 
       try {
         const savedProduct = await createOrUpdateProductClient(
           productData,
           Array.from(newImageFiles || []),
-          existingImages || [],
           firebaseUser.uid,
           productId
         );
@@ -189,13 +183,6 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
     form.setValue("existingImages", currentImages.filter((img) => img !== imageUrlToRemove), { shouldValidate: true });
   };
   
-  useEffect(() => {
-    // Cleanup new previews on unmount
-    return () => {
-      newImagePreviews.forEach(URL.revokeObjectURL);
-    };
-  }, [newImagePreviews]);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -288,7 +275,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
             <FormField
                 control={form.control}
                 name="newImageFiles"
-                render={({ field }) => (
+                render={() => (
                  <FormItem>
                   <FormLabel>Product Images</FormLabel>
                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
@@ -312,17 +299,17 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                         </div>
                     ))}
 
-                    <FormControl>
-                        <div className="flex items-center justify-center h-full w-full aspect-square flex-shrink-0 border-2 border-dashed rounded-md">
-                            <label htmlFor="product-images-input" className="cursor-pointer h-full w-full flex items-center justify-center">
-                                {isSaving ? (
-                                    <Loader2 className="h-6 w-6 animate-spin" />
-                               ) : (
-                                    <UploadCloud className="h-6 w-6" />
-                               )}
-                               <span className="sr-only">Upload Image</span>
-                            </label>
-                            <input
+                    <div className="flex items-center justify-center h-full w-full aspect-square flex-shrink-0 border-2 border-dashed rounded-md">
+                        <label htmlFor="product-images-input" className="cursor-pointer h-full w-full flex flex-col items-center justify-center">
+                            {isSaving ? (
+                                <Loader2 className="h-6 w-6 animate-spin" />
+                           ) : (
+                                <UploadCloud className="h-6 w-6" />
+                           )}
+                           <span className="sr-only">Upload Image</span>
+                        </label>
+                        <FormControl>
+                             <input
                                 id="product-images-input"
                                 type="file"
                                 className="hidden"
@@ -331,8 +318,8 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                                 multiple
                                 {...form.register('newImageFiles')}
                             />
-                        </div>
-                    </FormControl>
+                        </FormControl>
+                    </div>
                   </div>
                   <FormDescription>The first image will be the main display image. You can upload multiple images.</FormDescription>
                     <FormMessage />
