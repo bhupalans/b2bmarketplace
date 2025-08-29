@@ -160,8 +160,12 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
   
   const onSubmit = (values: ProductFormData) => {
     startSavingTransition(async () => {
-      if (!firebaseUser) {
-        toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in." });
+      if (!firebaseUser || !firebaseUser.uid) {
+        toast({ 
+          variant: "destructive", 
+          title: "Authentication Error", 
+          description: "Your session may have expired. Please log out and sign back in." 
+        });
         return;
       }
       
@@ -331,7 +335,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                                 type="file"
                                 className="hidden"
                                 accept="image/png, image/jpeg, image/gif"
-                                disabled={isSaving}
+                                disabled={isSaving || !firebaseUser}
                                 multiple
                                 {...fieldProps}
                                 value={undefined}
@@ -350,7 +354,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
 
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={isSaving}>Cancel</Button>
-              <Button type="submit" disabled={isSaving}>
+              <Button type="submit" disabled={isSaving || !firebaseUser}>
                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Submit for Review
               </Button>
@@ -364,3 +368,5 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
 }
 
 export const ProductFormDialog = memo(ProductFormDialogComponent);
+
+    
