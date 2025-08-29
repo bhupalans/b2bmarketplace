@@ -1,81 +1,53 @@
 rules_version = '2';
-
-// Helper functions to improve readability
-function isSignedIn() {
-  return request.auth != null;
-}
-
-function isOwner(userId) {
-  return isSignedIn() && request.auth.uid == userId;
-}
-
-function isAdmin() {
-  return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-}
-
-function isSeller() {
-    return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'seller';
-}
-
-function isCreatingProduct() {
-    // On create, the resource is in the request
-    return request.resource.data.sellerId == request.auth.uid;
-}
-
-function isUpdatingOwnProduct() {
-    // On update, the resource already exists
-    return resource.data.sellerId == request.auth.uid;
-}
-
-function productStatusUnchanged() {
-    // Ensure the 'status' field is not changed during an update by a seller
-    return resource.data.status == request.resource.data.status;
-}
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    match /users/{userId} {
-      // Anyone can read a user's public profile
-      allow get: if true;
-      // Only the user themselves can update their profile
-      allow update: if isOwner(userId);
-      // Disallow client-side creation or deletion of users
-      allow create, delete: if false;
+    // Helper function to check if a user is the owner of a document
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
     }
 
+    // Helper function to check if the user is an admin
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Categories: Allow anyone to read.
     match /categories/{categoryId} {
-      // Anyone can view the categories
-      allow get, list: if true;
-      // Only admins can create, update or delete categories
-      allow write: if isAdmin();
+      allow read: if true;
+      allow write: if isAdmin(); // Only admins can change categories
     }
 
+    // Products:
+    // - Allow anyone to read approved products.
+    // - Allow authenticated users to create a product if they are the seller.
+    // - Allow the owner or an admin to update a product.
+    // - Allow the owner or an admin to delete a product.
     match /products/{productId} {
-      // Rule to allow reading products
-      allow get: if resource.data.status == 'approved' || (isOwner(resource.data.sellerId)) || isAdmin();
-
-      // Rule for listing products
-      // Public users can only list 'approved' products.
-      // Sellers need to list their own products of any status, this is handled by querying on the client with a 'where' clause,
-      // which Firestore checks against the 'get' rule for each document.
-      allow list: if true;
-
-      // Rule for creating products
-      allow create: if isSeller() && isCreatingProduct();
-
-      // Rule for updating products
-      // Sellers can update their own products, but cannot change the status.
-      // Admins can update any field.
-      allow update: if (isSeller() && isUpdatingOwnProduct() && productStatusUnchanged()) || isAdmin();
-
-      // Rule for deleting products
+      allow read: if resource.data.status == 'approved';
+      allow create: if isOwner(request.resource.data.sellerId);
+      allow update: if isOwner(resource.data.sellerId) || isAdmin();
       allow delete: if isOwner(resource.data.sellerId) || isAdmin();
+      
+      // Also allow admins to read any product, regardless of status
+      allow get: if isAdmin();
+    }
+
+    // Users:
+    // - Allow anyone to read public user profiles.
+    // - A user can create their own profile.
+    // - A user can only update their own profile.
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isAdmin(); // Only admins can delete users
     }
     
+    // Internal: Only admins can access
     match /internal/{docId} {
-      // Internal collection, should not be client-accessible unless specifically needed
-      allow read, write: if false;
+        allow read, write: if isAdmin();
     }
   }
 }
