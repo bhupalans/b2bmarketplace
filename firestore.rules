@@ -3,42 +3,37 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check for Admin role
-    function isAdmin() {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
+    // --- TEMPORARY SEEDING RULES ---
+    // These rules are intentionally relaxed to allow the initial database seed to run from the client.
+    // After successfully seeding the database, these should be replaced with more secure rules.
 
-    // Helper function to check if the user is the owner of a product
-    function isOwner(resource) {
-        return request.auth.uid == resource.data.sellerId;
-    }
-
-    // --- Public Collections ---
-    // Anyone can read approved products and all categories
-    match /products/{productId} {
-      allow read: if resource.data.status == 'approved' || isAdmin();
-      allow create: if request.auth != null; // Allow any logged-in user to create (pending review)
-      allow update: if isAdmin() || (request.auth != null && isOwner(resource));
-      allow delete: if isAdmin() || (request.auth != null && isOwner(resource));
-    }
-    
+    // Allow public read on categories and products.
+    // Allow any authenticated user to write/create for the seeding process.
     match /categories/{categoryId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if request.auth != null;
     }
 
-    // --- User Profiles ---
-    // Users can read public profiles, but only write to their own. Admins can write to any.
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Allow public read on user profiles.
+    // Allow any authenticated user to create user documents for the seeding process.
     match /users/{userId} {
       allow read: if true;
-      allow write: if request.auth.uid == userId || isAdmin();
+      allow write: if request.auth != null;
     }
 
-    // --- Internal Documents ---
-    // Used for one-time operations like database seeding
+    // Allow the seeder to write the status document.
     match /internal/{docId} {
-      allow read, write: if !exists(/databases/$(database)/documents/internal/seedStatus);
+        allow read, write: if request.auth != null;
+    }
+
+    // Default deny all other collections.
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
