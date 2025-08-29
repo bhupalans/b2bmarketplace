@@ -96,7 +96,6 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
       newImageFiles: undefined,
     });
     setImagePreviews([]);
-    // This is a safer way to reset file input
     const fileInput = document.getElementById('product-images-input') as HTMLInputElement;
     if (fileInput) {
       fileInput.value = "";
@@ -332,6 +331,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                             accept="image/png, image/jpeg, image/gif"
                             disabled={isSaving}
                             multiple
+                            {...fileRef}
                             onChange={handleFileChange}
                         />
                     </div>

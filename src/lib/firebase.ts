@@ -130,6 +130,8 @@ export async function updateProductStatus(
 }
 
 async function uploadImages(files: File[], sellerId: string): Promise<string[]> {
+  if (!files || files.length === 0) return [];
+  
   const uploadedImageUrls = await Promise.all(
     files.map(async (file) => {
       const filePath = `products/${sellerId}/${uuidv4()}-${file.name}`;
@@ -142,19 +144,25 @@ async function uploadImages(files: File[], sellerId: string): Promise<string[]> 
 }
 
 async function deleteImages(urls: string[]): Promise<void> {
-  for (const url of urls) {
-    try {
-      const imageRef = ref(storage, url);
-      await deleteObject(imageRef);
-    } catch (error: any) {
-      if (error.code !== 'storage/object-not-found') {
-        console.error(`Failed to delete image ${url} from storage:`, error);
-      }
-    }
-  }
+    if (!urls || urls.length === 0) return;
+
+    const deletePromises = urls.map(url => {
+        try {
+            const imageRef = ref(storage, url);
+            return deleteObject(imageRef);
+        } catch (error: any) {
+            // If the object doesn't exist, we can ignore the error.
+            if (error.code !== 'storage/object-not-found') {
+                console.error(`Failed to delete image ${url}:`, error);
+            }
+            return Promise.resolve(); // Don't let a single failed deletion stop the process
+        }
+    });
+
+    await Promise.all(deletePromises);
 }
 
-// Client-side function for creating or updating a product
+// Rewritten function to be robust and correct.
 export async function createOrUpdateProductClient(
   productData: Omit<Product, 'id' | 'images' | 'status' | 'sellerId' | 'createdAt' | 'updatedAt'>,
   newImageFiles: File[],
@@ -163,7 +171,7 @@ export async function createOrUpdateProductClient(
   productId?: string | null
 ): Promise<Product> {
 
-    // --- UPDATE PATH ---
+    // UPDATE PATH
     if (productId) {
         const productRef = doc(db, 'products', productId);
         const docSnap = await getDoc(productRef);
@@ -178,39 +186,40 @@ export async function createOrUpdateProductClient(
 
         const newUploadedUrls = await uploadImages(newImageFiles, sellerId);
         const finalImageUrls = [...existingImageUrls, ...newUploadedUrls];
+
         if (finalImageUrls.length === 0) {
-            throw new Error('At least one image is required.');
+            throw new Error('At least one image is required for a product.');
         }
 
-        const finalProductData = {
+        const dataToUpdate = {
             ...productData,
             images: finalImageUrls,
-            status: 'pending' as const, // Reset status for re-approval
+            status: 'pending' as const,
             updatedAt: Timestamp.now(),
-            sellerId: sellerId, // Ensure sellerId is maintained
-            createdAt: originalProductData.createdAt || Timestamp.now(), // Preserve original creation date
         };
 
-        await updateDoc(productRef, finalProductData);
+        await updateDoc(productRef, dataToUpdate);
         const updatedDocSnap = await getDoc(productRef);
         return { id: productId, ...updatedDocSnap.data() } as Product;
     } 
-    // --- CREATE PATH ---
+    // CREATE PATH
     else {
         if (newImageFiles.length === 0) {
-            throw new Error('At least one image is required.');
+            throw new Error('At least one image is required to create a product.');
         }
+
         const newUploadedUrls = await uploadImages(newImageFiles, sellerId);
         
-        const finalProductData = {
+        const dataToCreate = {
             ...productData,
             images: newUploadedUrls,
             sellerId: sellerId,
             status: 'pending' as const,
             createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
         };
         
-        const docRef = await addDoc(collection(db, 'products'), finalProductData);
+        const docRef = await addDoc(collection(db, 'products'), dataToCreate);
         const newDocSnap = await getDoc(docRef);
         return { id: docRef.id, ...newDocSnap.data() } as Product;
     }
