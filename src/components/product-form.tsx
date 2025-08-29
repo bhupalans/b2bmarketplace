@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { memo, useEffect, useState, useTransition, useCallback } from "react";
@@ -69,7 +70,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
   const [isSaving, startSavingTransition] = useTransition();
   const { firebaseUser } = useAuth();
   
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [newImagePreviews, setNewImagePreviews] = useState<string[]>([]);
   const [isLoadingProduct, setIsLoadingProduct] = useState(false);
 
   const form = useForm<z.infer<typeof productSchema>>({
@@ -95,7 +96,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
       existingImages: [],
       newImageFiles: undefined,
     });
-    setImagePreviews([]);
+    setNewImagePreviews([]);
     const fileInput = document.getElementById('product-images-input') as HTMLInputElement;
     if (fileInput) {
       fileInput.value = "";
@@ -117,6 +118,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
               existingImages: fetchedProduct.images || [],
               newImageFiles: undefined
             });
+            setNewImagePreviews([]);
           }
         } catch (error) {
           console.error("Failed to fetch product", error);
@@ -133,10 +135,10 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
     if (open) {
       fetchProduct();
     } else {
-        resetForm();
+      resetForm();
     }
   }, [productId, open, form, toast, resetForm, onOpenChange]);
-
+  
   const onSubmit = (values: z.infer<typeof productSchema>) => {
     startSavingTransition(async () => {
       if (!firebaseUser) {
@@ -144,13 +146,12 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
         return;
       }
       
-      const { newImageFiles, existingImages, ...productData } = values;
+      const { newImageFiles, ...productData } = values;
 
       try {
         const savedProduct = await createOrUpdateProductClient(
           productData,
           Array.from(newImageFiles || []),
-          existingImages,
           firebaseUser.uid,
           productId
         );
@@ -175,13 +176,14 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) {
-      setImagePreviews([]);
+      setNewImagePreviews([]);
+      form.setValue("newImageFiles", undefined, { shouldValidate: true });
       return;
     }
     
     const newPreviews = Array.from(files).map(file => URL.createObjectURL(file));
-    imagePreviews.forEach(URL.revokeObjectURL);
-    setImagePreviews(newPreviews);
+    newImagePreviews.forEach(URL.revokeObjectURL); // Clean up old blob URLs
+    setNewImagePreviews(newPreviews);
     form.setValue("newImageFiles", files, { shouldValidate: true });
   };
 
@@ -190,14 +192,14 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
     form.setValue("existingImages", currentImages.filter((img) => img !== imageUrlToRemove), { shouldValidate: true });
   };
 
-  const existingImages = form.watch('existingImages');
+  const watchedExistingImages = form.watch('existingImages');
   
   useEffect(() => {
-    // Cleanup previews on unmount
+    // Cleanup new previews on unmount
     return () => {
-      imagePreviews.forEach(URL.revokeObjectURL);
+      newImagePreviews.forEach(URL.revokeObjectURL);
     };
-  }, [imagePreviews]);
+  }, [newImagePreviews]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -291,11 +293,11 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
             <FormField
                 control={form.control}
                 name="newImageFiles"
-                render={({ field }) => (
+                render={() => (
                  <FormItem>
                   <FormLabel>Product Images</FormLabel>
                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
-                    {existingImages.map((img) => (
+                    {watchedExistingImages.map((img) => (
                         <div key={img} className="relative group aspect-square">
                             <Image src={img} alt="Product image" fill className="rounded-md object-cover" />
                             <Button
@@ -309,7 +311,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                             </Button>
                         </div>
                     ))}
-                    {imagePreviews.map((preview) => (
+                    {newImagePreviews.map((preview) => (
                         <div key={preview} className="relative group aspect-square">
                             <Image src={preview} alt="New product image" fill className="rounded-md object-cover" />
                         </div>
@@ -358,3 +360,5 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
 }
 
 export const ProductFormDialog = memo(ProductFormDialogComponent);
+
+    
