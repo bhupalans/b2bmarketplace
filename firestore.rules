@@ -1,48 +1,44 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
-    function isAuth() {
-      return request.auth != null;
+    // Helper function to check for Admin role
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    function isRole(role) {
-      return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
+    // Helper function to check if the user is the owner of a product
+    function isOwner(resource) {
+        return request.auth.uid == resource.data.sellerId;
     }
 
-    function isOwner(userId) {
-      return isAuth() && request.auth.uid == userId;
-    }
-
-    // Internal documents - allow client to read/write for seeding
-    match /internal/{docId} {
-        allow read, write: if true;
-    }
-
-    // Users can only read and write their own profile.
-    // Admins can read any user profile.
-    // Allow creating the admin user during seeding.
-    match /users/{userId} {
-      allow get: if isOwner(userId) || isRole('admin');
-      allow list: if isRole('admin');
-      allow update: if isOwner(userId);
-      allow create: if true; // Allow user creation during seeding
-    }
-    
-    // All users (including logged-out visitors) can read categories
-    // Allow write for seeding
-    match /categories/{categoryId=**} {
-      allow read, list: if true;
-      allow write: if true; // Allow seeding
-    }
-    
-    // Products have more complex rules
+    // --- Public Collections ---
+    // Anyone can read approved products and all categories
     match /products/{productId} {
-      allow read, list: if true;
-      allow write: if true; // Allow seeding
+      allow read: if resource.data.status == 'approved' || isAdmin();
+      allow create: if request.auth != null; // Allow any logged-in user to create (pending review)
+      allow update: if isAdmin() || (request.auth != null && isOwner(resource));
+      allow delete: if isAdmin() || (request.auth != null && isOwner(resource));
+    }
+    
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // --- User Profiles ---
+    // Users can read public profiles, but only write to their own. Admins can write to any.
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if request.auth.uid == userId || isAdmin();
+    }
+
+    // --- Internal Documents ---
+    // Used for one-time operations like database seeding
+    match /internal/{docId} {
+      allow read, write: if !exists(/databases/$(database)/documents/internal/seedStatus);
     }
   }
 }
