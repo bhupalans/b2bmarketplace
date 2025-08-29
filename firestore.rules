@@ -1,4 +1,3 @@
-
 rules_version = '2';
 
 service cloud.firestore {
@@ -43,14 +42,15 @@ service cloud.firestore {
       allow get: if resource.data.status == 'approved' || isOwner(resource.data.sellerId) || isRole('admin');
       allow list: if true; // Allow listing so that queries can be performed. The rules on `get` will be enforced on the results.
 
-      // A user can create a product if they are the seller and not trying to set the status.
+      // A user can create a product if they are a seller and not trying to set the status.
       allow create: if isAuth() 
+                    && isRole('seller')
                     && request.resource.data.sellerId == request.auth.uid
                     && !('status' in request.resource.data);
 
       // An owner can update their product, but cannot change the sellerId or status.
       // An admin can update any product (including the status).
-      allow update: if (isOwner(request.resource.data.sellerId) 
+      allow update: if (isOwner(resource.data.sellerId) 
                       && request.resource.data.sellerId == resource.data.sellerId
                       && !('status' in request.resource.data))
                     || isRole('admin');
