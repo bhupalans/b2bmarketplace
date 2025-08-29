@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { memo, useEffect, useState, useTransition, useCallback } from "react";
@@ -152,7 +151,6 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
         const savedProduct = await createOrUpdateProductClient(
           { ...productData, priceUSD: Number(productData.priceUSD) },
           Array.from(newImageFiles || []),
-          values.existingImages,
           firebaseUser.uid,
           productId
         );

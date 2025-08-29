@@ -1,4 +1,3 @@
-
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc, Timestamp } from 'firebase/firestore';
@@ -157,11 +156,13 @@ async function deleteImages(urls: string[]): Promise<void> {
 
 // Client-side function for creating or updating a product
 export async function createOrUpdateProductClient(
-  productData: Omit<Product, 'id' | 'images' | 'status' | 'sellerId' | 'createdAt'> & { existingImages: string[] },
+  productData: Omit<Product, 'id' | 'images' | 'status' | 'sellerId' | 'createdAt' | 'updatedAt'> & { existingImages: string[] },
   newImageFiles: File[],
   sellerId: string,
   productId?: string | null
 ): Promise<Product> {
+
+    const { existingImages, ...dataFromForm } = productData;
 
     // --- UPDATE PATH ---
     if (productId) {
@@ -171,43 +172,38 @@ export async function createOrUpdateProductClient(
             throw new Error("Product to update not found.");
         }
 
-        const originalImages: string[] = docSnap.data().images || [];
-        const imagesToDelete = originalImages.filter(url => !productData.existingImages.includes(url));
+        const originalProductData = docSnap.data() as Product;
+        const imagesToDelete = originalProductData.images.filter(url => !existingImages.includes(url));
         
         await deleteImages(imagesToDelete);
 
         const newUploadedUrls = await uploadImages(newImageFiles, sellerId);
-        const finalImageUrls = [...productData.existingImages, ...newUploadedUrls];
+        const finalImageUrls = [...existingImages, ...newUploadedUrls];
         if (finalImageUrls.length === 0) {
             throw new Error('At least one image is required.');
         }
 
-        const { existingImages, ...dataToSave } = productData;
-        
         const finalProductData = {
-            ...dataToSave,
+            ...originalProductData, // Start with existing data
+            ...dataFromForm, // Overwrite with new form data
             images: finalImageUrls,
-            sellerId: sellerId,
             status: 'pending' as const, // This line is required by the security rules
             updatedAt: Timestamp.now(),
         };
 
         await updateDoc(productRef, finalProductData);
         const updatedDocSnap = await getDoc(productRef);
-        const returnedProduct = { id: productId, ...updatedDocSnap.data() } as Product;
-        return returnedProduct;
+        return { id: productId, ...updatedDocSnap.data() } as Product;
     } 
     // --- CREATE PATH ---
     else {
-        const newUploadedUrls = await uploadImages(newImageFiles, sellerId);
-        if (newUploadedUrls.length === 0) {
+        if (newImageFiles.length === 0) {
             throw new Error('At least one image is required.');
         }
-
-        const { existingImages, ...dataToSave } = productData;
-
+        const newUploadedUrls = await uploadImages(newImageFiles, sellerId);
+        
         const finalProductData = {
-            ...dataToSave,
+            ...dataFromForm,
             images: newUploadedUrls,
             sellerId: sellerId,
             status: 'pending' as const,
