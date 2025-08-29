@@ -45,7 +45,7 @@ const productSchema = z.object({
   description: z.string().min(10, { message: "Description must be at least 10 characters." }),
   priceUSD: z.coerce.number().positive({ message: "Price must be a positive number." }),
   categoryId: z.string().min(1, { message: "Please select a category." }),
-  existingImages: z.array(z.string().url()),
+  existingImages: z.array(z.string().url()).optional(),
   newImageFiles: z.custom<FileList>((val) => val instanceof FileList, "Please upload a file").optional(),
 }).refine(data => {
     const hasExistingImages = data.existingImages && data.existingImages.length > 0;
@@ -53,7 +53,7 @@ const productSchema = z.object({
     return hasExistingImages || hasNewImages;
 }, {
     message: "Please add at least one image.",
-    path: ["newImageFiles"],
+    path: ["newImageFiles"], // Attach error to this field for display
 });
 
 
@@ -70,8 +70,8 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
   const [isSaving, startSavingTransition] = useTransition();
   const { firebaseUser } = useAuth();
   
-  const [newImagePreviews, setNewImagePreviews] = useState<string[]>([]);
   const [isLoadingProduct, setIsLoadingProduct] = useState(false);
+  const [newImagePreviews, setNewImagePreviews] = useState<string[]>([]);
 
   const form = useForm<z.infer<typeof productSchema>>({
     resolver: zodResolver(productSchema),
@@ -85,7 +85,9 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
     },
   });
   
-  const fileRef = form.register("newImageFiles");
+  // Watch form fields to react to changes
+  const watchedExistingImages = form.watch('existingImages', []);
+  const watchedNewImageFiles = form.watch('newImageFiles');
 
   const resetForm = useCallback(() => {
     form.reset({
@@ -97,10 +99,6 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
       newImageFiles: undefined,
     });
     setNewImagePreviews([]);
-    const fileInput = document.getElementById('product-images-input') as HTMLInputElement;
-    if (fileInput) {
-      fileInput.value = "";
-    }
   }, [form]);
 
   useEffect(() => {
@@ -118,7 +116,6 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
               existingImages: fetchedProduct.images || [],
               newImageFiles: undefined
             });
-            setNewImagePreviews([]);
           }
         } catch (error) {
           console.error("Failed to fetch product", error);
@@ -138,6 +135,19 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
       resetForm();
     }
   }, [productId, open, form, toast, resetForm, onOpenChange]);
+
+  useEffect(() => {
+    if (watchedNewImageFiles && watchedNewImageFiles.length > 0) {
+        const objectUrls = Array.from(watchedNewImageFiles).map(file => URL.createObjectURL(file));
+        setNewImagePreviews(objectUrls);
+
+        return () => {
+            objectUrls.forEach(URL.revokeObjectURL);
+        }
+    } else {
+        setNewImagePreviews([]);
+    }
+  }, [watchedNewImageFiles]);
   
   const onSubmit = (values: z.infer<typeof productSchema>) => {
     startSavingTransition(async () => {
@@ -146,12 +156,13 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
         return;
       }
       
-      const { newImageFiles, ...productData } = values;
+      const { newImageFiles, existingImages, ...productData } = values;
 
       try {
         const savedProduct = await createOrUpdateProductClient(
           productData,
           Array.from(newImageFiles || []),
+          existingImages || [],
           firebaseUser.uid,
           productId
         );
@@ -173,26 +184,10 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
     });
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) {
-      setNewImagePreviews([]);
-      form.setValue("newImageFiles", undefined, { shouldValidate: true });
-      return;
-    }
-    
-    const newPreviews = Array.from(files).map(file => URL.createObjectURL(file));
-    newImagePreviews.forEach(URL.revokeObjectURL); // Clean up old blob URLs
-    setNewImagePreviews(newPreviews);
-    form.setValue("newImageFiles", files, { shouldValidate: true });
-  };
-
   const handleRemoveExistingImage = (imageUrlToRemove: string) => {
     const currentImages = form.getValues("existingImages") || [];
     form.setValue("existingImages", currentImages.filter((img) => img !== imageUrlToRemove), { shouldValidate: true });
   };
-
-  const watchedExistingImages = form.watch('existingImages');
   
   useEffect(() => {
     // Cleanup new previews on unmount
@@ -293,7 +288,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
             <FormField
                 control={form.control}
                 name="newImageFiles"
-                render={() => (
+                render={({ field }) => (
                  <FormItem>
                   <FormLabel>Product Images</FormLabel>
                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
@@ -317,26 +312,27 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                         </div>
                     ))}
 
-                    <div className="flex items-center justify-center h-full w-full aspect-square flex-shrink-0 border-2 border-dashed rounded-md">
-                        <label htmlFor="product-images-input" className="cursor-pointer h-full w-full flex items-center justify-center">
-                            {isSaving ? (
-                                <Loader2 className="h-6 w-6 animate-spin" />
-                           ) : (
-                                <UploadCloud className="h-6 w-6" />
-                           )}
-                           <span className="sr-only">Upload Image</span>
-                        </label>
-                        <input
-                            id="product-images-input"
-                            type="file"
-                            className="hidden"
-                            accept="image/png, image/jpeg, image/gif"
-                            disabled={isSaving}
-                            multiple
-                            {...fileRef}
-                            onChange={handleFileChange}
-                        />
-                    </div>
+                    <FormControl>
+                        <div className="flex items-center justify-center h-full w-full aspect-square flex-shrink-0 border-2 border-dashed rounded-md">
+                            <label htmlFor="product-images-input" className="cursor-pointer h-full w-full flex items-center justify-center">
+                                {isSaving ? (
+                                    <Loader2 className="h-6 w-6 animate-spin" />
+                               ) : (
+                                    <UploadCloud className="h-6 w-6" />
+                               )}
+                               <span className="sr-only">Upload Image</span>
+                            </label>
+                            <input
+                                id="product-images-input"
+                                type="file"
+                                className="hidden"
+                                accept="image/png, image/jpeg, image/gif"
+                                disabled={isSaving}
+                                multiple
+                                {...form.register('newImageFiles')}
+                            />
+                        </div>
+                    </FormControl>
                   </div>
                   <FormDescription>The first image will be the main display image. You can upload multiple images.</FormDescription>
                     <FormMessage />
@@ -360,5 +356,3 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
 }
 
 export const ProductFormDialog = memo(ProductFormDialogComponent);
-
-    
