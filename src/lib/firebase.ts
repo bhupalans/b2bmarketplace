@@ -130,26 +130,27 @@ export async function updateProductStatus(
   await updateDoc(productRef, { status });
 }
 
-// Robust image upload function with proper error handling
+// Robust image upload function using a standard for...of loop for reliability
 async function uploadImages(files: File[], sellerId: string): Promise<string[]> {
   if (!files || files.length === 0) return [];
   
-  const uploadPromises: Promise<string>[] = files.map(async (file) => {
+  const uploadedUrls: string[] = [];
+  
+  for (const file of files) {
     const filePath = `products/${sellerId}/${uuidv4()}-${file.name}`;
     const storageRef = ref(storage, filePath);
     try {
-        await uploadBytes(storageRef, file);
-        const url = await getDownloadURL(storageRef);
-        return url;
-    } catch(error) {
-        console.error(`Failed to upload ${file.name}:`, error);
-        // Throw an error that can be caught by the calling function
-        throw new Error(`Image upload failed for ${file.name}. Please check storage rules and network connection.`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      uploadedUrls.push(url);
+    } catch (error) {
+      console.error(`Failed to upload ${file.name}:`, error);
+      // This throw will be caught by the calling function's try/catch block
+      throw new Error(`Image upload failed. Please check storage permissions and network connection.`);
     }
-  });
+  }
 
-  // This will now correctly reject if any of the uploads fail
-  return Promise.all(uploadPromises);
+  return uploadedUrls;
 }
 
 // Robust image deletion function
