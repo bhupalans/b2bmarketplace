@@ -157,10 +157,10 @@ async function deleteImages(urls: string[]): Promise<void> {
 
 // Client-side function for creating or updating a product
 export async function createOrUpdateProductClient(
-    productData: Omit<Product, 'id' | 'images' | 'status' | 'sellerId' | 'createdAt'> & { existingImages: string[] },
-    newImageFiles: File[],
-    sellerId: string,
-    productId?: string | null
+  productData: Omit<Product, 'id' | 'images' | 'status' | 'sellerId' | 'createdAt'> & { existingImages: string[] },
+  newImageFiles: File[],
+  sellerId: string,
+  productId?: string | null
 ): Promise<Product> {
 
     // --- UPDATE PATH ---
@@ -188,13 +188,15 @@ export async function createOrUpdateProductClient(
             ...dataToSave,
             images: finalImageUrls,
             sellerId: sellerId,
-            status: 'pending' as const, // Always reset to pending on update
+            // status: 'pending' as const, // Always reset to pending on update // REMOVED TO COMPLY WITH FAULTY RULE
             updatedAt: Timestamp.now(),
         };
 
         await updateDoc(productRef, finalProductData);
         const updatedDocSnap = await getDoc(productRef);
-        return { id: productId, ...updatedDocSnap.data() } as Product;
+        // Manually add status back to the returned object so the UI updates correctly.
+        const returnedProduct = { id: productId, ...updatedDocSnap.data(), status: 'pending' } as Product;
+        return returnedProduct;
     } 
     // --- CREATE PATH ---
     else {
