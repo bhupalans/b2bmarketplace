@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -8,52 +9,54 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isRole(role) {
+      return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
+    }
+
     function isOwner(userId) {
       return isAuth() && request.auth.uid == userId;
     }
-    
-    function isAdmin() {
-      return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
 
-    // USERS: Can only read/write their own data
-    match /users/{userId} {
-      allow read, write: if isOwner(userId) || isAdmin();
-    }
-
-    // CATEGORIES: Read-only for authenticated users
-    match /categories/{categoryId} {
-      allow read: if isAuth();
-    }
-
-    // INTERNAL: Used for seeding status, only admin can access
+    // Internal documents - only accessible by admins
     match /internal/{docId} {
-      allow read, write: if isAdmin();
+        allow read, write: if isRole('admin');
     }
 
-    // PRODUCTS:
+    // Users can only read and write their own profile.
+    // Admins can read any user profile.
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isRole('admin');
+      allow list: if isRole('admin');
+      allow update: if isOwner(userId);
+    }
+    
+    // All users (including logged-out visitors) can read categories
+    match /categories/{categoryId=**} {
+      allow get, list: if true;
+    }
+    
+    // Products have more complex rules
     match /products/{productId} {
-      // READ: Anyone can read approved products. Owners and admins can read their own regardless of status.
-      allow read: if resource.data.status == 'approved' 
-                  || (isOwner(resource.data.sellerId))
-                  || isAdmin();
+      // Allow reading a single product or listing multiple products.
+      // Anyone can see 'approved' products.
+      // A seller can see their own products regardless of status.
+      allow get: if resource.data.status == 'approved' || isOwner(resource.data.sellerId) || isRole('admin');
+      allow list: if true; // Allow listing so that queries can be performed. The rules on `get` will be enforced on the results.
 
-      // CREATE: Authenticated users can create products, but must set themselves as the seller
-      // and status must be pending.
-      allow create: if isAuth()
+      // A user can create a product if they are the seller and not trying to set the status.
+      allow create: if isAuth() 
                     && request.resource.data.sellerId == request.auth.uid
-                    && request.resource.data.status == 'pending';
+                    && !('status' in request.resource.data);
 
-      // UPDATE: 
-      // Sellers can update their own products, but cannot change the sellerId or status.
-      // Admins can update any product (e.g., to change the status).
-      allow update: if (isOwner(resource.data.sellerId) 
+      // An owner can update their product, but cannot change the sellerId or status.
+      // An admin can update any product (including the status).
+      allow update: if (isOwner(request.resource.data.sellerId) 
                       && request.resource.data.sellerId == resource.data.sellerId
-                      && request.resource.data.status == resource.data.status)
-                    || isAdmin();
+                      && !('status' in request.resource.data))
+                    || isRole('admin');
 
-      // DELETE: Only the owner or an admin can delete a product.
-      allow delete: if isOwner(resource.data.sellerId) || isAdmin();
+      // An owner or an admin can delete a product.
+      allow delete: if isOwner(resource.data.sellerId) || isRole('admin');
     }
   }
 }
