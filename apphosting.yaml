@@ -16,3 +16,5 @@ requiredAPIs:
     reason: To allow the backend to access Firestore.
   - service: identitytoolkit.googleapis.com
     reason: To allow the backend to verify Firebase Auth tokens.
+  - service: firebasestorage.googleapis.com
+    reason: To allow the backend to use Firebase Storage for image uploads.

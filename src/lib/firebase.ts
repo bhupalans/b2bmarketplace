@@ -7,13 +7,14 @@ import { Product, Category, User } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
 const firebaseConfig = {
-  projectId: 'b2b-marketplace-udg1v',
-  appId: '1:822558435203:web:c462791316c4540a2e78b6',
-  storageBucket: 'b2b-marketplace-udg1v.appspot.com',
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: 'b2b-marketplace-udg1v.firebaseapp.com',
-  messagingSenderId: '822558435203',
+  authDomain: "b2b-marketplace-udg1v.firebaseapp.com",
+  projectId: "b2b-marketplace-udg1v",
+  storageBucket: "b2b-marketplace-udg1v.appspot.com",
+  messagingSenderId: "822558435203",
+  appId: "1:822558435203:web:c462791316c4540a2e78b6"
 };
+
 
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
@@ -130,7 +131,7 @@ export async function updateProductStatus(
   await updateDoc(productRef, { status });
 }
 
-// Robust image upload function using a standard for...of loop for reliability
+// Rewritten, robust image upload function
 async function uploadImages(files: File[], sellerId: string): Promise<string[]> {
   if (!files || files.length === 0) return [];
   
@@ -153,7 +154,6 @@ async function uploadImages(files: File[], sellerId: string): Promise<string[]> 
   return uploadedUrls;
 }
 
-// Robust image deletion function
 async function deleteImages(urls: string[]): Promise<void> {
     if (!urls || urls.length === 0) return;
 
@@ -166,18 +166,16 @@ async function deleteImages(urls: string[]): Promise<void> {
             const imageRef = ref(storage, url);
             return deleteObject(imageRef);
         } catch (error: any) {
-             // It's okay if the object doesn't exist, log other errors
             if (error.code !== 'storage/object-not-found') {
                 console.error(`Failed to delete image at ${url}:`, error);
             }
-            return Promise.resolve(); // Don't let one failed deletion stop others
+            return Promise.resolve(); 
         }
     });
 
     await Promise.all(deletePromises);
 }
 
-// Rewritten create/update function with clear separation and error handling
 export async function createOrUpdateProductClient(
   productFormData: { title: string, description: string, priceUSD: number, categoryId: string, existingImages?: string[] },
   newImageFiles: File[],
@@ -185,7 +183,6 @@ export async function createOrUpdateProductClient(
   productId?: string | null
 ): Promise<Product> {
   try {
-    // UPDATE LOGIC
     if (productId) {
       const productRef = doc(db, 'products', productId);
       const docSnap = await getDoc(productRef);
@@ -197,7 +194,6 @@ export async function createOrUpdateProductClient(
       const keptImages = productFormData.existingImages || [];
       const imagesToDelete = originalImages.filter((url: string) => !keptImages.includes(url));
 
-      // Perform deletions and uploads concurrently
       const [newUploadedUrls] = await Promise.all([
         uploadImages(newImageFiles, sellerId),
         deleteImages(imagesToDelete)
@@ -212,7 +208,7 @@ export async function createOrUpdateProductClient(
       const productToUpdate = {
         ...productFormData,
         images: finalImageUrls,
-        status: 'pending' as const, // Reset status for re-approval
+        status: 'pending' as const, 
         updatedAt: Timestamp.now(),
       };
 
@@ -220,7 +216,6 @@ export async function createOrUpdateProductClient(
       const updatedDocSnap = await getDoc(productRef);
       return { id: productId, ...updatedDocSnap.data() } as Product;
     } 
-    // CREATE LOGIC
     else {
       if (newImageFiles.length === 0) {
         throw new Error('At least one image is required to create a product.');
@@ -232,7 +227,7 @@ export async function createOrUpdateProductClient(
           ...productFormData,
           images: uploadedImageUrls,
           sellerId: sellerId,
-          status: 'pending' as const, // Required by security rules
+          status: 'pending' as const,
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now(),
       };
@@ -243,7 +238,6 @@ export async function createOrUpdateProductClient(
     }
   } catch(error) {
       console.error("Error in createOrUpdateProductClient:", error);
-      // Re-throw the error so the UI can catch it and stop spinning
       throw error;
   }
 }
@@ -259,9 +253,7 @@ export async function deleteProductClient(product: Product): Promise<void> {
         const docSnap = await getDoc(productRef);
         if (docSnap.exists()) {
           const imagesToDelete = docSnap.data().images || [];
-          // Delete images first
           await deleteImages(imagesToDelete);
-          // Then delete the document
           await deleteDoc(productRef);
         } else {
           console.warn("Attempted to delete a product that does not exist:", product.id);
