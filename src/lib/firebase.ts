@@ -182,6 +182,11 @@ export async function createOrUpdateProductClient(
   sellerId: string,
   productId?: string | null
 ): Promise<Product> {
+  // This is the critical validation check.
+  if (!sellerId || typeof sellerId !== 'string' || sellerId.trim() === '') {
+    throw new Error('Invalid or missing Seller ID. User must be authenticated.');
+  }
+
   try {
     if (productId) {
       const productRef = doc(db, 'products', productId);
