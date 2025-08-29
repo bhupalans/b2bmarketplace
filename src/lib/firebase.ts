@@ -220,12 +220,11 @@ export async function createOrUpdateProductClient(
   } 
   // CREATE PATH
   else {
-    if (newImageFiles.length === 0) {
-      throw new Error('At least one image is required to create a product.');
-    }
-    
     try {
-      // This now has proper error handling.
+      if (newImageFiles.length === 0) {
+        throw new Error('At least one image is required to create a product.');
+      }
+      
       const newUploadedUrls = await uploadImages(newImageFiles, sellerId);
       
       const dataToCreate = {
@@ -255,13 +254,22 @@ export async function deleteProductClient(product: Product): Promise<void> {
     }
     
     const productRef = doc(db, 'products', product.id);
+    
+    // It's good practice to fetch the latest doc before deleting to get the final list of images
     const docSnap = await getDoc(productRef);
     if (docSnap.exists()) {
+      // Pass the images from the fetched document to the delete function
       await deleteImages(docSnap.data().images || []);
+      // Now delete the Firestore document
       await deleteDoc(productRef);
     } else {
-      throw new Error("Product not found for deletion.");
+      // If the doc doesn't exist, maybe it was already deleted.
+      // Log a warning instead of throwing an error.
+      console.warn("Attempted to delete a product that does not exist:", product.id);
     }
 }
 
+
 export { app, auth, db, storage };
+
+    
