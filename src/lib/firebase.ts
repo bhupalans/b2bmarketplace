@@ -130,6 +130,7 @@ export async function updateProductStatus(
   await updateDoc(productRef, { status });
 }
 
+// This is the robust image upload function.
 async function uploadImages(files: File[], sellerId: string): Promise<string[]> {
   if (!files || files.length === 0) return [];
   
@@ -137,14 +138,18 @@ async function uploadImages(files: File[], sellerId: string): Promise<string[]> 
     const uploadTasks = files.map(file => {
       const filePath = `products/${sellerId}/${uuidv4()}-${file.name}`;
       const storageRef = ref(storage, filePath);
-      return uploadBytes(storageRef, file).then(snapshot => getDownloadURL(snapshot.ref));
+      return uploadBytes(storageRef, file);
     });
 
-    const urls = await Promise.all(uploadTasks);
+    const snapshots = await Promise.all(uploadTasks);
+    const urls = await Promise.all(
+        snapshots.map(snapshot => getDownloadURL(snapshot.ref))
+    );
     return urls;
   } catch (error) {
     console.error("Error during image upload:", error);
-    throw new Error("One or more image uploads failed. Please try again.");
+    // This will now properly reject the promise and be caught by the calling function.
+    throw new Error("One or more image uploads failed. Please check storage rules and network connection.");
   }
 }
 
@@ -172,8 +177,9 @@ async function deleteImages(urls: string[]): Promise<void> {
 }
 
 export async function createOrUpdateProductClient(
-  productFormData: { existingImages?: string[] } & Omit<Product, 'id' | 'images' | 'status' | 'sellerId' | 'createdAt' | 'updatedAt'>,
+  productFormData: { title: string, description: string, priceUSD: number, categoryId: string },
   newImageFiles: File[],
+  existingImageUrls: string[],
   sellerId: string,
   productId?: string | null
 ): Promise<Product> {
@@ -186,21 +192,18 @@ export async function createOrUpdateProductClient(
         throw new Error("Product to update not found.");
       }
       const originalImages = docSnap.data().images || [];
-      const keptImages = productFormData.existingImages || [];
-      const imagesToDelete = originalImages.filter((url: string) => !keptImages.includes(url));
+      const imagesToDelete = originalImages.filter((url: string) => !existingImageUrls.includes(url));
 
       await deleteImages(imagesToDelete);
       const newUploadedUrls = await uploadImages(newImageFiles, sellerId);
-      const finalImageUrls = [...keptImages, ...newUploadedUrls];
+      const finalImageUrls = [...existingImageUrls, ...newUploadedUrls];
       
       if (finalImageUrls.length === 0) {
           throw new Error('At least one image is required for a product.');
       }
       
-      const { existingImages, ...dataToSave } = productFormData;
-
       const dataToUpdate = {
-        ...dataToSave,
+        ...productFormData,
         images: finalImageUrls,
         status: 'pending' as const,
         updatedAt: Timestamp.now(),
@@ -222,11 +225,11 @@ export async function createOrUpdateProductClient(
     }
     
     try {
+      // This now has proper error handling.
       const newUploadedUrls = await uploadImages(newImageFiles, sellerId);
-      const { existingImages, ...dataToSave } = productFormData;
       
       const dataToCreate = {
-          ...dataToSave,
+          ...productFormData,
           images: newUploadedUrls,
           sellerId: sellerId,
           status: 'pending' as const,
@@ -243,6 +246,7 @@ export async function createOrUpdateProductClient(
     }
   }
 }
+
 
 // Client-side function to delete a product and its images
 export async function deleteProductClient(product: Product): Promise<void> {

@@ -2,60 +2,24 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // --- UTILITY ---
-    // Anyone can read this document to see if the database has been seeded.
-    // Only the server can write to it.
-    match /internal/{docId} {
-      allow read: if true;
-      allow write: if false; 
+    match /{document=**} {
+      allow read, write: if false;
     }
 
-    // --- USERS ---
-    // Users can read any other user's profile.
-    // A user can only create or update their own profile.
-    match /users/{userId} {
-      allow read: if true;
-      allow create, update: if request.auth != null && request.auth.uid == userId;
+    // Allow read access to public collections
+    match /products/{productId} {
+      allow read: if resource.data.status == 'approved';
     }
-
-    // --- CATEGORIES ---
-    // Anyone can read categories.
-    // Only admins (not implemented via rules) or server-side processes should write.
     match /categories/{categoryId} {
       allow read: if true;
-      allow write: if false; 
     }
-
-    // --- PRODUCTS ---
-    match /products/{productId} {
-      // Anyone can read a product document if its status is 'approved'.
-      allow read: if resource.data.status == 'approved';
-
-      // An authenticated user can create a product if:
-      // 1. They are logged in.
-      // 2. The sellerId in the new document is their own UID.
-      // 3. The status is correctly set to 'pending'.
-      allow create: if request.auth != null 
-                    && request.resource.data.sellerId == request.auth.uid
-                    && request.resource.data.status == 'pending';
-      
-      // An authenticated user can update a product if:
-      // 1. They are the original seller of the product.
-      // 2. The sellerId field is not being changed.
-      // 3. The new status is correctly set to 'pending' for re-review.
-      // An admin can update a product to change its status (e.g., approve/reject).
-      allow update: if request.auth != null && (
-                      (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
-                      (
-                        resource.data.sellerId == request.auth.uid &&
-                        request.resource.data.sellerId == resource.data.sellerId &&
-                        request.resource.data.status == 'pending'
-                      )
-                    );
-
-      // A user can delete a product if they are the original seller.
-      allow delete: if request.auth != null && resource.data.sellerId == request.auth.uid;
+    match /users/{userId} {
+      allow read: if true;
+    }
+    
+    // Allow users to manage their own profile
+    match /users/{userId} {
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }
