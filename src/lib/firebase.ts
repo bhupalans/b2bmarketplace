@@ -156,13 +156,12 @@ async function deleteImages(urls: string[]): Promise<void> {
 
 // Client-side function for creating or updating a product
 export async function createOrUpdateProductClient(
-  productData: Omit<Product, 'id' | 'images' | 'status' | 'sellerId' | 'createdAt' | 'updatedAt'> & { existingImages: string[] },
+  productData: Omit<Product, 'id' | 'images' | 'status' | 'sellerId' | 'createdAt' | 'updatedAt'>,
   newImageFiles: File[],
+  existingImageUrls: string[],
   sellerId: string,
   productId?: string | null
 ): Promise<Product> {
-
-    const { existingImages, ...dataFromForm } = productData;
 
     // --- UPDATE PATH ---
     if (productId) {
@@ -173,22 +172,23 @@ export async function createOrUpdateProductClient(
         }
 
         const originalProductData = docSnap.data() as Product;
-        const imagesToDelete = originalProductData.images.filter(url => !existingImages.includes(url));
+        const imagesToDelete = originalProductData.images.filter(url => !existingImageUrls.includes(url));
         
         await deleteImages(imagesToDelete);
 
         const newUploadedUrls = await uploadImages(newImageFiles, sellerId);
-        const finalImageUrls = [...existingImages, ...newUploadedUrls];
+        const finalImageUrls = [...existingImageUrls, ...newUploadedUrls];
         if (finalImageUrls.length === 0) {
             throw new Error('At least one image is required.');
         }
 
         const finalProductData = {
-            ...originalProductData, // Start with existing data
-            ...dataFromForm, // Overwrite with new form data
+            ...productData,
             images: finalImageUrls,
-            status: 'pending' as const, // This line is required by the security rules
+            status: 'pending' as const, // Reset status for re-approval
             updatedAt: Timestamp.now(),
+            sellerId: sellerId, // Ensure sellerId is maintained
+            createdAt: originalProductData.createdAt || Timestamp.now(), // Preserve original creation date
         };
 
         await updateDoc(productRef, finalProductData);
@@ -203,7 +203,7 @@ export async function createOrUpdateProductClient(
         const newUploadedUrls = await uploadImages(newImageFiles, sellerId);
         
         const finalProductData = {
-            ...dataFromForm,
+            ...productData,
             images: newUploadedUrls,
             sellerId: sellerId,
             status: 'pending' as const,

@@ -145,12 +145,13 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
         return;
       }
       
-      const { newImageFiles, ...productData } = values;
+      const { newImageFiles, existingImages, ...productData } = values;
 
       try {
         const savedProduct = await createOrUpdateProductClient(
-          { ...productData, priceUSD: Number(productData.priceUSD) },
+          productData,
           Array.from(newImageFiles || []),
+          existingImages,
           firebaseUser.uid,
           productId
         );
