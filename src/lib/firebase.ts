@@ -177,9 +177,8 @@ async function deleteImages(urls: string[]): Promise<void> {
 }
 
 export async function createOrUpdateProductClient(
-  productFormData: { title: string, description: string, priceUSD: number, categoryId: string },
+  productFormData: { title: string, description: string, priceUSD: number, categoryId: string, existingImages?: string[] },
   newImageFiles: File[],
-  existingImageUrls: string[],
   sellerId: string,
   productId?: string | null
 ): Promise<Product> {
@@ -191,21 +190,26 @@ export async function createOrUpdateProductClient(
       if (!docSnap.exists()) {
         throw new Error("Product to update not found.");
       }
+      
       const originalImages = docSnap.data().images || [];
-      const imagesToDelete = originalImages.filter((url: string) => !existingImageUrls.includes(url));
+      const existingImages = productFormData.existingImages || [];
+      const imagesToDelete = originalImages.filter((url: string) => !existingImages.includes(url));
 
       await deleteImages(imagesToDelete);
       const newUploadedUrls = await uploadImages(newImageFiles, sellerId);
-      const finalImageUrls = [...existingImageUrls, ...newUploadedUrls];
+      const finalImageUrls = [...existingImages, ...newUploadedUrls];
       
       if (finalImageUrls.length === 0) {
           throw new Error('At least one image is required for a product.');
       }
       
       const dataToUpdate = {
-        ...productFormData,
+        title: productFormData.title,
+        description: productFormData.description,
+        priceUSD: productFormData.priceUSD,
+        categoryId: productFormData.categoryId,
         images: finalImageUrls,
-        status: 'pending' as const,
+        status: 'pending' as const, // Reset status for re-approval
         updatedAt: Timestamp.now(),
       };
 
@@ -228,10 +232,13 @@ export async function createOrUpdateProductClient(
       const newUploadedUrls = await uploadImages(newImageFiles, sellerId);
       
       const dataToCreate = {
-          ...productFormData,
+          title: productFormData.title,
+          description: productFormData.description,
+          priceUSD: productFormData.priceUSD,
+          categoryId: productFormData.categoryId,
           images: newUploadedUrls,
           sellerId: sellerId,
-          status: 'pending' as const,
+          status: 'pending' as const, // Explicitly set status to pending
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now(),
       };
@@ -271,5 +278,3 @@ export async function deleteProductClient(product: Product): Promise<void> {
 
 
 export { app, auth, db, storage };
-
-    
