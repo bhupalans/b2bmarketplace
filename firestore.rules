@@ -1,11 +1,8 @@
+
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check if a user is the owner of a document
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
-    }
 
     // Helper function to check if the user is an admin
     function isAdmin() {
@@ -13,41 +10,37 @@ service cloud.firestore {
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Categories: Allow anyone to read.
+    // Helper function to check if the user is the owner of the resource
+    function isOwner(resource) {
+      return request.auth.uid == resource.data.sellerId;
+    }
+
+    // Products can be read by anyone, but only created/updated/deleted by the owner seller or an admin.
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if request.auth != null && request.resource.data.sellerId == request.auth.uid;
+      allow update: if request.auth != null && (isOwner(resource) || isAdmin());
+      allow delete: if request.auth != null && (isOwner(resource) || isAdmin());
+    }
+
+    // Categories can be read by anyone. Writing is restricted to admins.
     match /categories/{categoryId} {
       allow read: if true;
-      allow write: if isAdmin(); // Only admins can change categories
-    }
-
-    // Products:
-    // - Allow anyone to read approved products.
-    // - Allow authenticated users to create a product if they are the seller.
-    // - Allow the owner or an admin to update a product.
-    // - Allow the owner or an admin to delete a product.
-    match /products/{productId} {
-      allow read: if resource.data.status == 'approved';
-      allow create: if isOwner(request.resource.data.sellerId);
-      allow update: if isOwner(resource.data.sellerId) || isAdmin();
-      allow delete: if isOwner(resource.data.sellerId) || isAdmin();
-      
-      // Also allow admins to read any product, regardless of status
-      allow get: if isAdmin();
-    }
-
-    // Users:
-    // - Allow anyone to read public user profiles.
-    // - A user can create their own profile.
-    // - A user can only update their own profile.
-    match /users/{userId} {
-      allow read: if true;
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
-      allow delete: if isAdmin(); // Only admins can delete users
+      allow write: if request.auth != null && isAdmin();
     }
     
-    // Internal: Only admins can access
+    // User profiles can be read by anyone. Users can only update their own profile.
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if request.auth != null && request.auth.uid == userId; // Allow user to create their own profile doc
+      allow update: if request.auth != null && request.auth.uid == userId;
+      // Deleting users should be handled carefully, maybe only by admins.
+      allow delete: if request.auth != null && isAdmin();
+    }
+
+    // Internal documents, like the seed status, should not be publicly accessible.
     match /internal/{docId} {
-        allow read, write: if isAdmin();
+      allow read, write: if false;
     }
   }
 }
