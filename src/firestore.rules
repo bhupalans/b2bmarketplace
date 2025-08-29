@@ -1,0 +1,69 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+  
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuth() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Rules for all other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+    // Allow admins full access to everything
+    match /{path=**} {
+      allow read, write: if isAdmin();
+    }
+
+    // Users: Can only read/write their own document
+    match /users/{userId} {
+      allow read, update, delete: if isOwner(userId);
+      allow create: if isAuth(); // Allow any authenticated user to create their own profile
+      allow get: if isAuth(); // Allow any authenticated user to get another user's profile
+    }
+
+    // Categories: Publicly readable by anyone, only writable by admins
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Products:
+    match /products/{productId} {
+      // Anyone can read a product if it's approved
+      allow get: if resource.data.status == 'approved';
+      
+      // Anyone can list products that are approved
+      allow list: if query.filters.size() == 0 || 
+                     (query.filters.size() == 1 && query.filters[0][0] == 'status' && query.filters[0][2] == 'approved') ||
+                     (query.filters.size() == 1 && query.filters[0][0] == 'sellerId');
+
+      // A seller can create a product if the sellerId is their own
+      allow create: if isAuth() && request.resource.data.sellerId == request.auth.uid;
+      
+      // A seller can update their own product, but cannot change the sellerId or status
+      allow update: if isAuth() && resource.data.sellerId == request.auth.uid
+                      && request.resource.data.sellerId == resource.data.sellerId
+                      && request.resource.data.status == 'pending';
+      
+      // A seller can delete their own product
+      allow delete: if isAuth() && resource.data.sellerId == request.auth.uid;
+    }
+    
+    // Internal documents, only for admin access
+    match /internal/{docId} {
+      allow read, write: if isAdmin();
+      allow create: if true; // Allow client to write the seed status
+    }
+  }
+}

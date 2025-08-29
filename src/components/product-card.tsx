@@ -14,8 +14,10 @@ import {
 import { useCurrency } from "@/contexts/currency-context";
 import { Product, User } from "@/lib/types";
 import { ContactSellerDialog } from "./contact-seller-dialog";
-import { useProducts } from "@/hooks/use-products";
 import { Skeleton } from "./ui/skeleton";
+import { useEffect, useState } from "react";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 interface ProductCardProps {
   product: Product;
@@ -23,9 +25,33 @@ interface ProductCardProps {
 
 export function ProductCard({ product }: ProductCardProps) {
   const { currency, rates } = useCurrency();
-  const { users, loading: usersLoading } = useProducts();
+  const [seller, setSeller] = useState<User | null>(null);
+  const [loadingSeller, setLoadingSeller] = useState(true);
 
-  const seller = users.find((u) => u.uid === product.sellerId);
+  useEffect(() => {
+    const fetchSeller = async () => {
+      if (!product.sellerId) {
+        setLoadingSeller(false);
+        return;
+      }
+      try {
+        setLoadingSeller(true);
+        const userRef = doc(db, 'users', product.sellerId);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          setSeller({ id: userSnap.id, uid: userSnap.id, ...userSnap.data() } as User);
+        }
+      } catch (error) {
+        console.error("Failed to fetch seller for product card:", error);
+        setSeller(null);
+      } finally {
+        setLoadingSeller(false);
+      }
+    };
+
+    fetchSeller();
+  }, [product.sellerId]);
+
 
   const getConvertedPrice = () => {
     if (currency === "USD") {
@@ -69,7 +95,7 @@ export function ProductCard({ product }: ProductCardProps) {
         <p className="text-2xl font-bold text-primary">{formattedPrice}</p>
       </CardContent>
       <CardFooter className="p-6 pt-0">
-        {usersLoading ? (
+        {loadingSeller ? (
             <Skeleton className="h-10 w-full" />
         ) : seller ? (
             <ContactSellerDialog product={product} seller={seller} />
