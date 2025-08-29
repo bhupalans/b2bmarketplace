@@ -24,7 +24,7 @@ import {
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { z } from "zod";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -40,6 +40,8 @@ import { useAuth } from "@/contexts/auth-context";
 import { createOrUpdateProductClient, getProductClient } from "@/lib/firebase";
 import { Skeleton } from "./ui/skeleton";
 
+const MAX_IMAGES = 5;
+
 const productSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
   description: z.string().min(10, { message: "Description must be at least 10 characters." }),
@@ -48,19 +50,28 @@ const productSchema = z.object({
   existingImages: z.array(z.string().url()).optional(),
   newImageFiles: z.custom<FileList>().optional(),
 }).refine(data => {
-    const hasExistingImages = data.existingImages && data.existingImages.length > 0;
-    const hasNewImages = data.newImageFiles && data.newImageFiles.length > 0;
-    return hasExistingImages || hasNewImages;
+    const existingCount = data.existingImages?.length || 0;
+    const newCount = data.newImageFiles?.length || 0;
+    return (existingCount + newCount) > 0;
 }, {
     message: "Please add at least one image.",
     path: ["newImageFiles"], 
+}).refine(data => {
+    const existingCount = data.existingImages?.length || 0;
+    const newCount = data.newImageFiles?.length || 0;
+    return (existingCount + newCount) <= MAX_IMAGES;
+}, {
+    message: `You can upload a maximum of ${MAX_IMAGES} images.`,
+    path: ["newImageFiles"],
 });
+
+type ProductFormData = z.infer<typeof productSchema>;
 
 type ProductFormDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   productId?: string | null;
-  onSuccess: (product: Product) => void;
+  onSuccess: () => void;
   categories: Category[];
 };
 
@@ -72,7 +83,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
   const [isLoadingProduct, setIsLoadingProduct] = useState(false);
   const [newImagePreviews, setNewImagePreviews] = useState<string[]>([]);
 
-  const form = useForm<z.infer<typeof productSchema>>({
+  const form = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
     defaultValues: {
       title: "",
@@ -84,8 +95,8 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
     },
   });
   
-  const watchedNewImageFiles = form.watch('newImageFiles');
-  const watchedExistingImages = form.watch('existingImages', []);
+  const watchedNewImageFiles = useWatch({ control: form.control, name: 'newImageFiles' });
+  const watchedExistingImages = useWatch({ control: form.control, name: 'existingImages' }) || [];
 
   const resetForm = useCallback(() => {
     form.reset({
@@ -96,7 +107,6 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
       existingImages: [],
       newImageFiles: undefined,
     });
-    setNewImagePreviews([]);
   }, [form]);
 
   useEffect(() => {
@@ -106,12 +116,14 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
         try {
           const fetchedProduct = await getProductClient(productId);
           if (fetchedProduct) {
-            form.setValue('title', fetchedProduct.title);
-            form.setValue('description', fetchedProduct.description);
-            form.setValue('priceUSD', fetchedProduct.priceUSD);
-            form.setValue('categoryId', fetchedProduct.categoryId);
-            form.setValue('existingImages', fetchedProduct.images);
-            form.setValue('newImageFiles', undefined); // Reset file input
+            form.reset({
+                title: fetchedProduct.title,
+                description: fetchedProduct.description,
+                priceUSD: fetchedProduct.priceUSD,
+                categoryId: fetchedProduct.categoryId,
+                existingImages: fetchedProduct.images || [],
+                newImageFiles: undefined,
+            });
           }
         } catch (error) {
           console.error("Failed to fetch product", error);
@@ -127,8 +139,6 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
 
     if (open) {
       fetchProduct();
-    } else {
-      resetForm();
     }
   }, [productId, open, form, toast, resetForm, onOpenChange]);
   
@@ -145,7 +155,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
     }
   }, [watchedNewImageFiles]);
   
-  const onSubmit = (values: z.infer<typeof productSchema>) => {
+  const onSubmit = (values: ProductFormData) => {
     startSavingTransition(async () => {
       if (!firebaseUser) {
         toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in." });
@@ -168,12 +178,12 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                 ? `Your changes to "${savedProduct.title}" have been submitted for review.`
                 : `Your product "${savedProduct.title}" has been submitted for review.`,
         });
-        onSuccess(savedProduct);
+        onSuccess();
       } catch (error: any) {
          toast({
           variant: "destructive",
           title: "An error occurred",
-          description: error.message || "Something went wrong.",
+          description: error.message || "Something went wrong. Check Firestore/Storage rules and network.",
         });
       }
     });
@@ -190,7 +200,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
         <DialogHeader>
           <DialogTitle>{productId ? "Edit Product" : "Create New Product"}</DialogTitle>
           <DialogDescription>
-            {productId ? "Edit the details for your product listing. Your product will be sent for re-approval." : "Fill out the details below. Your product will be submitted for admin review."}
+            {productId ? "Edit the details for your product listing. Your changes will be sent for re-approval." : "Fill out the details below. Your product will be submitted for admin review."}
           </DialogDescription>
         </DialogHeader>
         {isLoadingProduct ? (
@@ -276,13 +286,13 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
             <FormField
                 control={form.control}
                 name="newImageFiles"
-                render={() => (
+                render={({ field }) => (
                  <FormItem>
                   <FormLabel>Product Images</FormLabel>
                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
                     {watchedExistingImages.map((img) => (
                         <div key={img} className="relative group aspect-square">
-                            <Image src={img} alt="Product image" fill className="rounded-md object-cover" />
+                            <Image src={img} alt="Existing product image" fill className="rounded-md object-cover" />
                             <Button
                                 type="button"
                                 variant="destructive"
@@ -296,12 +306,12 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                     ))}
                     {newImagePreviews.map((preview) => (
                         <div key={preview} className="relative group aspect-square">
-                            <Image src={preview} alt="New product image" fill className="rounded-md object-cover" />
+                            <Image src={preview} alt="New product image preview" fill className="rounded-md object-cover" />
                         </div>
                     ))}
 
                     <div className="flex items-center justify-center h-full w-full aspect-square flex-shrink-0 border-2 border-dashed rounded-md">
-                        <label htmlFor="product-images-input" className="cursor-pointer h-full w-full flex flex-col items-center justify-center">
+                        <label htmlFor="product-images-input" className="cursor-pointer h-full w-full flex flex-col items-center justify-center text-muted-foreground hover:text-primary">
                             {isSaving ? (
                                 <Loader2 className="h-6 w-6 animate-spin" />
                            ) : (
@@ -322,7 +332,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                         </FormControl>
                     </div>
                   </div>
-                  <FormDescription>The first image will be the main display image. You can upload multiple images.</FormDescription>
+                  <FormDescription>The first image will be the main display image. You can upload up to {MAX_IMAGES} images.</FormDescription>
                     <FormMessage />
                 </FormItem>
               )}

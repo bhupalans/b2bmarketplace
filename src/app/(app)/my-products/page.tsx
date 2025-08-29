@@ -54,23 +54,37 @@ export default function MyProductsPage() {
   const [isDeleting, startDeleteTransition] = useTransition();
   const { toast } = useToast();
 
+  const fetchProducts = useCallback(async (sellerId: string) => {
+    try {
+        const productData = await getSellerProductsClient(sellerId);
+        setProducts(productData);
+    } catch (error) {
+        console.error("Failed to fetch products:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Could not load your products.',
+        });
+    }
+  }, [toast]);
+
+
   useEffect(() => {
     if (user?.role === 'seller') {
       const fetchData = async () => {
         setLoading(true);
         try {
-          const [productData, categoryData] = await Promise.all([
-            getSellerProductsClient(user.id),
-            getCategoriesClient(),
-          ]);
-          setProducts(productData);
+          // Fetch categories only once
+          const categoryData = await getCategoriesClient();
           setCategories(categoryData);
+          // Fetch products
+          await fetchProducts(user.id);
         } catch (error) {
-          console.error("Failed to fetch data for My Products page:", error);
-          toast({
+          console.error("Failed to fetch initial data:", error);
+           toast({
             variant: 'destructive',
             title: 'Error',
-            description: 'Could not load your products and categories.',
+            description: 'Could not load page data.',
           });
         } finally {
           setLoading(false);
@@ -80,7 +94,7 @@ export default function MyProductsPage() {
     } else if (user) {
       setLoading(false);
     }
-  }, [user, toast]);
+  }, [user, toast, fetchProducts]);
 
   const handleCreate = useCallback(() => {
     setSelectedProductId(null);
@@ -101,22 +115,13 @@ export default function MyProductsPage() {
     }
   }, []);
 
-  const handleFormSuccess = useCallback((updatedProduct: Product) => {
-    setProducts((prevProducts) => {
-      const existingProductIndex = prevProducts.findIndex(p => p.id === updatedProduct.id);
-      if (existingProductIndex > -1) {
-        // Replace existing product
-        const newProducts = [...prevProducts];
-        newProducts[existingProductIndex] = updatedProduct;
-        return newProducts;
-      } else {
-        // Add new product to the top
-        return [updatedProduct, ...prevProducts];
-      }
-    });
+  const handleFormSuccess = useCallback(() => {
+    if (user) {
+      fetchProducts(user.id); // Re-fetch all products to get the latest state
+    }
     setFormOpen(false);
     setSelectedProductId(null);
-  }, []);
+  }, [user, fetchProducts]);
 
   const handleDeleteInitiate = (product: Product) => {
     setProductToDelete(product);
@@ -151,6 +156,10 @@ export default function MyProductsPage() {
 
   if (loading) {
     return <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  }
+  
+  if (user?.role !== 'seller') {
+      return <div className="text-center py-10">You must be a seller to view this page.</div>;
   }
 
   return (
@@ -191,7 +200,7 @@ export default function MyProductsPage() {
                   <TableHead>Title</TableHead>
                   <TableHead>Price (USD)</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -201,7 +210,7 @@ export default function MyProductsPage() {
                       <TableCell className="hidden sm:table-cell">
                         <div className="relative h-16 w-16 overflow-hidden rounded-md">
                           <Image
-                              src={product.images[0] || 'https://placehold.co/100x100'}
+                              src={product.images?.[0] || 'https://placehold.co/100x100'}
                               alt={product.title}
                               fill
                               className="object-cover"
@@ -224,7 +233,7 @@ export default function MyProductsPage() {
                           {product.status}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" className="h-8 w-8 p-0">
@@ -273,7 +282,7 @@ export default function MyProductsPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={handleCloseAlert} disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm} disabled={isDeleting}>
+            <AlertDialogAction onClick={handleDeleteConfirm} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
               {isDeleting && <Loader2 className="mr-2 animate-spin" />}
               Continue
             </AlertDialogAction>
