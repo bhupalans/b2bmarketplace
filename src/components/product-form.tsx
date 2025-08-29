@@ -48,7 +48,7 @@ const productSchema = z.object({
   priceUSD: z.coerce.number().positive({ message: "Price must be a positive number." }),
   categoryId: z.string().min(1, { message: "Please select a category." }),
   existingImages: z.array(z.string().url()).optional(),
-  newImageFiles: z.custom<FileList>().optional(),
+  newImageFiles: z.instanceof(FileList).optional(),
 }).refine(data => {
     const existingCount = data.existingImages?.length || 0;
     const newCount = data.newImageFiles?.length || 0;
@@ -107,6 +107,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
       existingImages: [],
       newImageFiles: undefined,
     });
+    setNewImagePreviews([]);
   }, [form]);
 
   useEffect(() => {
@@ -139,6 +140,8 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
 
     if (open) {
       fetchProduct();
+    } else {
+      resetForm();
     }
   }, [productId, open, form, toast, resetForm, onOpenChange]);
   
@@ -163,11 +166,12 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
       }
       
       const { newImageFiles, ...productData } = values;
+      const filesToUpload = newImageFiles ? Array.from(newImageFiles) : [];
 
       try {
         const savedProduct = await createOrUpdateProductClient(
           productData,
-          Array.from(newImageFiles || []),
+          filesToUpload,
           firebaseUser.uid,
           productId
         );
@@ -182,8 +186,8 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
       } catch (error: any) {
          toast({
           variant: "destructive",
-          title: "An error occurred",
-          description: error.message || "Something went wrong. Check Firestore/Storage rules and network.",
+          title: "Submission Failed",
+          description: error.message || "An unexpected error occurred. Please check the console and try again.",
         });
       }
     });
@@ -191,7 +195,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
 
   const handleRemoveExistingImage = (imageUrlToRemove: string) => {
     const currentImages = form.getValues("existingImages") || [];
-    form.setValue("existingImages", currentImages.filter((img) => img !== imageUrlToRemove), { shouldValidate: true });
+    form.setValue("existingImages", currentImages.filter((img) => img !== imageUrlToRemove), { shouldValidate: true, shouldDirty: true });
   };
   
   return (
@@ -286,7 +290,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
             <FormField
                 control={form.control}
                 name="newImageFiles"
-                render={({ field }) => (
+                render={({ field: { onChange, ...fieldProps } }) => (
                  <FormItem>
                   <FormLabel>Product Images</FormLabel>
                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
@@ -299,8 +303,10 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                                 size="icon"
                                 className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
                                 onClick={() => handleRemoveExistingImage(img)}
+                                disabled={isSaving}
                             >
                                 <Trash2 className="h-4 w-4"/>
+                                <span className="sr-only">Delete Image</span>
                             </Button>
                         </div>
                     ))}
@@ -327,7 +333,10 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                                 accept="image/png, image/jpeg, image/gif"
                                 disabled={isSaving}
                                 multiple
-                                {...form.register('newImageFiles')}
+                                {...fieldProps}
+                                onChange={(event) => {
+                                  onChange(event.target.files)
+                                }}
                             />
                         </FormControl>
                     </div>
