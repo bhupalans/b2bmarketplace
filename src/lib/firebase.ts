@@ -188,14 +188,13 @@ export async function createOrUpdateProductClient(
             ...dataToSave,
             images: finalImageUrls,
             sellerId: sellerId,
-            // status: 'pending' as const, // Always reset to pending on update // REMOVED TO COMPLY WITH FAULTY RULE
+            status: 'pending' as const, // This line is required by the security rules
             updatedAt: Timestamp.now(),
         };
 
         await updateDoc(productRef, finalProductData);
         const updatedDocSnap = await getDoc(productRef);
-        // Manually add status back to the returned object so the UI updates correctly.
-        const returnedProduct = { id: productId, ...updatedDocSnap.data(), status: 'pending' } as Product;
+        const returnedProduct = { id: productId, ...updatedDocSnap.data() } as Product;
         return returnedProduct;
     } 
     // --- CREATE PATH ---
