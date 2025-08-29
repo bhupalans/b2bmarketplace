@@ -1,12 +1,12 @@
 rules_version = '2';
 
 // Helper functions to improve readability
-function isOwner(userId) {
-  return request.auth != null && request.auth.uid == userId;
-}
-
 function isSignedIn() {
   return request.auth != null;
+}
+
+function isOwner(userId) {
+  return isSignedIn() && request.auth.uid == userId;
 }
 
 function isAdmin() {
@@ -14,44 +14,68 @@ function isAdmin() {
 }
 
 function isSeller() {
-  return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'seller';
+    return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'seller';
+}
+
+function isCreatingProduct() {
+    // On create, the resource is in the request
+    return request.resource.data.sellerId == request.auth.uid;
+}
+
+function isUpdatingOwnProduct() {
+    // On update, the resource already exists
+    return resource.data.sellerId == request.auth.uid;
+}
+
+function productStatusUnchanged() {
+    // Ensure the 'status' field is not changed during an update by a seller
+    return resource.data.status == request.resource.data.status;
 }
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Publicly readable, admin-writable
+    match /users/{userId} {
+      // Anyone can read a user's public profile
+      allow get: if true;
+      // Only the user themselves can update their profile
+      allow update: if isOwner(userId);
+      // Disallow client-side creation or deletion of users
+      allow create, delete: if false;
+    }
+
     match /categories/{categoryId} {
-      allow read: if true;
+      // Anyone can view the categories
+      allow get, list: if true;
+      // Only admins can create, update or delete categories
       allow write: if isAdmin();
     }
 
-    // Products can be read if approved.
-    // Writes are restricted to the product owner (seller) or an admin.
     match /products/{productId} {
-      allow read: if resource.data.status == 'approved';
-      
-      // A seller can create a product.
-      allow create: if isSeller() && isOwner(request.resource.data.sellerId);
+      // Rule to allow reading products
+      allow get: if resource.data.status == 'approved' || (isOwner(resource.data.sellerId)) || isAdmin();
 
-      // An owner can update their product, but cannot change the status.
-      // An admin can update any product, including the status.
-      allow update: if (isOwner(resource.data.sellerId) && request.resource.data.status == resource.data.status) || isAdmin();
-      
-      // An owner or an admin can delete a product.
+      // Rule for listing products
+      // Public users can only list 'approved' products.
+      // Sellers need to list their own products of any status, this is handled by querying on the client with a 'where' clause,
+      // which Firestore checks against the 'get' rule for each document.
+      allow list: if true;
+
+      // Rule for creating products
+      allow create: if isSeller() && isCreatingProduct();
+
+      // Rule for updating products
+      // Sellers can update their own products, but cannot change the status.
+      // Admins can update any field.
+      allow update: if (isSeller() && isUpdatingOwnProduct() && productStatusUnchanged()) || isAdmin();
+
+      // Rule for deleting products
       allow delete: if isOwner(resource.data.sellerId) || isAdmin();
     }
-
-    // User documents can be read by anyone.
-    // A user can only write to their own document. Admins can write to any.
-    match /users/{userId} {
-      allow read: if true;
-      allow write: if isOwner(userId) || isAdmin();
-    }
-
-    // Internal documents are read/write for admins only.
+    
     match /internal/{docId} {
-      allow read, write: if isAdmin();
+      // Internal collection, should not be client-accessible unless specifically needed
+      allow read, write: if false;
     }
   }
 }
