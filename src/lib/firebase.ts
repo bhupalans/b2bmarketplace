@@ -137,13 +137,10 @@ async function uploadImages(files: File[], sellerId: string): Promise<string[]> 
     const uploadTasks = files.map(file => {
       const filePath = `products/${sellerId}/${uuidv4()}-${file.name}`;
       const storageRef = ref(storage, filePath);
-      return uploadBytes(storageRef, file);
+      return uploadBytes(storageRef, file).then(snapshot => getDownloadURL(snapshot.ref));
     });
 
-    const settledUploads = await Promise.all(uploadTasks);
-    const downloadUrlPromises = settledUploads.map(snapshot => getDownloadURL(snapshot.ref));
-    const urls = await Promise.all(downloadUrlPromises);
-    
+    const urls = await Promise.all(uploadTasks);
     return urls;
   } catch (error) {
     console.error("Error during image upload:", error);
@@ -156,9 +153,14 @@ async function deleteImages(urls: string[]): Promise<void> {
 
     const deletePromises = urls.map(url => {
         try {
+            // Do not delete placeholder images
+            if (url.includes('picsum.photos') || url.includes('placehold.co')) {
+                return Promise.resolve();
+            }
             const imageRef = ref(storage, url);
             return deleteObject(imageRef);
         } catch (error: any) {
+            // If the object doesn't exist, we can ignore the error.
             if (error.code !== 'storage/object-not-found') {
                 console.error(`Failed to delete image ${url}:`, error);
             }
@@ -248,10 +250,14 @@ export async function deleteProductClient(product: Product): Promise<void> {
         throw new Error("Product data is invalid.");
     }
     
-    await deleteImages(product.images || []);
-    
     const productRef = doc(db, 'products', product.id);
-    await deleteDoc(productRef);
+    const docSnap = await getDoc(productRef);
+    if (docSnap.exists()) {
+      await deleteImages(docSnap.data().images || []);
+      await deleteDoc(productRef);
+    } else {
+      throw new Error("Product not found for deletion.");
+    }
 }
 
 export { app, auth, db, storage };

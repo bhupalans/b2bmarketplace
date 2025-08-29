@@ -96,6 +96,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
       existingImages: [],
       newImageFiles: undefined,
     });
+    setNewImagePreviews([]);
   }, [form]);
 
   useEffect(() => {
@@ -328,7 +329,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
             />
 
             <DialogFooter>
-              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={isSaving}>Cancel</Button>
               <Button type="submit" disabled={isSaving}>
                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Submit for Review
