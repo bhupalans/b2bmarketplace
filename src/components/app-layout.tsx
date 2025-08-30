@@ -19,6 +19,7 @@ import {
   SidebarGroupLabel,
   SidebarMenuSub,
   SidebarMenuSubButton,
+  SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { Button } from "./ui/button";
 import { UserNav } from "./user-nav";
