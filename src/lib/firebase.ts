@@ -177,7 +177,14 @@ async function deleteImages(urls: string[]): Promise<void> {
 }
 
 export async function createOrUpdateProductClient(
-  productFormData: { title: string, description: string, priceUSD: number, categoryId: string, existingImages?: string[] },
+  productFormData: { 
+    title: string, 
+    description: string, 
+    priceUSD: number, 
+    categoryId: string, 
+    specifications?: { name: string; value: string }[],
+    existingImages?: string[] 
+  },
   newImageFiles: File[],
   sellerId: string,
   productId?: string | null
@@ -348,3 +355,5 @@ export async function deleteCategoryClient(categoryId: string): Promise<void> {
 
 
 export { app, auth, db, storage };
+
+    

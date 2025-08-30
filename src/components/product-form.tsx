@@ -24,7 +24,7 @@ import {
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { z } from "zod";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm, useWatch, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -34,11 +34,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { Product, Category } from "@/lib/types";
+import { Product, Category, SpecTemplate } from "@/lib/types";
 import Image from "next/image";
 import { useAuth } from "@/contexts/auth-context";
 import { createOrUpdateProductClient, getProductClient } from "@/lib/firebase";
 import { Skeleton } from "./ui/skeleton";
+import { Separator } from "./ui/separator";
 
 const MAX_IMAGES = 5;
 
@@ -47,6 +48,10 @@ const productSchema = z.object({
   description: z.string().min(10, { message: "Description must be at least 10 characters." }),
   priceUSD: z.coerce.number().positive({ message: "Price must be a positive number." }),
   categoryId: z.string().min(1, { message: "Please select a category." }),
+  specifications: z.array(z.object({
+      name: z.string(),
+      value: z.string().min(1, { message: "Specification value cannot be empty." }),
+  })).optional(),
   existingImages: z.array(z.string().url()).optional(),
   newImageFiles: z.instanceof(FileList).optional(),
 }).refine(data => {
@@ -73,9 +78,10 @@ type ProductFormDialogProps = {
   productId?: string | null;
   onSuccess: () => void;
   categories: Category[];
+  specTemplates: SpecTemplate[];
 };
 
-const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, categories }: ProductFormDialogProps) => {
+const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, categories, specTemplates }: ProductFormDialogProps) => {
   const { toast } = useToast();
   const [isSaving, startSavingTransition] = useTransition();
   const { firebaseUser } = useAuth();
@@ -90,13 +96,44 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
       description: "",
       priceUSD: undefined,
       categoryId: "",
+      specifications: [],
       existingImages: [],
       newImageFiles: undefined,
     },
   });
+
+  const { fields, replace } = useFieldArray({
+    control: form.control,
+    name: "specifications"
+  });
   
   const watchedNewImageFiles = useWatch({ control: form.control, name: 'newImageFiles' });
   const watchedExistingImages = useWatch({ control: form.control, name: 'existingImages' }) || [];
+  const watchedCategoryId = useWatch({ control: form.control, name: 'categoryId' });
+
+  useEffect(() => {
+    if (watchedCategoryId) {
+        const category = categories.find(c => c.id === watchedCategoryId);
+        const templateId = category?.specTemplateId;
+        if (templateId) {
+            const template = specTemplates.find(t => t.id === templateId);
+            if (template) {
+                const currentSpecs = form.getValues('specifications') || [];
+                const newFields = template.fields.map(fieldName => {
+                    const existingField = currentSpecs.find(s => s.name === fieldName);
+                    return { name: fieldName, value: existingField?.value || '' };
+                });
+                replace(newFields);
+            } else {
+                replace([]); // Template not found, clear specs
+            }
+        } else {
+            replace([]); // No template assigned, clear specs
+        }
+    } else {
+        replace([]); // No category selected, clear specs
+    }
+  }, [watchedCategoryId, categories, specTemplates, replace, form]);
 
   const resetForm = useCallback(() => {
     form.reset({
@@ -104,6 +141,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
       description: "",
       priceUSD: undefined,
       categoryId: "",
+      specifications: [],
       existingImages: [],
       newImageFiles: undefined,
     });
@@ -122,6 +160,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                 description: fetchedProduct.description,
                 priceUSD: fetchedProduct.priceUSD,
                 categoryId: fetchedProduct.categoryId,
+                specifications: fetchedProduct.specifications || [],
                 existingImages: fetchedProduct.images || [],
                 newImageFiles: undefined,
             });
@@ -280,7 +319,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {categories.map((c) => (
+                        {categories.filter(c => c.status === 'active').map((c) => (
                           <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                         ))}
                       </SelectContent>
@@ -291,6 +330,32 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
               />
             </div>
             
+            {fields.length > 0 && (
+                <div className="space-y-4 rounded-md border p-4">
+                    <h3 className="text-sm font-medium">Technical Specifications</h3>
+                     <Separator />
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {fields.map((field, index) => (
+                            <FormField
+                            key={field.id}
+                            control={form.control}
+                            name={`specifications.${index}.value`}
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>{form.getValues(`specifications.${index}.name`)}</FormLabel>
+                                <FormControl>
+                                    <Input placeholder={`Enter ${form.getValues(`specifications.${index}.name`)}`} {...field} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                            />
+                        ))}
+                    </div>
+                </div>
+            )}
+
+
             <FormField
                 control={form.control}
                 name="newImageFiles"

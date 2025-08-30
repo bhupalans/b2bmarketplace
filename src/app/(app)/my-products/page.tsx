@@ -25,9 +25,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, PlusCircle, Trash2, Edit, Loader2 } from "lucide-react";
-import { Category, Product } from '@/lib/types';
+import { Category, Product, SpecTemplate } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
-import { getSellerProductsClient, getCategoriesClient, deleteProductClient } from '@/lib/firebase';
+import { getSellerProductsClient, getCategoriesClient, deleteProductClient, getSpecTemplatesClient } from '@/lib/firebase';
 import Image from 'next/image';
 import { ProductFormDialog } from '@/components/product-form';
 import { useToast } from '@/hooks/use-toast';
@@ -47,6 +47,7 @@ export default function MyProductsPage() {
   const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [specTemplates, setSpecTemplates] = useState<SpecTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFormOpen, setFormOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
@@ -74,10 +75,12 @@ export default function MyProductsPage() {
       const fetchData = async () => {
         setLoading(true);
         try {
-          // Fetch categories only once
-          const categoryData = await getCategoriesClient();
+          const [categoryData, templateData] = await Promise.all([
+            getCategoriesClient(),
+            getSpecTemplatesClient(),
+          ]);
           setCategories(categoryData);
-          // Fetch products
+          setSpecTemplates(templateData);
           await fetchProducts(user.id);
         } catch (error) {
           console.error("Failed to fetch initial data:", error);
@@ -183,6 +186,7 @@ export default function MyProductsPage() {
           productId={selectedProductId}
           onSuccess={handleFormSuccess}
           categories={categories}
+          specTemplates={specTemplates}
         />
 
         <Card>
@@ -292,3 +296,5 @@ export default function MyProductsPage() {
     </>
   );
 }
+
+    
