@@ -79,7 +79,7 @@ const CategoryRow: React.FC<{
     const [isOpen, setIsOpen] = useState(true);
 
     return (
-      <Collapsible asChild open={isOpen} onOpenChange={setIsOpen} contentWrapper={React.Fragment}>
+      <Collapsible asChild open={isOpen} onOpenChange={setIsOpen}>
         <>
           <TableRow className={cn(level > 0 && 'bg-muted/50')}>
             <TableCell style={{ paddingLeft: `${level * 1.5 + 1}rem` }}>
@@ -88,6 +88,7 @@ const CategoryRow: React.FC<{
                   <CollapsibleTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-6 w-6">
                       <ChevronRight className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-90')} />
+                      <span className="sr-only">Toggle</span>
                     </Button>
                   </CollapsibleTrigger>
                 ) : (
@@ -126,20 +127,22 @@ const CategoryRow: React.FC<{
               </DropdownMenu>
             </TableCell>
           </TableRow>
-          <CollapsibleContent asChild>
-            <>
-                {category.children.map((child) => (
-                <CategoryRow
-                    key={child.id}
-                    category={child}
-                    level={level + 1}
-                    onEdit={onEdit}
-                    onDelete={onDelete}
-                    getTemplateName={getTemplateName}
-                />
-                ))}
-            </>
-          </CollapsibleContent>
+          {category.children.length > 0 && (
+              <CollapsibleContent asChild>
+                  <React.Fragment>
+                      {category.children.map((child) => (
+                          <CategoryRow
+                              key={child.id}
+                              category={child}
+                              level={level + 1}
+                              onEdit={onEdit}
+                              onDelete={onDelete}
+                              getTemplateName={getTemplateName}
+                          />
+                      ))}
+                  </React.Fragment>
+              </CollapsibleContent>
+          )}
         </>
       </Collapsible>
     );
@@ -287,3 +290,5 @@ export function CategoriesClientPage({ initialCategories, specTemplates }: Categ
     </>
   );
 }
+
+    
