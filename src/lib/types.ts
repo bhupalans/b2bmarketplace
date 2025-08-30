@@ -20,6 +20,14 @@ export type Category = {
   id: string;
   name: string;
   parentId: string | null;
+  status: 'active' | 'inactive'; // New field for enabling/disabling
+  specTemplateId?: string;       // New field to link to a SpecTemplate
+};
+
+export type SpecTemplate = {
+  id: string;
+  name: string;
+  fields: string[]; // e.g., ['Material', 'Weight', 'SKU']
 };
 
 export type Product = {
