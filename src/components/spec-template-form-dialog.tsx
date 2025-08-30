@@ -115,11 +115,18 @@ export function SpecTemplateFormDialog({ open, onOpenChange, templateId, onSucce
     try {
         const templateData = {
             name: values.name,
-            fields: values.fields.map(f => ({
-                ...f,
-                options: f.type === 'select' || f.type === 'radio' ? f.options?.split(',').map(opt => opt.trim()).filter(Boolean) : undefined,
-            })),
+            fields: values.fields.map(f => {
+                const fieldData: SpecTemplateField = {
+                    name: f.name,
+                    type: f.type,
+                };
+                if ((f.type === 'select' || f.type === 'radio') && f.options) {
+                    fieldData.options = f.options.split(',').map(opt => opt.trim()).filter(Boolean);
+                }
+                return fieldData;
+            }),
         };
+
       const savedTemplate = await createOrUpdateSpecTemplateClient(templateData, templateId);
       toast({
         title: templateId ? 'Template Updated' : 'Template Created',
