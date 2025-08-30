@@ -79,72 +79,68 @@ const CategoryRow: React.FC<{
     const [isOpen, setIsOpen] = useState(true);
 
     return (
-      <Collapsible asChild open={isOpen} onOpenChange={setIsOpen}>
-        <>
-          <TableRow className={cn(level > 0 && 'bg-muted/50')}>
-            <TableCell style={{ paddingLeft: `${level * 1.5 + 1}rem` }}>
-              <div className="flex items-center gap-2">
-                {category.children.length > 0 ? (
+      <React.Fragment key={category.id}>
+        <TableRow className={cn(level > 0 && 'bg-muted/50')}>
+          <TableCell style={{ paddingLeft: `${level * 1.5 + 1}rem` }}>
+            <div className="flex items-center gap-2">
+              {category.children.length > 0 ? (
+                <Collapsible open={isOpen} onOpenChange={setIsOpen}>
                   <CollapsibleTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-6 w-6">
                       <ChevronRight className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-90')} />
                       <span className="sr-only">Toggle</span>
                     </Button>
                   </CollapsibleTrigger>
-                ) : (
-                  <span className="inline-block w-6" /> // Placeholder for alignment
-                )}
-                <span className="font-medium">{category.name}</span>
-              </div>
-            </TableCell>
-            <TableCell>
-              <Badge variant={category.status === 'active' ? 'default' : 'secondary'} className="capitalize">
-                {category.status}
-              </Badge>
-            </TableCell>
-            <TableCell>{getTemplateName(category.specTemplateId)}</TableCell>
-            <TableCell className="text-right">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="h-8 w-8 p-0">
-                    <span className="sr-only">Open menu</span>
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => onEdit(category.id)}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    <span>Edit</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="text-red-500 hover:text-red-600 focus:text-red-600"
-                    onClick={() => onDelete(category)}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    <span>Delete</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </TableCell>
-          </TableRow>
-          {category.children.length > 0 && (
-              <CollapsibleContent asChild>
-                  <React.Fragment>
-                      {category.children.map((child) => (
-                          <CategoryRow
-                              key={child.id}
-                              category={child}
-                              level={level + 1}
-                              onEdit={onEdit}
-                              onDelete={onDelete}
-                              getTemplateName={getTemplateName}
-                          />
-                      ))}
-                  </React.Fragment>
-              </CollapsibleContent>
-          )}
-        </>
-      </Collapsible>
+                </Collapsible>
+              ) : (
+                <span className="inline-block w-6" /> // Placeholder for alignment
+              )}
+              <span className="font-medium">{category.name}</span>
+            </div>
+          </TableCell>
+          <TableCell>
+            <Badge variant={category.status === 'active' ? 'default' : 'secondary'} className="capitalize">
+              {category.status}
+            </Badge>
+          </TableCell>
+          <TableCell>{getTemplateName(category.specTemplateId)}</TableCell>
+          <TableCell className="text-right">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <span className="sr-only">Open menu</span>
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onEdit(category.id)}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  <span>Edit</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-red-500 hover:text-red-600 focus:text-red-600"
+                  onClick={() => onDelete(category)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  <span>Delete</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </TableCell>
+        </TableRow>
+        {isOpen && category.children.length > 0 && (
+          category.children.map((child) => (
+            <CategoryRow
+              key={child.id}
+              category={child}
+              level={level + 1}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              getTemplateName={getTemplateName}
+            />
+          ))
+        )}
+      </React.Fragment>
     );
 }
 
@@ -290,5 +286,3 @@ export function CategoriesClientPage({ initialCategories, specTemplates }: Categ
     </>
   );
 }
-
-    
