@@ -58,7 +58,7 @@ export function CategoryFormDialog({ open, onOpenChange, categoryId, onSuccess, 
     name: z.string().min(2, 'Category name must be at least 2 characters.'),
     parentId: z.string().nullable(),
     status: z.enum(['active', 'inactive']),
-    specTemplateId: z.string().optional(),
+    specTemplateId: z.string().optional().nullable(),
   }).refine(data => {
     return !categoryNameExists(data.name, data.parentId, allCategories, categoryId);
   }, {
@@ -72,7 +72,7 @@ export function CategoryFormDialog({ open, onOpenChange, categoryId, onSuccess, 
       name: '',
       parentId: null,
       status: 'active',
-      specTemplateId: '',
+      specTemplateId: null,
     },
   });
 
@@ -86,12 +86,12 @@ export function CategoryFormDialog({ open, onOpenChange, categoryId, onSuccess, 
             name: category.name,
             parentId: category.parentId,
             status: category.status,
-            specTemplateId: category.specTemplateId || '',
+            specTemplateId: category.specTemplateId || null,
           });
         }
         setIsLoading(false);
       } else {
-        form.reset({ name: '', parentId: null, status: 'active', specTemplateId: '' });
+        form.reset({ name: '', parentId: null, status: 'active', specTemplateId: null });
       }
     };
 
@@ -103,7 +103,13 @@ export function CategoryFormDialog({ open, onOpenChange, categoryId, onSuccess, 
   const onSubmit = async (values: z.infer<typeof categorySchema>) => {
     setIsSaving(true);
     try {
-      const savedCategory = await createOrUpdateCategoryClient(values, categoryId);
+      // Ensure specTemplateId is either a string or null, not an empty string.
+      const dataToSave = {
+        ...values,
+        specTemplateId: values.specTemplateId || null,
+      };
+
+      const savedCategory = await createOrUpdateCategoryClient(dataToSave, categoryId);
       toast({
         title: categoryId ? 'Category Updated' : 'Category Created',
         description: `The category "${savedCategory.name}" has been saved.`,
@@ -182,14 +188,14 @@ export function CategoryFormDialog({ open, onOpenChange, categoryId, onSuccess, 
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Specification Template</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select onValueChange={(value) => field.onChange(value === 'null' ? null : value)} value={field.value ?? 'null'}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a template (optional)" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                        <SelectItem value="">-- No Template --</SelectItem>
+                        <SelectItem value="null">-- No Template --</SelectItem>
                         {specTemplates.map((t) => (
                             <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                         ))}

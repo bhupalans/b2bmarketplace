@@ -313,12 +313,11 @@ export async function deleteSpecTemplateClient(templateId: string): Promise<void
 // --- Category Client Functions ---
 
 export async function createOrUpdateCategoryClient(
-  categoryData: { name: string; parentId: string | null; status: 'active' | 'inactive', specTemplateId?: string },
+  categoryData: { name: string; parentId: string | null; status: 'active' | 'inactive', specTemplateId?: string | null },
   categoryId?: string | null
 ): Promise<Category> {
   const dataToSave = {
     ...categoryData,
-    specTemplateId: categoryData.specTemplateId || null, // Ensure it's null not empty string
     updatedAt: Timestamp.now(),
   };
 
