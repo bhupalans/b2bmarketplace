@@ -175,7 +175,7 @@ export default function ProductDetailPage() {
                     {product.specifications.map((spec) => (
                       <TableRow key={spec.name}>
                         <TableCell className="font-medium">{spec.name}</TableCell>
-                        <TableCell>{spec.value}</TableCell>
+                        <TableCell>{spec.value === 'true' ? 'Yes' : spec.value === 'false' ? 'No' : spec.value}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
