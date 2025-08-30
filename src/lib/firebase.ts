@@ -3,7 +3,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc, Timestamp, writeBatch } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { Product, Category, User, SpecTemplate } from './types';
+import { Product, Category, User, SpecTemplate, SpecTemplateField } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
 const firebaseConfig = {
@@ -294,7 +294,7 @@ export async function getSpecTemplatesClient(): Promise<SpecTemplate[]> {
 }
 
 export async function createOrUpdateSpecTemplateClient(
-  templateData: { name: string; fields: string[] },
+  templateData: { name: string; fields: SpecTemplateField[] },
   templateId?: string | null
 ): Promise<SpecTemplate> {
   const dataToSave = {

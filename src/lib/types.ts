@@ -24,10 +24,16 @@ export type Category = {
   specTemplateId?: string;       // New field to link to a SpecTemplate
 };
 
+export type SpecTemplateField = {
+  name: string;
+  type: 'text' | 'select' | 'radio' | 'switch';
+  options?: string[]; // Comma-separated string of options for select/radio
+}
+
 export type SpecTemplate = {
   id: string;
   name: string;
-  fields: string[]; // e.g., ['Material', 'Weight', 'SKU']
+  fields: SpecTemplateField[]; // e.g., ['Material', 'Weight', 'SKU']
 };
 
 export type Product = {

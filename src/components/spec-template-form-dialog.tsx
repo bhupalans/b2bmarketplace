@@ -5,8 +5,8 @@ import React, { useState, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { SpecTemplate } from '@/lib/types';
-import { getSpecTemplatesClient, createOrUpdateSpecTemplateClient } from '@/lib/firebase';
+import { SpecTemplate, SpecTemplateField } from '@/lib/types';
+import { createOrUpdateSpecTemplateClient } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -26,8 +26,11 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Plus, Trash2, Settings, X } from 'lucide-react';
 import { Skeleton } from './ui/skeleton';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Textarea } from './ui/textarea';
 
 interface SpecTemplateFormDialogProps {
   open: boolean;
@@ -46,23 +49,35 @@ export function SpecTemplateFormDialog({ open, onOpenChange, templateId, onSucce
     return allTemplates.some(t => t.name.toLowerCase() === name.toLowerCase() && t.id !== templateId);
   }
 
+  const specFieldSchema = z.object({
+      name: z.string().min(1, 'Field name cannot be empty.'),
+      type: z.enum(['text', 'select', 'radio', 'switch']),
+      options: z.string().optional(),
+    }).refine(data => {
+        if ((data.type === 'select' || data.type === 'radio') && (!data.options || data.options.trim().length === 0)) {
+            return false;
+        }
+        return true;
+    }, {
+        message: "Options are required for 'select' and 'radio' types.",
+        path: ['options']
+    });
+
   const specTemplateSchema = z.object({
     name: z.string().min(3, 'Template name must be at least 3 characters.')
       .refine(name => !templateNameExists(name), 'This template name is already taken.'),
-    fields: z.array(z.object({
-      value: z.string().min(1, 'Field name cannot be empty.'),
-    })).min(1, 'Please add at least one specification field.'),
+    fields: z.array(specFieldSchema).min(1, 'Please add at least one specification field.'),
   });
 
   const form = useForm<z.infer<typeof specTemplateSchema>>({
     resolver: zodResolver(specTemplateSchema),
     defaultValues: {
       name: '',
-      fields: [{ value: '' }],
+      fields: [{ name: '', type: 'text', options: '' }],
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, update } = useFieldArray({
     control: form.control,
     name: 'fields',
   });
@@ -76,7 +91,7 @@ export function SpecTemplateFormDialog({ open, onOpenChange, templateId, onSucce
           if (template) {
             form.reset({
               name: template.name,
-              fields: template.fields.map(f => ({ value: f })),
+              fields: template.fields.map(f => ({ ...f, options: f.options?.join(',') || ''})),
             });
           }
         } catch (error) {
@@ -86,7 +101,7 @@ export function SpecTemplateFormDialog({ open, onOpenChange, templateId, onSucce
           setIsLoading(false);
         }
       } else {
-        form.reset({ name: '', fields: [{ value: '' }] });
+        form.reset({ name: '', fields: [{ name: '', type: 'text', options: '' }] });
       }
     };
 
@@ -98,10 +113,13 @@ export function SpecTemplateFormDialog({ open, onOpenChange, templateId, onSucce
   const onSubmit = async (values: z.infer<typeof specTemplateSchema>) => {
     setIsSaving(true);
     try {
-      const templateData = {
-        name: values.name,
-        fields: values.fields.map(f => f.value),
-      };
+        const templateData = {
+            name: values.name,
+            fields: values.fields.map(f => ({
+                ...f,
+                options: f.type === 'select' || f.type === 'radio' ? f.options?.split(',').map(opt => opt.trim()).filter(Boolean) : undefined,
+            })),
+        };
       const savedTemplate = await createOrUpdateSpecTemplateClient(templateData, templateId);
       toast({
         title: templateId ? 'Template Updated' : 'Template Created',
@@ -121,7 +139,7 @@ export function SpecTemplateFormDialog({ open, onOpenChange, templateId, onSucce
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{templateId ? 'Edit Template' : 'Create New Template'}</DialogTitle>
           <DialogDescription>
@@ -158,16 +176,74 @@ export function SpecTemplateFormDialog({ open, onOpenChange, templateId, onSucce
                   <div key={field.id} className="flex items-start gap-2">
                     <FormField
                       control={form.control}
-                      name={`fields.${index}.value`}
+                      name={`fields.${index}.name`}
                       render={({ field }) => (
                         <FormItem className="flex-grow">
                           <FormControl>
-                            <Input placeholder={`Field ${index + 1} (e.g., Material)`} {...field} />
+                            <Input placeholder={`Field Name (e.g., Material)`} {...field} />
                           </FormControl>
                            <FormMessage />
                         </FormItem>
                       )}
                     />
+                    
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button type="button" variant="ghost" size="icon">
+                                <Settings className="h-4 w-4" />
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80">
+                            <div className="grid gap-4">
+                                <div className="space-y-2">
+                                    <h4 className="font-medium leading-none">Configure Field</h4>
+                                    <p className="text-sm text-muted-foreground">
+                                       Set the input type for this field.
+                                    </p>
+                                </div>
+                                <div className="grid gap-2">
+                                    <FormField
+                                        control={form.control}
+                                        name={`fields.${index}.type`}
+                                        render={({ field: typeField }) => (
+                                            <FormItem>
+                                                <FormLabel>Input Type</FormLabel>
+                                                <Select onValueChange={typeField.onChange} defaultValue={typeField.value}>
+                                                    <FormControl>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Select input type" />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        <SelectItem value="text">Text</SelectItem>
+                                                        <SelectItem value="select">Select (Dropdown)</SelectItem>
+                                                        <SelectItem value="radio">Radio Group</SelectItem>
+                                                        <SelectItem value="switch">Switch (Toggle)</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </FormItem>
+                                        )}
+                                    />
+                                     {(form.watch(`fields.${index}.type`) === 'select' || form.watch(`fields.${index}.type`) === 'radio') && (
+                                         <FormField
+                                            control={form.control}
+                                            name={`fields.${index}.options`}
+                                            render={({ field: optionsField }) => (
+                                                <FormItem>
+                                                    <FormLabel>Options</FormLabel>
+                                                    <FormControl>
+                                                        <Textarea placeholder="Enter comma-separated values, e.g., Red,Green,Blue" {...optionsField} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                     )}
+                                </div>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
+
                     <Button
                       type="button"
                       variant="destructive"
@@ -186,7 +262,7 @@ export function SpecTemplateFormDialog({ open, onOpenChange, templateId, onSucce
                 variant="outline"
                 size="sm"
                 className="mt-3"
-                onClick={() => append({ value: '' })}
+                onClick={() => append({ name: '', type: 'text', options: '' })}
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Field

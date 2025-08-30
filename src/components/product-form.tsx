@@ -34,12 +34,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { Product, Category, SpecTemplate } from "@/lib/types";
+import { Product, Category, SpecTemplate, SpecTemplateField } from "@/lib/types";
 import Image from "next/image";
 import { useAuth } from "@/contexts/auth-context";
 import { createOrUpdateProductClient, getProductClient } from "@/lib/firebase";
 import { Skeleton } from "./ui/skeleton";
 import { Separator } from "./ui/separator";
+import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
+import { Switch } from "./ui/switch";
 
 const MAX_IMAGES = 5;
 
@@ -81,6 +83,104 @@ type ProductFormDialogProps = {
   specTemplates: SpecTemplate[];
 };
 
+const DynamicSpecField = ({ field, specIndex }: { field: SpecTemplateField, specIndex: number }) => {
+    const { control } = useForm<ProductFormData>();
+
+    switch (field.type) {
+        case 'select':
+            return (
+                <FormField
+                    control={control}
+                    name={`specifications.${specIndex}.value`}
+                    render={({ field: formField }) => (
+                        <FormItem>
+                            <FormLabel>{field.name}</FormLabel>
+                            <Select onValueChange={formField.onChange} defaultValue={formField.value}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder={`Select ${field.name}`} />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {field.options?.map(option => (
+                                        <SelectItem key={option} value={option}>{option}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            );
+        case 'radio':
+            return (
+                 <FormField
+                    control={control}
+                    name={`specifications.${specIndex}.value`}
+                    render={({ field: formField }) => (
+                        <FormItem className="space-y-3">
+                            <FormLabel>{field.name}</FormLabel>
+                            <FormControl>
+                                <RadioGroup
+                                    onValueChange={formField.onChange}
+                                    defaultValue={formField.value}
+                                    className="flex flex-wrap gap-x-4 gap-y-2"
+                                >
+                                    {field.options?.map(option => (
+                                         <FormItem key={option} className="flex items-center space-x-2">
+                                            <FormControl>
+                                                <RadioGroupItem value={option} id={`${field.name}-${option}`} />
+                                            </FormControl>
+                                            <FormLabel htmlFor={`${field.name}-${option}`} className="font-normal">{option}</FormLabel>
+                                        </FormItem>
+                                    ))}
+                                </RadioGroup>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            );
+        case 'switch':
+            return (
+                <FormField
+                    control={control}
+                    name={`specifications.${specIndex}.value`}
+                    render={({ field: formField }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                            <div className="space-y-0.5">
+                                <FormLabel>{field.name}</FormLabel>
+                            </div>
+                            <FormControl>
+                                <Switch
+                                    checked={formField.value === 'true'}
+                                    onCheckedChange={(checked) => formField.onChange(String(checked))}
+                                />
+                            </FormControl>
+                        </FormItem>
+                    )}
+                />
+            );
+        case 'text':
+        default:
+            return (
+                <FormField
+                    control={control}
+                    name={`specifications.${specIndex}.value`}
+                    render={({ field: formField }) => (
+                        <FormItem>
+                            <FormLabel>{field.name}</FormLabel>
+                            <FormControl>
+                                <Input placeholder={`Enter ${field.name}`} {...formField} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            );
+    }
+}
+
 const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, categories, specTemplates }: ProductFormDialogProps) => {
   const { toast } = useToast();
   const [isSaving, startSavingTransition] = useTransition();
@@ -88,6 +188,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
   
   const [isLoadingProduct, setIsLoadingProduct] = useState(false);
   const [newImagePreviews, setNewImagePreviews] = useState<string[]>([]);
+  const [activeTemplate, setActiveTemplate] = useState<SpecTemplate | null>(null);
 
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
@@ -115,23 +216,26 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
     if (watchedCategoryId) {
         const category = categories.find(c => c.id === watchedCategoryId);
         const templateId = category?.specTemplateId;
-        if (templateId) {
-            const template = specTemplates.find(t => t.id === templateId);
-            if (template) {
-                const currentSpecs = form.getValues('specifications') || [];
-                const newFields = template.fields.map(fieldName => {
-                    const existingField = currentSpecs.find(s => s.name === fieldName);
-                    return { name: fieldName, value: existingField?.value || '' };
-                });
-                replace(newFields);
-            } else {
-                replace([]); // Template not found, clear specs
-            }
+        const template = specTemplates.find(t => t.id === templateId) || null;
+        setActiveTemplate(template);
+
+        if (template) {
+            const currentSpecs = form.getValues('specifications') || [];
+            const newFields = template.fields.map(field => {
+                const existingField = currentSpecs.find(s => s.name === field.name);
+                let defaultValue = '';
+                if (field.type === 'switch') {
+                    defaultValue = 'false';
+                }
+                return { name: field.name, value: existingField?.value || defaultValue };
+            });
+            replace(newFields);
         } else {
-            replace([]); // No template assigned, clear specs
+            replace([]);
         }
     } else {
-        replace([]); // No category selected, clear specs
+        replace([]);
+        setActiveTemplate(null);
     }
   }, [watchedCategoryId, categories, specTemplates, replace, form]);
 
@@ -146,6 +250,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
       newImageFiles: undefined,
     });
     setNewImagePreviews([]);
+    setActiveTemplate(null);
   }, [form]);
 
   useEffect(() => {
@@ -330,26 +435,100 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
               />
             </div>
             
-            {fields.length > 0 && (
+            {activeTemplate && fields.length > 0 && (
                 <div className="space-y-4 rounded-md border p-4">
-                    <h3 className="text-sm font-medium">Technical Specifications</h3>
+                    <h3 className="text-sm font-medium">Technical Specifications ({activeTemplate.name})</h3>
                      <Separator />
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {fields.map((field, index) => (
-                            <FormField
-                            key={field.id}
-                            control={form.control}
-                            name={`specifications.${index}.value`}
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>{form.getValues(`specifications.${index}.name`)}</FormLabel>
-                                <FormControl>
-                                    <Input placeholder={`Enter ${form.getValues(`specifications.${index}.name`)}`} {...field} />
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                            />
+                        {activeTemplate.fields.map((specField, index) => (
+                           <div key={specField.name}>
+                                {specField.type === 'text' && (
+                                    <FormField
+                                        control={form.control}
+                                        name={`specifications.${index}.value`}
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>{specField.name}</FormLabel>
+                                                <FormControl>
+                                                    <Input placeholder={`Enter ${specField.name}`} {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                )}
+                                {specField.type === 'select' && (
+                                    <FormField
+                                        control={form.control}
+                                        name={`specifications.${index}.value`}
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>{specField.name}</FormLabel>
+                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                    <FormControl>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder={`Select ${specField.name}`} />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        {specField.options?.map(option => (
+                                                            <SelectItem key={option} value={option}>{option}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                )}
+                                {specField.type === 'radio' && (
+                                    <FormField
+                                        control={form.control}
+                                        name={`specifications.${index}.value`}
+                                        render={({ field }) => (
+                                            <FormItem className="space-y-3">
+                                                <FormLabel>{specField.name}</FormLabel>
+                                                <FormControl>
+                                                    <RadioGroup
+                                                        onValueChange={field.onChange}
+                                                        defaultValue={field.value}
+                                                        className="flex flex-wrap gap-x-4 gap-y-2"
+                                                    >
+                                                        {specField.options?.map(option => (
+                                                            <FormItem key={option} className="flex items-center space-x-2">
+                                                                <FormControl>
+                                                                    <RadioGroupItem value={option} id={`${specField.name}-${option}`} />
+                                                                </FormControl>
+                                                                <FormLabel htmlFor={`${specField.name}-${option}`} className="font-normal">{option}</FormLabel>
+                                                            </FormItem>
+                                                        ))}
+                                                    </RadioGroup>
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                )}
+                                {specField.type === 'switch' && (
+                                     <FormField
+                                        control={form.control}
+                                        name={`specifications.${index}.value`}
+                                        render={({ field }) => (
+                                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 h-full">
+                                                <div className="space-y-0.5">
+                                                    <FormLabel>{specField.name}</FormLabel>
+                                                </div>
+                                                <FormControl>
+                                                    <Switch
+                                                        checked={field.value === 'true'}
+                                                        onCheckedChange={(checked) => field.onChange(String(checked))}
+                                                    />
+                                                </FormControl>
+                                            </FormItem>
+                                        )}
+                                    />
+                                )}
+                           </div>
                         ))}
                     </div>
                 </div>
@@ -433,5 +612,3 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
 }
 
 export const ProductFormDialog = memo(ProductFormDialogComponent);
-
-    
