@@ -19,7 +19,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Check, X, Loader2, FileSearch } from "lucide-react";
-import { Product, User } from '@/lib/types';
+import { Product, User, Category } from '@/lib/types';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
@@ -39,15 +39,20 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import { updateProductStatus } from '@/lib/firebase';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { format } from 'date-fns';
 
 interface AdminApprovalsClientPageProps {
     initialProducts: Product[];
     initialUsers: User[];
+    initialCategories: Category[];
 }
 
-export function AdminApprovalsClientPage({ initialProducts, initialUsers }: AdminApprovalsClientPageProps) {
+export function AdminApprovalsClientPage({ initialProducts, initialUsers, initialCategories }: AdminApprovalsClientPageProps) {
   const [pendingProducts, setPendingProducts] = useState<Product[]>(initialProducts);
   const [users, setUsers] = useState<User[]>(initialUsers);
+  const [categories, setCategories] = useState<Category[]>(initialCategories);
   const [processingState, setProcessingState] = useState<'approving' | 'rejecting' | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -87,6 +92,24 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers }: Admi
   const getUserName = (sellerId: string) => {
     return users.find(u => u.id === sellerId)?.name || 'Unknown Seller';
   };
+  
+  const getCategoryPath = (categoryId: string): string => {
+    const path: string[] = [];
+    let currentId: string | null = categoryId;
+    const categoryMap = new Map(categories.map(c => [c.id, c]));
+
+    while (currentId) {
+        const category = categoryMap.get(currentId);
+        if (category) {
+            path.unshift(category.name);
+            currentId = category.parentId;
+        } else {
+            currentId = null;
+        }
+    }
+    return path.join(' > ') || 'N/A';
+  }
+
 
   const handleOpenReview = (product: Product) => {
     setReviewingProduct(product);
@@ -169,9 +192,9 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers }: Admi
                 Sold by: {getUserName(reviewingProduct.sellerId)}
               </DialogDescription>
             </DialogHeader>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4 max-h-[70vh] overflow-y-auto pr-4">
-              <div className="space-y-4">
-                  <h3 className="font-semibold">Images</h3>
+            <div className="space-y-6 py-4 max-h-[70vh] overflow-y-auto pr-4">
+              <div className="space-y-2">
+                  <h3 className="font-semibold text-lg">Images</h3>
                   <Carousel className="w-full">
                     <CarouselContent>
                       {reviewingProduct.images.map((imgSrc, index) => (
@@ -192,10 +215,54 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers }: Admi
                     <CarouselNext className="absolute right-2" />
                   </Carousel>
               </div>
-              <div className="space-y-4">
-                <h3 className="font-semibold">Description</h3>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <h3 className="font-semibold text-lg">Product Details</h3>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                    <div className="font-medium">Price (USD)</div>
+                    <div>${reviewingProduct.priceUSD.toFixed(2)}</div>
+                    
+                    <div className="font-medium">Category</div>
+                    <div>{getCategoryPath(reviewingProduct.categoryId)}</div>
+
+                    <div className="font-medium">Submitted</div>
+                    <div>{reviewingProduct.createdAt ? format(reviewingProduct.createdAt.toDate(), 'PPP p') : 'N/A'}</div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <h3 className="font-semibold text-lg">Description</h3>
                 <p className="text-sm text-muted-foreground whitespace-pre-wrap">{reviewingProduct.description}</p>
               </div>
+
+              {reviewingProduct.specifications && reviewingProduct.specifications.length > 0 && (
+                <>
+                <Separator />
+                <div className="space-y-2">
+                    <h3 className="font-semibold text-lg">Technical Specifications</h3>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Specification</TableHead>
+                                <TableHead>Value</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {reviewingProduct.specifications.map(spec => (
+                                <TableRow key={spec.name}>
+                                    <TableCell className="font-medium">{spec.name}</TableCell>
+                                    <TableCell>{spec.value}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+                </>
+              )}
             </div>
             <DialogFooter>
                 <Button 
