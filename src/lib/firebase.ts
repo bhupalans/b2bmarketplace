@@ -1,9 +1,9 @@
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc, Timestamp } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc, Timestamp, writeBatch } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { Product, Category, User } from './types';
+import { Product, Category, User, SpecTemplate } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
 const firebaseConfig = {
@@ -267,6 +267,47 @@ export async function deleteProductClient(product: Product): Promise<void> {
         console.error("Error deleting product:", error);
         throw new Error("Failed to delete product. Check Firestore/Storage rules and permissions.");
     }
+}
+
+
+// --- Spec Template Client Functions ---
+
+export async function getSpecTemplatesClient(): Promise<SpecTemplate[]> {
+  const specTemplatesCol = collection(db, "specTemplates");
+  const snapshot = await getDocs(specTemplatesCol);
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SpecTemplate));
+}
+
+export async function createOrUpdateSpecTemplateClient(
+  templateData: { name: string; fields: string[] },
+  templateId?: string | null
+): Promise<SpecTemplate> {
+  const dataToSave = {
+    ...templateData,
+    updatedAt: Timestamp.now(),
+  };
+
+  if (templateId) {
+    const templateRef = doc(db, 'specTemplates', templateId);
+    await updateDoc(templateRef, dataToSave);
+    const updatedDoc = await getDoc(templateRef);
+    return { id: templateId, ...updatedDoc.data() } as SpecTemplate;
+  } else {
+    const docRef = await addDoc(collection(db, 'specTemplates'), {
+      ...dataToSave,
+      createdAt: Timestamp.now(),
+    });
+    const newDoc = await getDoc(docRef);
+    return { id: docRef.id, ...newDoc.data() } as SpecTemplate;
+  }
+}
+
+export async function deleteSpecTemplateClient(templateId: string): Promise<void> {
+  if (!templateId) {
+    throw new Error("Template ID is invalid.");
+  }
+  const templateRef = doc(db, 'specTemplates', templateId);
+  await deleteDoc(templateRef);
 }
 
 

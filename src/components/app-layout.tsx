@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building, Home, PanelLeft, Loader2, LayoutDashboard, Package, Shield } from "lucide-react";
+import { Building, Home, PanelLeft, Loader2, LayoutDashboard, Package, Shield, FileText } from "lucide-react";
 import {
   SidebarProvider,
   Sidebar,
@@ -15,12 +15,22 @@ import {
   SidebarFooter,
   SidebarInset,
   SidebarTrigger,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
 } from "@/components/ui/sidebar";
 import { Button } from "./ui/button";
 import { UserNav } from "./user-nav";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "./ui/collapsible";
+import { cn } from "@/lib/utils";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -133,18 +143,34 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </>
             )}
              {user?.role === 'admin' && (
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname.startsWith("/admin")}
-                  tooltip="Admin"
-                >
-                  <Link href="/admin/approvals">
-                    <Shield />
-                    <span className="sr-only">Admin</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+                <Collapsible asChild defaultOpen={pathname.startsWith('/admin')}>
+                    <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                            <SidebarMenuButton
+                                className="w-full justify-start"
+                                variant="ghost"
+                                tooltip="Admin"
+                            >
+                                <Shield />
+                                <span className="sr-only">Admin</span>
+                            </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent asChild>
+                            <SidebarMenuSub>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={pathname === '/admin/approvals'}>
+                                        <Link href="/admin/approvals">Approvals</Link>
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={pathname === '/admin/spec-templates'}>
+                                        <Link href="/admin/spec-templates">Spec Templates</Link>
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                            </SidebarMenuSub>
+                        </CollapsibleContent>
+                    </SidebarMenuItem>
+                </Collapsible>
             )}
           </SidebarMenu>
         </SidebarContent>
