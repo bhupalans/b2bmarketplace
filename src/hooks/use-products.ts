@@ -2,8 +2,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Product, Category, User } from '@/lib/types';
-import { getProductsClient, getCategoriesClient } from '@/lib/firebase';
+import { Product, Category } from '@/lib/types';
+import { getProductsClient, getActiveCategoriesClient } from '@/lib/firebase';
 
 export function useProducts() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -15,12 +15,19 @@ export function useProducts() {
     async function fetchData() {
       try {
         setLoading(true);
-        const [productData, categoryData] = await Promise.all([
-          getProductsClient(),
-          getCategoriesClient(),
-        ]);
-        setProducts(productData);
-        setCategories(categoryData);
+        // Fetch only active categories
+        const activeCategories = await getActiveCategoriesClient();
+        const activeCategoryIds = new Set(activeCategories.map(c => c.id));
+
+        // Fetch all approved products
+        const allApprovedProducts = await getProductsClient();
+
+        // Filter products to only include those in an active category
+        const activeProducts = allApprovedProducts.filter(p => activeCategoryIds.has(p.categoryId));
+        
+        setProducts(activeProducts);
+        setCategories(activeCategories);
+
       } catch (err: any) {
         console.error("Error fetching data client-side:", err);
         setError(err);

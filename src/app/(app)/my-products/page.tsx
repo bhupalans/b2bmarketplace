@@ -27,7 +27,7 @@ import {
 import { MoreHorizontal, PlusCircle, Trash2, Edit, Loader2 } from "lucide-react";
 import { Category, Product, SpecTemplate } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
-import { getSellerProductsClient, getCategoriesClient, deleteProductClient, getSpecTemplatesClient } from '@/lib/firebase';
+import { getSellerProductsClient, getActiveCategoriesClient, deleteProductClient, getSpecTemplatesClient } from '@/lib/firebase';
 import Image from 'next/image';
 import { ProductFormDialog } from '@/components/product-form';
 import { useToast } from '@/hooks/use-toast';
@@ -76,7 +76,7 @@ export default function MyProductsPage() {
         setLoading(true);
         try {
           const [categoryData, templateData] = await Promise.all([
-            getCategoriesClient(),
+            getActiveCategoriesClient(),
             getSpecTemplatesClient(),
           ]);
           setCategories(categoryData);
@@ -296,5 +296,3 @@ export default function MyProductsPage() {
     </>
   );
 }
-
-    

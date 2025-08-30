@@ -100,6 +100,14 @@ export async function getCategoriesClient(): Promise<Category[]> {
   return categorySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
 }
 
+export async function getActiveCategoriesClient(): Promise<Category[]> {
+  const categoriesCol = collection(db, "categories");
+  const q = query(categoriesCol, where("status", "==", "active"));
+  const categorySnapshot = await getDocs(q);
+  return categorySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
+}
+
+
 export async function getUsersClient(): Promise<User[]> {
   const usersCol = collection(db, "users");
   const userSnapshot = await getDocs(usersCol);
@@ -355,5 +363,3 @@ export async function deleteCategoryClient(categoryId: string): Promise<void> {
 
 
 export { app, auth, db, storage };
-
-    
