@@ -310,5 +310,42 @@ export async function deleteSpecTemplateClient(templateId: string): Promise<void
   await deleteDoc(templateRef);
 }
 
+// --- Category Client Functions ---
+
+export async function createOrUpdateCategoryClient(
+  categoryData: { name: string; parentId: string | null; status: 'active' | 'inactive', specTemplateId?: string },
+  categoryId?: string | null
+): Promise<Category> {
+  const dataToSave = {
+    ...categoryData,
+    specTemplateId: categoryData.specTemplateId || null, // Ensure it's null not empty string
+    updatedAt: Timestamp.now(),
+  };
+
+  if (categoryId) {
+    const categoryRef = doc(db, 'categories', categoryId);
+    await updateDoc(categoryRef, dataToSave);
+    const updatedDoc = await getDoc(categoryRef);
+    return { id: categoryId, ...updatedDoc.data() } as Category;
+  } else {
+    const docRef = await addDoc(collection(db, 'categories'), {
+      ...dataToSave,
+      createdAt: Timestamp.now(),
+    });
+    const newDoc = await getDoc(docRef);
+    return { id: docRef.id, ...newDoc.data() } as Category;
+  }
+}
+
+export async function deleteCategoryClient(categoryId: string): Promise<void> {
+  // Simple delete, will fail if there are sub-categories due to Firestore rules if we enforce that.
+  // For now, we assume the user manages this manually. A more robust solution would check for children first.
+  if (!categoryId) {
+    throw new Error("Category ID is invalid.");
+  }
+  const categoryRef = doc(db, 'categories', categoryId);
+  await deleteDoc(categoryRef);
+}
+
 
 export { app, auth, db, storage };
