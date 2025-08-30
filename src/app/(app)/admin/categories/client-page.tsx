@@ -79,8 +79,8 @@ const CategoryRow: React.FC<{
     const [isOpen, setIsOpen] = useState(true);
 
     return (
-      <Collapsible asChild open={isOpen} onOpenChange={setIsOpen}>
-        <React.Fragment>
+      <Collapsible asChild open={isOpen} onOpenChange={setIsOpen} contentWrapper={React.Fragment}>
+        <>
           <TableRow className={cn(level > 0 && 'bg-muted/50')}>
             <TableCell style={{ paddingLeft: `${level * 1.5 + 1}rem` }}>
               <div className="flex items-center gap-2">
@@ -127,7 +127,7 @@ const CategoryRow: React.FC<{
             </TableCell>
           </TableRow>
           <CollapsibleContent asChild>
-            <React.Fragment>
+            <>
                 {category.children.map((child) => (
                 <CategoryRow
                     key={child.id}
@@ -138,9 +138,9 @@ const CategoryRow: React.FC<{
                     getTemplateName={getTemplateName}
                 />
                 ))}
-            </React.Fragment>
+            </>
           </CollapsibleContent>
-        </React.Fragment>
+        </>
       </Collapsible>
     );
 }
