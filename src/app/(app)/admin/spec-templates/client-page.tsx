@@ -136,7 +136,7 @@ export function SpecTemplatesClientPage({ initialTemplates }: SpecTemplatesClien
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                             {template.fields.map(field => (
-                                <Badge key={field} variant="secondary">{field}</Badge>
+                                <Badge key={field.name} variant="secondary">{field.name}</Badge>
                             ))}
                         </div>
                       </TableCell>
