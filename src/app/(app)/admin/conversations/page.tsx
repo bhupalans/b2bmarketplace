@@ -3,16 +3,23 @@
 
 import { useEffect, useState } from 'react';
 import { getAllConversationsForAdminClient, getUsersByIdsClient } from "@/lib/firebase";
-import { Conversation, User } from "@/lib/types";
+import { Conversation, User, Message } from "@/lib/types";
 import { AdminConversationList } from "./admin-conversation-list";
 import { Loader2 } from "lucide-react";
 import { useAuth } from '@/contexts/auth-context';
+import { Timestamp } from 'firebase/firestore';
 
-type PopulatedConversation = Conversation & { participants: User[] };
+// A version of the Conversation type that is safe to pass to client components
+type SerializableConversation = Omit<Conversation, 'createdAt' | 'lastMessage'> & {
+    createdAt: string | null;
+    lastMessage: (Omit<Message, 'timestamp'> & { timestamp: string | null }) | null;
+    participants: User[];
+};
+
 
 export default function AdminConversationsPage() {
     const { user, loading: authLoading } = useAuth();
-    const [conversations, setConversations] = useState<PopulatedConversation[]>([]);
+    const [conversations, setConversations] = useState<SerializableConversation[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -34,14 +41,23 @@ export default function AdminConversationsPage() {
                 
                 const userMap = await getUsersByIdsClient(Array.from(allParticipantIds));
 
-                const conversationsWithDetails = fetchedConversations.map(conv => {
+                const serializableConversations = fetchedConversations.map(conv => {
                     const participants = conv.participantIds.map(id => userMap.get(id)).filter(Boolean) as User[];
-                    // Ensure each participant object has the uid field for lookups
                     participants.forEach(p => p.uid = p.id);
-                    return { ...conv, participants };
+                    
+                    const serializableLastMessage = conv.lastMessage && conv.lastMessage.timestamp instanceof Timestamp
+                        ? { ...conv.lastMessage, timestamp: conv.lastMessage.timestamp.toDate().toISOString() }
+                        : null;
+
+                    return { 
+                        ...conv, 
+                        createdAt: conv.createdAt instanceof Timestamp ? conv.createdAt.toDate().toISOString() : null,
+                        lastMessage: serializableLastMessage,
+                        participants 
+                    };
                 });
 
-                setConversations(conversationsWithDetails);
+                setConversations(serializableConversations);
             } catch (error) {
                 console.error("Failed to fetch conversations for admin:", error);
             } finally {

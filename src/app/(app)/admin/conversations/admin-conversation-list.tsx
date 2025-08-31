@@ -2,11 +2,11 @@
 "use client";
 
 import React, { useState, useTransition } from "react";
-import { Conversation, User } from "@/lib/types";
+import { Conversation, User, Message } from "@/lib/types";
 import { MessageSquare, Users, Search, Download, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { format, formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow, parseISO } from 'date-fns';
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -14,10 +14,14 @@ import { Button } from "@/components/ui/button";
 import { downloadConversationAction } from "@/app/admin-actions";
 import { useToast } from "@/hooks/use-toast";
 
-type PopulatedConversation = Conversation & { participants: User[] };
+type SerializableConversation = Omit<Conversation, 'createdAt' | 'lastMessage'> & {
+    createdAt: string | null;
+    lastMessage: (Omit<Message, 'timestamp'> & { timestamp: string | null }) | null;
+    participants: User[];
+};
 
 interface AdminConversationListProps {
-    conversations: PopulatedConversation[];
+    conversations: SerializableConversation[];
 }
 
 export function AdminConversationList({ conversations }: AdminConversationListProps) {
@@ -105,7 +109,7 @@ export function AdminConversationList({ conversations }: AdminConversationListPr
                                     </TableCell>
                                     <TableCell className="text-muted-foreground truncate max-w-xs">{conv.lastMessage?.text}</TableCell>
                                     <TableCell className="text-muted-foreground">
-                                        {conv.lastMessage?.timestamp ? format(conv.lastMessage.timestamp.toDate(), 'PP') : 'N/A'}
+                                        {conv.lastMessage?.timestamp ? format(parseISO(conv.lastMessage.timestamp), 'PP') : 'N/A'}
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <Button
