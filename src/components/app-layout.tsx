@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building, Home, PanelLeft, Loader2, LayoutDashboard, Package, Shield, FileText, FolderTree, MessageSquare } from "lucide-react";
+import { Building, Home, PanelLeft, Loader2, LayoutDashboard, Package, Shield, FileText, FolderTree, MessageSquare, MessagesSquare } from "lucide-react";
 import {
   SidebarProvider,
   Sidebar,
@@ -69,7 +69,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
   
-  const isMessagesPage = pathname.startsWith('/messages');
+  const isMessagesPage = pathname.startsWith('/messages') || pathname.startsWith('/admin/conversations');
   if (isMessagesPage && !firebaseUser) {
       return (
         <div className="flex h-screen items-center justify-center">
@@ -185,6 +185,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                 <SidebarMenuSubItem>
                                     <SidebarMenuSubButton asChild isActive={pathname === '/admin/approvals'}>
                                         <Link href="/admin/approvals">Approvals</Link>
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={pathname === '/admin/conversations'}>
+                                        <Link href="/admin/conversations">Conversations</Link>
                                     </SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
                                 <SidebarMenuSubItem>

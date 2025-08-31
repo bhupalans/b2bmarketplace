@@ -2,7 +2,7 @@
 'use server';
 
 import { adminDb } from "./firebase-admin";
-import { Product, Category, User, Message } from "./types";
+import { Product, Category, User, Message, Conversation } from "./types";
 import { mockCategories, mockProducts } from "./mock-data";
 
 // --- Read Operations ---
@@ -19,6 +19,20 @@ export async function getUser(userId: string): Promise<User | null> {
     const userSnap = await userRef.get();
     if (!userSnap.exists) return null;
     return { id: userSnap.id, uid: userSnap.id, ...userSnap.data() } as User;
+}
+
+export async function getUsersByIds(userIds: string[]): Promise<Map<string, User>> {
+    if (userIds.length === 0) {
+        return new Map();
+    }
+    const userMap = new Map<string, User>();
+    const usersRef = adminDb.collection('users');
+    // Firestore 'in' queries are limited to 30 items. For a larger app, this would need chunking.
+    const snapshot = await usersRef.where('uid', 'in', userIds).get();
+    snapshot.forEach(doc => {
+        userMap.set(doc.id, { id: doc.id, ...doc.data() } as User);
+    });
+    return userMap;
 }
 
 export async function findUserByUsername(username: string): Promise<User | null> {
@@ -117,4 +131,38 @@ export async function getSellerDashboardData(sellerId: string): Promise<{
     console.error("Error fetching seller dashboard data:", error);
     return null;
   }
+}
+
+
+// --- Admin Functions ---
+
+export async function getAllConversationsForAdmin(): Promise<Conversation[]> {
+    const snapshot = await adminDb.collection('conversations')
+        .orderBy('lastMessage.timestamp', 'desc')
+        .get();
+
+    if (snapshot.empty) {
+        return [];
+    }
+    
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Conversation));
+}
+
+export async function getConversationForAdmin(conversationId: string): Promise<{ conversation: Conversation, messages: Message[] } | null> {
+    const convRef = adminDb.collection('conversations').doc(conversationId);
+    const messagesRef = convRef.collection('messages').orderBy('timestamp', 'asc');
+
+    const [convSnap, messagesSnap] = await Promise.all([
+        convRef.get(),
+        messagesRef.get()
+    ]);
+
+    if (!convSnap.exists) {
+        return null;
+    }
+
+    const conversation = { id: convSnap.id, ...convSnap.data() } as Conversation;
+    const messages = messagesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+
+    return { conversation, messages };
 }
