@@ -45,8 +45,13 @@ export default function AdminConversationsPage() {
                     const participants = conv.participantIds.map(id => userMap.get(id)).filter(Boolean) as User[];
                     participants.forEach(p => p.uid = p.id);
                     
-                    const serializableLastMessage = conv.lastMessage && conv.lastMessage.timestamp instanceof Timestamp
-                        ? { ...conv.lastMessage, timestamp: conv.lastMessage.timestamp.toDate().toISOString() }
+                    const serializableLastMessage = conv.lastMessage
+                        ? { 
+                              ...conv.lastMessage, 
+                              timestamp: conv.lastMessage.timestamp instanceof Timestamp 
+                                  ? conv.lastMessage.timestamp.toDate().toISOString() 
+                                  : null 
+                          }
                         : null;
 
                     return { 
