@@ -25,10 +25,9 @@ export function ConversationList() {
 
   useEffect(() => {
     if (authLoading) {
-      // Don't do anything while auth is still loading
+      setLoading(true);
       return;
     }
-
     if (!user) {
       setConversations([]);
       setLoading(false);
@@ -38,14 +37,11 @@ export function ConversationList() {
     setLoading(true);
     const unsubscribe = streamConversations(user.uid, (newConversations) => {
       setConversations(newConversations);
-      setLoading(false);
+      if (loading) setLoading(false);
     });
 
-    // Cleanup function runs when `user` or `authLoading` changes, or on unmount.
     return () => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
+      unsubscribe();
     };
   }, [user, authLoading]);
   
