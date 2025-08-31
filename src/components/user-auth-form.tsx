@@ -104,12 +104,15 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
         const loginValues = values as z.infer<typeof loginSchema>;
         let emailToLogin = loginValues.loginId;
         
+        // If loginId doesn't contain "@", assume it's a username and find the corresponding email.
         if (!emailToLogin.includes('@')) {
             const user = await findUserByUsername(emailToLogin);
             if (user) {
                 emailToLogin = user.email;
             } else {
-                throw new Error("User not found.");
+                // If the username is not found, we throw an error to be caught by the catch block.
+                // This makes the logic consistent with a failed password attempt.
+                throw new Error("auth/invalid-credential");
             }
         }
         await signInWithEmailAndPassword(auth, emailToLogin, loginValues.password);
@@ -125,7 +128,8 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
       let title = "Authentication Failed";
       let description = "An unexpected error occurred.";
 
-      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.message === 'User not found.') {
+      // This logic now correctly handles modern Firebase auth errors for login.
+      if (error.code === 'auth/invalid-credential' || error.message === 'auth/invalid-credential') {
         description = "The username/email or password you entered is incorrect.";
       } else if (error.code === 'auth/operation-not-allowed' || (error.message && error.message.includes('identitytoolkit'))) {
         title = "Sign-In Method Disabled";
