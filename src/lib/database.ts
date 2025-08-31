@@ -26,9 +26,10 @@ export async function getUsersByIds(userIds: string[]): Promise<Map<string, User
         return new Map();
     }
     const userMap = new Map<string, User>();
-    const usersRef = adminDb.collection('users');
     // Firestore 'in' queries are limited to 30 items. For a larger app, this would need chunking.
-    const snapshot = await usersRef.where('uid', 'in', userIds).get();
+    const userIdsToFetch = [...new Set(userIds)]; // Remove duplicates
+    const usersRef = adminDb.collection('users');
+    const snapshot = await usersRef.where('uid', 'in', userIdsToFetch).get();
     snapshot.forEach(doc => {
         userMap.set(doc.id, { id: doc.id, ...doc.data() } as User);
     });
@@ -131,38 +132,4 @@ export async function getSellerDashboardData(sellerId: string): Promise<{
     console.error("Error fetching seller dashboard data:", error);
     return null;
   }
-}
-
-
-// --- Admin Functions ---
-
-export async function getAllConversationsForAdmin(): Promise<Conversation[]> {
-    const snapshot = await adminDb.collection('conversations')
-        .orderBy('lastMessage.timestamp', 'desc')
-        .get();
-
-    if (snapshot.empty) {
-        return [];
-    }
-    
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Conversation));
-}
-
-export async function getConversationForAdmin(conversationId: string): Promise<{ conversation: Conversation, messages: Message[] } | null> {
-    const convRef = adminDb.collection('conversations').doc(conversationId);
-    const messagesRef = convRef.collection('messages').orderBy('timestamp', 'asc');
-
-    const [convSnap, messagesSnap] = await Promise.all([
-        convRef.get(),
-        messagesRef.get()
-    ]);
-
-    if (!convSnap.exists) {
-        return null;
-    }
-
-    const conversation = { id: convSnap.id, ...convSnap.data() } as Conversation;
-    const messages = messagesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
-
-    return { conversation, messages };
 }

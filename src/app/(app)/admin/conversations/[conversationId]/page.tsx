@@ -1,27 +1,82 @@
 
-import React from 'react';
-import { notFound } from "next/navigation";
-import { getConversationForAdmin, getUsersByIds } from "@/lib/database";
+"use client";
+
+import React, { useState, useEffect } from 'react';
+import { useParams, notFound } from "next/navigation";
+import { useAuth } from '@/contexts/auth-context';
+import { getConversationForAdminClient, getMessagesForAdminClient, getUsersByIdsClient } from "@/lib/firebase";
+import { Conversation, Message, User } from '@/lib/types';
 import { AdminMessageView } from "./admin-message-view";
+import { Loader2 } from 'lucide-react';
 
-export default async function AdminConversationDetailPage({ params }: { params: { conversationId: string } }) {
-    const conversationId = params.conversationId;
+export default function AdminConversationDetailPage() {
+    const params = useParams();
+    const conversationId = params.conversationId as string;
+    const { user, loading: authLoading } = useAuth();
 
-    const conversationData = await getConversationForAdmin(conversationId);
-    if (!conversationData) {
-        notFound();
+    const [conversation, setConversation] = useState<Conversation | null>(null);
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [participants, setParticipants] = useState<User[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (authLoading) return;
+
+        if (!user || user.role !== 'admin') {
+            setLoading(false);
+            setError("You do not have permission to view this page.");
+            return;
+        }
+
+        async function fetchData() {
+            setLoading(true);
+            try {
+                const fetchedConversation = await getConversationForAdminClient(conversationId);
+                if (!fetchedConversation) {
+                    setError("Conversation not found.");
+                    setLoading(false);
+                    return;
+                }
+
+                const [fetchedMessages, participantMap] = await Promise.all([
+                    getMessagesForAdminClient(conversationId),
+                    getUsersByIdsClient(fetchedConversation.participantIds),
+                ]);
+
+                setConversation(fetchedConversation);
+                setMessages(fetchedMessages);
+                setParticipants(Array.from(participantMap.values()));
+
+            } catch (err: any) {
+                console.error("Error fetching admin conversation details:", err);
+                setError("Failed to load conversation data.");
+            } finally {
+                setLoading(false);
+            }
+        }
+        
+        fetchData();
+
+    }, [conversationId, user, authLoading]);
+
+    if (loading || authLoading) {
+        return <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+    }
+
+    if (error) {
+        return <div className="flex justify-center items-center h-full"><p>{error}</p></div>;
     }
     
-    const { conversation, messages } = conversationData;
-    
-    // Fetch user details for all participants
-    const userMap = await getUsersByIds(conversation.participantIds);
-    
+    if (!conversation) {
+        notFound();
+    }
+
     return (
-        <AdminMessageView 
-            conversation={conversation} 
-            initialMessages={messages} 
-            participants={Array.from(userMap.values())} 
+        <AdminMessageView
+            conversation={conversation}
+            initialMessages={messages}
+            participants={participants}
         />
     )
 }

@@ -1,5 +1,6 @@
 
 
+
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc as getDocClient, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError } from 'firebase/firestore';
@@ -128,8 +129,10 @@ export async function getUsersByIdsClient(userIds: string[]): Promise<Map<string
         return new Map();
     }
     const userMap = new Map<string, User>();
+    // Firestore 'in' queries are limited to 30 items. For a larger app, this would need chunking.
+    const userIdsToFetch = [...new Set(userIds)]; // Remove duplicates
     const usersRef = collection(db, 'users');
-    const snapshot = await getDocs(query(usersRef, where('uid', 'in', userIds)));
+    const snapshot = await getDocs(query(usersRef, where('uid', 'in', userIdsToFetch)));
     snapshot.forEach(userDoc => {
         userMap.set(userDoc.id, { id: userDoc.id, ...userDoc.data() } as User);
     });
@@ -425,6 +428,10 @@ export async function findOrCreateConversation(data: {
 
 
 export function streamConversations(userId: string, callback: (conversations: Conversation[]) => void): () => void {
+  if (!userId) {
+    callback([]);
+    return () => {}; // Return an empty function if no user
+  }
   const q = query(
     collection(db, 'conversations'),
     where('participantIds', 'array-contains', userId),
@@ -448,8 +455,8 @@ export function streamConversations(userId: string, callback: (conversations: Co
     callback(convsWithDetails);
   }, (error: FirestoreError) => {
       if (error.code === 'permission-denied') {
-        console.warn("Firestore permission denied on conversations stream. This is normal on logout. Unsubscribing.");
-        unsubscribe();
+        console.warn("Firestore permission denied on conversations stream. This is normal on logout.");
+        unsubscribe(); // Unsubscribe on permission error
       } else {
         console.error("Error in streamConversations:", error);
       }
@@ -493,8 +500,8 @@ export function streamMessages(conversationId: string, callback: (messages: Mess
         callback(messages);
     }, (error: FirestoreError) => {
       if (error.code === 'permission-denied') {
-        console.warn("Firestore permission denied on messages stream. This is normal on logout. Unsubscribing.");
-        unsubscribe();
+        console.warn("Firestore permission denied on messages stream. This is normal on logout.");
+        unsubscribe(); // Unsubscribe on permission error
       } else {
         console.error("Error in streamMessages:", error);
       }
@@ -538,6 +545,22 @@ export async function getAllConversationsForAdminClient(): Promise<Conversation[
         return [];
     }
     return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Conversation));
+}
+
+export async function getConversationForAdminClient(conversationId: string): Promise<Conversation | null> {
+    const convRef = doc(db, 'conversations', conversationId);
+    const convSnap = await getDocClient(convRef);
+    if (!convSnap.exists()) {
+        return null;
+    }
+    return { id: convSnap.id, ...convSnap.data() } as Conversation;
+}
+
+export async function getMessagesForAdminClient(conversationId: string): Promise<Message[]> {
+    const messagesRef = collection(db, 'conversations', conversationId, 'messages');
+    const q = query(messagesRef, orderBy('timestamp', 'asc'));
+    const messagesSnap = await getDocs(q);
+    return messagesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
 }
 
 
