@@ -2,7 +2,7 @@
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message } from './types';
 import { v4 as uuidv4 } from 'uuid';
@@ -29,7 +29,7 @@ export async function getProductsClient(): Promise<Product[]> {
   // Only fetch approved products for the public-facing client pages
   const q = query(productsCol, where("status", "==", "approved"));
   const productSnapshot = await getDocs(q);
-  return productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+  return productSnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Product));
 }
 
 export async function getProductClient(productId: string): Promise<Product | null> {
@@ -92,32 +92,32 @@ export async function getPendingProducts(): Promise<Product[]> {
     const productsCol = collection(db, "products");
     const q = query(productsCol, where("status", "==", "pending"));
     const productSnapshot = await getDocs(q);
-    return productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+    return productSnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Product));
 }
 
 export async function getCategoriesClient(): Promise<Category[]> {
   const categoriesCol = collection(db, "categories");
   const categorySnapshot = await getDocs(categoriesCol);
-  return categorySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
+  return categorySnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Category));
 }
 
 export async function getActiveCategoriesClient(): Promise<Category[]> {
   const categoriesCol = collection(db, "categories");
   const q = query(categoriesCol, where("status", "==", "active"));
   const categorySnapshot = await getDocs(q);
-  return categorySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
+  return categorySnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Category));
 }
 
 
 export async function getUsersClient(): Promise<User[]> {
   const usersCol = collection(db, "users");
   const userSnapshot = await getDocs(usersCol);
-   const userList = userSnapshot.docs.map(doc => {
-    const data = doc.data();
+   const userList = userSnapshot.docs.map(docSnap => {
+    const data = docSnap.data();
     return {
-      id: doc.id,
+      id: docSnap.id,
       ...data,
-      uid: doc.id, // ensure uid is set from the doc id
+      uid: docSnap.id, // ensure uid is set from the doc id
     } as User;
   });
   return userList;
@@ -128,7 +128,7 @@ export async function getSellerProductsClient(sellerId: string): Promise<Product
     const productsRef = collection(db, "products");
     const q = query(productsRef, where("sellerId", "==", sellerId));
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)).sort((a,b) => ((b.createdAt as Timestamp)?.toMillis() || 0) - ((a.createdAt as Timestamp)?.toMillis() || 0));
+    return querySnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Product)).sort((a,b) => ((b.createdAt as Timestamp)?.toMillis() || 0) - ((a.createdAt as Timestamp)?.toMillis() || 0));
 }
 
 // Client-side function to update product status, to be secured by Firestore rules
@@ -291,7 +291,7 @@ export async function deleteProductClient(product: Product): Promise<void> {
 export async function getSpecTemplatesClient(): Promise<SpecTemplate[]> {
   const specTemplatesCol = collection(db, "specTemplates");
   const snapshot = await getDocs(specTemplatesCol);
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SpecTemplate));
+  return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as SpecTemplate));
 }
 
 export async function createOrUpdateSpecTemplateClient(
@@ -380,7 +380,8 @@ export async function findOrCreateConversation(data: {
   );
 
   const querySnapshot = await getDocs(conversationQuery);
-  let existingConversation = null;
+  let existingConversation: (Conversation & { id: string }) | null = null;
+
 
   querySnapshot.forEach(docSnap => {
       const conv = docSnap.data() as Conversation;
@@ -399,10 +400,9 @@ export async function findOrCreateConversation(data: {
     productTitle: data.productTitle,
     productImage: data.productImage,
     createdAt: serverTimestamp(),
-    // Initialize with a non-null lastMessage to prevent query issues.
     lastMessage: {
         text: `Conversation about "${data.productTitle}" started.`,
-        senderId: 'system', // Use a system sender for this initial placeholder
+        senderId: 'system',
         timestamp: serverTimestamp()
     },
   });
@@ -424,19 +424,22 @@ export function streamConversations(userId: string, callback: (conversations: Co
         const conv = { id: docSnap.id, ...docSnap.data() } as Conversation;
         const otherId = conv.participantIds.find(id => id !== userId);
         if (otherId) {
-          const userDoc = await getDoc(doc(db, 'users', otherId));
-          if (userDoc.exists()) {
-            conv.otherParticipant = { id: userDoc.id, uid: userDoc.id, ...userDoc.data() } as User;
+          const userDocSnap = await getDoc(doc(db, 'users', otherId));
+          if (userDocSnap.exists()) {
+            conv.otherParticipant = { id: userDocSnap.id, uid: userDocSnap.id, ...userDocSnap.data() } as User;
           }
         }
         return conv;
       })
     );
     callback(convsWithDetails);
-  }, (error) => {
-      console.error("Error in streamConversations:", error);
-      // Optional: You could have a way to notify the UI of the error.
-      // For now, we just log it. This is often due to missing Firestore indexes.
+  }, (error: FirestoreError) => {
+      if (error.code === 'permission-denied') {
+        console.warn("Firestore permission denied on conversations stream. This can happen on logout. Unsubscribing.");
+        unsubscribe();
+      } else {
+        console.error("Error in streamConversations:", error);
+      }
   });
 
   return unsubscribe;
@@ -475,6 +478,13 @@ export function streamMessages(conversationId: string, callback: (messages: Mess
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const messages = querySnapshot.docs.map(messageDoc => ({ id: messageDoc.id, ...messageDoc.data() } as Message));
         callback(messages);
+    }, (error: FirestoreError) => {
+      if (error.code === 'permission-denied') {
+        console.warn("Firestore permission denied on messages stream. This can happen on logout. Unsubscribing.");
+        unsubscribe();
+      } else {
+        console.error("Error in streamMessages:", error);
+      }
     });
 
     return unsubscribe;
