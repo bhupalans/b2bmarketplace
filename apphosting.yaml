@@ -3,7 +3,12 @@
 
 # Explicitly set the service account for the backend.
 # This can resolve token generation and permission issues.
-serviceAccount: firebase-app-hosting-compute@b2b-marketplace-udg1v.iam.gserviceaccount.com
+serviceAccount: 
+  id: firebase-app-hosting-compute@b2b-marketplace-udg1v.iam.gserviceaccount.com
+  # Add the roles/firebase.serviceAccountUser role to the service account
+  # to grant it permission to impersonate and generate tokens.
+  roles:
+    - firebase.serviceAccountUser
 
 runConfig:
   # Increase this value if you'd like to automatically spin up
