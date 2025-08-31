@@ -5,6 +5,8 @@ import { Conversation, Message, User } from "@/lib/types";
 import { getUsersByIds } from "@/lib/database";
 import { Timestamp } from "firebase-admin/firestore";
 
+export const revalidate = 60; // Revalidate this page every 60 seconds
+
 type SerializableConversation = Omit<import('@/lib/types').Conversation, 'createdAt' | 'lastMessage' | 'otherParticipant'> & {
     createdAt: string | null;
     lastMessage: (Omit<Message, 'timestamp'> & { timestamp: string | null }) | null;
