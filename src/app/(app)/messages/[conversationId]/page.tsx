@@ -25,7 +25,6 @@ export default function ConversationPage() {
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [otherParticipant, setOtherParticipant] = useState<User | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
 
@@ -38,9 +37,15 @@ export default function ConversationPage() {
   }, [messages]);
 
   useEffect(() => {
-    if (authLoading || !user) return;
+    if (authLoading) {
+      return; // Wait for auth to be ready
+    }
+    if (!user) {
+      router.push("/messages");
+      return;
+    }
 
-    let unsubscribe: () => void;
+    let unsubscribeMessages: () => void;
 
     const fetchConversationData = async () => {
       try {
@@ -53,9 +58,11 @@ export default function ConversationPage() {
         setConversation(convData.conversation);
         setOtherParticipant(convData.otherParticipant);
 
-        unsubscribe = streamMessages(conversationId, (newMessages) => {
+        // Set up the listener for messages
+        unsubscribeMessages = streamMessages(conversationId, (newMessages) => {
           setMessages(newMessages);
         });
+
       } catch (error) {
         console.error("Error fetching conversation data:", error);
         router.push("/messages");
@@ -66,9 +73,10 @@ export default function ConversationPage() {
 
     fetchConversationData();
 
+    // The cleanup function will run when the component unmounts or dependencies change.
     return () => {
-      if (unsubscribe) {
-        unsubscribe();
+      if (unsubscribeMessages) {
+        unsubscribeMessages();
       }
     };
   }, [conversationId, user, authLoading, router]);
@@ -177,4 +185,3 @@ export default function ConversationPage() {
     </div>
   );
 }
-
