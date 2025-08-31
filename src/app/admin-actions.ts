@@ -4,6 +4,7 @@
 import { adminDb } from "@/lib/firebase-admin";
 import { User, Message } from "@/lib/types";
 import { format } from 'date-fns';
+import { Timestamp } from "firebase-admin/firestore";
 
 export async function downloadConversationAction(conversationId: string) {
     if (!conversationId) {
@@ -35,8 +36,8 @@ export async function downloadConversationAction(conversationId: string) {
         const csvRows = messages.map(msg => {
             const senderName = userMap.get(msg.senderId)?.name || 'Unknown User';
             
-            // Robustly handle timestamp conversion
-            const timestamp = msg.timestamp && typeof msg.timestamp.toDate === 'function' 
+            // This is the more robust check for the timestamp.
+            const timestamp = msg.timestamp instanceof Timestamp && typeof msg.timestamp.toDate === 'function' 
               ? format(msg.timestamp.toDate(), 'yyyy-MM-dd HH:mm:ss') 
               : 'N/A';
 
