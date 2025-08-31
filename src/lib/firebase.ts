@@ -11,7 +11,7 @@ const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: "b2b-marketplace-udg1v.firebaseapp.com",
   projectId: "b2b-marketplace-udg1v",
-  storageBucket: "b2b-marketplace-udg1v.firebasestorage.app",
+  storageBucket: "b2b-marketplace-udg1v.appspot.com",
   messagingSenderId: "822558435203",
   appId: "1:822558435203:web:c462791316c4540a2e78b6"
 };
@@ -365,67 +365,6 @@ export async function deleteCategoryClient(categoryId: string): Promise<void> {
 
 // --- Messaging Functions ---
 
-export async function startConversation(data: {
-    buyerId: string;
-    sellerId: string;
-    productId: string;
-    productTitle: string;
-    productImage: string;
-    initialMessageText: string;
-}): Promise<string> {
-
-  const conversationQuery = query(
-    collection(db, 'conversations'),
-    where('participantIds', 'array-contains', data.buyerId),
-    where('productId', '==', data.productId)
-  );
-
-  const querySnapshot = await getDocs(conversationQuery);
-  let existingConversation = null;
-
-  querySnapshot.forEach(doc => {
-      const conv = doc.data() as Conversation;
-      if (conv.participantIds.includes(data.sellerId)) {
-          existingConversation = { id: doc.id, ...conv };
-      }
-  });
-  
-  if (existingConversation) {
-    return existingConversation.id;
-  }
-  
-  const conversationRef = doc(collection(db, 'conversations'));
-
-  const batch = writeBatch(db);
-
-  const newConversation: Omit<Conversation, 'id'> = {
-    participantIds: [data.buyerId, data.sellerId],
-    productId: data.productId,
-    productTitle: data.productTitle,
-    productImage: data.productImage,
-    createdAt: serverTimestamp() as Timestamp,
-    lastMessage: {
-      text: data.initialMessageText,
-      timestamp: serverTimestamp() as Timestamp,
-      senderId: data.buyerId,
-    },
-  };
-  batch.set(conversationRef, newConversation);
-
-  const messageRef = doc(collection(conversationRef, 'messages'));
-  const newMessage: Omit<Message, 'id'> = {
-    conversationId: conversationRef.id,
-    text: data.initialMessageText,
-    senderId: data.buyerId,
-    timestamp: serverTimestamp() as Timestamp,
-  };
-  batch.set(messageRef, newMessage);
-
-  await batch.commit();
-  return conversationRef.id;
-}
-
-
 export async function findOrCreateConversation(data: {
     buyerId: string;
     sellerId: string;
@@ -443,10 +382,10 @@ export async function findOrCreateConversation(data: {
   const querySnapshot = await getDocs(conversationQuery);
   let existingConversation = null;
 
-  querySnapshot.forEach(doc => {
-      const conv = doc.data() as Conversation;
+  querySnapshot.forEach(docSnap => {
+      const conv = docSnap.data() as Conversation;
       if (conv.participantIds.includes(data.sellerId)) {
-          existingConversation = { id: doc.id, ...conv };
+          existingConversation = { id: docSnap.id, ...conv };
       }
   });
   
@@ -481,8 +420,8 @@ export function streamConversations(userId: string, callback: (conversations: Co
 
   const unsubscribe = onSnapshot(q, async (querySnapshot) => {
     const convsWithDetails: Conversation[] = await Promise.all(
-      querySnapshot.docs.map(async (doc) => {
-        const conv = { id: doc.id, ...doc.data() } as Conversation;
+      querySnapshot.docs.map(async (docSnap) => {
+        const conv = { id: docSnap.id, ...docSnap.data() } as Conversation;
         const otherId = conv.participantIds.find(id => id !== userId);
         if (otherId) {
           const userDoc = await getDoc(doc(db, 'users', otherId));
@@ -534,7 +473,7 @@ export function streamMessages(conversationId: string, callback: (messages: Mess
     const q = query(messagesCol, orderBy('timestamp', 'asc'));
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const messages = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+        const messages = querySnapshot.docs.map(messageDoc => ({ id: messageDoc.id, ...messageDoc.data() } as Message));
         callback(messages);
     });
 
