@@ -26,13 +26,25 @@ export async function getUsersByIds(userIds: string[]): Promise<Map<string, User
         return new Map();
     }
     const userMap = new Map<string, User>();
-    // Firestore 'in' queries are limited to 30 items. For a larger app, this would need chunking.
+    // Firestore 'in' queries are limited to 30 items. Chunking may be needed for very large conversations with many participants.
     const userIdsToFetch = [...new Set(userIds)]; // Remove duplicates
+    
+    // Chunk the userIds to respect Firestore's 30-item limit for 'in' queries
+    const chunks: string[][] = [];
+    for (let i = 0; i < userIdsToFetch.length; i += 30) {
+        chunks.push(userIdsToFetch.slice(i, i + 30));
+    }
+
     const usersRef = adminDb.collection('users');
-    const snapshot = await usersRef.where('uid', 'in', userIdsToFetch).get();
-    snapshot.forEach(doc => {
-        userMap.set(doc.id, { id: doc.id, ...doc.data() } as User);
-    });
+
+    for (const chunk of chunks) {
+        if (chunk.length === 0) continue;
+        const snapshot = await usersRef.where('uid', 'in', chunk).get();
+        snapshot.forEach(doc => {
+            userMap.set(doc.id, { id: doc.id, uid: doc.id, ...doc.data() } as User);
+        });
+    }
+
     return userMap;
 }
 
@@ -132,4 +144,12 @@ export async function getSellerDashboardData(sellerId: string): Promise<{
     console.error("Error fetching seller dashboard data:", error);
     return null;
   }
+}
+
+export async function getAllConversationsForAdmin(): Promise<Conversation[]> {
+    const snapshot = await adminDb.collection('conversations').orderBy('lastMessage.timestamp', 'desc').get();
+    if (snapshot.empty) {
+        return [];
+    }
+    return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Conversation));
 }
