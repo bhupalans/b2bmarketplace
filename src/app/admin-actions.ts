@@ -5,6 +5,7 @@ import { adminDb } from "@/lib/firebase-admin";
 import { User, Message } from "@/lib/types";
 import { format } from 'date-fns';
 import { Timestamp } from "firebase-admin/firestore";
+import { getUsersByIds } from "@/lib/database";
 
 export async function downloadConversationAction(conversationId: string) {
     if (!conversationId) {
@@ -25,23 +26,17 @@ export async function downloadConversationAction(conversationId: string) {
             return acc;
         }, new Set<string>());
 
-        // Firestore 'in' query is limited to 30 items. Chunking may be needed for very large conversations with many participants.
-        const userDocs = await adminDb.collection('users').where('uid', 'in', Array.from(participantIds)).get();
-        const userMap = new Map<string, User>();
-        userDocs.forEach(doc => {
-            userMap.set(doc.id, { id: doc.id, uid: doc.id, ...doc.data() } as User);
-        });
+        const userMap = await getUsersByIds(Array.from(participantIds));
 
         const csvHeader = 'Timestamp,Sender Name,Message\n';
         const csvRows = messages.map(msg => {
             const senderName = userMap.get(msg.senderId)?.name || 'Unknown User';
             
-            // This is the more robust check for the timestamp.
             const timestamp = msg.timestamp instanceof Timestamp && typeof msg.timestamp.toDate === 'function' 
               ? format(msg.timestamp.toDate(), 'yyyy-MM-dd HH:mm:ss') 
               : 'N/A';
 
-            const cleanMessage = `"${(msg.text || '').replace(/"/g, '""')}"`; // Escape double quotes and handle undefined text
+            const cleanMessage = `"${(msg.text || '').replace(/"/g, '""')}"`;
 
             return [timestamp, senderName, cleanMessage].join(',');
         });
