@@ -1,4 +1,5 @@
 
+
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit } from 'firebase/firestore';
@@ -459,7 +460,12 @@ export async function findOrCreateConversation(data: {
     productTitle: data.productTitle,
     productImage: data.productImage,
     createdAt: serverTimestamp(),
-    lastMessage: null, // No message yet
+    // Initialize with a non-null lastMessage to prevent query issues.
+    lastMessage: {
+        text: `Conversation about "${data.productTitle}" started.`,
+        senderId: 'system', // Use a system sender for this initial placeholder
+        timestamp: serverTimestamp()
+    },
   });
 
   return { conversationId: conversationRef.id, isNew: true };
@@ -481,13 +487,17 @@ export function streamConversations(userId: string, callback: (conversations: Co
         if (otherId) {
           const userDoc = await getDoc(doc(db, 'users', otherId));
           if (userDoc.exists()) {
-            conv.otherParticipant = { id: userDoc.id, ...userDoc.data() } as User;
+            conv.otherParticipant = { id: userDoc.id, uid: userDoc.id, ...userDoc.data() } as User;
           }
         }
         return conv;
       })
     );
     callback(convsWithDetails);
+  }, (error) => {
+      console.error("Error in streamConversations:", error);
+      // Optional: You could have a way to notify the UI of the error.
+      // For now, we just log it. This is often due to missing Firestore indexes.
   });
 
   return unsubscribe;
@@ -513,7 +523,7 @@ export async function getConversation(conversationId: string, currentUserId: str
     const userSnap = await getDoc(doc(db, 'users', otherId));
     if (!userSnap.exists()) return null;
 
-    const otherParticipant = { id: userSnap.id, ...userSnap.data() } as User;
+    const otherParticipant = { id: userSnap.id, uid: userSnap.id, ...userSnap.data() } as User;
 
     return { conversation, otherParticipant };
 }

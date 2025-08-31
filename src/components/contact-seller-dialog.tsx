@@ -21,7 +21,7 @@ import type { Product, User } from "@/lib/types";
 import { sendInquiryAction } from "@/app/actions";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
-import { findOrCreateConversation } from "@/lib/firebase";
+import { findOrCreateConversation, sendMessage } from "@/lib/firebase";
 
 type ContactSellerDialogProps = {
   product: Product; // Product is now mandatory
@@ -53,22 +53,13 @@ export function ContactSellerDialog({ product, seller }: ContactSellerDialogProp
                 productImage: product.images[0] || "",
             });
 
-            if (isNew) {
-                // If it's a new conversation, send the first message via a Server Action
-                const formData = new FormData();
-                formData.append('idToken', (await firebaseUser.getIdToken()) || "");
-                formData.append('sellerId', seller.uid);
-                formData.append('product', JSON.stringify(product));
-                formData.append('message', message);
-                
-                const result = await sendInquiryAction({}, formData);
-
-                if (!result.success) {
-                    throw new Error(result.error || "Failed to start conversation.");
-                }
+            // Send the new message regardless of whether the conversation is new or not
+            if (message.trim().length > 0) {
+                 await sendMessage(conversationId, user.uid, message);
             }
             
             router.push(`/messages/${conversationId}`);
+            setOpen(false); // Close the dialog on success
             
         } catch (error: any) {
              toast({
@@ -103,8 +94,7 @@ export function ContactSellerDialog({ product, seller }: ContactSellerDialogProp
         <DialogHeader>
           <DialogTitle>Contact {seller.name}</DialogTitle>
           <DialogDescription>
-            Send an inquiry for "{product.title}".
-            Your contact details will not be shared. All communication happens through the platform.
+            Send an inquiry for "{product.title}". Your message will start a new conversation or be added to an existing one.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleFormSubmit} className="space-y-4">
