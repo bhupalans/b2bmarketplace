@@ -24,18 +24,23 @@ export async function downloadConversationAction(conversationId: string) {
             return acc;
         }, new Set<string>());
 
+        // Firestore 'in' query is limited to 30 items. Chunking may be needed for very large conversations with many participants.
         const userDocs = await adminDb.collection('users').where('uid', 'in', Array.from(participantIds)).get();
         const userMap = new Map<string, User>();
         userDocs.forEach(doc => {
-            userMap.set(doc.id, { id: doc.id, ...doc.data() } as User);
+            userMap.set(doc.id, { id: doc.id, uid: doc.id, ...doc.data() } as User);
         });
 
         const csvHeader = 'Timestamp,Sender Name,Message\n';
         const csvRows = messages.map(msg => {
             const senderName = userMap.get(msg.senderId)?.name || 'Unknown User';
-            // Firebase Timestamps need to be converted to JS Dates to be formatted
-            const timestamp = msg.timestamp.toDate ? format(msg.timestamp.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A';
-            const cleanMessage = `"${msg.text.replace(/"/g, '""')}"`; // Escape double quotes
+            
+            // Robustly handle timestamp conversion
+            const timestamp = msg.timestamp && typeof msg.timestamp.toDate === 'function' 
+              ? format(msg.timestamp.toDate(), 'yyyy-MM-dd HH:mm:ss') 
+              : 'N/A';
+
+            const cleanMessage = `"${(msg.text || '').replace(/"/g, '""')}"`; // Escape double quotes and handle undefined text
 
             return [timestamp, senderName, cleanMessage].join(',');
         });
