@@ -54,30 +54,21 @@ export default function AdminConversationsLayout({
         fetchData();
     }, [user, authLoading]);
     
-    if (authLoading) {
+    if (authLoading || loading) {
       return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     }
 
     if (user?.role !== 'admin') {
         return (
-             <div className="flex justify-center items-center h-full col-span-2">
+             <div className="flex justify-center items-center h-full">
                 <p>You do not have permission to view this page.</p>
             </div>
         );
     }
 
   return (
-    <div className="grid h-[calc(100vh-theme(spacing.14)*2)] grid-cols-1 md:grid-cols-[300px_1fr] lg:grid-cols-[380px_1fr]">
-        <aside className="hidden md:block border-r bg-background">
-          {loading ? (
-             <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>
-          ) : (
-            <AdminConversationList conversations={conversations} />
-          )}
-        </aside>
-        <main className="bg-muted/50">
-          {children}
-        </main>
+    <div className="h-full">
+        <AdminConversationList conversations={conversations} />
     </div>
   );
 }
