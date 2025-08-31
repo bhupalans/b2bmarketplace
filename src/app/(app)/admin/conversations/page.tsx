@@ -2,16 +2,15 @@
 "use client";
 
 import { MessageSquare } from "lucide-react";
-import { AdminConversationList } from "./admin-conversation-list";
 
 export default function MessagesPage() {
     // On mobile, this page shows the list. On desktop, the list is in the layout.
     // This component handles the content for the main panel on both.
   return (
     <>
-      {/* Mobile view: Show conversation list */}
-      <div className="md:hidden">
-        <AdminConversationList />
+      {/* Mobile view: Show conversation list - This part will need to be re-implemented if mobile is desired */}
+      <div className="md:hidden p-4 text-center">
+        <p>Conversation list is available on desktop.</p>
       </div>
 
       {/* Desktop view: Show placeholder */}
