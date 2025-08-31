@@ -24,15 +24,26 @@ export function ConversationList() {
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    if (!user) return;
+    let unsubscribe: (() => void) | undefined;
 
-    setLoading(true);
-    const unsubscribe = streamConversations(user.uid, (newConversations) => {
-      setConversations(newConversations);
+    if (user) {
+      setLoading(true);
+      unsubscribe = streamConversations(user.uid, (newConversations) => {
+        setConversations(newConversations);
+        setLoading(false);
+      });
+    } else {
+      // If there's no user, we are not loading data.
       setLoading(false);
-    });
+      setConversations([]);
+    }
 
-    return () => unsubscribe();
+    // This cleanup function will be called when the user changes (logs out) or when the component unmounts.
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, [user]);
   
   const filteredConversations = conversations.filter(c => 
@@ -41,7 +52,7 @@ export function ConversationList() {
   );
 
 
-  if (authLoading || loading) {
+  if (authLoading) {
     return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
 
@@ -60,12 +71,14 @@ export function ConversationList() {
         </div>
       </div>
       <div className="flex-1 overflow-y-auto">
-        {filteredConversations.length === 0 ? (
+        {loading ? (
+            <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>
+        ) : filteredConversations.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full p-4 text-center">
             <MessageSquare className="h-12 w-12 text-muted-foreground" />
-            <p className="mt-4 font-semibold">No conversations yet</p>
+            <p className="mt-4 font-semibold">{user ? "No conversations yet" : "Please log in"}</p>
             <p className="text-sm text-muted-foreground">
-              Start a conversation by contacting a seller on a product page.
+              {user ? "Start a conversation by contacting a seller on a product page." : "Log in to see your messages."}
             </p>
           </div>
         ) : (
@@ -100,4 +113,3 @@ export function ConversationList() {
      </div>
   );
 }
-
