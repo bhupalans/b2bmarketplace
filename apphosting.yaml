@@ -5,10 +5,12 @@
 # This can resolve token generation and permission issues.
 serviceAccount: 
   id: firebase-app-hosting-compute@b2b-marketplace-udg1v.iam.gserviceaccount.com
-  # Add the roles/firebase.serviceAccountUser role to the service account
-  # to grant it permission to impersonate and generate tokens.
+  # Add necessary roles to the service account.
+  # - firebase.serviceAccountUser: allows impersonation and token generation for Auth.
+  # - iam.serviceAccountTokenCreator: allows creating OAuth 2.0 access tokens for other Google APIs like Firestore.
   roles:
     - firebase.serviceAccountUser
+    - iam.serviceAccountTokenCreator
 
 runConfig:
   # Increase this value if you'd like to automatically spin up
