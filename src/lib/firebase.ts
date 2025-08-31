@@ -2,7 +2,7 @@
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc as getDocClient, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message } from './types';
 import { v4 as uuidv4 } from 'uuid';
@@ -34,7 +34,7 @@ export async function getProductsClient(): Promise<Product[]> {
 
 export async function getProductClient(productId: string): Promise<Product | null> {
     const productRef = doc(db, 'products', productId);
-    const productSnap = await getDoc(productRef);
+    const productSnap = await getDocClient(productRef);
 
     if (!productSnap.exists()) {
         return null;
@@ -44,7 +44,7 @@ export async function getProductClient(productId: string): Promise<Product | nul
 
 export async function getProductAndSellerClient(productId: string): Promise<{ product: Product; seller: User | null } | null> {
   const productRef = doc(db, 'products', productId);
-  const productSnap = await getDoc(productRef);
+  const productSnap = await getDocClient(productRef);
   if (!productSnap.exists() || productSnap.data().status !== 'approved') {
     return null;
   }
@@ -54,7 +54,7 @@ export async function getProductAndSellerClient(productId: string): Promise<{ pr
   if (product.sellerId) {
     try {
         const userRef = doc(db, 'users', product.sellerId);
-        const userSnap = await getDoc(userRef);
+        const userSnap = await getDocClient(userRef);
         if (userSnap.exists()) {
             seller = { id: userSnap.id, uid: userSnap.id, ...userSnap.data() } as User;
         }
@@ -73,7 +73,7 @@ export async function getCategoryPathClient(categoryId: string): Promise<Categor
   
     while (currentId) {
       const categoryRef = doc(db, 'categories', currentId);
-      const categorySnap = await getDoc(categoryRef);
+      const categorySnap = await getDocClient(categoryRef);
   
       if (categorySnap.exists()) {
         const categoryData = { id: categorySnap.id, ...categorySnap.data() } as Category;
@@ -121,6 +121,19 @@ export async function getUsersClient(): Promise<User[]> {
     } as User;
   });
   return userList;
+}
+
+export async function getUsersByIdsClient(userIds: string[]): Promise<Map<string, User>> {
+    if (userIds.length === 0) {
+        return new Map();
+    }
+    const userMap = new Map<string, User>();
+    const usersRef = collection(db, 'users');
+    const snapshot = await getDocs(query(usersRef, where('uid', 'in', userIds)));
+    snapshot.forEach(userDoc => {
+        userMap.set(userDoc.id, { id: userDoc.id, ...userDoc.data() } as User);
+    });
+    return userMap;
 }
 
 // Fetches ALL of a seller's products for their "My Products" page
@@ -206,7 +219,7 @@ export async function createOrUpdateProductClient(
   try {
     if (productId) {
       const productRef = doc(db, 'products', productId);
-      const docSnap = await getDoc(productRef);
+      const docSnap = await getDocClient(productRef);
       if (!docSnap.exists()) {
         throw new Error("Product to update not found.");
       }
@@ -234,7 +247,7 @@ export async function createOrUpdateProductClient(
       };
 
       await updateDoc(productRef, productToUpdate);
-      const updatedDocSnap = await getDoc(productRef);
+      const updatedDocSnap = await getDocClient(productRef);
       return { id: productId, ...updatedDocSnap.data() } as Product;
     } 
     else {
@@ -254,7 +267,7 @@ export async function createOrUpdateProductClient(
       };
       
       const docRef = await addDoc(collection(db, 'products'), productToCreate);
-      const newDocSnap = await getDoc(docRef);
+      const newDocSnap = await getDocClient(docRef);
       return { id: docRef.id, ...newDocSnap.data() } as Product;
     }
   } catch(error) {
@@ -271,7 +284,7 @@ export async function deleteProductClient(product: Product): Promise<void> {
     const productRef = doc(db, 'products', product.id);
     
     try {
-        const docSnap = await getDoc(productRef);
+        const docSnap = await getDocClient(productRef);
         if (docSnap.exists()) {
           const imagesToDelete = docSnap.data().images || [];
           await deleteImages(imagesToDelete);
@@ -306,14 +319,14 @@ export async function createOrUpdateSpecTemplateClient(
   if (templateId) {
     const templateRef = doc(db, 'specTemplates', templateId);
     await updateDoc(templateRef, dataToSave);
-    const updatedDoc = await getDoc(templateRef);
+    const updatedDoc = await getDocClient(templateRef);
     return { id: templateId, ...updatedDoc.data() } as SpecTemplate;
   } else {
     const docRef = await addDoc(collection(db, 'specTemplates'), {
       ...dataToSave,
       createdAt: Timestamp.now(),
     });
-    const newDoc = await getDoc(docRef);
+    const newDoc = await getDocClient(docRef);
     return { id: docRef.id, ...newDoc.data() } as SpecTemplate;
   }
 }
@@ -340,14 +353,14 @@ export async function createOrUpdateCategoryClient(
   if (categoryId) {
     const categoryRef = doc(db, 'categories', categoryId);
     await updateDoc(categoryRef, dataToSave);
-    const updatedDoc = await getDoc(categoryRef);
+    const updatedDoc = await getDocClient(categoryRef);
     return { id: categoryId, ...updatedDoc.data() } as Category;
   } else {
     const docRef = await addDoc(collection(db, 'categories'), {
       ...dataToSave,
       createdAt: Timestamp.now(),
     });
-    const newDoc = await getDoc(docRef);
+    const newDoc = await getDocClient(docRef);
     return { id: docRef.id, ...newDoc.data() } as Category;
   }
 }
@@ -424,7 +437,7 @@ export function streamConversations(userId: string, callback: (conversations: Co
         const conv = { id: docSnap.id, ...docSnap.data() } as Conversation;
         const otherId = conv.participantIds.find(id => id !== userId);
         if (otherId) {
-          const userDocSnap = await getDoc(doc(db, 'users', otherId));
+          const userDocSnap = await getDocClient(doc(db, 'users', otherId));
           if (userDocSnap.exists()) {
             conv.otherParticipant = { id: userDocSnap.id, uid: userDocSnap.id, ...userDocSnap.data() } as User;
           }
@@ -435,7 +448,7 @@ export function streamConversations(userId: string, callback: (conversations: Co
     callback(convsWithDetails);
   }, (error: FirestoreError) => {
       if (error.code === 'permission-denied') {
-        console.warn("Firestore permission denied on conversations stream. This can happen on logout. Unsubscribing.");
+        console.warn("Firestore permission denied on conversations stream. This is normal on logout. Unsubscribing.");
         unsubscribe();
       } else {
         console.error("Error in streamConversations:", error);
@@ -448,7 +461,7 @@ export function streamConversations(userId: string, callback: (conversations: Co
 
 export async function getConversation(conversationId: string, currentUserId: string): Promise<{ conversation: Conversation, otherParticipant: User } | null> {
     const convRef = doc(db, 'conversations', conversationId);
-    const convSnap = await getDoc(convRef);
+    const convSnap = await getDocClient(convRef);
 
     if (!convSnap.exists()) return null;
     
@@ -462,7 +475,7 @@ export async function getConversation(conversationId: string, currentUserId: str
     const otherId = conversation.participantIds.find(id => id !== currentUserId);
     if (!otherId) return null;
 
-    const userSnap = await getDoc(doc(db, 'users', otherId));
+    const userSnap = await getDocClient(doc(db, 'users', otherId));
     if (!userSnap.exists()) return null;
 
     const otherParticipant = { id: userSnap.id, uid: userSnap.id, ...userSnap.data() } as User;
@@ -480,7 +493,7 @@ export function streamMessages(conversationId: string, callback: (messages: Mess
         callback(messages);
     }, (error: FirestoreError) => {
       if (error.code === 'permission-denied') {
-        console.warn("Firestore permission denied on messages stream. This can happen on logout. Unsubscribing.");
+        console.warn("Firestore permission denied on messages stream. This is normal on logout. Unsubscribing.");
         unsubscribe();
       } else {
         console.error("Error in streamMessages:", error);
@@ -515,6 +528,16 @@ export async function sendMessage(conversationId: string, senderId: string, text
     batch.update(conversationRef, lastMessageUpdate);
 
     await batch.commit();
+}
+
+// --- Admin Client Functions ---
+
+export async function getAllConversationsForAdminClient(): Promise<Conversation[]> {
+    const snapshot = await getDocs(query(collection(db, 'conversations'), orderBy('lastMessage.timestamp', 'desc')));
+    if (snapshot.empty) {
+        return [];
+    }
+    return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Conversation));
 }
 
 
