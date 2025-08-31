@@ -4,14 +4,13 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { Conversation, Message, User } from "@/lib/types";
-import { Loader2, User as UserIcon, Search } from "lucide-react";
+import { Loader2, User as UserIcon, Search, MessageSquare } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useParams } from 'next/navigation';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { Input } from "@/components/ui/input";
-import { getAllConversationsForAdminClient } from "@/lib/firebase";
 
 type SerializableConversation = Omit<import('@/lib/types').Conversation, 'createdAt' | 'lastMessage'> & {
     createdAt: string | null;
@@ -19,45 +18,22 @@ type SerializableConversation = Omit<import('@/lib/types').Conversation, 'create
     participants: User[];
 };
 
-export function AdminConversationList() {
+interface AdminConversationListProps {
+    conversations: SerializableConversation[];
+}
+
+export function AdminConversationList({ conversations: initialConversations }: AdminConversationListProps) {
   const { user, loading: authLoading } = useAuth();
   const params = useParams();
   const activeConversationId = params.conversationId;
 
-  const [conversations, setConversations] = useState<SerializableConversation[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [conversations, setConversations] = useState<SerializableConversation[]>(initialConversations);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    let isMounted = true;
-    async function fetchData() {
-        if (!user || user.role !== 'admin') {
-            setLoading(false);
-            return;
-        }
-        try {
-            setLoading(true);
-            // This is a new client-side fetcher for admin.
-            // We can add server-side fetching later if needed.
-            const convos = await getAllConversationsForAdminClient();
-            if (isMounted) {
-                setConversations(convos as SerializableConversation[]);
-            }
-        } catch (error) {
-            console.error("Failed to fetch conversations:", error);
-        } finally {
-            if (isMounted) {
-                setLoading(false);
-            }
-        }
-    }
-    
-    if (user && !authLoading) {
-        fetchData();
-    }
-
-    return () => { isMounted = false; }
-  }, [user, authLoading]);
+    setConversations(initialConversations);
+  }, [initialConversations]);
   
   const filteredConversations = conversations.filter(c => {
     const lowerSearchTerm = searchTerm.toLowerCase();
@@ -109,7 +85,7 @@ export function AdminConversationList() {
                     </div>
                     {lastMessageTimestamp && (
                         <div className="text-xs text-muted-foreground self-start mt-1 whitespace-nowrap">
-                            {formatDistanceToNow(parseISO(lastMessageTimestamp), { addSuffix: true })}
+                            {formatDistanceToNow(new Date(lastMessageTimestamp), { addSuffix: true })}
                         </div>
                     )}
                 </Link>
