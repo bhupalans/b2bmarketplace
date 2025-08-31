@@ -1,52 +1,27 @@
 
-import { getAllConversationsForAdmin, getUsersByIds } from "@/lib/database";
+"use client";
+
+import { MessageSquare } from "lucide-react";
 import { AdminConversationList } from "./admin-conversation-list";
-import { User, Message } from "@/lib/types";
-import { Timestamp } from "firebase-admin/firestore";
 
-// A version of the Conversation type that is safe to pass from Server to Client Components
-type SerializableConversation = Omit<import('@/lib/types').Conversation, 'createdAt' | 'lastMessage'> & {
-    createdAt: string | null;
-    lastMessage: (Omit<Message, 'timestamp'> & { timestamp: string | null }) | null;
-    participants: User[];
-};
+export default function MessagesPage() {
+    // On mobile, this page shows the list. On desktop, the list is in the layout.
+    // This component handles the content for the main panel on both.
+  return (
+    <>
+      {/* Mobile view: Show conversation list */}
+      <div className="md:hidden">
+        <AdminConversationList />
+      </div>
 
-export default async function AdminConversationsPage() {
-    // This is now a Server Component, fetching data before rendering.
-    const fetchedConversations = await getAllConversationsForAdmin();
-
-    const allParticipantIds = fetchedConversations.reduce((acc, conv) => {
-        conv.participantIds.forEach(id => acc.add(id));
-        return acc;
-    }, new Set<string>());
-    
-    const userMap = await getUsersByIds(Array.from(allParticipantIds));
-
-    const serializableConversations: SerializableConversation[] = fetchedConversations.map(conv => {
-        const participants = conv.participantIds.map(id => userMap.get(id)).filter(Boolean) as User[];
-        // Ensure the UID is present for client-side logic if needed
-        participants.forEach(p => p.uid = p.id);
-        
-        const serializableLastMessage = conv.lastMessage
-            ? { 
-                  ...conv.lastMessage, 
-                  timestamp: conv.lastMessage.timestamp instanceof Timestamp 
-                      ? conv.lastMessage.timestamp.toDate().toISOString() 
-                      : null 
-              }
-            : null;
-
-        return { 
-            ...conv, 
-            createdAt: conv.createdAt instanceof Timestamp ? conv.createdAt.toDate().toISOString() : null,
-            lastMessage: serializableLastMessage,
-            participants 
-        };
-    });
-
-    return (
-        <div className="h-full">
-            <AdminConversationList conversations={serializableConversations} />
-        </div>
-    );
+      {/* Desktop view: Show placeholder */}
+      <div className="hidden h-full flex-col items-center justify-center bg-muted/50 md:flex">
+        <MessageSquare className="h-16 w-16 text-muted-foreground" />
+        <h2 className="mt-4 text-xl font-semibold">Select a conversation</h2>
+        <p className="text-muted-foreground">
+          Choose a conversation from the list to view its messages.
+        </p>
+      </div>
+    </>
+  );
 }

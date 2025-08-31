@@ -153,3 +153,12 @@ export async function getAllConversationsForAdmin(): Promise<Conversation[]> {
     }
     return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Conversation));
 }
+
+export async function getConversationForAdmin(conversationId: string): Promise<Conversation | null> {
+    const convRef = adminDb.collection('conversations').doc(conversationId);
+    const convSnap = await convRef.get();
+    if (!convSnap.exists) {
+        return null;
+    }
+    return { id: convSnap.id, ...convSnap.data() } as Conversation;
+}
