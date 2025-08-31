@@ -1,9 +1,11 @@
 
+
 'use server';
 
 import { adminDb } from "./firebase-admin";
 import { Product, Category, User, Message, Conversation } from "./types";
 import { mockCategories, mockProducts } from "./mock-data";
+import { firestore } from "firebase-admin";
 
 // --- Read Operations ---
 
@@ -26,10 +28,8 @@ export async function getUsersByIds(userIds: string[]): Promise<Map<string, User
         return new Map();
     }
     const userMap = new Map<string, User>();
-    // Firestore 'in' queries are limited to 30 items. Chunking may be needed for very large conversations with many participants.
-    const userIdsToFetch = [...new Set(userIds)]; // Remove duplicates
+    const userIdsToFetch = [...new Set(userIds)]; 
     
-    // Chunk the userIds to respect Firestore's 30-item limit for 'in' queries
     const chunks: string[][] = [];
     for (let i = 0; i < userIdsToFetch.length; i += 30) {
         chunks.push(userIdsToFetch.slice(i, i + 30));
@@ -39,7 +39,9 @@ export async function getUsersByIds(userIds: string[]): Promise<Map<string, User
 
     for (const chunk of chunks) {
         if (chunk.length === 0) continue;
-        const snapshot = await usersRef.where('uid', 'in', chunk).get();
+        
+        const snapshot = await usersRef.where(firestore.FieldPath.documentId(), 'in', chunk).get();
+
         snapshot.forEach(doc => {
             userMap.set(doc.id, { id: doc.id, uid: doc.id, ...doc.data() } as User);
         });
