@@ -25,6 +25,7 @@ export default function ConversationPage() {
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [otherParticipant, setOtherParticipant] = useState<User | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
 
@@ -37,12 +38,8 @@ export default function ConversationPage() {
   }, [messages]);
 
   useEffect(() => {
-    if (authLoading) {
+    if (authLoading || !user) {
       return; // Wait for auth to be ready
-    }
-    if (!user) {
-      router.push("/messages");
-      return;
     }
 
     let unsubscribeMessages: () => void;
