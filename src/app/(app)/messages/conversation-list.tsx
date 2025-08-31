@@ -24,26 +24,28 @@ export function ConversationList() {
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    if (authLoading) {
+    let unsubscribe: (() => void) | undefined;
+
+    if (!authLoading && user) {
       setLoading(true);
-      return;
-    }
-    if (!user) {
+      unsubscribe = streamConversations(user.uid, (newConversations) => {
+        setConversations(newConversations);
+        if (loading) setLoading(false);
+      });
+    } else if (!authLoading && !user) {
+      // User is logged out, clear conversations and stop loading.
       setConversations([]);
       setLoading(false);
-      return;
     }
 
-    setLoading(true);
-    const unsubscribe = streamConversations(user.uid, (newConversations) => {
-      setConversations(newConversations);
-      if (loading) setLoading(false);
-    });
-
+    // Cleanup function: This is crucial. It runs when the component unmounts
+    // OR when the dependencies (user, authLoading) change.
     return () => {
-      unsubscribe();
+      if (unsubscribe) {
+        unsubscribe();
+      }
     };
-  }, [user, authLoading]);
+  }, [user, authLoading]); // Re-run effect when user or authLoading state changes
   
   const filteredConversations = conversations.filter(c => 
     (c.otherParticipant?.name.toLowerCase().includes(searchTerm.toLowerCase())) ||

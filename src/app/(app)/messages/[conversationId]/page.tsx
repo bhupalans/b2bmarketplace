@@ -39,12 +39,11 @@ export default function ConversationPage() {
 
   useEffect(() => {
     if (authLoading) {
-      return; 
+      return;
     }
-    
     if (!user) {
-        router.push("/login");
-        return;
+      router.push("/login");
+      return;
     }
 
     let unsubscribeMessages: (() => void) | undefined;
@@ -60,6 +59,7 @@ export default function ConversationPage() {
         setConversation(convData.conversation);
         setOtherParticipant(convData.otherParticipant);
 
+        // Only set up the listener if we have valid conversation data
         unsubscribeMessages = streamMessages(conversationId, (newMessages) => {
           setMessages(newMessages);
         });
@@ -74,6 +74,8 @@ export default function ConversationPage() {
 
     fetchConversationData();
 
+    // Cleanup function: this will be called when the component unmounts
+    // or when the dependencies change, ensuring the listener is detached.
     return () => {
       if (unsubscribeMessages) {
         unsubscribeMessages();
