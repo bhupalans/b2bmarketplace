@@ -4,7 +4,10 @@
 import { filterContactDetails } from "@/ai/flows/filter-contact-details";
 import { suggestOffer } from "@/ai/flows/suggest-offer";
 import { getUser } from "@/lib/database";
+import { startConversation } from "@/lib/firebase";
+import type { Product } from "@/lib/types";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { adminAuth } from "@/lib/firebase-admin";
 
@@ -20,7 +23,6 @@ export async function sendInquiryAction(
         message: formData.get('message'),
     });
 
-    // The idToken is now passed in the form data
     const idToken = formData.get('idToken') as string | null;
     
     if (!idToken) {
@@ -28,49 +30,57 @@ export async function sendInquiryAction(
     }
 
     if (!validatedFields.success) {
+        // This is not ideal for server-side validation. We'll improve this later.
+        // For now, it prevents saving invalid data.
         return { success: false, error: "Invalid data." };
     }
     
     const { message } = validatedFields.data;
     const sellerId = formData.get('sellerId') as string;
-    const productTitle = formData.get('productTitle') as string | undefined;
+    const productJSON = formData.get('product') as string | undefined;
+
+    if (!productJSON) {
+        return { success: false, error: "Product information is missing." };
+    }
+    const product: Product = JSON.parse(productJSON);
 
     let buyerId: string;
-    let buyerName: string;
-
     try {
         const decodedToken = await adminAuth.verifyIdToken(idToken);
         buyerId = decodedToken.uid;
-        const buyer = await getUser(buyerId);
-        if (!buyer) throw new Error("Buyer profile not found.");
-        buyerName = buyer.name;
     } catch(error) {
         console.error("Authentication error in sendInquiryAction:", error);
         return { success: false, error: "Authentication failed. Please log in again." };
     }
 
     try {
+        // First, filter the message content for any policy violations
         const { modifiedMessage, modificationReason } = await filterContactDetails({ message });
 
-        // The actual sending logic (e.g., creating a message thread in Firestore) is not implemented.
-        // For now, we just log the filtered inquiry to the console to demonstrate the AI filter works.
-        console.log("Filtered Inquiry received:", { 
-            buyerName, 
-            sellerId, 
-            productTitle,
-            originalMessage: message,
-            modifiedMessage,
-            modificationReason,
+        // If a reason is returned, it means the message was modified.
+        // We can choose to show this to the user later.
+        // For now, we proceed with the modified (safe) message.
+        
+        const conversationId = await startConversation({
+            buyerId,
+            sellerId,
+            productId: product.id,
+            productTitle: product.title,
+            productImage: product.images[0] || '',
+            initialMessageText: modifiedMessage,
         });
         
-        return { success: true, message: "Inquiry sent successfully!" };
+        // Instead of returning state, we redirect to the new conversation
+        // This provides a better user experience.
+        return { success: true, conversationId: conversationId };
+
     } catch (error: any) {
         console.error("Error processing inquiry:", error);
         return { success: false, error: "There was a problem sending your inquiry." };
     }
 }
 
-// NOTE: The product creation/update and deletion logic has been moved to client-side
-// functions in `src/lib/firebase.ts` to resolve server-side authentication issues.
-// The corresponding server actions have been removed to prevent their use.
-// We are keeping this file for the `sendInquiryAction` and for potential future actions.
+// Re-enabling revalidatePath for offer suggestions in a later step
+export async function revalidateOffers() {
+    revalidatePath('/messages');
+}

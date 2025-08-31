@@ -1,8 +1,8 @@
 
 "use client";
 
-import { useEffect, useState, useActionState } from "react";
-import { useFormStatus } from "react-dom";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,70 +21,64 @@ import type { Product, User } from "@/lib/types";
 import { sendInquiryAction } from "@/app/actions";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
+import { findOrCreateConversation } from "@/lib/firebase";
 
 type ContactSellerDialogProps = {
-  product?: Product;
+  product: Product; // Product is now mandatory
   seller: User;
 };
-
-const initialState = {
-  message: null,
-  error: null,
-  success: false,
-};
-
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending} className="w-full">
-      {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-      Send Inquiry
-    </Button>
-  );
-}
 
 export function ContactSellerDialog({ product, seller }: ContactSellerDialogProps) {
   const { user, firebaseUser } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
-  
-  const sendInquiryWithContext = async (prevState: any, formData: FormData) => {
-    const idToken = await firebaseUser?.getIdToken();
-    
-    // Server Actions don't send headers in the same way as fetch.
-    // The framework handles passing the user's cookie/auth state.
-    // For this to work, we must rely on the server-side logic to get the user.
-    // I will pass the idToken in the formData for the server to verify.
-    if (idToken) {
-      formData.append('idToken', idToken);
-    }
-    
-    formData.append('sellerId', seller.uid);
-    if (product) {
-        formData.append('productTitle', product.title);
-    }
-    
-    // We pass the formData directly, not headers
-    return sendInquiryAction(prevState, formData);
-  }
+  const [message, setMessage] = useState("");
+  const [isPending, startTransition] = useTransition();
 
-  const [state, formAction] = useActionState(sendInquiryWithContext, initialState);
-
-  useEffect(() => {
-    if (state.success) {
-      toast({
-        title: "Inquiry Sent!",
-        description: "The seller has been notified and will get back to you shortly.",
-      });
-      setOpen(false);
-    } else if (state.error) {
-      toast({
-        variant: "destructive",
-        title: "Failed to Send Inquiry",
-        description: state.error,
-      });
+  const handleFormSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!firebaseUser || !user) {
+        toast({ variant: "destructive", title: "Authentication Error" });
+        return;
     }
-  }, [state, toast]);
+
+    startTransition(async () => {
+        try {
+            const { conversationId, isNew } = await findOrCreateConversation({
+                buyerId: user.uid,
+                sellerId: seller.uid,
+                productId: product.id,
+                productTitle: product.title,
+                productImage: product.images[0] || "",
+            });
+
+            if (isNew) {
+                // If it's a new conversation, send the first message via a Server Action
+                const formData = new FormData();
+                formData.append('idToken', (await firebaseUser.getIdToken()) || "");
+                formData.append('sellerId', seller.uid);
+                formData.append('product', JSON.stringify(product));
+                formData.append('message', message);
+                
+                const result = await sendInquiryAction({}, formData);
+
+                if (!result.success) {
+                    throw new Error(result.error || "Failed to start conversation.");
+                }
+            }
+            
+            router.push(`/messages/${conversationId}`);
+            
+        } catch (error: any) {
+             toast({
+                variant: "destructive",
+                title: "Failed to Start Conversation",
+                description: error.message,
+            });
+        }
+    });
+  };
 
   if (!firebaseUser) {
     return (
@@ -109,11 +103,11 @@ export function ContactSellerDialog({ product, seller }: ContactSellerDialogProp
         <DialogHeader>
           <DialogTitle>Contact {seller.name}</DialogTitle>
           <DialogDescription>
-            {product ? `Send an inquiry for "${product.title}".` : "Send a general inquiry to this seller."}
+            Send an inquiry for "{product.title}".
             Your contact details will not be shared. All communication happens through the platform.
           </DialogDescription>
         </DialogHeader>
-        <form action={formAction} className="space-y-4">
+        <form onSubmit={handleFormSubmit} className="space-y-4">
             <div className="grid w-full items-center gap-1.5">
                 <Label htmlFor="message">Your Message</Label>
                 <Textarea
@@ -122,11 +116,15 @@ export function ContactSellerDialog({ product, seller }: ContactSellerDialogProp
                     placeholder="Hi, I'm interested in this product and would like to know more about..."
                     required
                     minLength={10}
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
                 />
-                 {state.error && <p className="text-sm font-medium text-destructive">{state.error}</p>}
             </div>
             <DialogFooter>
-              <SubmitButton />
+               <Button type="submit" disabled={isPending || message.length < 10} className="w-full">
+                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isPending ? 'Starting Conversation...' : 'Send Inquiry'}
+               </Button>
             </DialogFooter>
           </form>
       </DialogContent>

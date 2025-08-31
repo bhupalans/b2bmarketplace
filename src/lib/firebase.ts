@@ -1,9 +1,9 @@
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc, Timestamp, writeBatch } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { Product, Category, User, SpecTemplate, SpecTemplateField } from './types';
+import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
 const firebaseConfig = {
@@ -359,6 +359,203 @@ export async function deleteCategoryClient(categoryId: string): Promise<void> {
   }
   const categoryRef = doc(db, 'categories', categoryId);
   await deleteDoc(categoryRef);
+}
+
+
+// --- Messaging Functions ---
+
+export async function startConversation(data: {
+    buyerId: string;
+    sellerId: string;
+    productId: string;
+    productTitle: string;
+    productImage: string;
+    initialMessageText: string;
+}): Promise<string> {
+
+  const conversationQuery = query(
+    collection(db, 'conversations'),
+    where('participantIds', 'array-contains', data.buyerId),
+    where('productId', '==', data.productId)
+  );
+
+  const querySnapshot = await getDocs(conversationQuery);
+  let existingConversation = null;
+
+  querySnapshot.forEach(doc => {
+      const conv = doc.data() as Conversation;
+      if (conv.participantIds.includes(data.sellerId)) {
+          existingConversation = { id: doc.id, ...conv };
+      }
+  });
+  
+  if (existingConversation) {
+    return existingConversation.id;
+  }
+  
+  const conversationRef = doc(collection(db, 'conversations'));
+
+  const batch = writeBatch(db);
+
+  const newConversation: Omit<Conversation, 'id'> = {
+    participantIds: [data.buyerId, data.sellerId],
+    productId: data.productId,
+    productTitle: data.productTitle,
+    productImage: data.productImage,
+    createdAt: serverTimestamp() as Timestamp,
+    lastMessage: {
+      text: data.initialMessageText,
+      timestamp: serverTimestamp() as Timestamp,
+      senderId: data.buyerId,
+    },
+  };
+  batch.set(conversationRef, newConversation);
+
+  const messageRef = doc(collection(conversationRef, 'messages'));
+  const newMessage: Omit<Message, 'id'> = {
+    conversationId: conversationRef.id,
+    text: data.initialMessageText,
+    senderId: data.buyerId,
+    timestamp: serverTimestamp() as Timestamp,
+  };
+  batch.set(messageRef, newMessage);
+
+  await batch.commit();
+  return conversationRef.id;
+}
+
+
+export async function findOrCreateConversation(data: {
+    buyerId: string;
+    sellerId: string;
+    productId: string;
+    productTitle: string;
+    productImage: string;
+}): Promise<{ conversationId: string, isNew: boolean }> {
+
+  const conversationQuery = query(
+    collection(db, 'conversations'),
+    where('participantIds', 'array-contains', data.buyerId),
+    where('productId', '==', data.productId)
+  );
+
+  const querySnapshot = await getDocs(conversationQuery);
+  let existingConversation = null;
+
+  querySnapshot.forEach(doc => {
+      const conv = doc.data() as Conversation;
+      if (conv.participantIds.includes(data.sellerId)) {
+          existingConversation = { id: doc.id, ...conv };
+      }
+  });
+  
+  if (existingConversation) {
+    return { conversationId: existingConversation.id, isNew: false };
+  }
+  
+  const conversationRef = await addDoc(collection(db, 'conversations'), {
+    participantIds: [data.buyerId, data.sellerId],
+    productId: data.productId,
+    productTitle: data.productTitle,
+    productImage: data.productImage,
+    createdAt: serverTimestamp(),
+    lastMessage: null, // No message yet
+  });
+
+  return { conversationId: conversationRef.id, isNew: true };
+}
+
+
+export function streamConversations(userId: string, callback: (conversations: Conversation[]) => void): () => void {
+  const q = query(
+    collection(db, 'conversations'),
+    where('participantIds', 'array-contains', userId),
+    orderBy('lastMessage.timestamp', 'desc')
+  );
+
+  const unsubscribe = onSnapshot(q, async (querySnapshot) => {
+    const convsWithDetails: Conversation[] = await Promise.all(
+      querySnapshot.docs.map(async (doc) => {
+        const conv = { id: doc.id, ...doc.data() } as Conversation;
+        const otherId = conv.participantIds.find(id => id !== userId);
+        if (otherId) {
+          const userDoc = await getDoc(doc(db, 'users', otherId));
+          if (userDoc.exists()) {
+            conv.otherParticipant = { id: userDoc.id, ...userDoc.data() } as User;
+          }
+        }
+        return conv;
+      })
+    );
+    callback(convsWithDetails);
+  });
+
+  return unsubscribe;
+}
+
+
+export async function getConversation(conversationId: string, currentUserId: string): Promise<{ conversation: Conversation, otherParticipant: User } | null> {
+    const convRef = doc(db, 'conversations', conversationId);
+    const convSnap = await getDoc(convRef);
+
+    if (!convSnap.exists()) return null;
+    
+    const conversation = { id: convSnap.id, ...convSnap.data() } as Conversation;
+
+    if (!conversation.participantIds.includes(currentUserId)) {
+        // Security check
+        return null;
+    }
+
+    const otherId = conversation.participantIds.find(id => id !== currentUserId);
+    if (!otherId) return null;
+
+    const userSnap = await getDoc(doc(db, 'users', otherId));
+    if (!userSnap.exists()) return null;
+
+    const otherParticipant = { id: userSnap.id, ...userSnap.data() } as User;
+
+    return { conversation, otherParticipant };
+}
+
+
+export function streamMessages(conversationId: string, callback: (messages: Message[]) => void): () => void {
+    const messagesCol = collection(db, 'conversations', conversationId, 'messages');
+    const q = query(messagesCol, orderBy('timestamp', 'asc'));
+
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const messages = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+        callback(messages);
+    });
+
+    return unsubscribe;
+}
+
+export async function sendMessage(conversationId: string, senderId: string, text: string): Promise<void> {
+    const batch = writeBatch(db);
+
+    const conversationRef = doc(db, 'conversations', conversationId);
+    const messageRef = doc(collection(conversationRef, 'messages'));
+    
+    const newMessage: Omit<Message, 'id'> = {
+        conversationId,
+        senderId,
+        text,
+        timestamp: serverTimestamp() as Timestamp
+    };
+
+    const lastMessageUpdate = {
+        lastMessage: {
+            text,
+            senderId,
+            timestamp: serverTimestamp()
+        }
+    };
+    
+    batch.set(messageRef, newMessage);
+    batch.update(conversationRef, lastMessageUpdate);
+
+    await batch.commit();
 }
 
 

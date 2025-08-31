@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building, Home, PanelLeft, Loader2, LayoutDashboard, Package, Shield, FileText, FolderTree } from "lucide-react";
+import { Building, Home, PanelLeft, Loader2, LayoutDashboard, Package, Shield, FileText, FolderTree, MessageSquare } from "lucide-react";
 import {
   SidebarProvider,
   Sidebar,
@@ -39,7 +39,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const protectedRoutes = ['/dashboard', '/my-products', '/admin'];
+    const protectedRoutes = ['/dashboard', '/my-products', '/admin', '/messages'];
     const sellerOnlyRoutes = ['/dashboard', '/my-products'];
     const adminOnlyRoutes = ['/admin'];
 
@@ -68,6 +68,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
+  
+  const isMessagesPage = pathname.startsWith('/messages');
+  if (isMessagesPage && !firebaseUser) {
+      return (
+        <div className="flex h-screen items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      )
+  }
+
 
   const isProtectedRoute = ['/dashboard', '/my-products', '/admin'].some(path => pathname.startsWith(path));
   if (isProtectedRoute && !firebaseUser) {
@@ -115,6 +125,20 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
+            {user && (
+                 <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname.startsWith("/messages")}
+                    tooltip="Messages"
+                  >
+                    <Link href="/messages">
+                      <MessageSquare />
+                      <span className="sr-only">Messages</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+            )}
              {user?.role === 'seller' && (
               <>
                 <SidebarMenuItem>
@@ -185,14 +209,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+        <header className={cn("sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6", isMessagesPage && "hidden")}>
           <SidebarTrigger className="sm:hidden" />
           <div className="flex-1" />
           <div className="hidden sm:block">
             <UserNav />
           </div>
         </header>
-        <main className="flex-1 p-4 sm:px-6 sm:py-0">{children}</main>
+        <main className={cn("flex-1", isMessagesPage ? 'p-0' : "p-4 sm:px-6 sm:py-0")}>{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );

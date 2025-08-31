@@ -62,14 +62,28 @@ export type Offer = {
 
 export type Message = {
   id: string;
+  conversationId: string;
   text: string;
-  timestamp: number | FieldValue | Timestamp;
-  senderId: string; // UID of the sender
-  recipientId: string; // UID of the recipient
-  participants: string[]; // Array of participant UIDs
-  offerId?: string;
-  isSystemMessage?: boolean;
+  senderId: string;
+  timestamp: Timestamp;
 };
+
+export type Conversation = {
+    id: string;
+    participantIds: string[];
+    productId: string;
+    productTitle: string;
+    productImage: string;
+    createdAt: Timestamp;
+    lastMessage: {
+        text: string;
+        senderId: string;
+        timestamp: Timestamp;
+    } | null;
+    // For client-side use
+    otherParticipant?: User;
+}
+
 
 export type OfferSuggestion = {
   productId?: string;
