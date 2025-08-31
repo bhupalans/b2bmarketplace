@@ -29,6 +29,10 @@ export default function AdminConversationDetailPage() {
         }
 
         async function fetchData() {
+            if (!conversationId) {
+                setLoading(false);
+                return;
+            }
             setLoading(true);
             try {
                 const fetchedConversation = await getConversationForAdminClient(conversationId);
@@ -39,7 +43,6 @@ export default function AdminConversationDetailPage() {
                 }
 
                 const participantMap = await getUsersByIdsClient(fetchedConversation.participantIds);
-
                 setConversation(fetchedConversation);
                 setParticipants(Array.from(participantMap.values()));
 
@@ -64,7 +67,8 @@ export default function AdminConversationDetailPage() {
     }
     
     if (!conversation) {
-        notFound();
+        // This case handles when the conversationId is not found or empty initially
+        return <div className="hidden h-full flex-col items-center justify-center bg-muted/50 md:flex">Select a conversation</div>
     }
 
     return (

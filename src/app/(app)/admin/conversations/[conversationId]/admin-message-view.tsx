@@ -19,7 +19,7 @@ interface AdminMessageViewProps {
 
 export function AdminMessageView({ conversation, participants }: AdminMessageViewProps) {
   const router = useRouter();
-  const participantMap = new Map(participants.map(p => [p.id, p]));
+  const participantMap = new Map(participants.map(p => [p.uid, p]));
   const [messages, setMessages] = useState<Message[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(true);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);

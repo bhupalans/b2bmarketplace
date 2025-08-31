@@ -26,6 +26,7 @@ export default function AdminConversationsPage() {
               return;
           }
           try {
+              setLoading(true);
               const fetchedConversations = await getAllConversationsForAdminClient();
               const allParticipantIds = new Set<string>();
               fetchedConversations.forEach(c => c.participantIds.forEach(id => allParticipantIds.add(id)));
@@ -58,7 +59,7 @@ export default function AdminConversationsPage() {
             </div>
 
             {/* Desktop View: Shows placeholder */}
-            <div className="hidden h-full flex-col items-center justify-center bg-muted/50 md:flex">
+            <div className="hidden h-full flex-col items-center justify-center md:flex">
                 <MessagesSquare className="h-16 w-16 text-muted-foreground" />
                 <h2 className="mt-4 text-xl font-semibold">Select a conversation</h2>
                 <p className="text-muted-foreground">

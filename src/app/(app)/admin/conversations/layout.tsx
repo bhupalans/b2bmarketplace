@@ -68,14 +68,14 @@ export default function AdminConversationsLayout({
 
   return (
     <div className="grid h-[calc(100vh-theme(spacing.14)*2)] grid-cols-1 md:grid-cols-[300px_1fr] lg:grid-cols-[380px_1fr]">
-        <aside className="hidden md:block border-r">
+        <aside className="hidden md:block border-r bg-background">
           {loading ? (
              <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>
           ) : (
             <AdminConversationList conversations={conversations} />
           )}
         </aside>
-        <main>
+        <main className="bg-muted/50">
           {children}
         </main>
     </div>

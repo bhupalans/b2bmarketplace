@@ -2,6 +2,7 @@
 
 
 
+
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc as getDocClient, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError } from 'firebase/firestore';
@@ -132,11 +133,23 @@ export async function getUsersByIdsClient(userIds: string[]): Promise<Map<string
     const userMap = new Map<string, User>();
     // Firestore 'in' queries are limited to 30 items. For a larger app, this would need chunking.
     const userIdsToFetch = [...new Set(userIds)]; // Remove duplicates
+    
+    // Chunk the userIds to respect Firestore's 30-item limit for 'in' queries
+    const chunks: string[][] = [];
+    for (let i = 0; i < userIdsToFetch.length; i += 30) {
+        chunks.push(userIdsToFetch.slice(i, i + 30));
+    }
+
     const usersRef = collection(db, 'users');
-    const snapshot = await getDocs(query(usersRef, where('uid', 'in', userIdsToFetch)));
-    snapshot.forEach(userDoc => {
-        userMap.set(userDoc.id, { id: userDoc.id, ...userDoc.data() } as User);
-    });
+    
+    for (const chunk of chunks) {
+        if (chunk.length === 0) continue;
+        const snapshot = await getDocs(query(usersRef, where('uid', 'in', chunk)));
+        snapshot.forEach(userDoc => {
+            userMap.set(userDoc.id, { id: userDoc.id, uid: userDoc.id, ...userDoc.data() } as User);
+        });
+    }
+
     return userMap;
 }
 
