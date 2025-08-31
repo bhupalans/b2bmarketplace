@@ -4,8 +4,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, notFound } from "next/navigation";
 import { useAuth } from '@/contexts/auth-context';
-import { getConversationForAdminClient, getMessagesForAdminClient, getUsersByIdsClient } from "@/lib/firebase";
-import { Conversation, Message, User } from '@/lib/types';
+import { getConversationForAdminClient, getUsersByIdsClient } from "@/lib/firebase";
+import { Conversation, User } from '@/lib/types';
 import { AdminMessageView } from "./admin-message-view";
 import { Loader2 } from 'lucide-react';
 
@@ -15,7 +15,6 @@ export default function AdminConversationDetailPage() {
     const { user, loading: authLoading } = useAuth();
 
     const [conversation, setConversation] = useState<Conversation | null>(null);
-    const [messages, setMessages] = useState<Message[]>([]);
     const [participants, setParticipants] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -39,13 +38,9 @@ export default function AdminConversationDetailPage() {
                     return;
                 }
 
-                const [fetchedMessages, participantMap] = await Promise.all([
-                    getMessagesForAdminClient(conversationId),
-                    getUsersByIdsClient(fetchedConversation.participantIds),
-                ]);
+                const participantMap = await getUsersByIdsClient(fetchedConversation.participantIds);
 
                 setConversation(fetchedConversation);
-                setMessages(fetchedMessages);
                 setParticipants(Array.from(participantMap.values()));
 
             } catch (err: any) {
@@ -75,7 +70,6 @@ export default function AdminConversationDetailPage() {
     return (
         <AdminMessageView
             conversation={conversation}
-            initialMessages={messages}
             participants={participants}
         />
     )

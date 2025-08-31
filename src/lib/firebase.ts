@@ -1,6 +1,7 @@
 
 
 
+
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc as getDocClient, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError } from 'firebase/firestore';
@@ -456,7 +457,7 @@ export function streamConversations(userId: string, callback: (conversations: Co
   }, (error: FirestoreError) => {
       if (error.code === 'permission-denied') {
         console.warn("Firestore permission denied on conversations stream. This is normal on logout.");
-        unsubscribe(); // Unsubscribe on permission error
+        // We will now let the component handle the unsubscription
       } else {
         console.error("Error in streamConversations:", error);
       }
@@ -501,7 +502,7 @@ export function streamMessages(conversationId: string, callback: (messages: Mess
     }, (error: FirestoreError) => {
       if (error.code === 'permission-denied') {
         console.warn("Firestore permission denied on messages stream. This is normal on logout.");
-        unsubscribe(); // Unsubscribe on permission error
+        // Let the component handle unsubscription
       } else {
         console.error("Error in streamMessages:", error);
       }
@@ -556,12 +557,24 @@ export async function getConversationForAdminClient(conversationId: string): Pro
     return { id: convSnap.id, ...convSnap.data() } as Conversation;
 }
 
-export async function getMessagesForAdminClient(conversationId: string): Promise<Message[]> {
-    const messagesRef = collection(db, 'conversations', conversationId, 'messages');
-    const q = query(messagesRef, orderBy('timestamp', 'asc'));
-    const messagesSnap = await getDocs(q);
-    return messagesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+export function streamMessagesForAdmin(conversationId: string, callback: (messages: Message[]) => void): () => void {
+    const messagesCol = collection(db, 'conversations', conversationId, 'messages');
+    const q = query(messagesCol, orderBy('timestamp', 'asc'));
+
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const messages = querySnapshot.docs.map(messageDoc => ({ id: messageDoc.id, ...messageDoc.data() } as Message));
+        callback(messages);
+    }, (error: FirestoreError) => {
+      if (error.code === 'permission-denied') {
+        console.warn("Firestore permission denied on admin messages stream. This is normal if rules are not yet applied.");
+      } else {
+        console.error("Error in streamMessagesForAdmin:", error);
+      }
+    });
+
+    return unsubscribe;
 }
+
 
 
 export { app, auth, db, storage };
