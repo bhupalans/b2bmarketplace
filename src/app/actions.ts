@@ -5,7 +5,7 @@ import { filterContactDetails } from "@/ai/flows/filter-contact-details";
 import { suggestOffer } from "@/ai/flows/suggest-offer";
 import { getUser } from "@/lib/database";
 import { createOffer, findOrCreateConversation, sendMessage } from "@/lib/firebase";
-import type { Product } from "@/lib/types";
+import type { Product, OfferSuggestion } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { adminAuth } from "@/lib/firebase-admin";
@@ -74,14 +74,15 @@ export async function sendInquiryAction(
 }
 
 const offerServerActionSchema = z.object({
-  productId: z.string().min(1),
-  quantity: z.coerce.number().positive(),
-  pricePerUnit: z.coerce.number().positive(),
+  productId: z.string().min(1, { message: "Please select a product." }),
+  quantity: z.coerce.number().positive({ message: "Quantity must be positive." }),
+  pricePerUnit: z.coerce.number().positive({ message: "Price must be positive." }),
   notes: z.string().optional(),
   conversationId: z.string().min(1),
   buyerId: z.string().min(1),
   sellerId: z.string().min(1),
 });
+
 
 export async function createOfferServerAction(data: unknown) {
   const validatedFields = offerServerActionSchema.safeParse(data);
@@ -94,12 +95,34 @@ export async function createOfferServerAction(data: unknown) {
   try {
     const offer = await createOffer(validatedFields.data);
     revalidatePath(`/messages/${validatedFields.data.conversationId}`);
+    revalidatePath(`/offers`);
     return { success: true, offer };
   } catch (error: any) {
     console.error("Error creating offer in server action:", error);
     // The error from Firestore/Firebase will be more specific (e.g., PERMISSION_DENIED)
     return { success: false, error: error.message || "Failed to create the offer on the server." };
   }
+}
+
+export async function suggestOfferAction(conversationId: string, chatHistory: string, availableProducts: Product[]): Promise<{
+    success: boolean;
+    suggestion?: OfferSuggestion;
+    error?: string;
+}> {
+    if (!chatHistory || !availableProducts) {
+        return { success: false, error: 'Missing required data to make a suggestion.' };
+    }
+
+    try {
+        const suggestion = await suggestOffer({
+            chatHistory,
+            availableProducts: availableProducts.map(p => ({id: p.id, title: p.title, priceUSD: p.priceUSD }))
+        });
+        return { success: true, suggestion };
+    } catch (error) {
+        console.error('Error suggesting offer:', error);
+        return { success: false, error: 'Failed to generate AI suggestion.' };
+    }
 }
 
 

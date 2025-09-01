@@ -1,27 +1,29 @@
 
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useTransition } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
-import { getConversation, sendMessage, streamMessages } from "@/lib/firebase";
-import { Conversation, Message, User } from "@/lib/types";
+import { getConversation, sendMessage, streamMessages, getSellerProductsClient } from "@/lib/firebase";
+import { Conversation, Message, User, Product } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Loader2, ArrowLeft, Gavel } from "lucide-react";
+import { Send, Loader2, ArrowLeft, Wand2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
 import { formatDistanceToNow } from 'date-fns';
-import { CreateOfferDialog } from "@/components/create-offer-dialog";
 import { OfferCard } from "@/components/offer-card";
+import { useToast } from "@/hooks/use-toast";
+import { suggestOfferAction } from "@/app/actions";
 
 export default function ConversationPage() {
   const params = useParams();
   const router = useRouter();
   const conversationId = params.conversationId as string;
   const { user, loading: authLoading } = useAuth();
+  const { toast } = useToast();
 
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [otherParticipant, setOtherParticipant] = useState<User | null>(null);
@@ -29,7 +31,8 @@ export default function ConversationPage() {
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
-  const [isOfferDialogOpen, setOfferDialogOpen] = useState(false);
+  const [sellerProducts, setSellerProducts] = useState<Product[]>([]);
+  const [isSuggesting, startSuggestionTransition] = useTransition();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -61,7 +64,11 @@ export default function ConversationPage() {
         setConversation(convData.conversation);
         setOtherParticipant(convData.otherParticipant);
 
-        // Only set up the listener if we have valid conversation data
+        if (user.role === 'seller') {
+          const products = await getSellerProductsClient(user.uid);
+          setSellerProducts(products);
+        }
+
         unsubscribeMessages = streamMessages(conversationId, (newMessages) => {
           setMessages(newMessages);
         });
@@ -76,8 +83,6 @@ export default function ConversationPage() {
 
     fetchConversationData();
 
-    // Cleanup function: this will be called when the component unmounts
-    // or when the dependencies change, ensuring the listener is detached.
     return () => {
       if (unsubscribeMessages) {
         unsubscribeMessages();
@@ -99,6 +104,33 @@ export default function ConversationPage() {
         setIsSending(false);
     }
   };
+
+  const handleSuggestOffer = () => {
+    if (!conversation || !otherParticipant) return;
+
+    startSuggestionTransition(async () => {
+        const chatHistory = messages.map(m => `${m.senderId === user?.id ? 'Seller' : 'Buyer'}: ${m.text}`).join('\n');
+        const result = await suggestOfferAction(conversation.id, chatHistory, sellerProducts);
+
+        if (result.success && result.suggestion) {
+            const { productId, quantity, pricePerUnit } = result.suggestion;
+            const query = new URLSearchParams();
+            if (productId) query.set('productId', productId);
+            if (quantity) query.set('quantity', quantity.toString());
+            if (pricePerUnit) query.set('price', pricePerUnit.toString());
+            query.set('buyerId', otherParticipant.id);
+            query.set('conversationId', conversation.id);
+            
+            router.push(`/offers?${query.toString()}`);
+        } else {
+            toast({
+                variant: 'destructive',
+                title: 'Suggestion Failed',
+                description: result.error || 'The AI could not generate an offer suggestion from this conversation.',
+            });
+        }
+    });
+  }
   
   if (loading || authLoading) {
     return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -125,18 +157,14 @@ export default function ConversationPage() {
           </p>
         </div>
         {user?.role === 'seller' && (
-          <>
-            <Button variant="outline" onClick={() => setOfferDialogOpen(true)}>
-              <Gavel className="mr-2 h-4 w-4" />
-              Create Offer
-            </Button>
-            <CreateOfferDialog
-              open={isOfferDialogOpen}
-              onOpenChange={setOfferDialogOpen}
-              recipientId={otherParticipant.id}
-              conversationId={conversation.id}
-            />
-          </>
+          <Button variant="outline" onClick={handleSuggestOffer} disabled={isSuggesting}>
+            {isSuggesting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+                <Wand2 className="mr-2 h-4 w-4" />
+            )}
+            Suggest Offer
+          </Button>
         )}
       </header>
 
