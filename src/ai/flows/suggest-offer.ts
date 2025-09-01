@@ -49,7 +49,7 @@ const suggestOfferPrompt = ai.definePrompt({
   1. Identify the single product the buyer is asking about and find its corresponding 'productId' from the list above. The product title in the chat might be a partial match or a variation of the title in the list.
   2. Extract the 'quantity' the buyer is requesting.
   3. Extract the 'pricePerUnit' if a specific price has been discussed or negotiated. If no price is mentioned, you can suggest the standard price for that product.
-  4. Populate the 'productId', 'quantity', and 'pricePerUnit' fields in the output. If you cannot determine a value for a field, leave it empty.
+  4. Populate the 'productId', 'quantity', and 'pricePerUnit' fields in the output. If you cannot confidently determine a value for any field based on the conversation, leave that specific field empty. Do not guess or make up information.
 
   Chat History:
   {{{chatHistory}}}
