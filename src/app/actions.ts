@@ -2,7 +2,6 @@
 "use server";
 
 import { filterContactDetails } from "@/ai/flows/filter-contact-details";
-import { suggestOffer } from "@/ai/flows/suggest-offer";
 import { getUser } from "@/lib/database";
 import { createOffer, findOrCreateConversation, sendMessage } from "@/lib/firebase";
 import type { Product, OfferSuggestion } from "@/lib/types";
@@ -72,75 +71,6 @@ export async function sendInquiryAction(
         return { success: false, error: "There was a problem sending your inquiry." };
     }
 }
-
-const offerServerActionSchema = z.object({
-  productId: z.string().min(1, { message: "Please select a product." }),
-  quantity: z.coerce.number().positive({ message: "Quantity must be positive." }),
-  pricePerUnit: z.coerce.number().positive({ message: "Price must be positive." }),
-  notes: z.string().optional(),
-  conversationId: z.string().min(1),
-  buyerId: z.string().min(1),
-});
-
-
-export async function createOfferServerAction(data: unknown, idToken: string) {
-  if (!idToken) {
-    return { success: false, error: "Authentication token is missing." };
-  }
-
-  let sellerId: string;
-  try {
-    const decodedToken = await adminAuth.verifyIdToken(idToken);
-    sellerId = decodedToken.uid;
-  } catch (error) {
-    console.error("Authentication error in createOfferServerAction:", error);
-    return { success: false, error: "Authentication failed. Please log in again." };
-  }
-
-  const validatedFields = offerServerActionSchema.safeParse(data);
-
-  if (!validatedFields.success) {
-    console.error("Server Action Validation Error:", validatedFields.error.flatten().fieldErrors);
-    return { success: false, error: "Invalid offer data provided." };
-  }
-  
-  const offerData = {
-    ...validatedFields.data,
-    sellerId,
-  };
-
-  try {
-    const offer = await createOffer(offerData);
-    revalidatePath(`/messages/${validatedFields.data.conversationId}`);
-    revalidatePath(`/offers`);
-    return { success: true, offer };
-  } catch (error: any) {
-    console.error("Error creating offer in server action:", error);
-    return { success: false, error: error.message || "Failed to create the offer on the server." };
-  }
-}
-
-export async function suggestOfferAction(conversationId: string, chatHistory: string, availableProducts: Product[]): Promise<{
-    success: boolean;
-    suggestion?: OfferSuggestion;
-    error?: string;
-}> {
-    if (!chatHistory || !availableProducts) {
-        return { success: false, error: 'Missing required data to make a suggestion.' };
-    }
-
-    try {
-        const suggestion = await suggestOffer({
-            chatHistory,
-            availableProducts: availableProducts.map(p => ({id: p.id, title: p.title, priceUSD: p.priceUSD }))
-        });
-        return { success: true, suggestion };
-    } catch (error) {
-        console.error('Error suggesting offer:', error);
-        return { success: false, error: 'Failed to generate AI suggestion.' };
-    }
-}
-
 
 export async function revalidateOffers() {
     revalidatePath('/messages');

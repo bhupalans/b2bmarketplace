@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useRef, useTransition } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { getConversation, sendMessage, streamMessages, getSellerProductsClient } from "@/lib/firebase";
@@ -9,21 +9,17 @@ import { Conversation, Message, User, Product } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Loader2, ArrowLeft, Wand2 } from "lucide-react";
+import { Send, Loader2, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import Image from "next/image";
 import { formatDistanceToNow } from 'date-fns';
 import { OfferCard } from "@/components/offer-card";
-import { useToast } from "@/hooks/use-toast";
-import { suggestOfferAction } from "@/app/actions";
 
 export default function ConversationPage() {
   const params = useParams();
   const router = useRouter();
   const conversationId = params.conversationId as string;
   const { user, loading: authLoading } = useAuth();
-  const { toast } = useToast();
 
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [otherParticipant, setOtherParticipant] = useState<User | null>(null);
@@ -31,8 +27,6 @@ export default function ConversationPage() {
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
-  const [sellerProducts, setSellerProducts] = useState<Product[]>([]);
-  const [isSuggesting, startSuggestionTransition] = useTransition();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -63,11 +57,6 @@ export default function ConversationPage() {
         }
         setConversation(convData.conversation);
         setOtherParticipant(convData.otherParticipant);
-
-        if (user.role === 'seller') {
-          const products = await getSellerProductsClient(user.uid);
-          setSellerProducts(products);
-        }
 
         unsubscribeMessages = streamMessages(conversationId, (newMessages) => {
           setMessages(newMessages);
@@ -105,33 +94,6 @@ export default function ConversationPage() {
     }
   };
 
-  const handleSuggestOffer = () => {
-    if (!conversation || !otherParticipant) return;
-
-    startSuggestionTransition(async () => {
-        const chatHistory = messages.map(m => `${m.senderId === user?.id ? 'Seller' : 'Buyer'}: ${m.text}`).join('\n');
-        const result = await suggestOfferAction(conversation.id, chatHistory, sellerProducts);
-
-        if (result.success && result.suggestion) {
-            const { productId, quantity, pricePerUnit } = result.suggestion;
-            const query = new URLSearchParams();
-            if (productId) query.set('productId', productId);
-            if (quantity) query.set('quantity', quantity.toString());
-            if (pricePerUnit) query.set('price', pricePerUnit.toString());
-            query.set('buyerId', otherParticipant.id);
-            query.set('conversationId', conversation.id);
-            
-            router.push(`/offers?${query.toString()}`);
-        } else {
-            toast({
-                variant: 'destructive',
-                title: 'Suggestion Failed',
-                description: result.error || 'The AI could not generate an offer suggestion from this conversation.',
-            });
-        }
-    });
-  }
-  
   if (loading || authLoading) {
     return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
@@ -139,8 +101,6 @@ export default function ConversationPage() {
   if (!conversation || !otherParticipant) {
     return <div className="flex h-full items-center justify-center"><p>Conversation not found.</p></div>;
   }
-
-  const canSuggestOffer = sellerProducts && sellerProducts.length > 0;
 
   return (
     <div className="flex h-[calc(100vh-theme(spacing.14)*2)] flex-col">
@@ -158,16 +118,6 @@ export default function ConversationPage() {
             Regarding: <Link href={`/products/${conversation.productId}`} className="hover:underline">{conversation.productTitle}</Link>
           </p>
         </div>
-        {user?.role === 'seller' && (
-          <Button variant="outline" onClick={handleSuggestOffer} disabled={isSuggesting || !canSuggestOffer} title={!canSuggestOffer ? "You must have products listed to suggest an offer." : ""}>
-            {isSuggesting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-                <Wand2 className="mr-2 h-4 w-4" />
-            )}
-            Suggest Offer
-          </Button>
-        )}
       </header>
 
        <div className="flex-1 overflow-y-auto p-4 space-y-4">

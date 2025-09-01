@@ -39,8 +39,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const protectedRoutes = ['/dashboard', '/my-products', '/admin', '/messages', '/offers'];
-    const sellerOnlyRoutes = ['/dashboard', '/my-products', '/offers'];
+    const protectedRoutes = ['/dashboard', '/my-products', '/admin', '/messages'];
+    const sellerOnlyRoutes = ['/dashboard', '/my-products'];
     const adminOnlyRoutes = ['/admin'];
 
     const isProtectedRoute = protectedRoutes.some(path => pathname.startsWith(path));
@@ -150,18 +150,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     <Link href="/dashboard">
                       <LayoutDashboard />
                       <span className="sr-only">Dashboard</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                 <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname.startsWith("/offers")}
-                    tooltip="Offers"
-                  >
-                    <Link href="/offers">
-                      <Gavel />
-                      <span className="sr-only">Offers</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
