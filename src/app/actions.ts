@@ -80,26 +80,42 @@ const offerServerActionSchema = z.object({
   notes: z.string().optional(),
   conversationId: z.string().min(1),
   buyerId: z.string().min(1),
-  sellerId: z.string().min(1),
 });
 
 
-export async function createOfferServerAction(data: unknown) {
+export async function createOfferServerAction(data: unknown, idToken: string) {
+  if (!idToken) {
+    return { success: false, error: "Authentication token is missing." };
+  }
+
+  let sellerId: string;
+  try {
+    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    sellerId = decodedToken.uid;
+  } catch (error) {
+    console.error("Authentication error in createOfferServerAction:", error);
+    return { success: false, error: "Authentication failed. Please log in again." };
+  }
+
   const validatedFields = offerServerActionSchema.safeParse(data);
 
   if (!validatedFields.success) {
     console.error("Server Action Validation Error:", validatedFields.error.flatten().fieldErrors);
     return { success: false, error: "Invalid offer data provided." };
   }
+  
+  const offerData = {
+    ...validatedFields.data,
+    sellerId,
+  };
 
   try {
-    const offer = await createOffer(validatedFields.data);
+    const offer = await createOffer(offerData);
     revalidatePath(`/messages/${validatedFields.data.conversationId}`);
     revalidatePath(`/offers`);
     return { success: true, offer };
   } catch (error: any) {
     console.error("Error creating offer in server action:", error);
-    // The error from Firestore/Firebase will be more specific (e.g., PERMISSION_DENIED)
     return { success: false, error: error.message || "Failed to create the offer on the server." };
   }
 }

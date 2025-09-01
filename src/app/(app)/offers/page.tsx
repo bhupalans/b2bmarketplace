@@ -53,7 +53,7 @@ function OffersPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, firebaseUser } = useAuth();
   const [isSending, startTransition] = useTransition();
   const [sellerProducts, setSellerProducts] = useState<Product[]>([]);
   const [buyer, setBuyer] = useState<User | null>(null);
@@ -105,15 +105,14 @@ function OffersPageContent() {
   }, [user, searchParams, form, toast]);
 
   const handleAction = async (values: z.infer<typeof offerSchema>) => {
-    if (!user) {
+    if (!firebaseUser) {
       toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in to send an offer." });
       return;
     }
     
-    const offerData = { ...values, sellerId: user.uid };
-
     startTransition(async () => {
-        const result = await createOfferServerAction(offerData);
+        const idToken = await firebaseUser.getIdToken();
+        const result = await createOfferServerAction(values, idToken);
 
         if (result.success) {
             toast({
