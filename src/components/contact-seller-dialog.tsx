@@ -24,7 +24,7 @@ import Link from "next/link";
 import { findOrCreateConversation, sendMessage } from "@/lib/firebase";
 
 type ContactSellerDialogProps = {
-  product: Product; // Product is now mandatory
+  product?: Product; // Product is now optional
   seller: User;
 };
 
@@ -48,9 +48,10 @@ export function ContactSellerDialog({ product, seller }: ContactSellerDialogProp
             const { conversationId, isNew } = await findOrCreateConversation({
                 buyerId: user.uid,
                 sellerId: seller.uid,
-                productId: product.id,
-                productTitle: product.title,
-                productImage: product.images[0] || "",
+                // Handle optional product
+                productId: product?.id || `general_${seller.uid}`,
+                productTitle: product?.title || `General Inquiry`,
+                productImage: product?.images[0] || "",
             });
 
             // Send the new message regardless of whether the conversation is new or not
@@ -80,9 +81,7 @@ export function ContactSellerDialog({ product, seller }: ContactSellerDialogProp
   }
   
   if (firebaseUser.uid === seller.uid) {
-    return (
-      <Button className="w-full" disabled>This is your product</Button>
-    )
+    return null; // Don't show the button if it's the seller's own page/product
   }
 
   return (
@@ -94,7 +93,10 @@ export function ContactSellerDialog({ product, seller }: ContactSellerDialogProp
         <DialogHeader>
           <DialogTitle>Contact {seller.name}</DialogTitle>
           <DialogDescription>
-            Send an inquiry for "{product.title}". Your message will start a new conversation or be added to an existing one.
+            {product 
+              ? `Send an inquiry for "${product.title}".`
+              : `Send a general message to ${seller.name}.`
+            } Your message will start a new conversation or be added to an existing one.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleFormSubmit} className="space-y-4">
@@ -103,7 +105,7 @@ export function ContactSellerDialog({ product, seller }: ContactSellerDialogProp
                 <Textarea
                     id="message"
                     name="message"
-                    placeholder="Hi, I'm interested in this product and would like to know more about..."
+                    placeholder="Hi, I'm interested and would like to know more about..."
                     required
                     minLength={10}
                     value={message}
