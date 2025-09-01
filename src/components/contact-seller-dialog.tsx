@@ -1,9 +1,9 @@
 
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useActionState } from "react";
 import { useRouter } from "next/navigation";
-import { useFormState, useFormStatus } from "react-dom";
+import { useFormStatus } from "react-dom";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import {
@@ -51,7 +51,7 @@ export function ContactSellerDialog({ product, seller }: ContactSellerDialogProp
   const [open, setOpen] = useState(false);
   const [idToken, setIdToken] = useState<string | null>(null);
   
-  const [state, formAction] = useFormState(sendInquiryAction, initialState);
+  const [state, formAction] = useActionState(sendInquiryAction, initialState);
 
   useEffect(() => {
     if (firebaseUser) {
