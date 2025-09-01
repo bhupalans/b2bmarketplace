@@ -626,29 +626,26 @@ export async function createOffer(data: {
         productImage: product.images?.[0] || '',
     };
     
-    const offerRef = doc(collection(db, "offers"));
-    const messageRef = doc(collection(db, 'conversations', data.conversationId, 'messages'));
-    const conversationRef = doc(db, 'conversations', data.conversationId);
-
+    // Create a single batch to perform all writes atomically
     const batch = writeBatch(db);
-    
-    // 1. Create the offer document
+
+    // 1. Create a new document reference for the offer
+    const offerRef = doc(collection(db, "offers"));
     batch.set(offerRef, newOffer);
 
     // 2. Create the message card for the offer
+    const messageRef = doc(collection(db, 'conversations', data.conversationId, 'messages'));
     const offerMessage: Omit<Message, 'id'> = {
         conversationId: data.conversationId,
         senderId: data.sellerId,
         text: `I've sent a formal offer for ${data.quantity} x ${product.title}.`,
         timestamp: serverTimestamp() as Timestamp,
-        offerId: offerRef.id,
+        offerId: offerRef.id, // Use the ID of the new offer reference
     };
     batch.set(messageRef, offerMessage);
     
-    // COMMIT the batch first, then update the conversation separately.
-    await batch.commit();
-
-    // 3. Update the lastMessage on the conversation in a separate operation.
+    // 3. Update the lastMessage on the conversation
+    const conversationRef = doc(db, 'conversations', data.conversationId);
     const lastMessageUpdate = {
         lastMessage: {
             text: "An offer was sent.",
@@ -656,7 +653,10 @@ export async function createOffer(data: {
             timestamp: serverTimestamp()
         }
     };
-    await updateDoc(conversationRef, lastMessageUpdate);
+    batch.update(conversationRef, lastMessageUpdate);
+    
+    // Commit all operations at once
+    await batch.commit();
     
     return { id: offerRef.id, ...newOffer };
 }
