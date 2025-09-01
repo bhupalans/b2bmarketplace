@@ -23,12 +23,15 @@ const db = getFirestore(app);
 const storage = getStorage(app);
 
 // Helper function to convert Timestamps in an object to strings
-const convertTimestamps = (data: any) => {
+const convertTimestamps = (data: any): any => {
     if (!data) return data;
-    const newData = { ...data };
+    const newData: { [key: string]: any } = { ...data };
     for (const key in newData) {
         if (newData[key] instanceof Timestamp) {
             newData[key] = newData[key].toDate().toISOString();
+        } else if (typeof newData[key] === 'object' && newData[key] !== null) {
+            // Recursively convert nested objects, although not strictly needed for current structure
+            newData[key] = convertTimestamps(newData[key]);
         }
     }
     return newData;
@@ -170,8 +173,12 @@ export async function getSellerProductsClient(sellerId: string): Promise<Product
     const querySnapshot = await getDocs(q);
     const products = querySnapshot.docs.map(docSnap => {
         const data = docSnap.data();
-        // Convert any Timestamp fields to serializable strings
-        const serializableData = convertTimestamps(data);
+        // Explicitly convert Timestamp fields to serializable strings
+        const serializableData = {
+            ...data,
+            createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
+            updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt,
+        };
         return { id: docSnap.id, ...serializableData } as Product;
     });
 
@@ -614,3 +621,5 @@ export function streamMessagesForAdmin(conversationId: string, callback: (messag
 
 
 export { app, auth, db, storage };
+
+    
