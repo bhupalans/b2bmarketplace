@@ -3,6 +3,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useFormState, useFormStatus } from "react-dom";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,56 +22,56 @@ import type { Product, User } from "@/lib/types";
 import { sendInquiryAction } from "@/app/actions";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
-import { findOrCreateConversation, sendMessage } from "@/lib/firebase";
 
 type ContactSellerDialogProps = {
-  product?: Product; // Product is now optional
+  product?: Product;
   seller: User;
 };
+
+const initialState = {
+  success: false,
+  error: null,
+  conversationId: null,
+};
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" disabled={pending} className="w-full">
+      {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+      {pending ? 'Starting Conversation...' : 'Send Inquiry'}
+    </Button>
+  );
+}
 
 export function ContactSellerDialog({ product, seller }: ContactSellerDialogProps) {
   const { user, firebaseUser } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [message, setMessage] = useState("");
-  const [isPending, startTransition] = useTransition();
+  const [idToken, setIdToken] = useState<string | null>(null);
+  
+  const [state, formAction] = useFormState(sendInquiryAction, initialState);
 
-  const handleFormSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!firebaseUser || !user) {
-        toast({ variant: "destructive", title: "Authentication Error" });
-        return;
+  useEffect(() => {
+    if (firebaseUser) {
+      firebaseUser.getIdToken().then(setIdToken);
     }
-
-    startTransition(async () => {
-        try {
-            const { conversationId, isNew } = await findOrCreateConversation({
-                buyerId: user.uid,
-                sellerId: seller.uid,
-                // Handle optional product
-                productId: product?.id || `general_${seller.uid}`,
-                productTitle: product?.title || `General Inquiry`,
-                productImage: product?.images[0] || "",
-            });
-
-            // Send the new message regardless of whether the conversation is new or not
-            if (message.trim().length > 0) {
-                 await sendMessage(conversationId, user.uid, message);
-            }
-            
-            router.push(`/messages/${conversationId}`);
-            setOpen(false); // Close the dialog on success
-            
-        } catch (error: any) {
-             toast({
-                variant: "destructive",
-                title: "Failed to Start Conversation",
-                description: error.message,
-            });
-        }
-    });
-  };
+  }, [firebaseUser]);
+  
+  useEffect(() => {
+    if (state.success && state.conversationId) {
+      router.push(`/messages/${state.conversationId}`);
+      setOpen(false); // Close dialog on success
+    }
+    if (!state.success && state.error) {
+      toast({
+        variant: "destructive",
+        title: "Failed to Start Conversation",
+        description: state.error,
+      });
+    }
+  }, [state, router, toast]);
 
   if (!firebaseUser) {
     return (
@@ -81,7 +82,7 @@ export function ContactSellerDialog({ product, seller }: ContactSellerDialogProp
   }
   
   if (firebaseUser.uid === seller.uid) {
-    return null; // Don't show the button if it's the seller's own page/product
+    return null; 
   }
 
   return (
@@ -99,7 +100,11 @@ export function ContactSellerDialog({ product, seller }: ContactSellerDialogProp
             } Your message will start a new conversation or be added to an existing one.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleFormSubmit} className="space-y-4">
+        <form action={formAction} className="space-y-4">
+            <input type="hidden" name="sellerId" value={seller.uid} />
+            {product && <input type="hidden" name="product" value={JSON.stringify(product)} />}
+            {idToken && <input type="hidden" name="idToken" value={idToken} />}
+            
             <div className="grid w-full items-center gap-1.5">
                 <Label htmlFor="message">Your Message</Label>
                 <Textarea
@@ -108,15 +113,10 @@ export function ContactSellerDialog({ product, seller }: ContactSellerDialogProp
                     placeholder="Hi, I'm interested and would like to know more about..."
                     required
                     minLength={10}
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
                 />
             </div>
             <DialogFooter>
-               <Button type="submit" disabled={isPending || message.length < 10} className="w-full">
-                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isPending ? 'Starting Conversation...' : 'Send Inquiry'}
-               </Button>
+               <SubmitButton />
             </DialogFooter>
           </form>
       </DialogContent>
