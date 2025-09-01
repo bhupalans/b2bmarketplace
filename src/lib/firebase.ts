@@ -645,11 +645,8 @@ export async function createOffer(data: {
     };
     batch.set(messageRef, offerMessage);
     
-    // Commit the first batch (creating offer and message)
-    await batch.commit();
-    
-    // 3. As a separate operation, update the lastMessage on the conversation
-    // This avoids the complex security rule issue.
+    // 3. Update the lastMessage on the conversation.
+    // This is the critical change: create an explicit object to ensure only 'lastMessage' is sent.
     const lastMessageUpdate = {
         lastMessage: {
             text: "An offer was sent.",
@@ -657,7 +654,9 @@ export async function createOffer(data: {
             timestamp: serverTimestamp()
         }
     };
-    await updateDoc(conversationRef, lastMessageUpdate);
+    batch.update(conversationRef, lastMessageUpdate);
+    
+    await batch.commit();
 
     return { id: offerRef.id, ...newOffer };
 }
@@ -694,7 +693,7 @@ export async function getConversationForAdminClient(conversationId: string): Pro
     if (!convSnap.exists()) {
         return null;
     }
-    return { id: convSnap.id, ...docSnap.data() } as Conversation;
+    return { id: convSnap.id, ...convSnap.data() } as Conversation;
 }
 
 export function streamMessagesForAdmin(conversationId: string, callback: (messages: Message[]) => void): () => void {
