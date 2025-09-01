@@ -5,7 +5,7 @@
 import { adminDb } from "./firebase-admin";
 import { Product, Category, User, Message, Conversation } from "./types";
 import { mockCategories, mockProducts } from "./mock-data";
-import { firestore } from "firebase-admin";
+import { firestore, firestore as adminFirestore } from "firebase-admin";
 
 // --- Read Operations ---
 
@@ -93,7 +93,17 @@ export async function getSellerAndProducts(sellerId: string): Promise<{ seller: 
     .where("sellerId", "==", sellerId)
     .where("status", "==", "approved")
     .get();
-  const products = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+
+  const products = productsSnapshot.docs.map(doc => {
+      const data = doc.data();
+      // Serialize Timestamps before sending to client components
+      const serializableData = {
+          ...data,
+          createdAt: data.createdAt instanceof adminFirestore.Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
+          updatedAt: data.updatedAt instanceof adminFirestore.Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt,
+      };
+      return { id: doc.id, ...serializableData } as Product;
+  });
 
   return { seller, products };
 }
