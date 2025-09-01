@@ -5,9 +5,8 @@ import { filterContactDetails } from "@/ai/flows/filter-contact-details";
 import { suggestOffer } from "@/ai/flows/suggest-offer";
 import { getUser } from "@/lib/database";
 import { createOffer, findOrCreateConversation, sendMessage } from "@/lib/firebase";
-import type { Product, Offer } from "@/lib/types";
+import type { Product } from "@/lib/types";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { z } from "zod";
 import { adminAuth } from "@/lib/firebase-admin";
 
@@ -74,33 +73,35 @@ export async function sendInquiryAction(
     }
 }
 
-const createOfferSchema = z.object({
-  productId: z.string().min(1, { message: "Please select a product." }),
-  quantity: z.coerce.number().positive({ message: "Quantity must be positive." }),
-  pricePerUnit: z.coerce.number().positive({ message: "Price must be positive." }),
+const offerServerActionSchema = z.object({
+  productId: z.string().min(1),
+  quantity: z.coerce.number().positive(),
+  pricePerUnit: z.coerce.number().positive(),
   notes: z.string().optional(),
   conversationId: z.string().min(1),
   buyerId: z.string().min(1),
   sellerId: z.string().min(1),
 });
 
-export async function createOfferAction(values: unknown) {
-    const validatedFields = createOfferSchema.safeParse(values);
+export async function createOfferServerAction(data: unknown) {
+  const validatedFields = offerServerActionSchema.safeParse(data);
 
-    if (!validatedFields.success) {
-        console.error("Offer validation failed:", validatedFields.error.flatten().fieldErrors);
-        return { success: false, error: "Invalid data provided." };
-    }
-    
-    try {
-        const offer = await createOffer(validatedFields.data);
-        revalidatePath(`/messages/${validatedFields.data.conversationId}`);
-        return { success: true, offer };
-    } catch (error: any) {
-        console.error("Error creating offer:", error);
-        return { success: false, error: error.message || "Failed to create offer." };
-    }
+  if (!validatedFields.success) {
+    console.error("Server Action Validation Error:", validatedFields.error.flatten().fieldErrors);
+    return { success: false, error: "Invalid offer data provided." };
+  }
+
+  try {
+    const offer = await createOffer(validatedFields.data);
+    revalidatePath(`/messages/${validatedFields.data.conversationId}`);
+    return { success: true, offer };
+  } catch (error: any) {
+    console.error("Error creating offer in server action:", error);
+    // The error from Firestore/Firebase will be more specific (e.g., PERMISSION_DENIED)
+    return { success: false, error: error.message || "Failed to create the offer on the server." };
+  }
 }
+
 
 export async function revalidateOffers() {
     revalidatePath('/messages');

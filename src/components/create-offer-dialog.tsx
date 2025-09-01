@@ -36,7 +36,7 @@ import {
 import { OfferSuggestion, Product } from "@/lib/types";
 import { useAuth } from "@/contexts/auth-context";
 import { getSellerProductsClient } from "@/lib/firebase";
-import { createOfferAction } from "@/app/actions";
+import { createOfferServerAction } from "@/app/actions";
 
 const offerSchema = z.object({
   productId: z.string().min(1, { message: "Please select a product." }),
@@ -103,7 +103,7 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
     }
 
     startTransition(async () => {
-        const result = await createOfferAction(offerData);
+        const result = await createOfferServerAction(offerData);
 
         if (result.success) {
             toast({
