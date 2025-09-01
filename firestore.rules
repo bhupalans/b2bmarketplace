@@ -3,7 +3,8 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if the user is an admin
+    // Helper function to check if the user is an admin.
+    // Includes an existence check to prevent errors if the user document doesn't exist.
     function isAdmin() {
       return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
@@ -14,8 +15,10 @@ service cloud.firestore {
       return request.auth.uid == resource.data.sellerId;
     }
 
+    // Spec templates can be read by any authenticated user. Writing is restricted to admins.
     match /specTemplates/{templateId} {
-  	  allow read, create, update, delete: if isAdmin();
+      allow read: if request.auth != null;
+      allow write: if isAdmin(); // 'write' covers create, update, and delete
     }
 
     // Products can be read by anyone, but only created/updated/deleted by the owner seller or an admin.
@@ -35,7 +38,7 @@ service cloud.firestore {
     // User profiles can be read by anyone. Users can only update their own profile.
     match /users/{userId} {
       allow read: if true;
-      allow create: if request.auth != null && request.auth.uid == userId; // Allow user to create their own profile doc
+      allow create: if request.auth != null && request.auth.uid == userId;
       allow update: if request.auth != null && request.auth.uid == userId;
       // Deleting users should be handled carefully, maybe only by admins.
       allow delete: if request.auth != null && isAdmin();
@@ -44,6 +47,48 @@ service cloud.firestore {
     // Internal documents, like the seed status, should not be publicly accessible.
     match /internal/{docId} {
       allow read, write: if false;
+    }
+
+    // Rules for the 'offers' collection
+    match /offers/{offerId} {
+      // Who can read an offer? The buyer, the seller, or an admin.
+      allow read: if request.auth != null && (request.auth.uid == resource.data.buyerId || request.auth.uid == resource.data.sellerId || isAdmin());
+      // Who can create an offer? The seller.
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.sellerId;
+      // Who can update an offer? The buyer (to accept/decline) or the seller (to withdraw).
+      allow update: if request.auth != null && (request.auth.uid == resource.data.buyerId || request.auth.uid == resource.data.sellerId);
+      // We probably don't want offers to be deleted.
+      allow delete: if false;
+    }
+
+    // Rules for the messaging system
+    match /conversations/{conversationId} {
+      // Allow read if the user is a participant OR if they are an admin.
+      allow read: if (request.auth != null && request.auth.uid in resource.data.participantIds) || isAdmin();
+      
+      // Only participants can update (e.g., the lastMessage field).
+      allow update: if request.auth != null && request.auth.uid in resource.data.participantIds;
+
+      // Allow any authenticated user to create a new conversation.
+      allow create: if request.auth != null;
+
+      // Do not allow anyone to delete a conversation.
+      allow delete: if false;
+
+      // --- Rules for the 'messages' sub-collection ---
+      match /messages/{messageId} {
+        // Allow read if the user is a participant OR if they are an admin.
+        allow read: if (request.auth != null && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds) || isAdmin();
+
+        // Allow a user to create a new message
+        // ONLY if they are a participant in the conversation AND they are the sender of the message.
+        allow create: if request.auth != null && 
+                       request.auth.uid == request.resource.data.senderId && 
+                       request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
+
+        // Do not allow anyone to update or delete individual messages.
+        allow update, delete: if false;
+      }
     }
   }
 }
