@@ -4,7 +4,7 @@
 import { filterContactDetails } from "@/ai/flows/filter-contact-details";
 import { suggestOffer } from "@/ai/flows/suggest-offer";
 import { getUser } from "@/lib/database";
-import { createOffer, startConversation } from "@/lib/firebase";
+import { createOffer, findOrCreateConversation, sendMessage } from "@/lib/firebase";
 import type { Product, Offer } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -30,8 +30,6 @@ export async function sendInquiryAction(
     }
 
     if (!validatedFields.success) {
-        // This is not ideal for server-side validation. We'll improve this later.
-        // For now, it prevents saving invalid data.
         return { success: false, error: "Invalid data." };
     }
     
@@ -54,24 +52,20 @@ export async function sendInquiryAction(
     }
 
     try {
-        // First, filter the message content for any policy violations
-        const { modifiedMessage, modificationReason } = await filterContactDetails({ message });
+        const { modifiedMessage } = await filterContactDetails({ message });
 
-        // If a reason is returned, it means the message was modified.
-        // We can choose to show this to the user later.
-        // For now, we proceed with the modified (safe) message.
-        
-        const conversationId = await startConversation({
+        const { conversationId } = await findOrCreateConversation({
             buyerId,
             sellerId,
             productId: product.id,
             productTitle: product.title,
             productImage: product.images[0] || '',
-            initialMessageText: modifiedMessage,
         });
+
+        if (modifiedMessage.trim().length > 0) {
+            await sendMessage(conversationId, buyerId, modifiedMessage);
+        }
         
-        // Instead of returning state, we redirect to the new conversation
-        // This provides a better user experience.
         return { success: true, conversationId: conversationId };
 
     } catch (error: any) {
@@ -108,7 +102,6 @@ export async function createOfferAction(values: unknown) {
     }
 }
 
-// Re-enabling revalidatePath for offer suggestions in a later step
 export async function revalidateOffers() {
     revalidatePath('/messages');
 }
