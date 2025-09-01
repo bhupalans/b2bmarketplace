@@ -140,6 +140,8 @@ export default function ConversationPage() {
     return <div className="flex h-full items-center justify-center"><p>Conversation not found.</p></div>;
   }
 
+  const canSuggestOffer = sellerProducts && sellerProducts.length > 0;
+
   return (
     <div className="flex h-[calc(100vh-theme(spacing.14)*2)] flex-col">
        <header className="flex items-center gap-4 border-b bg-background p-4">
@@ -157,7 +159,7 @@ export default function ConversationPage() {
           </p>
         </div>
         {user?.role === 'seller' && (
-          <Button variant="outline" onClick={handleSuggestOffer} disabled={isSuggesting}>
+          <Button variant="outline" onClick={handleSuggestOffer} disabled={isSuggesting || !canSuggestOffer} title={!canSuggestOffer ? "You must have products listed to suggest an offer." : ""}>
             {isSuggesting ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
