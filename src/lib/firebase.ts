@@ -645,8 +645,10 @@ export async function createOffer(data: {
     };
     batch.set(messageRef, offerMessage);
     
-    // 3. Update the lastMessage on the conversation.
-    // This is the critical change: create an explicit object to ensure only 'lastMessage' is sent.
+    // COMMIT the batch first, then update the conversation separately.
+    await batch.commit();
+
+    // 3. Update the lastMessage on the conversation in a separate operation.
     const lastMessageUpdate = {
         lastMessage: {
             text: "An offer was sent.",
@@ -654,10 +656,8 @@ export async function createOffer(data: {
             timestamp: serverTimestamp()
         }
     };
-    batch.update(conversationRef, lastMessageUpdate);
+    await updateDoc(conversationRef, lastMessageUpdate);
     
-    await batch.commit();
-
     return { id: offerRef.id, ...newOffer };
 }
 
