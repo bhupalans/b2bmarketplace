@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
@@ -14,12 +14,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import type { Product, User } from "@/lib/types";
 import { findOrCreateConversation, sendMessage } from "@/lib/firebase";
-import { Loader2 } from "lucide-react";
+import { Loader2, MessageSquare } from "lucide-react";
 import Link from "next/link";
 
 type ContactSellerDialogProps = {
@@ -28,11 +26,10 @@ type ContactSellerDialogProps = {
 };
 
 export function ContactSellerDialog({ product, seller }: ContactSellerDialogProps) {
-  const { user, firebaseUser } = useAuth();
+  const { user, firebaseUser, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [message, setMessage] = useState("");
   const [isPending, startTransition] = useTransition();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -46,14 +43,7 @@ export function ContactSellerDialog({ product, seller }: ContactSellerDialogProp
       return;
     }
 
-    if (message.trim().length < 10) {
-        toast({
-            variant: "destructive",
-            title: "Message too short",
-            description: "Please enter a message of at least 10 characters.",
-        });
-        return;
-    }
+    const staticMessage = `I'm interested in learning more about "${product.title}".`;
 
     startTransition(async () => {
       try {
@@ -65,7 +55,7 @@ export function ContactSellerDialog({ product, seller }: ContactSellerDialogProp
           productImage: product.images[0] || '',
         });
 
-        await sendMessage(conversationId, firebaseUser.uid, message);
+        await sendMessage(conversationId, firebaseUser.uid, staticMessage);
 
         toast({
           title: "Conversation Started",
@@ -84,6 +74,15 @@ export function ContactSellerDialog({ product, seller }: ContactSellerDialogProp
     });
   };
 
+  if (authLoading) {
+    return (
+      <Button disabled className="w-full">
+         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+         Loading...
+      </Button>
+    )
+  }
+
   if (!firebaseUser) {
     return (
       <Button asChild className="w-full">
@@ -99,39 +98,26 @@ export function ContactSellerDialog({ product, seller }: ContactSellerDialogProp
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="w-full">Contact Seller</Button>
+        <Button className="w-full">
+            <MessageSquare className="mr-2 h-4 w-4" />
+            Contact Seller
+        </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Contact {seller.name}</DialogTitle>
+          <DialogTitle>Start a conversation</DialogTitle>
           <DialogDescription>
-            {product
-              ? `Send an inquiry for "${product.title}".`
-              : `Send a general message to ${seller.name}.`}
-            Your message will start a new conversation or be added to an existing one.
+            A new conversation with {seller.name} will be started regarding the product: "{product?.title}".
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid w-full items-center gap-1.5">
-            <Label htmlFor="message">Your Message</Label>
-            <Textarea
-              id="message"
-              name="message"
-              placeholder="Hi, I'm interested and would like to know more about..."
-              required
-              minLength={10}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              disabled={isPending}
-            />
-          </div>
-          <DialogFooter>
-            <Button type="submit" disabled={isPending} className="w-full">
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isPending ? 'Starting Conversation...' : 'Send Inquiry'}
-            </Button>
-          </DialogFooter>
-        </form>
+        <DialogFooter>
+            <form onSubmit={handleSubmit} className="w-full">
+                <Button type="submit" disabled={isPending} className="w-full">
+                    {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {isPending ? 'Starting...' : 'Confirm and Start Conversation'}
+                </Button>
+            </form>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
