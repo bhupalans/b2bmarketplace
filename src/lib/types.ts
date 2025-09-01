@@ -47,6 +47,7 @@ export type Product = {
   status: 'pending' | 'approved' | 'rejected';
   specifications?: { name: string; value: string }[];
   createdAt?: Timestamp | string;
+  updatedAt?: Timestamp | string;
 };
 
 export type Offer = {
