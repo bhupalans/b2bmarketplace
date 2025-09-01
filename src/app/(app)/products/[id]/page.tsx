@@ -145,19 +145,33 @@ export default function ProductDetailPage() {
           <Card className="overflow-hidden">
             <Carousel className="w-full">
               <CarouselContent>
-                {product.images.map((imgSrc, index) => (
-                  <CarouselItem key={index}>
+                {Array.isArray(product.images) && product.images.length > 0 ? (
+                  product.images.map((imgSrc, index) => (
+                    <CarouselItem key={index}>
+                      <div className="relative aspect-square w-full">
+                        <Image
+                          src={imgSrc}
+                          alt={`${product.title} - view ${index + 1}`}
+                          fill
+                          className="object-cover"
+                          data-ai-hint="product image"
+                        />
+                      </div>
+                    </CarouselItem>
+                  ))
+                ) : (
+                  <CarouselItem>
                     <div className="relative aspect-square w-full">
                       <Image
-                        src={imgSrc}
-                        alt={`${product.title} - view ${index + 1}`}
+                        src="https://placehold.co/600x600"
+                        alt="Product image placeholder"
                         fill
                         className="object-cover"
-                        data-ai-hint="product image"
+                        data-ai-hint="placeholder image"
                       />
                     </div>
                   </CarouselItem>
-                ))}
+                )}
               </CarouselContent>
               <CarouselPrevious className="absolute left-4" />
               <CarouselNext className="absolute right-4" />
