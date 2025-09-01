@@ -3,7 +3,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc as getDocClient, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message } from './types';
+import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
 const firebaseConfig = {
@@ -59,12 +59,10 @@ export async function getProductClient(productId: string): Promise<Product | nul
 }
 
 export async function getProductAndSellerClient(productId: string): Promise<{ product: Product; seller: User | null } | null> {
-  const productRef = doc(db, 'products', productId);
-  const productSnap = await getDocClient(productRef);
-  if (!productSnap.exists() || productSnap.data().status !== 'approved') {
+  const product = await getProductClient(productId);
+  if (!product || product.status !== 'approved') {
     return null;
   }
-  const product = { id: productSnap.id, ...productSnap.data() } as Product;
   
   let seller: User | null = null;
   if (product.sellerId) {
@@ -99,7 +97,12 @@ export async function getSellerAndProductsClient(sellerId: string): Promise<{ se
   
   const products = productsSnapshot.docs.map(docSnap => {
       const data = docSnap.data();
-      return { id: docSnap.id, ...data } as Product;
+      const serializableData = {
+          ...data,
+          createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
+          updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt,
+      };
+      return { id: docSnap.id, ...serializableData } as Product;
   });
 
   return { seller, products };
@@ -576,7 +579,7 @@ export function streamMessages(conversationId: string, callback: (messages: Mess
     return unsubscribe;
 }
 
-export async function sendMessage(conversationId: string, senderId: string, text: string): Promise<void> {
+export async function sendMessage(conversationId: string, senderId: string, text: string, offerId?: string): Promise<void> {
     const batch = writeBatch(db);
 
     const conversationRef = doc(db, 'conversations', conversationId);
@@ -589,9 +592,13 @@ export async function sendMessage(conversationId: string, senderId: string, text
         timestamp: serverTimestamp() as Timestamp
     };
 
+    if (offerId) {
+        newMessage.offerId = offerId;
+    }
+
     const lastMessageUpdate = {
         lastMessage: {
-            text,
+            text: offerId ? "An offer was sent." : text,
             senderId,
             timestamp: serverTimestamp()
         }
@@ -602,6 +609,86 @@ export async function sendMessage(conversationId: string, senderId: string, text
 
     await batch.commit();
 }
+
+
+// --- Offer Functions ---
+export async function createOffer(data: {
+    productId: string;
+    quantity: number;
+    pricePerUnit: number;
+    notes?: string;
+    conversationId: string;
+    buyerId: string;
+    sellerId: string;
+}): Promise<Offer> {
+    const batch = writeBatch(db);
+    const offersCollection = collection(db, "offers");
+    const offerRef = doc(offersCollection);
+
+    const productSnap = await getDocClient(doc(db, "products", data.productId));
+    if (!productSnap.exists()) {
+        throw new Error("Product not found to create offer.");
+    }
+    const product = productSnap.data() as Product;
+
+    const newOffer: Omit<Offer, 'id'> = {
+        ...data,
+        status: 'pending',
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+        productTitle: product.title,
+        productImage: product.images[0] || '',
+    };
+
+    batch.set(offerRef, newOffer);
+
+    // Also send a message in the conversation linking to this offer
+    const conversationRef = doc(db, "conversations", data.conversationId);
+    const messageRef = doc(collection(conversationRef, "messages"));
+    
+    const offerMessage: Omit<Message, 'id'> = {
+        conversationId: data.conversationId,
+        senderId: data.sellerId,
+        text: `I've sent a formal offer for ${data.quantity} x ${product.title}.`,
+        timestamp: serverTimestamp() as Timestamp,
+        offerId: offerRef.id,
+    };
+
+    const lastMessageUpdate = {
+        lastMessage: {
+            text: "An offer was sent.",
+            senderId: data.sellerId,
+            timestamp: serverTimestamp()
+        }
+    };
+
+    batch.set(messageRef, offerMessage);
+    batch.update(conversationRef, lastMessageUpdate);
+
+    await batch.commit();
+
+    return { id: offerRef.id, ...newOffer };
+}
+
+export async function getOfferClient(offerId: string): Promise<Offer | null> {
+    const offerRef = doc(db, 'offers', offerId);
+    const offerSnap = await getDocClient(offerRef);
+
+    if (!offerSnap.exists()) {
+        return null;
+    }
+
+    const offerData = offerSnap.data();
+    // Manually convert Timestamps to serializable format
+    const serializableData = {
+        ...offerData,
+        createdAt: (offerData.createdAt as Timestamp).toDate().toISOString(),
+        updatedAt: (offerData.updatedAt as Timestamp).toDate().toISOString(),
+    };
+
+    return { id: offerSnap.id, ...serializableData } as Offer;
+}
+
 
 // --- Admin Client Functions ---
 

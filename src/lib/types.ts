@@ -55,10 +55,15 @@ export type Offer = {
   productId: string;
   quantity: number;
   pricePerUnit: number;
-  notes: string;
-  status: 'pending' | 'accepted' | 'declined';
+  notes?: string;
+  status: 'pending' | 'accepted' | 'declined' | 'withdrawn';
   sellerId: string;
   buyerId: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  // Denormalized data for easier display
+  productTitle: string;
+  productImage: string;
 };
 
 export type Message = {
@@ -67,6 +72,7 @@ export type Message = {
   text: string;
   senderId: string;
   timestamp: Timestamp;
+  offerId?: string; // Link to an offer
 };
 
 export type Conversation = {

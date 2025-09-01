@@ -4,8 +4,8 @@
 import { filterContactDetails } from "@/ai/flows/filter-contact-details";
 import { suggestOffer } from "@/ai/flows/suggest-offer";
 import { getUser } from "@/lib/database";
-import { startConversation } from "@/lib/firebase";
-import type { Product } from "@/lib/types";
+import { createOffer, startConversation } from "@/lib/firebase";
+import type { Product, Offer } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -77,6 +77,34 @@ export async function sendInquiryAction(
     } catch (error: any) {
         console.error("Error processing inquiry:", error);
         return { success: false, error: "There was a problem sending your inquiry." };
+    }
+}
+
+const createOfferSchema = z.object({
+  productId: z.string().min(1, { message: "Please select a product." }),
+  quantity: z.coerce.number().positive({ message: "Quantity must be positive." }),
+  pricePerUnit: z.coerce.number().positive({ message: "Price must be positive." }),
+  notes: z.string().optional(),
+  conversationId: z.string().min(1),
+  buyerId: z.string().min(1),
+  sellerId: z.string().min(1),
+});
+
+export async function createOfferAction(values: unknown) {
+    const validatedFields = createOfferSchema.safeParse(values);
+
+    if (!validatedFields.success) {
+        console.error("Offer validation failed:", validatedFields.error.flatten().fieldErrors);
+        return { success: false, error: "Invalid data provided." };
+    }
+    
+    try {
+        const offer = await createOffer(validatedFields.data);
+        revalidatePath(`/messages/${validatedFields.data.conversationId}`);
+        return { success: true, offer };
+    } catch (error: any) {
+        console.error("Error creating offer:", error);
+        return { success: false, error: error.message || "Failed to create offer." };
     }
 }
 

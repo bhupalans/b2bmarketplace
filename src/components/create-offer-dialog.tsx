@@ -8,7 +8,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "./ui/button";
 import { Gavel, Loader2 } from "lucide-react";
@@ -26,7 +25,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   Select,
   SelectContent,
@@ -36,7 +35,8 @@ import {
 } from "./ui/select";
 import { OfferSuggestion, Product } from "@/lib/types";
 import { useAuth } from "@/contexts/auth-context";
-import { getSellerProducts } from "@/lib/database";
+import { getSellerProductsClient } from "@/lib/firebase";
+import { createOfferAction } from "@/app/actions";
 
 const offerSchema = z.object({
   productId: z.string().min(1, { message: "Please select a product." }),
@@ -51,13 +51,14 @@ type CreateOfferDialogProps = {
   onOpenChange?: (open: boolean) => void;
   onClose?: () => void;
   recipientId: string;
+  conversationId: string;
 };
 
 
-export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, recipientId }: CreateOfferDialogProps) {
+export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, recipientId, conversationId }: CreateOfferDialogProps) {
   const { toast } = useToast();
-  const { firebaseUser } = useAuth();
-  const [isSending, setIsSending] = useState(false);
+  const { user } = useAuth();
+  const [isSending, startTransition] = useTransition();
   const [sellerProducts, setSellerProducts] = useState<Product[]>([]);
   
   const form = useForm<z.infer<typeof offerSchema>>({
@@ -71,13 +72,13 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
   });
 
   useEffect(() => {
-    if (firebaseUser) {
-        getSellerProducts(firebaseUser.uid).then(setSellerProducts);
+    if (user) {
+        getSellerProductsClient(user.uid).then(setSellerProducts);
     }
-  }, [firebaseUser]);
+  }, [user]);
 
   useEffect(() => {
-    if (suggestion) {
+    if (suggestion && open) {
       const product = sellerProducts.find(p => p.id === suggestion.productId);
       form.reset({
         productId: suggestion.productId || "",
@@ -86,25 +87,38 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
         notes: "",
       });
     }
-  }, [suggestion, form, open, sellerProducts]);
+  }, [suggestion, open, form, sellerProducts]);
   
   const handleAction = async (values: z.infer<typeof offerSchema>) => {
-    if (!firebaseUser) {
+    if (!user) {
       toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in to send an offer." });
       return;
     }
-    setIsSending(true);
-
-    // This feature is not implemented yet.
-    console.log("Creating offer with values:", values);
-    toast({
-        title: "Feature Not Implemented",
-        description: "Sending offers is not yet functional.",
-        variant: "destructive"
-    });
     
-    setIsSending(false);
-    handleOpenChange(false);
+    const offerData = {
+        ...values,
+        conversationId,
+        buyerId: recipientId,
+        sellerId: user.uid,
+    }
+
+    startTransition(async () => {
+        const result = await createOfferAction(offerData);
+
+        if (result.success) {
+            toast({
+                title: "Offer Sent",
+                description: "Your formal offer has been sent to the buyer.",
+            });
+            handleOpenChange(false);
+        } else {
+             toast({
+                variant: "destructive",
+                title: "Failed to Send Offer",
+                description: result.error || "An unknown error occurred.",
+            });
+        }
+    });
   }
   
   const handleOpenChange = (isOpen: boolean) => {
@@ -127,14 +141,6 @@ export function CreateOfferDialog({ suggestion, open, onOpenChange, onClose, rec
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      {!open && !suggestion && (
-        <DialogTrigger asChild>
-          <Button disabled>
-            <Gavel className="mr-2 h-4 w-4" />
-            Create Offer
-          </Button>
-        </DialogTrigger>
-      )}
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Create Formal Offer</DialogTitle>

@@ -9,12 +9,13 @@ import { Conversation, Message, User } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Loader2, ArrowLeft } from "lucide-react";
+import { Send, Loader2, ArrowLeft, Gavel } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
 import { formatDistanceToNow } from 'date-fns';
-
+import { CreateOfferDialog } from "@/components/create-offer-dialog";
+import { OfferCard } from "@/components/offer-card";
 
 export default function ConversationPage() {
   const params = useParams();
@@ -28,6 +29,7 @@ export default function ConversationPage() {
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [isOfferDialogOpen, setOfferDialogOpen] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -122,54 +124,67 @@ export default function ConversationPage() {
             Regarding: <Link href={`/products/${conversation.productId}`} className="hover:underline">{conversation.productTitle}</Link>
           </p>
         </div>
+        {user?.role === 'seller' && (
+          <>
+            <Button variant="outline" onClick={() => setOfferDialogOpen(true)}>
+              <Gavel className="mr-2 h-4 w-4" />
+              Create Offer
+            </Button>
+            <CreateOfferDialog
+              open={isOfferDialogOpen}
+              onOpenChange={setOfferDialogOpen}
+              recipientId={otherParticipant.id}
+              conversationId={conversation.id}
+            />
+          </>
+        )}
       </header>
 
        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={cn(
-              "flex items-end gap-2",
-              message.senderId === user?.uid ? "justify-end" : "justify-start"
-            )}
-          >
-            {message.senderId !== user?.uid && (
-                <Avatar className="h-8 w-8 border">
-                    <AvatarImage src={otherParticipant.avatar} alt={otherParticipant.name} />
-                    <AvatarFallback>{otherParticipant.name.charAt(0)}</AvatarFallback>
-                </Avatar>
-            )}
-            <div
-              className={cn(
-                "max-w-xs rounded-lg px-4 py-2 md:max-w-md",
-                message.senderId === user?.uid
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted"
-              )}
-            >
-              <p className="whitespace-pre-wrap">{message.text}</p>
-              <p className={cn("text-xs mt-1", message.senderId === user?.uid ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
-                {message.timestamp ? formatDistanceToNow(message.timestamp.toDate(), { addSuffix: true }) : 'sending...'}
-              </p>
-            </div>
-             {message.senderId === user?.uid && (
-                <Avatar className="h-8 w-8 border">
-                    <AvatarImage src={user.avatar} alt={user.name} />
-                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                </Avatar>
-            )}
-          </div>
-        ))}
+        {messages.map((message) => {
+            if (message.offerId) {
+                return <OfferCard key={message.id} offerId={message.offerId} currentUserId={user!.id} />;
+            }
+            return (
+              <div
+                key={message.id}
+                className={cn(
+                  "flex items-end gap-2",
+                  message.senderId === user?.uid ? "justify-end" : "justify-start"
+                )}
+              >
+                {message.senderId !== user?.uid && (
+                    <Avatar className="h-8 w-8 border">
+                        <AvatarImage src={otherParticipant.avatar} alt={otherParticipant.name} />
+                        <AvatarFallback>{otherParticipant.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                )}
+                <div
+                  className={cn(
+                    "max-w-xs rounded-lg px-4 py-2 md:max-w-md",
+                    message.senderId === user?.uid
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted"
+                  )}
+                >
+                  <p className="whitespace-pre-wrap">{message.text}</p>
+                  <p className={cn("text-xs mt-1", message.senderId === user?.uid ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
+                    {message.timestamp ? formatDistanceToNow(message.timestamp.toDate(), { addSuffix: true }) : 'sending...'}
+                  </p>
+                </div>
+                 {message.senderId === user?.uid && (
+                    <Avatar className="h-8 w-8 border">
+                        <AvatarImage src={user.avatar} alt={user.name} />
+                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                )}
+              </div>
+            )
+        })}
          <div ref={messagesEndRef} />
       </div>
 
       <div className="border-t bg-background p-4">
-        {conversation.productImage && conversation.productTitle && (
-            <div className="flex items-center gap-2 p-2 mb-2 rounded-md bg-muted text-sm">
-                <Image src={conversation.productImage} alt={conversation.productTitle} width={40} height={40} className="rounded" />
-                <span>Replying about: <span className="font-semibold">{conversation.productTitle}</span></span>
-            </div>
-        )}
         <form onSubmit={handleSendMessage} className="flex items-center gap-2">
             <Input
               value={newMessage}
