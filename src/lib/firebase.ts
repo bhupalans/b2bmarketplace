@@ -1,4 +1,5 @@
 
+
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc as getDocClient, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError } from 'firebase/firestore';
@@ -610,10 +611,6 @@ export async function createOffer(data: {
     buyerId: string;
     sellerId: string;
 }): Promise<Offer> {
-    const batch = writeBatch(db);
-    const offersCollection = collection(db, "offers");
-    const offerRef = doc(offersCollection);
-
     const productSnap = await getDocClient(doc(db, "products", data.productId));
     if (!productSnap.exists()) {
         throw new Error("Product not found to create offer.");
@@ -626,15 +623,19 @@ export async function createOffer(data: {
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
         productTitle: product.title,
-        productImage: product.images[0] || '',
+        productImage: product.images?.[0] || '',
     };
+    
+    const offerRef = doc(collection(db, "offers"));
+    const messageRef = doc(collection(db, 'conversations', data.conversationId, 'messages'));
+    const conversationRef = doc(db, 'conversations', data.conversationId);
 
+    const batch = writeBatch(db);
+    
+    // 1. Create the offer document
     batch.set(offerRef, newOffer);
 
-    // Also send a message in the conversation linking to this offer
-    const conversationRef = doc(db, "conversations", data.conversationId);
-    const messageRef = doc(collection(conversationRef, "messages"));
-    
+    // 2. Create the message card for the offer
     const offerMessage: Omit<Message, 'id'> = {
         conversationId: data.conversationId,
         senderId: data.sellerId,
@@ -642,7 +643,13 @@ export async function createOffer(data: {
         timestamp: serverTimestamp() as Timestamp,
         offerId: offerRef.id,
     };
-
+    batch.set(messageRef, offerMessage);
+    
+    // Commit the first batch (creating offer and message)
+    await batch.commit();
+    
+    // 3. As a separate operation, update the lastMessage on the conversation
+    // This avoids the complex security rule issue.
     const lastMessageUpdate = {
         lastMessage: {
             text: "An offer was sent.",
@@ -650,11 +657,7 @@ export async function createOffer(data: {
             timestamp: serverTimestamp()
         }
     };
-
-    batch.set(messageRef, offerMessage);
-    batch.update(conversationRef, lastMessageUpdate);
-
-    await batch.commit();
+    await updateDoc(conversationRef, lastMessageUpdate);
 
     return { id: offerRef.id, ...newOffer };
 }
