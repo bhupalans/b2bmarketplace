@@ -166,7 +166,7 @@ const DynamicSpecField = ({ field, specIndex }: { field: SpecTemplateField, spec
             return (
                 <FormField
                     control={control}
-                    name={`specifications.${specIndex}.value`}
+                    name={`specifications.${index}.value`}
                     render={({ field: formField }) => (
                         <FormItem>
                             <FormLabel>{field.name}</FormLabel>

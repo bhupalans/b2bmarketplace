@@ -22,6 +22,19 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
+// Helper function to convert Timestamps in an object to strings
+const convertTimestamps = (data: any) => {
+    if (!data) return data;
+    const newData = { ...data };
+    for (const key in newData) {
+        if (newData[key] instanceof Timestamp) {
+            newData[key] = newData[key].toDate().toISOString();
+        }
+    }
+    return newData;
+};
+
+
 // Client-side data fetching functions
 export async function getProductsClient(): Promise<Product[]> {
   const productsCol = collection(db, "products");
@@ -38,7 +51,8 @@ export async function getProductClient(productId: string): Promise<Product | nul
     if (!productSnap.exists()) {
         return null;
     }
-    return { id: productSnap.id, ...productSnap.data() } as Product;
+    const productData = convertTimestamps(productSnap.data());
+    return { id: productSnap.id, ...productData } as Product;
 }
 
 export async function getProductAndSellerClient(productId: string): Promise<{ product: Product; seller: User | null } | null> {
@@ -154,7 +168,18 @@ export async function getSellerProductsClient(sellerId: string): Promise<Product
     const productsRef = collection(db, "products");
     const q = query(productsRef, where("sellerId", "==", sellerId));
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Product)).sort((a,b) => ((b.createdAt as Timestamp)?.toMillis() || 0) - ((a.createdAt as Timestamp)?.toMillis() || 0));
+    const products = querySnapshot.docs.map(docSnap => {
+        const data = docSnap.data();
+        // Convert any Timestamp fields to serializable strings
+        const serializableData = convertTimestamps(data);
+        return { id: docSnap.id, ...serializableData } as Product;
+    });
+
+    return products.sort((a,b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt as string).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt as string).getTime() : 0;
+        return dateB - dateA;
+    });
 }
 
 // Client-side function to update product status, to be secured by Firestore rules
@@ -261,7 +286,8 @@ export async function createOrUpdateProductClient(
 
       await updateDoc(productRef, productToUpdate);
       const updatedDocSnap = await getDocClient(productRef);
-      return { id: productId, ...updatedDocSnap.data() } as Product;
+      const updatedData = convertTimestamps(updatedDocSnap.data());
+      return { id: productId, ...updatedData } as Product;
     } 
     else {
       if (newImageFiles.length === 0) {
@@ -281,7 +307,8 @@ export async function createOrUpdateProductClient(
       
       const docRef = await addDoc(collection(db, 'products'), productToCreate);
       const newDocSnap = await getDocClient(docRef);
-      return { id: docRef.id, ...newDocSnap.data() } as Product;
+      const newData = convertTimestamps(newDocSnap.data());
+      return { id: docRef.id, ...newData } as Product;
     }
   } catch(error) {
       console.error("Error in createOrUpdateProductClient:", error);
