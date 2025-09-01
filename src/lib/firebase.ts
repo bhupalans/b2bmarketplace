@@ -83,6 +83,28 @@ export async function getProductAndSellerClient(productId: string): Promise<{ pr
   return { product, seller };
 }
 
+export async function getSellerAndProductsClient(sellerId: string): Promise<{ seller: User; products: Product[] } | null> {
+  const userRef = doc(db, 'users', sellerId);
+  const userSnap = await getDocClient(userRef);
+  
+  if (!userSnap.exists()) {
+    return null;
+  }
+
+  const seller = { id: userSnap.id, uid: userSnap.id, ...userSnap.data() } as User;
+
+  const productsRef = collection(db, "products");
+  const q = query(productsRef, where("sellerId", "==", sellerId), where("status", "==", "approved"));
+  const productsSnapshot = await getDocs(q);
+  
+  const products = productsSnapshot.docs.map(docSnap => {
+      const data = docSnap.data();
+      return { id: docSnap.id, ...data } as Product;
+  });
+
+  return { seller, products };
+}
+
 export async function getCategoryPathClient(categoryId: string): Promise<Category[]> {
     const path: Category[] = [];
     let currentId: string | null = categoryId;
@@ -621,5 +643,3 @@ export function streamMessagesForAdmin(conversationId: string, callback: (messag
 
 
 export { app, auth, db, storage };
-
-    

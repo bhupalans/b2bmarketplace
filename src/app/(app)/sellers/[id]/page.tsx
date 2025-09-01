@@ -1,6 +1,7 @@
 
-import { notFound } from "next/navigation";
-import { getSellerAndProducts } from "@/lib/database";
+"use client";
+
+import { notFound, useParams } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Card,
@@ -14,18 +15,60 @@ import { Badge } from "@/components/ui/badge";
 import {
   Building,
   Calendar,
+  Loader2,
   MapPin,
   Trophy,
 } from "lucide-react";
 import { ContactSellerDialog } from "@/components/contact-seller-dialog";
+import { useEffect, useState } from "react";
+import { getSellerAndProductsClient } from "@/lib/firebase";
+import { Product, User } from "@/lib/types";
 
-export default async function SellerProfilePage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const data = await getSellerAndProducts(params.id);
+type SellerPageData = {
+  seller: User;
+  products: Product[];
+};
 
+export default function SellerProfilePage() {
+  const params = useParams();
+  const { id } = params;
+  const [data, setData] = useState<SellerPageData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      if (typeof id !== 'string') return;
+      try {
+        setLoading(true);
+        const sellerData = await getSellerAndProductsClient(id);
+        if (!sellerData) {
+          setError("Seller not found.");
+        } else {
+          setData(sellerData);
+        }
+      } catch (e: any) {
+        console.error("Failed to fetch seller data:", e);
+        setError("Failed to load seller details.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-full">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return <div className="text-center py-10">{error}</div>;
+  }
+  
   if (!data) {
     notFound();
   }
