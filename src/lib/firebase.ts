@@ -6,6 +6,7 @@ import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer } from './types';
 import { v4 as uuidv4 } from 'uuid';
+import { filterContactDetails } from '@/ai/flows/filter-contact-details';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -570,6 +571,13 @@ export function streamMessages(conversationId: string, callback: (messages: Mess
 }
 
 export async function sendMessage(conversationId: string, senderId: string, text: string, offerId?: string): Promise<void> {
+    const { modifiedMessage } = await filterContactDetails({ message: text });
+
+    // Do not send an empty message if the entire message was redacted.
+    if (modifiedMessage.trim().length === 0) {
+        return;
+    }
+    
     const batch = writeBatch(db);
 
     const conversationRef = doc(db, 'conversations', conversationId);
@@ -578,7 +586,7 @@ export async function sendMessage(conversationId: string, senderId: string, text
     const newMessage: Omit<Message, 'id'> = {
         conversationId,
         senderId,
-        text,
+        text: modifiedMessage,
         timestamp: serverTimestamp() as Timestamp
     };
 
@@ -588,7 +596,7 @@ export async function sendMessage(conversationId: string, senderId: string, text
 
     const lastMessageUpdate = {
         lastMessage: {
-            text: offerId ? "An offer was sent." : text,
+            text: offerId ? "An offer was sent." : modifiedMessage,
             senderId,
             timestamp: serverTimestamp()
         }
@@ -717,3 +725,5 @@ export function streamMessagesForAdmin(conversationId: string, callback: (messag
 
 
 export { app, auth, db, storage };
+
+    
