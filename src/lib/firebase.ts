@@ -29,8 +29,8 @@ const convertTimestamps = (data: any): any => {
     for (const key in newData) {
         if (newData[key] instanceof Timestamp) {
             newData[key] = newData[key].toDate().toISOString();
-        } else if (typeof newData[key] === 'object' && newData[key] !== null) {
-            // Recursively convert nested objects, although not strictly needed for current structure
+        } else if (typeof newData[key] === 'object' && newData[key] !== null && !Array.isArray(newData[key])) {
+            // Recursively convert nested objects, but not arrays
             newData[key] = convertTimestamps(newData[key]);
         }
     }
@@ -44,7 +44,7 @@ export async function getProductsClient(): Promise<Product[]> {
   // Only fetch approved products for the public-facing client pages
   const q = query(productsCol, where("status", "==", "approved"));
   const productSnapshot = await getDocs(q);
-  return productSnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Product));
+  return productSnapshot.docs.map(docSnap => ({ id: docSnap.id, ...convertTimestamps(docSnap.data()) } as Product));
 }
 
 export async function getProductClient(productId: string): Promise<Product | null> {
@@ -97,12 +97,7 @@ export async function getSellerAndProductsClient(sellerId: string): Promise<{ se
   
   const products = productsSnapshot.docs.map(docSnap => {
       const data = docSnap.data();
-      const serializableData = {
-          ...data,
-          createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
-          updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt,
-      };
-      return { id: docSnap.id, ...serializableData } as Product;
+      return { id: docSnap.id, ...convertTimestamps(data) } as Product;
   });
 
   return { seller, products };
@@ -133,7 +128,7 @@ export async function getPendingProducts(): Promise<Product[]> {
     const productsCol = collection(db, "products");
     const q = query(productsCol, where("status", "==", "pending"));
     const productSnapshot = await getDocs(q);
-    return productSnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Product));
+    return productSnapshot.docs.map(docSnap => ({ id: docSnap.id, ...convertTimestamps(docSnap.data()) } as Product));
 }
 
 export async function getCategoriesClient(): Promise<Category[]> {
@@ -198,13 +193,7 @@ export async function getSellerProductsClient(sellerId: string): Promise<Product
     const querySnapshot = await getDocs(q);
     const products = querySnapshot.docs.map(docSnap => {
         const data = docSnap.data();
-        // Explicitly convert Timestamp fields to serializable strings
-        const serializableData = {
-            ...data,
-            createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
-            updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt,
-        };
-        return { id: docSnap.id, ...serializableData } as Product;
+        return { id: docSnap.id, ...convertTimestamps(data) } as Product;
     });
 
     return products.sort((a,b) => {
@@ -680,11 +669,7 @@ export async function getOfferClient(offerId: string): Promise<Offer | null> {
 
     const offerData = offerSnap.data();
     // Manually convert Timestamps to serializable format
-    const serializableData = {
-        ...offerData,
-        createdAt: (offerData.createdAt as Timestamp).toDate().toISOString(),
-        updatedAt: (offerData.updatedAt as Timestamp).toDate().toISOString(),
-    };
+    const serializableData = convertTimestamps(offerData);
 
     return { id: offerSnap.id, ...serializableData } as Offer;
 }
@@ -706,7 +691,7 @@ export async function getConversationForAdminClient(conversationId: string): Pro
     if (!convSnap.exists()) {
         return null;
     }
-    return { id: convSnap.id, ...convSnap.data() } as Conversation;
+    return { id: convSnap.id, ...docSnap.data() } as Conversation;
 }
 
 export function streamMessagesForAdmin(conversationId: string, callback: (messages: Message[]) => void): () => void {
