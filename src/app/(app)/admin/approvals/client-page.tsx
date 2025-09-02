@@ -41,7 +41,7 @@ import {
 import { updateProductStatus } from '@/lib/firebase';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 
 interface AdminApprovalsClientPageProps {
     initialProducts: Product[];
@@ -228,7 +228,7 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers, initia
                     <div>{getCategoryPath(reviewingProduct.categoryId)}</div>
 
                     <div className="font-medium">Submitted</div>
-                    <div>{reviewingProduct.createdAt ? format(reviewingProduct.createdAt.toDate(), 'PPP p') : 'N/A'}</div>
+                    <div>{reviewingProduct.createdAt && typeof reviewingProduct.createdAt === 'string' ? format(parseISO(reviewingProduct.createdAt), 'PPP p') : 'N/A'}</div>
                 </div>
               </div>
 
