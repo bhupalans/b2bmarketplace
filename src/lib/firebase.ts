@@ -4,7 +4,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc as getDocClient, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer } from './types';
+import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { filterContactDetails } from '@/ai/flows/filter-contact-details';
 
@@ -578,9 +578,9 @@ export function streamMessages(conversationId: string, callback: (messages: Mess
     return unsubscribe;
 }
 
-export async function sendMessage(conversationId: string, senderId: string, text: string, options?: { offerId?: string, isQuoteRequest?: boolean }): Promise<void> {
+export async function sendMessage(conversationId: string, senderId: string, text: string, options?: { offerId?: string; isQuoteRequest?: boolean, offerStatusUpdate?: OfferStatusUpdate }): Promise<void> {
     let modifiedMessage = text;
-    if (!options?.isQuoteRequest) {
+    if (!options?.isQuoteRequest && !options?.offerStatusUpdate) {
         try {
             const result = await filterContactDetails({ message: text });
             modifiedMessage = result.modifiedMessage;
@@ -589,7 +589,7 @@ export async function sendMessage(conversationId: string, senderId: string, text
         }
     }
 
-    if (modifiedMessage.trim().length === 0) {
+    if (modifiedMessage.trim().length === 0 && !options?.offerId && !options?.offerStatusUpdate) {
         console.log("Message was fully redacted. Not sending.");
         return;
     }
@@ -611,10 +611,20 @@ export async function sendMessage(conversationId: string, senderId: string, text
     if (options?.isQuoteRequest) {
         newMessage.isQuoteRequest = true;
     }
+    if (options?.offerStatusUpdate) {
+        newMessage.offerStatusUpdate = options.offerStatusUpdate;
+    }
+
+    let lastMessageText = modifiedMessage;
+    if (options?.offerId) {
+        lastMessageText = "An offer was sent.";
+    } else if (options?.offerStatusUpdate) {
+        lastMessageText = `Offer ${options.offerStatusUpdate.status}.`;
+    }
 
     const lastMessageUpdate = {
         lastMessage: {
-            text: options?.offerId ? "An offer was sent." : modifiedMessage,
+            text: lastMessageText,
             senderId,
             timestamp: serverTimestamp()
         }
@@ -675,6 +685,44 @@ export async function getOfferClient(offerId: string): Promise<Offer | null> {
 
     return { id: offerSnap.id, ...serializableData } as Offer;
 }
+
+export async function updateOfferStatusClient(
+    offerId: string, 
+    status: 'accepted' | 'declined', 
+    currentUserId: string
+): Promise<void> {
+    const offerRef = doc(db, 'offers', offerId);
+    const offerSnap = await getDocClient(offerRef);
+
+    if (!offerSnap.exists()) {
+        throw new Error("Offer not found.");
+    }
+
+    const offer = offerSnap.data() as Offer;
+
+    if (offer.buyerId !== currentUserId) {
+        throw new Error("You are not authorized to update this offer.");
+    }
+    
+    if (offer.status !== 'pending') {
+        throw new Error(`This offer is already ${offer.status} and cannot be changed.`);
+    }
+
+    await updateDoc(offerRef, {
+        status,
+        updatedAt: serverTimestamp(),
+    });
+    
+    // Send a notification message to the chat
+    const notificationText = `I have ${status} the offer for "${offer.productTitle}".`;
+    await sendMessage(offer.conversationId, currentUserId, notificationText, { 
+        offerStatusUpdate: { 
+            offerId: offerId, 
+            status: status 
+        } 
+    });
+}
+
 
 export async function sendQuoteRequest(data: {
     buyerId: string;

@@ -1,9 +1,9 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useTransition } from "react";
 import { Offer } from "@/lib/types";
-import { getOfferClient } from "@/lib/firebase";
+import { getOfferClient, updateOfferStatusClient } from "@/lib/firebase";
 import {
   Card,
   CardContent,
@@ -17,7 +17,10 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import Image from "next/image";
 import { Gavel, Check, X, Loader2 } from "lucide-react";
-import { format, formatISO } from 'date-fns';
+import { format } from 'date-fns';
+import { useAuth } from "@/contexts/auth-context";
+import { useToast } from "@/hooks/use-toast";
+import { revalidateOffers } from "@/app/actions";
 
 interface OfferCardProps {
   offerId: string;
@@ -25,15 +28,47 @@ interface OfferCardProps {
 }
 
 export function OfferCard({ offerId, currentUserId }: OfferCardProps) {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [offer, setOffer] = useState<Offer | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isProcessing, startTransition] = useTransition();
 
   useEffect(() => {
-    getOfferClient(offerId).then((data) => {
-      setOffer(data);
-      setLoading(false);
-    });
+    // This listener will re-fetch the offer whenever the offerId changes.
+    // It's simple, but for a real-time app, we'd use an onSnapshot listener here.
+    const fetchOffer = async () => {
+        setLoading(true);
+        const data = await getOfferClient(offerId);
+        setOffer(data);
+        setLoading(false);
+    }
+    fetchOffer();
   }, [offerId]);
+
+  const handleStatusUpdate = (status: 'accepted' | 'declined') => {
+    if (!user) return;
+    startTransition(async () => {
+        try {
+            await updateOfferStatusClient(offerId, status, user.uid);
+            toast({
+                title: `Offer ${status}`,
+                description: `You have successfully ${status} the offer.`,
+            });
+            // Re-fetch the offer to get the latest status
+            const updatedOffer = await getOfferClient(offerId);
+            setOffer(updatedOffer);
+            await revalidateOffers(); // Revalidate path for server components if needed
+        } catch (error: any) {
+            console.error(`Error ${status} offer:`, error);
+            toast({
+                variant: 'destructive',
+                title: 'Action Failed',
+                description: error.message || 'An unknown error occurred.',
+            })
+        }
+    });
+  }
 
   if (loading) {
     return (
@@ -70,11 +105,9 @@ export function OfferCard({ offerId, currentUserId }: OfferCardProps) {
   }
 
   const isBuyer = currentUserId === offer.buyerId;
-  const isSeller = currentUserId === offer.sellerId;
   const totalPrice = (offer.quantity * offer.pricePerUnit).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
   const unitPrice = offer.pricePerUnit.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
   
-  // Ensure createdAt is a Date object before formatting
   const createdAtDate = offer.createdAt instanceof Date 
     ? offer.createdAt 
     : offer.createdAt && typeof offer.createdAt === 'string'
@@ -102,7 +135,7 @@ export function OfferCard({ offerId, currentUserId }: OfferCardProps) {
                 <Image src={offer.productImage} alt={offer.productTitle} width={64} height={64} className="rounded-md border object-cover aspect-square" />
                 <div className="flex-1">
                     <p className="font-semibold">{offer.productTitle}</p>
-                    <p className="text-sm text-muted-foreground">{offer.quantity} units at {unitPrice} / unit</p>
+                    <p className="text-sm text-muted-foreground">{offer.quantity.toLocaleString()} units @ {unitPrice} / unit</p>
                     <p className="text-lg font-bold mt-1">{totalPrice} total</p>
                 </div>
             </div>
@@ -113,21 +146,27 @@ export function OfferCard({ offerId, currentUserId }: OfferCardProps) {
             </blockquote>
           )}
         </CardContent>
-        {offer.status === 'pending' && (
+        {offer.status === 'pending' && isBuyer && (
             <CardFooter className="flex flex-col gap-2">
-                {isBuyer && (
-                    <div className="flex w-full gap-2">
-                        <Button variant="destructive" className="w-full">
-                            <X className="mr-2 h-4 w-4" /> Decline
-                        </Button>
-                        <Button className="w-full bg-green-600 hover:bg-green-700">
-                             <Check className="mr-2 h-4 w-4" /> Accept
-                        </Button>
-                    </div>
-                )}
-                {isSeller && (
-                    <Button variant="outline" className="w-full">Withdraw Offer</Button>
-                )}
+                <div className="flex w-full gap-2">
+                    <Button 
+                        variant="destructive" 
+                        className="w-full"
+                        disabled={isProcessing}
+                        onClick={() => handleStatusUpdate('declined')}
+                    >
+                        {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="mr-2 h-4 w-4" />} 
+                        Decline
+                    </Button>
+                    <Button 
+                        className="w-full bg-green-600 hover:bg-green-700"
+                        disabled={isProcessing}
+                        onClick={() => handleStatusUpdate('accepted')}
+                    >
+                        {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+                        Accept
+                    </Button>
+                </div>
             </CardFooter>
         )}
       </Card>

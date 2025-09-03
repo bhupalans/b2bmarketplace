@@ -10,12 +10,13 @@ import { Conversation, Message, User, Product } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Loader2, ArrowLeft, Gavel } from "lucide-react";
+import { Send, Loader2, ArrowLeft, Gavel, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { formatDistanceToNow } from 'date-fns';
 import { OfferCard } from "@/components/offer-card";
 import { CreateOfferDialog } from "@/components/create-offer-dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function ConversationPage() {
   const params = useParams();
@@ -134,6 +135,28 @@ export default function ConversationPage() {
         {messages.map((message) => {
             if (message.offerId) {
                 return <OfferCard key={message.id} offerId={message.offerId} currentUserId={user.id} />;
+            }
+            if (message.offerStatusUpdate) {
+                const isSystemMessage = message.senderId === 'system';
+                const isCurrentUserSender = message.senderId === user.id;
+
+                const getStatusText = () => {
+                    if (isCurrentUserSender) {
+                        return `You have ${message.offerStatusUpdate!.status} the offer.`;
+                    }
+                    if (!isSystemMessage) {
+                        return `${otherParticipant.name} has ${message.offerStatusUpdate!.status} the offer.`;
+                    }
+                    return `Offer ${message.offerStatusUpdate!.status}.`;
+                }
+
+                return (
+                    <div key={message.id} className="flex items-center justify-center my-2">
+                        <div className="text-xs text-center text-muted-foreground rounded-full bg-muted px-3 py-1">
+                            {getStatusText()}
+                        </div>
+                    </div>
+                )
             }
             return (
               <div

@@ -66,7 +66,13 @@ export type Offer = {
   // Denormalized data for easier display
   productTitle: string;
   productImage: string;
+  conversationId: string;
 };
+
+export type OfferStatusUpdate = {
+    offerId: string;
+    status: 'accepted' | 'declined';
+}
 
 export type Message = {
   id: string;
@@ -76,6 +82,7 @@ export type Message = {
   timestamp: Timestamp;
   offerId?: string; // Link to an offer
   isQuoteRequest?: boolean; // Flag for quote requests
+  offerStatusUpdate?: OfferStatusUpdate; // For displaying status changes
 };
 
 export type Conversation = {
