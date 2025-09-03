@@ -5,14 +5,30 @@ import type { FieldValue, Timestamp } from "firebase/firestore";
 export type User = {
   id: string; // This is the Firestore document ID, which is the same as the uid
   uid: string; // This is the Firebase Auth UID
-  name: string;
+  name: string; // This can now be the person's name, or a fallback.
   email: string;
-  username?: string; // Add username as an optional field
+  username?: string;
   avatar: string;
   role: 'buyer' | 'seller' | 'admin';
-  verified?: boolean; // For displaying a "Verified" badge
+  
+  // New production-ready fields
+  companyName?: string;
+  phoneNumber?: string;
+  
+  // Address can be generic, but we'll specify for roles on the frontend
+  address?: {
+    street: string;
+    city: string;
+    state: string;
+    zip: string;
+    country: string;
+  };
+  taxId?: string; // e.g., VAT ID, EIN for sellers
+
+  // Existing fields
+  verified?: boolean;
   businessType?: 'Manufacturer' | 'Distributor' | 'Trading Company' | 'Agent';
-  location?: string;
+  location?: string; // This might become redundant with address, but let's keep it for now.
   memberSince?: number;
   certifications?: string[];
   companyDescription?: string;
