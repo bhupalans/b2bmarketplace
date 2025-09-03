@@ -18,6 +18,8 @@ import { Skeleton } from "./ui/skeleton";
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { Badge } from "./ui/badge";
+import { CheckCircle } from "lucide-react";
 
 interface ProductCardProps {
   product: Product;
@@ -68,31 +70,44 @@ export function ProductCard({ product }: ProductCardProps) {
 
   return (
     <Card className="flex h-full w-full flex-col overflow-hidden transition-all hover:shadow-lg">
-      <CardHeader className="p-0">
-        <Link href={`/products/${product.id}`}>
-          <div className="relative aspect-video w-full">
-            <Image
-              src={product.images[0]}
-              alt={product.title}
-              fill
-              className="object-cover"
-              data-ai-hint="product image"
-            />
-          </div>
-        </Link>
-        <div className="p-6 pb-2">
-          <CardTitle>
-            <Link href={`/products/${product.id}`} className="hover:underline">
+      <Link href={`/products/${product.id}`} className="block p-0">
+        <CardHeader className="p-0">
+            <div className="relative aspect-video w-full">
+              <Image
+                src={product.images[0]}
+                alt={product.title}
+                fill
+                className="object-cover"
+                data-ai-hint="product image"
+              />
+            </div>
+        </CardHeader>
+        <CardContent className="p-6 pb-2">
+            <CardTitle className="hover:underline">
               {product.title}
-            </Link>
-          </CardTitle>
-          <CardDescription className="mt-2 line-clamp-2">
-            {product.description}
-          </CardDescription>
-        </div>
-      </CardHeader>
-      <CardContent className="flex-grow p-6 pt-0">
+            </CardTitle>
+            <CardDescription className="mt-2 line-clamp-2">
+              {product.description}
+            </CardDescription>
+        </CardContent>
+      </Link>
+      <CardContent className="flex-grow p-6 pt-2">
         <p className="text-2xl font-bold text-primary">{formattedPrice}</p>
+         {loadingSeller ? (
+          <Skeleton className="h-5 w-2/3 mt-2" />
+        ) : seller ? (
+          <div className="mt-2 text-sm text-muted-foreground">
+             <Link href={`/sellers/${seller.id}`} className="hover:underline font-medium text-foreground">
+                {seller.name}
+              </Link>
+            {seller.verified && (
+                <Badge variant="secondary" className="ml-2 border-green-600/50 text-green-700">
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    Verified
+                </Badge>
+            )}
+          </div>
+        ) : null}
       </CardContent>
       <CardFooter className="p-6 pt-0">
         {loadingSeller ? (

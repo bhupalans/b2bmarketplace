@@ -51,6 +51,7 @@ export async function seedDatabaseClient() {
     name: "Admin",
     role: "admin",
     username: "admin",
+    verified: true,
     avatar: `https://i.pravatar.cc/150?u=${adminUid}`,
   };
   const adminRef = doc(db, "users", adminUid);

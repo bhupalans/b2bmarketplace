@@ -41,7 +41,7 @@ import { Product, User, Category } from "@/lib/types";
 import { getCategoryPathClient } from "@/lib/firebase";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrency } from "@/contexts/currency-context";
-import { Loader2 } from "lucide-react";
+import { CheckCircle, Loader2 } from "lucide-react";
 
 type ProductData = {
   product: Product;
@@ -142,8 +142,8 @@ export default function ProductDetailPage() {
       </Breadcrumb>
       <div className="grid gap-8 md:grid-cols-2">
         <div className="space-y-8">
-          <Card className="overflow-hidden">
-            <Carousel className="w-full">
+           <Card className="overflow-hidden">
+             <Carousel className="w-full">
               <CarouselContent>
                 {Array.isArray(product.images) && product.images.length > 0 ? (
                   product.images.map((imgSrc, index) => (
@@ -176,8 +176,7 @@ export default function ProductDetailPage() {
               <CarouselPrevious className="absolute left-4" />
               <CarouselNext className="absolute right-4" />
             </Carousel>
-          </Card>
-
+           </Card>
           {product.specifications && product.specifications.length > 0 && (
             <Card>
               <CardHeader>
@@ -203,12 +202,14 @@ export default function ProductDetailPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-3xl">{product.title}</CardTitle>
+               <CardDescription className="pt-2">
+                 <p className="text-3xl font-bold text-primary">
+                  {formattedPrice}
+                </p>
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-primary">
-                {formattedPrice}
-              </p>
-              <p className="mt-4 text-muted-foreground whitespace-pre-wrap">
+              <p className="text-muted-foreground whitespace-pre-wrap">
                 {product.description}
               </p>
             </CardContent>
@@ -222,15 +223,17 @@ export default function ProductDetailPage() {
                   <AvatarFallback>{seller.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>
-                  <CardTitle>
-                    <Link href={`/sellers/${seller.id}`} className="hover:underline">
+                  <CardTitle className="text-base">Sold By</CardTitle>
+                  <CardDescription>
+                    <Link href={`/sellers/${seller.id}`} className="text-lg font-semibold text-foreground hover:underline">
                       {seller.name}
                     </Link>
-                  </CardTitle>
-                  <CardDescription>
-                    <Badge variant="secondary" className="mt-1">
-                      Seller
-                    </Badge>
+                     {seller.verified && (
+                        <Badge variant="secondary" className="ml-2 border-green-600/50 text-green-700">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Verified
+                        </Badge>
+                    )}
                   </CardDescription>
                 </div>
               </CardHeader>

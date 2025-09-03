@@ -9,6 +9,7 @@ export type User = {
   username?: string; // Add username as an optional field
   avatar: string;
   role: 'buyer' | 'seller' | 'admin';
+  verified?: boolean; // For displaying a "Verified" badge
   businessType?: 'Manufacturer' | 'Distributor' | 'Trading Company' | 'Agent';
   location?: string;
   memberSince?: number;
@@ -18,7 +19,7 @@ export type User = {
 
 export type Category = {
   id: string;
-  name: string;
+  name:string;
   parentId: string | null;
   status: 'active' | 'inactive'; // New field for enabling/disabling
   specTemplateId?: string;       // New field to link to a SpecTemplate
