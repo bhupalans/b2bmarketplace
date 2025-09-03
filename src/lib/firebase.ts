@@ -596,7 +596,9 @@ export async function sendMessage(conversationId: string, senderId: string, text
         conversationId,
         senderId,
         text: modifiedMessage,
-        timestamp: serverTimestamp() as Timestamp
+        timestamp: serverTimestamp() as Timestamp,
+        offerId,
+        isQuoteRequest: !!offerId,
     };
 
     if (offerId) {
@@ -710,15 +712,25 @@ export async function sendQuoteRequest(data: {
         productImage: data.productImage,
     });
 
+    let safeRequirements = data.requirements;
+    try {
+        const result = await filterContactDetails({ message: data.requirements });
+        safeRequirements = result.modifiedMessage;
+    } catch (error) {
+        console.error("AI contact filtering failed for quote request. Sending original message.", error);
+        // Fallback to original message if AI fails
+        safeRequirements = data.requirements;
+    }
+
     const formattedMessage = `**New Quote Request**
 **Product:** ${data.productTitle}
 **Quantity:** ${data.quantity}
 
 **Buyer's Message:**
-${data.requirements}
+${safeRequirements}
     `.trim();
 
-    await sendMessage(conversationId, data.buyerId, formattedMessage);
+    await sendMessage(conversationId, data.buyerId, formattedMessage, undefined);
 
     return conversationId;
 }

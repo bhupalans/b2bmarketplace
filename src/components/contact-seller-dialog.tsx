@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useTransition } from "react";
@@ -84,11 +85,7 @@ export function ContactSellerDialog({ product, seller }: ContactSellerDialogProp
   }
 
   if (!firebaseUser) {
-    return (
-      <Button asChild className="w-full" variant="outline">
-        <Link href="/login">Log in to Contact Seller</Link>
-      </Button>
-    );
+    return null; // Don't show the button if not logged in, RequestQuoteDialog will show login button.
   }
 
   if (firebaseUser.uid === seller.uid) {

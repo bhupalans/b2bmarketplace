@@ -1,4 +1,5 @@
 
+
 import type { FieldValue, Timestamp } from "firebase/firestore";
 
 export type User = {
@@ -74,6 +75,7 @@ export type Message = {
   senderId: string;
   timestamp: Timestamp;
   offerId?: string; // Link to an offer
+  isQuoteRequest?: boolean; // Flag for quote requests
 };
 
 export type Conversation = {
