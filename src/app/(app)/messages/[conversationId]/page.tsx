@@ -148,7 +148,11 @@ export default function ConversationPage() {
                       : "bg-muted"
                   )}
                 >
-                  <p className="whitespace-pre-wrap">{message.text}</p>
+                  {message.isQuoteRequest ? (
+                    <p className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: message.text }} />
+                  ) : (
+                    <p className="whitespace-pre-wrap">{message.text}</p>
+                  )}
                   <p className={cn("text-xs mt-1", message.senderId === user?.uid ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
                     {message.timestamp ? formatDistanceToNow(message.timestamp.toDate(), { addSuffix: true }) : 'sending...'}
                   </p>

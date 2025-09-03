@@ -721,15 +721,34 @@ export async function sendQuoteRequest(data: {
         }
     }
 
-    const formattedMessage = `**New Quote Request**
-**Product:** ${data.productTitle}
-**Quantity:** ${data.quantity}
+    const formattedMessage = `<b>New Quote Request</b><br/><b>Product:</b> ${data.productTitle}<br/><b>Quantity:</b> ${data.quantity}<br/><br/><b>Buyer's Message:</b><br/>${safeRequirements}`;
+    
+    // This is a custom function to send the message with the quote request flag
+    const batch = writeBatch(db);
+    const conversationRef = doc(db, 'conversations', conversationId);
+    const messageRef = doc(collection(conversationRef, 'messages'));
 
-**Buyer's Message:**
-${safeRequirements}
-    `.trim();
+    const newMessage: Omit<Message, 'id'> = {
+        conversationId,
+        senderId: data.buyerId,
+        text: formattedMessage,
+        timestamp: serverTimestamp() as Timestamp,
+        isQuoteRequest: true, // Set the flag here
+    };
 
-    await sendMessage(conversationId, data.buyerId, formattedMessage, undefined);
+    batch.set(messageRef, newMessage);
+
+    const lastMessageUpdate = {
+        lastMessage: {
+            text: "A quote request was sent.",
+            senderId: data.buyerId,
+            timestamp: serverTimestamp()
+        }
+    };
+    batch.update(conversationRef, lastMessageUpdate);
+
+    await batch.commit();
+
 
     return conversationId;
 }
