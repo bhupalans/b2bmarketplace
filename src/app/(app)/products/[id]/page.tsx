@@ -183,7 +183,7 @@ export default function ProductDetailPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Technical Specifications</CardTitle>
-              </Header>
+              </CardHeader>
               <CardContent>
                 <Table>
                   <TableBody>
