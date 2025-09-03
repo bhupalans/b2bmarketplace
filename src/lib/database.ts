@@ -109,10 +109,16 @@ export async function getSellerAndProducts(sellerId: string): Promise<{ seller: 
 }
 
 export async function getSellerProducts(sellerId: string): Promise<Product[]> {
-    // This server function gets ALL products for a seller, regardless of status,
-    // for use in the seller's own dashboard/views.
     const querySnapshot = await adminDb.collection("products").where("sellerId", "==", sellerId).get();
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+    return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        const serializableData = {
+            ...data,
+            createdAt: data.createdAt instanceof adminFirestore.Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
+            updatedAt: data.updatedAt instanceof adminFirestore.Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt,
+        };
+        return { id: doc.id, ...serializableData } as Product;
+    });
 }
 
 export async function getCategoryPath(categoryId: string): Promise<Category[]> {
@@ -134,14 +140,8 @@ export async function getCategoryPath(categoryId: string): Promise<Category[]> {
     return path;
 }
 
-export async function getSellerDashboardData(sellerId: string): Promise<{
-  totalRevenue: number;
-  acceptedOffersCount: number;
-  totalProducts: number;
-  productsWithOfferCounts: (Product & { offerCount: number })[];
-} | null> {
+export async function getSellerDashboardData(sellerId: string) {
   try {
-    // Fetch all products and all offers for the seller in parallel
     const [sellerProducts, offersSnapshot] = await Promise.all([
         getSellerProducts(sellerId),
         adminDb.collection("offers").where("sellerId", "==", sellerId).get()
@@ -149,17 +149,13 @@ export async function getSellerDashboardData(sellerId: string): Promise<{
     
     const offers = offersSnapshot.docs.map(doc => doc.data() as Offer);
 
-    // Calculate revenue and counts from accepted offers
     let totalRevenue = 0;
-    let acceptedOffersCount = 0;
     const acceptedOffers = offers.filter(offer => offer.status === 'accepted');
     
     acceptedOffers.forEach(offer => {
         totalRevenue += offer.quantity * offer.pricePerUnit;
-        acceptedOffersCount++;
     });
 
-    // Create a map to count offers per product
     const offerCountsByProductId = new Map<string, number>();
     offers.forEach(offer => {
         offerCountsByProductId.set(
@@ -168,21 +164,23 @@ export async function getSellerDashboardData(sellerId: string): Promise<{
         );
     });
 
-    // Combine product data with offer counts
     const productsWithOfferCounts = sellerProducts.map(product => ({
         ...product,
         offerCount: offerCountsByProductId.get(product.id) || 0,
-    })).sort((a, b) => b.offerCount - a.offerCount); // Sort by most offers
+    })).sort((a, b) => b.offerCount - a.offerCount);
 
     return {
-      totalRevenue,
-      acceptedOffersCount,
-      totalProducts: sellerProducts.length,
-      productsWithOfferCounts,
+      success: true,
+      data: {
+        totalRevenue,
+        acceptedOffersCount: acceptedOffers.length,
+        totalProducts: sellerProducts.length,
+        productsWithOfferCounts,
+      }
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching seller dashboard data:", error);
-    return null;
+    return { success: false, error: error.message };
   }
 }
 

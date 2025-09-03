@@ -24,6 +24,7 @@ import {
   Label,
 } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
 
 type DashboardData = {
   totalRevenue: number;
@@ -36,17 +37,36 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (user?.role === "seller") {
       getSellerDashboardData(user.id)
-        .then((dashboardData) => {
-          setData(dashboardData);
-          setLoading(false);
+        .then((result) => {
+          if (result.success && result.data) {
+            setData(result.data);
+          } else {
+             toast({
+              variant: "destructive",
+              title: "Error fetching dashboard",
+              description: result.error || "An unknown error occurred.",
+            });
+          }
         })
-        .catch(console.error);
+        .catch((error) => {
+            console.error(error);
+            toast({
+              variant: "destructive",
+              title: "Error fetching dashboard",
+              description: "Could not load dashboard data.",
+            });
+        })
+        .finally(() => setLoading(false));
+    } else if (user) {
+        // If the user is not a seller, stop loading.
+        setLoading(false);
     }
-  }, [user]);
+  }, [user, toast]);
 
   const formattedRevenue = new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -55,11 +75,12 @@ export default function DashboardPage() {
   
   const chartData = data?.productsWithOfferCounts
     .filter(p => p.offerCount > 0)
-    .slice(0, 5) // Get top 5
+    .sort((a,b) => a.offerCount - b.offerCount) // sort ascending for horizontal chart
+    .slice(-5) // Get top 5
     .map(p => ({
         name: p.title.length > 15 ? `${p.title.substring(0, 15)}...` : p.title,
         offers: p.offerCount
-    })).reverse();
+    }));
 
 
   return (
@@ -71,6 +92,8 @@ export default function DashboardPage() {
           <Skeleton className="h-32" />
           <Skeleton className="h-32" />
         </div>
+      ) : !data ? (
+         <Card><CardContent className="p-6">Could not load dashboard data.</CardContent></Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
@@ -122,6 +145,8 @@ export default function DashboardPage() {
 
       {loading ? (
         <Skeleton className="h-96" />
+      ) : !data ? (
+        <Card><CardContent className="p-6">Could not load chart data.</CardContent></Card>
       ) : (
         <Card>
           <CardHeader>
