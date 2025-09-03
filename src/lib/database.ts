@@ -3,7 +3,7 @@
 'use server';
 
 import { adminDb } from "./firebase-admin";
-import { Product, Category, User, Message, Conversation } from "./types";
+import { Product, Category, User, Message, Conversation, Offer } from "./types";
 import { mockCategories, mockProducts } from "./mock-data";
 import { firestore, firestore as adminFirestore } from "firebase-admin";
 
@@ -141,10 +141,38 @@ export async function getSellerDashboardData(sellerId: string): Promise<{
   productsWithOfferCounts: (Product & { offerCount: number })[];
 } | null> {
   try {
-    const sellerProducts = await getSellerProducts(sellerId);
-    const acceptedOffersCount = 0; 
-    const totalRevenue = 0; 
-    const productsWithOfferCounts = sellerProducts.map(product => ({ ...product, offerCount: 0 })).sort((a, b) => b.offerCount - a.offerCount);
+    // Fetch all products and all offers for the seller in parallel
+    const [sellerProducts, offersSnapshot] = await Promise.all([
+        getSellerProducts(sellerId),
+        adminDb.collection("offers").where("sellerId", "==", sellerId).get()
+    ]);
+    
+    const offers = offersSnapshot.docs.map(doc => doc.data() as Offer);
+
+    // Calculate revenue and counts from accepted offers
+    let totalRevenue = 0;
+    let acceptedOffersCount = 0;
+    const acceptedOffers = offers.filter(offer => offer.status === 'accepted');
+    
+    acceptedOffers.forEach(offer => {
+        totalRevenue += offer.quantity * offer.pricePerUnit;
+        acceptedOffersCount++;
+    });
+
+    // Create a map to count offers per product
+    const offerCountsByProductId = new Map<string, number>();
+    offers.forEach(offer => {
+        offerCountsByProductId.set(
+            offer.productId,
+            (offerCountsByProductId.get(offer.productId) || 0) + 1
+        );
+    });
+
+    // Combine product data with offer counts
+    const productsWithOfferCounts = sellerProducts.map(product => ({
+        ...product,
+        offerCount: offerCountsByProductId.get(product.id) || 0,
+    })).sort((a, b) => b.offerCount - a.offerCount); // Sort by most offers
 
     return {
       totalRevenue,
@@ -157,6 +185,7 @@ export async function getSellerDashboardData(sellerId: string): Promise<{
     return null;
   }
 }
+
 
 export async function getAllConversationsForAdmin(): Promise<Conversation[]> {
     const snapshot = await adminDb.collection('conversations').orderBy('lastMessage.timestamp', 'desc').get();
