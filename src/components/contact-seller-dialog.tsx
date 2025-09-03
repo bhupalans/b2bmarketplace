@@ -76,7 +76,7 @@ export function ContactSellerDialog({ product, seller }: ContactSellerDialogProp
 
   if (authLoading) {
     return (
-      <Button disabled className="w-full">
+      <Button disabled className="w-full" variant="outline">
          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
          Loading...
       </Button>
@@ -85,7 +85,7 @@ export function ContactSellerDialog({ product, seller }: ContactSellerDialogProp
 
   if (!firebaseUser) {
     return (
-      <Button asChild className="w-full">
+      <Button asChild className="w-full" variant="outline">
         <Link href="/login">Log in to Contact Seller</Link>
       </Button>
     );
@@ -98,7 +98,7 @@ export function ContactSellerDialog({ product, seller }: ContactSellerDialogProp
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="w-full">
+        <Button className="w-full" variant="outline">
             <MessageSquare className="mr-2 h-4 w-4" />
             Contact Seller
         </Button>

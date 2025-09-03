@@ -571,10 +571,19 @@ export function streamMessages(conversationId: string, callback: (messages: Mess
 }
 
 export async function sendMessage(conversationId: string, senderId: string, text: string, offerId?: string): Promise<void> {
-    const { modifiedMessage } = await filterContactDetails({ message: text });
+    let modifiedMessage = text;
+    try {
+        const result = await filterContactDetails({ message: text });
+        modifiedMessage = result.modifiedMessage;
+    } catch (error) {
+        console.error("AI contact filtering failed. Sending original message.", error);
+        // Fallback to original message if AI fails
+        modifiedMessage = text;
+    }
 
     // Do not send an empty message if the entire message was redacted.
     if (modifiedMessage.trim().length === 0) {
+        console.log("Message was fully redacted. Not sending.");
         return;
     }
     
@@ -684,6 +693,37 @@ export async function getOfferClient(offerId: string): Promise<Offer | null> {
     return { id: offerSnap.id, ...serializableData } as Offer;
 }
 
+export async function sendQuoteRequest(data: {
+    buyerId: string;
+    sellerId: string;
+    productId: string;
+    productTitle: string;
+    productImage: string;
+    quantity: number;
+    requirements: string;
+}): Promise<string> {
+    const { conversationId } = await findOrCreateConversation({
+        buyerId: data.buyerId,
+        sellerId: data.sellerId,
+        productId: data.productId,
+        productTitle: data.productTitle,
+        productImage: data.productImage,
+    });
+
+    const formattedMessage = `
+**New Quote Request**
+**Product:** ${data.productTitle}
+**Quantity:** ${data.quantity}
+
+**Buyer's Message:**
+${data.requirements}
+    `.trim();
+
+    await sendMessage(conversationId, data.buyerId, formattedMessage);
+
+    return conversationId;
+}
+
 
 // --- Admin Client Functions ---
 
@@ -725,5 +765,3 @@ export function streamMessagesForAdmin(conversationId: string, callback: (messag
 
 
 export { app, auth, db, storage };
-
-    

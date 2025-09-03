@@ -42,6 +42,8 @@ import { getCategoryPathClient } from "@/lib/firebase";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrency } from "@/contexts/currency-context";
 import { CheckCircle, Loader2 } from "lucide-react";
+import { RequestQuoteDialog } from "@/components/request-quote-dialog";
+import { Button } from "@/components/ui/button";
 
 type ProductData = {
   product: Product;
@@ -181,7 +183,7 @@ export default function ProductDetailPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Technical Specifications</CardTitle>
-              </CardHeader>
+              </Header>
               <CardContent>
                 <Table>
                   <TableBody>
@@ -237,8 +239,9 @@ export default function ProductDetailPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent>
-                <ContactSellerDialog product={product} seller={seller} />
+              <CardContent className="grid grid-cols-2 gap-2">
+                 <RequestQuoteDialog product={product} seller={seller} />
+                 <ContactSellerDialog product={product} seller={seller} />
               </CardContent>
             </Card>
           )}
