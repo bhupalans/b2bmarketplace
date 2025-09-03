@@ -19,10 +19,12 @@ import {
   MapPin,
   Trophy,
 } from "lucide-react";
-import { ContactSellerDialog } from "@/components/contact-seller-dialog";
 import { useEffect, useState } from "react";
 import { getSellerAndProductsClient } from "@/lib/firebase";
 import { Product, User } from "@/lib/types";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/auth-context";
+import Link from "next/link";
 
 type SellerPageData = {
   seller: User;
@@ -32,6 +34,7 @@ type SellerPageData = {
 export default function SellerProfilePage() {
   const params = useParams();
   const { id } = params;
+  const { user } = useAuth();
   const [data, setData] = useState<SellerPageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -74,6 +77,8 @@ export default function SellerProfilePage() {
   }
 
   const { seller, products } = data;
+  const isOwnProfile = user?.id === seller.id;
+
 
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
@@ -90,7 +95,15 @@ export default function SellerProfilePage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
-             <ContactSellerDialog seller={seller} />
+            {isOwnProfile ? (
+                 <Button asChild>
+                    <Link href="/my-products">Manage My Products</Link>
+                 </Button>
+            ) : (
+                <p className="text-sm text-muted-foreground">
+                    To contact this seller, please request a quote on one of their products.
+                </p>
+            )}
           </CardContent>
         </Card>
 

@@ -36,7 +36,6 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import { ContactSellerDialog } from "@/components/contact-seller-dialog";
 import { Product, User, Category } from "@/lib/types";
 import { getCategoryPathClient } from "@/lib/firebase";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -239,9 +238,8 @@ export default function ProductDetailPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-2">
+              <CardContent>
                  <RequestQuoteDialog product={product} seller={seller} />
-                 <ContactSellerDialog product={product} seller={seller} />
               </CardContent>
             </Card>
           )}

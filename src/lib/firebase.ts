@@ -710,8 +710,7 @@ export async function sendQuoteRequest(data: {
         productImage: data.productImage,
     });
 
-    const formattedMessage = `
-**New Quote Request**
+    const formattedMessage = `**New Quote Request**
 **Product:** ${data.productTitle}
 **Quantity:** ${data.quantity}
 

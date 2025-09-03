@@ -13,13 +13,13 @@ import {
 } from "@/components/ui/card";
 import { useCurrency } from "@/contexts/currency-context";
 import { Product, User } from "@/lib/types";
-import { ContactSellerDialog } from "./contact-seller-dialog";
 import { Skeleton } from "./ui/skeleton";
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Badge } from "./ui/badge";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, FileText } from "lucide-react";
+import { RequestQuoteDialog } from "./request-quote-dialog";
 
 interface ProductCardProps {
   product: Product;
@@ -113,7 +113,7 @@ export function ProductCard({ product }: ProductCardProps) {
         {loadingSeller ? (
             <Skeleton className="h-10 w-full" />
         ) : seller ? (
-            <ContactSellerDialog product={product} seller={seller} />
+            <RequestQuoteDialog product={product} seller={seller} />
         ) : (
             <div className="text-sm text-muted-foreground">Seller not available</div>
         )}
