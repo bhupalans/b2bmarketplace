@@ -67,13 +67,13 @@ export function UserNav() {
           <DropdownMenuItem asChild>
             <Link href={`/sellers/${user.id}`}>
               <User className="mr-2 h-4 w-4" />
-              <span>Profile</span>
+              <span>Public Profile</span>
             </Link>
           </DropdownMenuItem>
            <DropdownMenuItem asChild>
-             <Link href="/messages">
-              <MessageSquare className="mr-2 h-4 w-4" />
-              <span>Messages</span>
+             <Link href="/profile">
+              <Settings className="mr-2 h-4 w-4" />
+              <span>My Profile</span>
             </Link>
           </DropdownMenuItem>
           {user.role === 'seller' && (
@@ -92,13 +92,11 @@ export function UserNav() {
               </DropdownMenuItem>
             </>
           )}
-          <DropdownMenuItem>
-            <CreditCard className="mr-2 h-4 w-4" />
-            <span>Billing</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem>
-            <Settings className="mr-2 h-4 w-4" />
-            <span>Settings</span>
+           <DropdownMenuItem asChild>
+             <Link href="/messages">
+              <MessageSquare className="mr-2 h-4 w-4" />
+              <span>Messages</span>
+            </Link>
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
