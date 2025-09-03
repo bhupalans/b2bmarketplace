@@ -10,11 +10,12 @@ import { Conversation, Message, User, Product } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Loader2, ArrowLeft } from "lucide-react";
+import { Send, Loader2, ArrowLeft, Gavel } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { formatDistanceToNow } from 'date-fns';
 import { OfferCard } from "@/components/offer-card";
+import { CreateOfferDialog } from "@/components/create-offer-dialog";
 
 export default function ConversationPage() {
   const params = useParams();
@@ -99,9 +100,11 @@ export default function ConversationPage() {
     return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
 
-  if (!conversation || !otherParticipant) {
+  if (!conversation || !otherParticipant || !user) {
     return <div className="flex h-full items-center justify-center"><p>Conversation not found.</p></div>;
   }
+
+  const isSeller = user.role === 'seller' && user.id === conversation.productSellerId;
 
   return (
     <div className="flex h-[calc(100vh-theme(spacing.14)*2)] flex-col">
@@ -119,12 +122,18 @@ export default function ConversationPage() {
             Regarding: <Link href={`/products/${conversation.productId}`} className="hover:underline">{conversation.productTitle}</Link>
           </p>
         </div>
+        {isSeller && (
+            <CreateOfferDialog 
+                conversation={conversation}
+                buyer={otherParticipant}
+            />
+        )}
       </header>
 
        <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message) => {
             if (message.offerId) {
-                return <OfferCard key={message.id} offerId={message.offerId} currentUserId={user!.id} />;
+                return <OfferCard key={message.id} offerId={message.offerId} currentUserId={user.id} />;
             }
             return (
               <div

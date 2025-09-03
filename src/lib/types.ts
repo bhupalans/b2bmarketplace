@@ -61,8 +61,8 @@ export type Offer = {
   status: 'pending' | 'accepted' | 'declined' | 'withdrawn';
   sellerId: string;
   buyerId: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: Timestamp | string;
+  updatedAt: Timestamp | string;
   // Denormalized data for easier display
   productTitle: string;
   productImage: string;
@@ -84,6 +84,7 @@ export type Conversation = {
     productId: string;
     productTitle: string;
     productImage: string;
+    productSellerId: string; // Keep track of the seller for the product
     createdAt: Timestamp;
     lastMessage: {
         text: string;

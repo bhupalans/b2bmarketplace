@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import Image from "next/image";
 import { Gavel, Check, X, Loader2 } from "lucide-react";
-import { format } from 'date-fns';
+import { format, formatISO } from 'date-fns';
 
 interface OfferCardProps {
   offerId: string;
@@ -73,7 +73,14 @@ export function OfferCard({ offerId, currentUserId }: OfferCardProps) {
   const isSeller = currentUserId === offer.sellerId;
   const totalPrice = (offer.quantity * offer.pricePerUnit).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
   const unitPrice = offer.pricePerUnit.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-  const createdAtDate = offer.createdAt ? new Date(offer.createdAt as unknown as string) : new Date();
+  
+  // Ensure createdAt is a Date object before formatting
+  const createdAtDate = offer.createdAt instanceof Date 
+    ? offer.createdAt 
+    : offer.createdAt && typeof offer.createdAt === 'string'
+    ? new Date(offer.createdAt)
+    : new Date();
+
 
   return (
     <div className="flex justify-center my-4">

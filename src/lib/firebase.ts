@@ -448,6 +448,13 @@ export async function findOrCreateConversation(data: {
     productTitle: string;
     productImage: string;
 }): Promise<{ conversationId: string, isNew: boolean }> {
+  const productSnap = await getDocClient(doc(db, "products", data.productId));
+  if (!productSnap.exists()) {
+    throw new Error("Cannot start conversation: Product does not exist.");
+  }
+  const productData = productSnap.data();
+  const productSellerId = productData.sellerId;
+
 
   const conversationQuery = query(
     collection(db, 'conversations'),
@@ -475,6 +482,7 @@ export async function findOrCreateConversation(data: {
     productId: data.productId,
     productTitle: data.productTitle,
     productImage: data.productImage,
+    productSellerId: productSellerId, // Store the seller's ID for easy access
     createdAt: serverTimestamp(),
     lastMessage: {
         text: `Conversation about "${data.productTitle}" started.`,
@@ -570,25 +578,23 @@ export function streamMessages(conversationId: string, callback: (messages: Mess
     return unsubscribe;
 }
 
-export async function sendMessage(conversationId: string, senderId: string, text: string, offerId?: string): Promise<void> {
+export async function sendMessage(conversationId: string, senderId: string, text: string, options?: { offerId?: string, isQuoteRequest?: boolean }): Promise<void> {
     let modifiedMessage = text;
-    try {
-        const result = await filterContactDetails({ message: text });
-        modifiedMessage = result.modifiedMessage;
-    } catch (error) {
-        console.error("AI contact filtering failed. Sending original message.", error);
-        // Fallback to original message if AI fails
-        modifiedMessage = text;
+    if (!options?.isQuoteRequest) {
+        try {
+            const result = await filterContactDetails({ message: text });
+            modifiedMessage = result.modifiedMessage;
+        } catch (error) {
+            console.error("AI contact filtering failed. Sending original message.", error);
+        }
     }
 
-    // Do not send an empty message if the entire message was redacted.
     if (modifiedMessage.trim().length === 0) {
         console.log("Message was fully redacted. Not sending.");
         return;
     }
     
     const batch = writeBatch(db);
-
     const conversationRef = doc(db, 'conversations', conversationId);
     const messageRef = doc(collection(conversationRef, 'messages'));
     
@@ -597,16 +603,18 @@ export async function sendMessage(conversationId: string, senderId: string, text
         senderId,
         text: modifiedMessage,
         timestamp: serverTimestamp() as Timestamp,
-        isQuoteRequest: !!offerId,
     };
 
-    if (offerId) {
-        newMessage.offerId = offerId;
+    if (options?.offerId) {
+        newMessage.offerId = options.offerId;
+    }
+    if (options?.isQuoteRequest) {
+        newMessage.isQuoteRequest = true;
     }
 
     const lastMessageUpdate = {
         lastMessage: {
-            text: offerId ? "An offer was sent." : modifiedMessage,
+            text: options?.offerId ? "An offer was sent." : modifiedMessage,
             senderId,
             timestamp: serverTimestamp()
         }
@@ -635,48 +643,22 @@ export async function createOffer(data: {
     }
     const product = productSnap.data() as Product;
 
-    const newOffer: Omit<Offer, 'id'> = {
+    const newOfferData: Omit<Offer, 'id'> = {
         ...data,
         status: 'pending',
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
+        createdAt: serverTimestamp() as Timestamp,
+        updatedAt: serverTimestamp() as Timestamp,
         productTitle: product.title,
         productImage: product.images?.[0] || '',
     };
     
-    // Create a single batch to perform all writes atomically
-    const batch = writeBatch(db);
+    const offerRef = await addDoc(collection(db, "offers"), newOfferData);
+    
+    // Now send the message with the ID of the created offer
+    await sendMessage(data.conversationId, data.sellerId, `I've sent a formal offer for ${data.quantity} x ${product.title}.`, { offerId: offerRef.id });
 
-    // 1. Create a new document reference for the offer
-    const offerRef = doc(collection(db, "offers"));
-    batch.set(offerRef, newOffer);
-
-    // 2. Create the message card for the offer
-    const messageRef = doc(collection(db, 'conversations', data.conversationId, 'messages'));
-    const offerMessage: Omit<Message, 'id'> = {
-        conversationId: data.conversationId,
-        senderId: data.sellerId,
-        text: `I've sent a formal offer for ${data.quantity} x ${product.title}.`,
-        timestamp: serverTimestamp() as Timestamp,
-        offerId: offerRef.id, // Use the ID of the new offer reference
-    };
-    batch.set(messageRef, offerMessage);
-    
-    // 3. Update the lastMessage on the conversation
-    const conversationRef = doc(db, 'conversations', data.conversationId);
-    const lastMessageUpdate = {
-        lastMessage: {
-            text: "An offer was sent.",
-            senderId: data.sellerId,
-            timestamp: serverTimestamp()
-        }
-    };
-    batch.update(conversationRef, lastMessageUpdate);
-    
-    // Commit all operations at once
-    await batch.commit();
-    
-    return { id: offerRef.id, ...newOffer };
+    const newOfferSnap = await getDocClient(offerRef);
+    return { id: newOfferSnap.id, ...newOfferSnap.data() } as Offer;
 }
 
 export async function getOfferClient(offerId: string): Promise<Offer | null> {
@@ -723,32 +705,7 @@ export async function sendQuoteRequest(data: {
 
     const formattedMessage = `<b>New Quote Request</b><br/><b>Product:</b> ${data.productTitle}<br/><b>Quantity:</b> ${data.quantity}<br/><br/><b>Buyer's Message:</b><br/>${safeRequirements}`;
     
-    // This is a custom function to send the message with the quote request flag
-    const batch = writeBatch(db);
-    const conversationRef = doc(db, 'conversations', conversationId);
-    const messageRef = doc(collection(conversationRef, 'messages'));
-
-    const newMessage: Omit<Message, 'id'> = {
-        conversationId,
-        senderId: data.buyerId,
-        text: formattedMessage,
-        timestamp: serverTimestamp() as Timestamp,
-        isQuoteRequest: true, // Set the flag here
-    };
-
-    batch.set(messageRef, newMessage);
-
-    const lastMessageUpdate = {
-        lastMessage: {
-            text: "A quote request was sent.",
-            senderId: data.buyerId,
-            timestamp: serverTimestamp()
-        }
-    };
-    batch.update(conversationRef, lastMessageUpdate);
-
-    await batch.commit();
-
+    await sendMessage(conversationId, data.buyerId, formattedMessage, { isQuoteRequest: true });
 
     return conversationId;
 }
