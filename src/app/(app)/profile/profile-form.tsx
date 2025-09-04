@@ -41,14 +41,14 @@ import { useAuth } from "@/contexts/auth-context";
 
 const profileSchema = z.object({
   name: z.string().min(2, "Name is too short."),
-  companyName: z.string().min(2, "Company name is too short."),
-  phoneNumber: z.string().min(10, "Please enter a valid phone number."),
+  companyName: z.string().optional(),
+  phoneNumber: z.string().optional(),
   address: z.object({
-    street: z.string().min(2, "Street is required."),
-    city: z.string().min(2, "City is required."),
-    state: z.string().min(1, "State/Province is required."),
-    zip: z.string().min(3, "ZIP/Postal Code is required."),
-    country: z.string().min(1, "Country is required."),
+    street: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    zip: z.string().optional(),
+    country: z.string().optional(),
   }),
   // Seller-specific fields
   companyDescription: z.string().optional(),
