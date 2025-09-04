@@ -36,6 +36,8 @@ import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { countries, statesProvinces } from "@/lib/geography-data";
+import { updateUserProfile } from "@/app/user-actions";
+import { useAuth } from "@/contexts/auth-context";
 
 const profileSchema = z.object({
   name: z.string().min(2, "Name is too short."),
@@ -65,6 +67,7 @@ interface ProfileFormProps {
 export function ProfileForm({ user }: ProfileFormProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
+  const { firebaseUser } = useAuth(); // We need firebaseUser for the ID.
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
@@ -102,14 +105,30 @@ export function ProfileForm({ user }: ProfileFormProps) {
   }, [watchedCountry, form]);
 
   const onSubmit = (values: ProfileFormData) => {
-    startTransition(() => {
-      console.log("Submitting:", values);
-      toast({
-        title: "Profile Updated",
-        description: "Your information has been successfully saved.",
-      });
-      // Here you would call a server action or API route to save the data to Firestore
-      // e.g., await updateUserProfile(user.id, values);
+    if (!firebaseUser) {
+        toast({
+            variant: "destructive",
+            title: "Authentication Error",
+            description: "You must be logged in to update your profile.",
+        });
+        return;
+    }
+
+    startTransition(async () => {
+      const result = await updateUserProfile(firebaseUser.uid, values);
+
+      if (result.success) {
+         toast({
+            title: "Profile Updated",
+            description: "Your information has been successfully saved.",
+        });
+      } else {
+        toast({
+            variant: "destructive",
+            title: "Update Failed",
+            description: result.error || "An unknown error occurred.",
+        });
+      }
     });
   };
 
