@@ -387,31 +387,38 @@ export function ProfileForm({ user }: ProfileFormProps) {
                      <h3 className="text-md font-medium">
                         Business Verification ({activeTemplate.countryName})
                      </h3>
-                    {activeTemplate.fields.map(field => (
+                    {activeTemplate.fields.map(fieldTemplate => (
                         <FormField
-                            key={field.name}
+                            key={fieldTemplate.name}
                             control={form.control}
-                            name={`verificationDetails.${field.name}` as const}
-                            defaultValue=""
+                            name={`verificationDetails.${fieldTemplate.name}` as const}
+                            defaultValue={user?.verificationDetails?.[fieldTemplate.name] || ""}
                             rules={{ 
-                                required: field.required ? 'This field is required.' : false,
-                                pattern: field.validationRegex ? {
-                                    value: new RegExp(field.validationRegex),
-                                    message: `Please enter a valid ${field.label}.`
+                                required: fieldTemplate.required ? 'This field is required.' : false,
+                                pattern: fieldTemplate.validationRegex ? {
+                                    value: new RegExp(fieldTemplate.validationRegex),
+                                    message: `Please enter a valid ${fieldTemplate.label}.`
                                 } : undefined
                             }}
-                            render={({ field: formField }) => (
+                            render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>{field.label}</FormLabel>
+                                    <FormLabel>{fieldTemplate.label}</FormLabel>
                                     <FormControl>
                                         <Input 
-                                            placeholder={`Enter your ${field.label}`}
-                                            {...formField}
-                                            value={formField.value || ''}
+                                            placeholder={`Enter your ${fieldTemplate.label}`}
+                                            {...field}
+                                            value={field.value || ''}
+                                            onChange={(e) => {
+                                                if (fieldTemplate.name === 'gstn') {
+                                                    field.onChange(e.target.value.toUpperCase());
+                                                } else {
+                                                    field.onChange(e);
+                                                }
+                                            }}
                                         />
                                     </FormControl>
                                     <FormDescription>
-                                        {field.helperText}
+                                        {fieldTemplate.helperText}
                                     </FormDescription>
                                     <FormMessage />
                                 </FormItem>
@@ -434,5 +441,3 @@ export function ProfileForm({ user }: ProfileFormProps) {
     </Form>
   );
 }
-
-    
