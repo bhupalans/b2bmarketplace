@@ -406,7 +406,7 @@ export async function deleteSpecTemplateClient(templateId: string): Promise<void
 export async function getVerificationTemplatesClient(): Promise<VerificationTemplate[]> {
     const ref = collection(db, "verificationTemplates");
     const snapshot = await getDocs(ref);
-    return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as VerificationTemplate));
+    return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...convertTimestamps(docSnap.data()) } as VerificationTemplate));
 }
 
 

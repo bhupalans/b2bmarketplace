@@ -106,34 +106,31 @@ export const mockVerificationTemplates: VerificationTemplate[] = [
 ];
 
 export const mockCategories: Category[] = [
-  // Level 1
-  { id: 'cat-1', name: 'Industrial Supplies', parentId: null },
-  { id: 'cat-2', name: 'Raw Materials', parentId: null },
-  { id: 'cat-3', name: 'Electronics', parentId: null },
-  { id: 'cat-4', name: 'Beauty & Personal Care', parentId: null },
+  { id: 'cat-1', name: 'Industrial Supplies', parentId: null, status: 'active' },
+  { id: 'cat-2', name: 'Raw Materials', parentId: null, status: 'active' },
+  { id: 'cat-3', name: 'Electronics', parentId: null, status: 'active' },
+  { id: 'cat-4', name: 'Beauty & Personal Care', parentId: null, status: 'active' },
 
-  // Level 2
-  { id: 'cat-1-1', name: 'Mechanical Components', parentId: 'cat-1' },
-  { id: 'cat-1-2', name: 'Conveying Systems', parentId: 'cat-1' },
+  { id: 'cat-1-1', name: 'Mechanical Components', parentId: 'cat-1', status: 'active' },
+  { id: 'cat-1-2', name: 'Conveying Systems', parentId: 'cat-1', status: 'active' },
 
-  { id: 'cat-2-1', name: 'Textiles', parentId: 'cat-2' },
-  { id: 'cat-2-2', name: 'Metals & Alloys', parentId: 'cat-2' },
+  { id: 'cat-2-1', name: 'Textiles', parentId: 'cat-2', status: 'active' },
+  { id: 'cat-2-2', name: 'Metals & Alloys', parentId: 'cat-2', status: 'active' },
   
-  { id: 'cat-3-1', name: 'Electronic Components', parentId: 'cat-3' },
+  { id: 'cat-3-1', name: 'Electronic Components', parentId: 'cat-3', status: 'active' },
 
-  { id: 'cat-4-1', name: 'Hair Care & Styling', parentId: 'cat-4' },
+  { id: 'cat-4-1', name: 'Hair Care & Styling', parentId: 'cat-4', status: 'active' },
 
-  // Level 3
-  { id: 'cat-1-1-1', name: 'Widgets', parentId: 'cat-1-1' },
-  { id: 'cat-1-1-2', name: 'Gears & Cogs', parentId: 'cat-1-1' },
-  { id: 'cat-1-2-1', name: 'Belt Conveyors', parentId: 'cat-1-2' },
+  { id: 'cat-1-1-1', name: 'Widgets', parentId: 'cat-1-1', status: 'active' },
+  { id: 'cat-1-1-2', name: 'Gears & Cogs', parentId: 'cat-1-1', status: 'active' },
+  { id: 'cat-1-2-1', name: 'Belt Conveyors', parentId: 'cat-1-2', status: 'active' },
 
-  { id: 'cat-2-1-1', name: 'Cotton', parentId: 'cat-2-1' },
-  { id: 'cat-2-2-1', name: 'Titanium', parentId: 'cat-2-2' },
+  { id: 'cat-2-1-1', name: 'Cotton', parentId: 'cat-2-1', status: 'active' },
+  { id: 'cat-2-2-1', name: 'Titanium', parentId: 'cat-2-2', status: 'active' },
 
-  { id: 'cat-3-1-1', name: 'Printed Circuit Boards (PCBs)', parentId: 'cat-3-1' },
+  { id: 'cat-3-1-1', name: 'Printed Circuit Boards (PCBs)', parentId: 'cat-3-1', status: 'active' },
 
-  { id: 'cat-4-1-1', name: 'Wigs & Hairpieces', parentId: 'cat-4-1' },
+  { id: 'cat-4-1-1', name: 'Wigs & Hairpieces', parentId: 'cat-4-1', status: 'active' },
 ];
 
 export const mockProducts: Product[] = [
@@ -149,7 +146,8 @@ export const mockProducts: Product[] = [
         { name: 'Material', value: 'Reinforced Steel' },
         { name: 'Weight', value: '15.5 kg' },
         { name: 'SKU', value: 'WID-IND-001' },
-    ]
+    ],
+    status: 'approved'
   },
   {
     id: 'prod-2',
@@ -164,7 +162,8 @@ export const mockProducts: Product[] = [
         { name: 'Units per Set', value: '12' },
         { name: 'Tolerance', value: '±0.01mm' },
         { name: 'SKU', value: 'COG-PRE-012' },
-    ]
+    ],
+    status: 'approved'
   },
   {
     id: 'prod-3',
@@ -178,7 +177,8 @@ export const mockProducts: Product[] = [
         { name: 'Material', value: 'Organic Cotton' },
         { name: 'Weight per Bale', value: '1000 kg' },
         { name: 'Certification', value: 'GOTS Certified' },
-    ]
+    ],
+    status: 'approved'
   },
   {
     id: 'prod-4',
@@ -192,7 +192,8 @@ export const mockProducts: Product[] = [
         { name: 'Layers', value: '4' },
         { name: 'Material', value: 'FR-4' },
         { name: 'Quantity', value: '100 boards' },
-    ]
+    ],
+    status: 'approved'
   },
   {
     id: 'prod-5',
@@ -206,7 +207,8 @@ export const mockProducts: Product[] = [
         { name: 'Length', value: '10 meters' },
         { name: 'Speed', value: '0-2 m/s' },
         { name: 'Motor', value: '2 HP Brushless DC' },
-    ]
+    ],
+    status: 'approved'
   },
   {
     id: 'prod-6',
@@ -220,7 +222,8 @@ export const mockProducts: Product[] = [
         { name: 'Alloy', value: 'Ti-6Al-4V' },
         { name: 'Length', value: '1 meter' },
         { name: 'Quantity', value: '50 rods' },
-    ]
+    ],
+    status: 'approved'
   },
   {
     id: 'prod-7',
@@ -236,7 +239,8 @@ export const mockProducts: Product[] = [
         { name: 'Cap Construction', value: 'Lace Front' },
         { name: 'Length', value: '22 inches' },
         { name: 'Color', value: 'Natural Black' },
-    ]
+    ],
+    status: 'approved'
   },
 ];
 
@@ -249,38 +253,41 @@ export const mockOffers: Record<string, Offer> = {
     notes: 'Bulk discount applied. Delivery within 14 business days.',
     status: 'pending',
     sellerId: 'user-2',
-    buyerId: 'user-1'
+    buyerId: 'user-1',
+    conversationId: '',
+    productTitle: '',
+    productImage: ''
   },
 };
 
 export const mockMessages: Message[] = [
     {
         id: 'msg-1',
+        conversationId: '',
         text: 'Hello, I am interested in the Industrial Grade Widgets. Can you provide the spec sheet?',
-        timestamp: Date.now() - 1000 * 60 * 10,
+        timestamp: new Date() as any,
         senderId: 'user-1',
-        recipientId: 'user-2',
     },
     {
         id: 'msg-2',
+        conversationId: '',
         text: 'Of course, I am attaching it now. Let me know if you have any more questions.',
-        timestamp: Date.now() - 1000 * 60 * 8,
+        timestamp: new Date() as any,
         senderId: 'user-2',
-        recipientId: 'user-1',
     },
     {
       id: 'msg-3',
+      conversationId: '',
       text: 'After reviewing, we\'d like to place a large order. What is the price for 500 units?',
-      timestamp: Date.now() - 1000 * 60 * 5,
+      timestamp: new Date() as any,
       senderId: 'user-1',
-      recipientId: 'user-2',
     },
     {
       id: 'msg-4',
+      conversationId: '',
       text: 'For 500 units, I can offer a price of $1100 per unit. I\'ve created a formal offer for you to review.',
-      timestamp: Date.now() - 1000 * 60 * 2,
+      timestamp: new Date() as any,
       senderId: 'user-2',
-      recipientId: 'user-1',
       offerId: 'offer-1'
     }
 ];
