@@ -189,7 +189,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                   <FormItem>
                     <FormLabel>Company Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., Acme Inc." {...field} />
+                      <Input placeholder="e.g., Acme Inc." {...field} value={field.value || ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -203,7 +203,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                 <FormItem>
                   <FormLabel>Business Phone Number</FormLabel>
                   <FormControl>
-                    <Input placeholder="+1 (555) 123-4567" {...field} />
+                    <Input placeholder="+1 (555) 123-4567" {...field} value={field.value || ''} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -227,7 +227,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                 <FormItem>
                   <FormLabel>Street Address</FormLabel>
                   <FormControl>
-                    <Input placeholder="123 Industrial Way" {...field} />
+                    <Input placeholder="123 Industrial Way" {...field} value={field.value || ''} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -241,7 +241,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                   <FormItem>
                     <FormLabel>City</FormLabel>
                     <FormControl>
-                      <Input placeholder="Metropolis" {...field} />
+                      <Input placeholder="Metropolis" {...field} value={field.value || ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -254,7 +254,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                   <FormItem>
                     <FormLabel>ZIP / Postal Code</FormLabel>
                     <FormControl>
-                      <Input placeholder="90210" {...field} />
+                      <Input placeholder="90210" {...field} value={field.value || ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -333,6 +333,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                       <Textarea
                         placeholder="Describe your company, its mission, and what makes it unique."
                         {...field}
+                        value={field.value || ''}
                       />
                     </FormControl>
                     <FormMessage />
@@ -347,7 +348,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                     <FormItem>
                       <FormLabel>Tax ID / VAT Number</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter your business tax ID" {...field} />
+                        <Input placeholder="Enter your business tax ID" {...field} value={field.value || ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -391,6 +392,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                             key={field.name}
                             control={form.control}
                             name={`verificationDetails.${field.name}` as const}
+                            defaultValue=""
                             rules={{ 
                                 required: field.required ? 'This field is required.' : false,
                                 pattern: field.validationRegex ? {
@@ -405,6 +407,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                                         <Input 
                                             placeholder={`Enter your ${field.label}`}
                                             {...formField}
+                                            value={formField.value || ''}
                                         />
                                     </FormControl>
                                     <FormDescription>
@@ -431,3 +434,5 @@ export function ProfileForm({ user }: ProfileFormProps) {
     </Form>
   );
 }
+
+    
