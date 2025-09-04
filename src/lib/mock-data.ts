@@ -1,5 +1,5 @@
 
-import type { User, Product, Message, Category, Offer, VerificationTemplate } from './types';
+import type { User, Product, Message, Category, Offer, VerificationTemplate, SpecTemplate } from './types';
 
 // This file is now deprecated for users, but still used for products, messages, etc.
 // We will migrate these to Firestore in a future step.
@@ -105,11 +105,31 @@ export const mockVerificationTemplates: VerificationTemplate[] = [
     }
 ];
 
+export const mockSpecTemplates: SpecTemplate[] = [
+  {
+    id: 'spec-template-tractors',
+    name: 'Tractor Specifications',
+    fields: [
+      { name: 'Brand Name', type: 'text' },
+      { name: 'Model', type: 'text' },
+      { name: 'Country of Origin', type: 'text' },
+      { name: 'Engine Power (HP)', type: 'text' },
+      { name: 'Drive Type', type: 'select', options: ['2-Wheel Drive (2WD)', '4-Wheel Drive (4WD)'] },
+      { name: 'Transmission Type', type: 'select', options: ['Manual', 'Hydrostatic', 'CVT (Continuously Variable Transmission)'] },
+      { name: 'PTO (Power Take-off)', type: 'switch' },
+      { name: 'PTO Speed (RPM)', type: 'text' },
+      { name: 'Hydraulic Capacity (L/min)', type: 'text' },
+    ]
+  }
+];
+
+
 export const mockCategories: Category[] = [
   { id: 'cat-1', name: 'Industrial Supplies', parentId: null, status: 'active' },
   { id: 'cat-2', name: 'Raw Materials', parentId: null, status: 'active' },
   { id: 'cat-3', name: 'Electronics', parentId: null, status: 'active' },
   { id: 'cat-4', name: 'Beauty & Personal Care', parentId: null, status: 'active' },
+  { id: 'cat-5', name: 'Agriculture', parentId: null, status: 'active' },
 
   { id: 'cat-1-1', name: 'Mechanical Components', parentId: 'cat-1', status: 'active' },
   { id: 'cat-1-2', name: 'Conveying Systems', parentId: 'cat-1', status: 'active' },
@@ -121,6 +141,10 @@ export const mockCategories: Category[] = [
 
   { id: 'cat-4-1', name: 'Hair Care & Styling', parentId: 'cat-4', status: 'active' },
 
+  { id: 'cat-5-1', name: 'Farming Equipment & Machinery', parentId: 'cat-5', status: 'active' },
+  { id: 'cat-5-2', name: 'Fertilizers & Soil Amendments', parentId: 'cat-5', status: 'active' },
+
+
   { id: 'cat-1-1-1', name: 'Widgets', parentId: 'cat-1-1', status: 'active' },
   { id: 'cat-1-1-2', name: 'Gears & Cogs', parentId: 'cat-1-1', status: 'active' },
   { id: 'cat-1-2-1', name: 'Belt Conveyors', parentId: 'cat-1-2', status: 'active' },
@@ -131,6 +155,10 @@ export const mockCategories: Category[] = [
   { id: 'cat-3-1-1', name: 'Printed Circuit Boards (PCBs)', parentId: 'cat-3-1', status: 'active' },
 
   { id: 'cat-4-1-1', name: 'Wigs & Hairpieces', parentId: 'cat-4-1', status: 'active' },
+  
+  { id: 'cat-5-1-1', name: 'Tractors', parentId: 'cat-5-1', status: 'active', specTemplateId: 'spec-template-tractors' },
+  { id: 'cat-5-1-2', name: 'Harvesters', parentId: 'cat-5-1', status: 'active' },
+  { id: 'cat-5-2-1', name: 'Organic Fertilizers', parentId: 'cat-5-2', status: 'active' },
 ];
 
 export const mockProducts: Product[] = [
@@ -239,6 +267,27 @@ export const mockProducts: Product[] = [
         { name: 'Cap Construction', value: 'Lace Front' },
         { name: 'Length', value: '22 inches' },
         { name: 'Color', value: 'Natural Black' },
+    ],
+    status: 'approved'
+  },
+  {
+    id: 'prod-8',
+    title: 'AgroMax X120 Tractor',
+    description: 'A powerful and reliable 120HP tractor for medium to large scale farming operations. Features a comfortable cabin and advanced CVT transmission.',
+    images: ['https://picsum.photos/600/400?random=18', 'https://picsum.photos/600/400?random=19', 'https://picsum.photos/600/400?random=20'],
+    priceUSD: 75000.00,
+    sellerId: 'user-2',
+    categoryId: 'cat-5-1-1',
+    specifications: [
+        { name: 'Brand Name', value: 'AgroMax' },
+        { name: 'Model', value: 'X120' },
+        { name: 'Country of Origin', value: 'Germany' },
+        { name: 'Engine Power (HP)', value: '120' },
+        { name: 'Drive Type', value: '4-Wheel Drive (4WD)' },
+        { name: 'Transmission Type', value: 'CVT (Continuously Variable Transmission)' },
+        { name: 'PTO (Power Take-off)', value: 'true' },
+        { name: 'PTO Speed (RPM)', value: '540 / 1000' },
+        { name: 'Hydraulic Capacity (L/min)', value: '75' },
     ],
     status: 'approved'
   },
