@@ -413,8 +413,18 @@ export async function createOrUpdateVerificationTemplateClient(
   templateData: { countryName: string; fields: VerificationField[] },
   templateId: string
 ): Promise<VerificationTemplate> {
+  
+  const cleanedFields = templateData.fields.map(f => {
+    const newField: any = {...f};
+    // Remove empty optional fields to prevent Firestore 'undefined' error
+    if (!newField.validationRegex) delete newField.validationRegex;
+    if (!newField.helperText) delete newField.helperText;
+    return newField;
+  });
+
   const dataToSave = {
-    ...templateData,
+    countryName: templateData.countryName,
+    fields: cleanedFields,
     updatedAt: Timestamp.now(),
   };
 
