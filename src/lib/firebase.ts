@@ -2,9 +2,9 @@
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc as getDocClient, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc as getDocClient, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError, setDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate, VerificationTemplate } from './types';
+import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate, VerificationTemplate, VerificationField } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { filterContactDetails } from '@/ai/flows/filter-contact-details';
 
@@ -407,6 +407,36 @@ export async function getVerificationTemplatesClient(): Promise<VerificationTemp
     const ref = collection(db, "verificationTemplates");
     const snapshot = await getDocs(ref);
     return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...convertTimestamps(docSnap.data()) } as VerificationTemplate));
+}
+
+export async function createOrUpdateVerificationTemplateClient(
+  templateData: { countryName: string; fields: VerificationField[] },
+  templateId: string
+): Promise<VerificationTemplate> {
+  const dataToSave = {
+    ...templateData,
+    updatedAt: Timestamp.now(),
+  };
+
+  const templateRef = doc(db, 'verificationTemplates', templateId);
+  const docSnap = await getDocClient(templateRef);
+
+  if (docSnap.exists()) {
+    await updateDoc(templateRef, dataToSave);
+  } else {
+    await setDoc(templateRef, { ...dataToSave, createdAt: Timestamp.now() });
+  }
+
+  const newDoc = await getDocClient(templateRef);
+  return { id: newDoc.id, ...newDoc.data() } as VerificationTemplate;
+}
+
+export async function deleteVerificationTemplateClient(templateId: string): Promise<void> {
+  if (!templateId) {
+    throw new Error("Template ID is invalid.");
+  }
+  const templateRef = doc(db, 'verificationTemplates', templateId);
+  await deleteDoc(templateRef);
 }
 
 

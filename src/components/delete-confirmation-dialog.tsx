@@ -58,6 +58,7 @@ export function DeleteConfirmationDialog({
           <AlertDialogDescription>
             This action cannot be undone. This will permanently delete the 
             {itemName ? ` "${itemName}"` : ''} {itemType}.
+            {itemType === 'category' && ' This will also remove it from any products currently assigned to it.'}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
