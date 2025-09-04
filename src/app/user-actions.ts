@@ -16,8 +16,15 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
 
   try {
     const userRef = adminDb.collection('users').doc(userId);
+    const userDoc = await userRef.get();
     
-    // Create a new object for the update, ensuring address is handled correctly
+    if (!userDoc.exists) {
+        return { success: false, error: 'User not found.' };
+    }
+    
+    const existingData = userDoc.data() as User;
+
+    // Create a new object for the update, ensuring address and verification details are handled correctly
     const updateData = {
         name: data.name,
         companyName: data.companyName,
@@ -26,7 +33,11 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
         companyDescription: data.companyDescription,
         taxId: data.taxId,
         businessType: data.businessType,
-        verificationDetails: data.verificationDetails || {},
+        // Deep merge verification details to avoid overwriting existing keys
+        verificationDetails: {
+            ...existingData.verificationDetails,
+            ...data.verificationDetails,
+        }
     };
 
     await userRef.update(updateData);
