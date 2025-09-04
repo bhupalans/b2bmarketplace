@@ -1,11 +1,11 @@
 
 "use client";
 
-import React, { useTransition, useEffect } from "react";
+import React, { useTransition, useEffect, useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { User } from "@/lib/types";
+import { User, VerificationTemplate } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -38,6 +38,7 @@ import { Separator } from "@/components/ui/separator";
 import { countries, statesProvinces } from "@/lib/geography-data";
 import { updateUserProfile } from "@/app/user-actions";
 import { useAuth } from "@/contexts/auth-context";
+import { getVerificationTemplatesClient } from "@/lib/firebase";
 
 const profileSchema = z.object({
   name: z.string().min(2, "Name is too short."),
@@ -50,12 +51,12 @@ const profileSchema = z.object({
     zip: z.string().optional(),
     country: z.string().optional(),
   }),
-  // Seller-specific fields
   companyDescription: z.string().optional(),
   taxId: z.string().optional(),
   businessType: z
     .enum(["Manufacturer", "Distributor", "Trading Company", "Agent"])
     .optional(),
+  verificationDetails: z.record(z.string()).optional(), // For dynamic fields
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -67,7 +68,9 @@ interface ProfileFormProps {
 export function ProfileForm({ user }: ProfileFormProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
-  const { firebaseUser } = useAuth(); // We need firebaseUser for the ID.
+  const { firebaseUser } = useAuth();
+  const [verificationTemplates, setVerificationTemplates] = useState<VerificationTemplate[]>([]);
+  const [activeTemplate, setActiveTemplate] = useState<VerificationTemplate | null>(null);
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
@@ -85,6 +88,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
       companyDescription: user.companyDescription || "",
       taxId: user.taxId || "",
       businessType: user.businessType,
+      verificationDetails: user.verificationDetails || {},
     },
   });
 
@@ -94,15 +98,36 @@ export function ProfileForm({ user }: ProfileFormProps) {
   });
 
   useEffect(() => {
-      // When country changes, reset the state field if it's no longer valid
-      if (watchedCountry) {
-          const availableStates = statesProvinces[watchedCountry] || [];
-          const currentState = form.getValues('address.state');
-          if (!availableStates.some(s => s.value === currentState)) {
-              form.setValue('address.state', '');
-          }
+    async function fetchTemplates() {
+      try {
+        const templates = await getVerificationTemplatesClient();
+        setVerificationTemplates(templates);
+      } catch (error) {
+        console.error("Failed to fetch verification templates:", error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Could not load verification options.",
+        });
       }
-  }, [watchedCountry, form]);
+    }
+    fetchTemplates();
+  }, [toast]);
+  
+  useEffect(() => {
+    if (watchedCountry) {
+        const availableStates = statesProvinces[watchedCountry] || [];
+        const currentState = form.getValues('address.state');
+        if (!availableStates.some(s => s.value === currentState)) {
+            form.setValue('address.state', '');
+        }
+
+        const template = verificationTemplates.find(t => t.id === watchedCountry) || null;
+        setActiveTemplate(template);
+    } else {
+        setActiveTemplate(null);
+    }
+  }, [watchedCountry, form, verificationTemplates]);
 
   const onSubmit = (values: ProfileFormData) => {
     if (!firebaseUser) {
@@ -355,6 +380,43 @@ export function ProfileForm({ user }: ProfileFormProps) {
                   )}
                 />
               </div>
+              {activeTemplate && (
+                <div className="space-y-4 pt-4">
+                    <Separator />
+                     <h3 className="text-md font-medium">
+                        Business Verification ({activeTemplate.countryName})
+                     </h3>
+                    {activeTemplate.fields.map(field => (
+                        <FormField
+                            key={field.name}
+                            control={form.control}
+                            name={`verificationDetails.${field.name}` as const}
+                            rules={{ 
+                                required: field.required ? 'This field is required.' : false,
+                                pattern: field.validationRegex ? {
+                                    value: new RegExp(field.validationRegex),
+                                    message: `Please enter a valid ${field.label}.`
+                                } : undefined
+                            }}
+                            render={({ field: formField }) => (
+                                <FormItem>
+                                    <FormLabel>{field.label}</FormLabel>
+                                    <FormControl>
+                                        <Input 
+                                            placeholder={`Enter your ${field.label}`}
+                                            {...formField}
+                                        />
+                                    </FormControl>
+                                    <FormDescription>
+                                        {field.helperText}
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         )}

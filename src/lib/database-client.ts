@@ -7,7 +7,7 @@ import {
   getDoc,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import { mockCategories, mockProducts } from "./mock-data";
+import { mockCategories, mockProducts, mockVerificationTemplates } from "./mock-data";
 import { User } from "./types";
 
 // This file contains a client-side function to seed the database.
@@ -43,7 +43,16 @@ export async function seedDatabaseClient() {
   });
   console.log("-> Prepared products for seeding.");
 
-  // 3. Seed the Admin User
+  // 3. Seed Verification Templates
+  mockVerificationTemplates.forEach((template) => {
+      const { id, ...templateData } = template;
+      const docRef = doc(db, "verificationTemplates", id);
+      batch.set(docRef, templateData);
+  });
+  console.log("-> Prepared verification templates for seeding.");
+
+
+  // 4. Seed the Admin User
   const adminUid = "mNLTRIhyPGeOxlUSUZGq2mgcCZF2"; // As specified by you
   const adminUser: Omit<User, "id"> = {
     uid: adminUid,
@@ -58,7 +67,7 @@ export async function seedDatabaseClient() {
   batch.set(adminRef, adminUser);
   console.log("-> Prepared admin user for seeding.");
 
-  // 4. Mark seeding as complete
+  // 5. Mark seeding as complete
   batch.set(seedCheckRef, { completed: true, timestamp: new Date() });
 
   try {

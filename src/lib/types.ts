@@ -24,6 +24,7 @@ export type User = {
     country: string;
   };
   taxId?: string; // e.g., VAT ID, EIN for sellers
+  verificationDetails?: { [key: string]: string }; // For dynamic verification fields
 
   // Existing fields
   verified?: boolean;
@@ -53,6 +54,22 @@ export type SpecTemplate = {
   name: string;
   fields: SpecTemplateField[]; // e.g., ['Material', 'Weight', 'SKU']
 };
+
+export type VerificationField = {
+    name: string; // e.g., "gstn"
+    label: string; // e.g., "GSTN"
+    type: 'text' | 'file';
+    required: boolean;
+    validationRegex?: string;
+    helperText?: string;
+}
+
+export type VerificationTemplate = {
+    id: string; // Country code, e.g., "IN"
+    countryName: string;
+    fields: VerificationField[];
+}
+
 
 export type Product = {
   id: string;

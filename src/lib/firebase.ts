@@ -4,7 +4,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc as getDocClient, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate } from './types';
+import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate, VerificationTemplate } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { filterContactDetails } from '@/ai/flows/filter-contact-details';
 
@@ -401,6 +401,14 @@ export async function deleteSpecTemplateClient(templateId: string): Promise<void
   const templateRef = doc(db, 'specTemplates', templateId);
   await deleteDoc(templateRef);
 }
+
+// --- Verification Template Client Functions ---
+export async function getVerificationTemplatesClient(): Promise<VerificationTemplate[]> {
+    const ref = collection(db, "verificationTemplates");
+    const snapshot = await getDocs(ref);
+    return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as VerificationTemplate));
+}
+
 
 // --- Category Client Functions ---
 

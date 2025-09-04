@@ -26,6 +26,7 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
         companyDescription: data.companyDescription,
         taxId: data.taxId,
         businessType: data.businessType,
+        verificationDetails: data.verificationDetails || {},
     };
 
     await userRef.update(updateData);

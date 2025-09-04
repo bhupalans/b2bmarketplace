@@ -1,5 +1,5 @@
 
-import type { User, Product, Message, Category, Offer } from './types';
+import type { User, Product, Message, Category, Offer, VerificationTemplate } from './types';
 
 // This file is now deprecated for users, but still used for products, messages, etc.
 // We will migrate these to Firestore in a future step.
@@ -44,6 +44,66 @@ export const mockUsers: Record<string, User> = {
       role: 'admin'
   }
 };
+
+export const mockVerificationTemplates: VerificationTemplate[] = [
+    {
+        id: 'IN', // Country Code
+        countryName: 'India',
+        fields: [
+            {
+                name: 'gstn',
+                label: 'GSTN (Goods and Services Tax Identification Number)',
+                type: 'text',
+                required: true,
+                validationRegex: '^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$',
+                helperText: 'Enter your 15-digit GSTN number.'
+            },
+            {
+                name: 'iec',
+                label: 'Import Export Code (IEC)',
+                type: 'text',
+                required: false,
+                validationRegex: '^\\d{10}$',
+                helperText: 'Required for international trade.'
+            }
+        ]
+    },
+    {
+        id: 'AU',
+        countryName: 'Australia',
+        fields: [
+             {
+                name: 'abn',
+                label: 'Australian Business Number (ABN)',
+                type: 'text',
+                required: true,
+                validationRegex: '^(\\d *?){11}$',
+                helperText: 'Enter your 11-digit ABN.'
+            }
+        ]
+    },
+    {
+        id: 'GB',
+        countryName: 'United Kingdom',
+        fields: [
+            {
+                name: 'crn',
+                label: 'Company Registration Number (CRN)',
+                type: 'text',
+                required: true,
+                validationRegex: '^([A-Z]{2}\\d{6}|\\d{8})$',
+                helperText: 'Found on your Certificate of Incorporation.'
+            },
+            {
+                name: 'vat',
+                label: 'VAT Number',
+                type: 'text',
+                required: false,
+                helperText: 'Your Value Added Tax registration number.'
+            }
+        ]
+    }
+];
 
 export const mockCategories: Category[] = [
   // Level 1
