@@ -47,7 +47,7 @@ const loginSchema = z.object({
 });
 
 const signupSchema = z.object({
-  name: z.string().min(1, { message: "Name is required."}),
+  name: z.string().min(1, { message: "Full name is required."}),
   email: z.string().email({ message: "Please enter a valid email." }),
   password: z
     .string()
@@ -160,10 +160,10 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Full Name or Company</FormLabel>
+                  <FormLabel>Full Name</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="e.g. Acme Inc."
+                      placeholder="e.g., Jane Doe"
                       disabled={isLoading}
                       {...field}
                     />
