@@ -39,6 +39,7 @@ import { countries, statesProvinces } from "@/lib/geography-data";
 import { updateUserProfile } from "@/app/user-actions";
 import { useAuth } from "@/contexts/auth-context";
 import { getVerificationTemplatesClient } from "@/lib/firebase";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const profileSchema = z.object({
   name: z.string().min(2, "Name is too short."),
@@ -56,6 +57,7 @@ const profileSchema = z.object({
   businessType: z
     .enum(["Manufacturer", "Distributor", "Trading Company", "Agent"])
     .optional(),
+  exportScope: z.array(z.string()).optional(),
   verificationDetails: z.record(z.string()).optional(), // For dynamic fields
 });
 
@@ -64,6 +66,11 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 interface ProfileFormProps {
   user: User;
 }
+
+const exportScopeItems = [
+    { id: 'domestic', label: 'Domestic Exporter' },
+    { id: 'international', label: 'International Exporter' },
+];
 
 export function ProfileForm({ user }: ProfileFormProps) {
   const [isPending, startTransition] = useTransition();
@@ -88,6 +95,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
       companyDescription: user.companyDescription || "",
       taxId: user.taxId || "",
       businessType: user.businessType || undefined,
+      exportScope: user.exportScope || [],
       verificationDetails: user.verificationDetails || {},
     },
   });
@@ -381,6 +389,58 @@ export function ProfileForm({ user }: ProfileFormProps) {
                   )}
                 />
               </div>
+
+               <FormField
+                control={form.control}
+                name="exportScope"
+                render={() => (
+                    <FormItem>
+                        <div className="mb-4">
+                            <FormLabel className="text-base">Export Scope</FormLabel>
+                            <FormDescription>
+                                Select the regions you export to.
+                            </FormDescription>
+                        </div>
+                        <div className="flex flex-row items-center gap-x-6 gap-y-2 flex-wrap">
+                        {exportScopeItems.map((item) => (
+                            <FormField
+                                key={item.id}
+                                control={form.control}
+                                name="exportScope"
+                                render={({ field }) => {
+                                    return (
+                                    <FormItem
+                                        key={item.id}
+                                        className="flex flex-row items-start space-x-2 space-y-0"
+                                    >
+                                        <FormControl>
+                                        <Checkbox
+                                            checked={field.value?.includes(item.id)}
+                                            onCheckedChange={(checked) => {
+                                                return checked
+                                                ? field.onChange([...(field.value || []), item.id])
+                                                : field.onChange(
+                                                    field.value?.filter(
+                                                        (value) => value !== item.id
+                                                    )
+                                                    )
+                                            }}
+                                        />
+                                        </FormControl>
+                                        <FormLabel className="font-normal">
+                                        {item.label}
+                                        </FormLabel>
+                                    </FormItem>
+                                    )
+                                }}
+                                />
+                        ))}
+                        </div>
+                        <FormMessage />
+                    </FormItem>
+                )}
+                />
+
               {activeTemplate && (
                 <div className="space-y-4 pt-4">
                     <Separator />

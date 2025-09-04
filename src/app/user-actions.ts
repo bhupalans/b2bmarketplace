@@ -33,6 +33,7 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
         companyDescription: data.companyDescription,
         taxId: data.taxId,
         businessType: data.businessType,
+        exportScope: data.exportScope,
         // Deep merge verification details to avoid overwriting existing keys
         verificationDetails: {
             ...existingData.verificationDetails,

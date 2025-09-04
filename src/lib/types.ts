@@ -1,5 +1,4 @@
 
-
 import type { FieldValue, Timestamp } from "firebase/firestore";
 
 export type User = {
@@ -29,6 +28,7 @@ export type User = {
   // Existing fields
   verified?: boolean;
   businessType?: 'Manufacturer' | 'Distributor' | 'Trading Company' | 'Agent';
+  exportScope?: string[]; // 'domestic' | 'international'
   location?: string; // This might become redundant with address, but let's keep it for now.
   memberSince?: number;
   certifications?: string[];
