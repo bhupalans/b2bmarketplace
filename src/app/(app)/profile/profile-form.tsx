@@ -87,7 +87,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
       },
       companyDescription: user.companyDescription || "",
       taxId: user.taxId || "",
-      businessType: user.businessType,
+      businessType: user.businessType || undefined,
       verificationDetails: user.verificationDetails || {},
     },
   });
