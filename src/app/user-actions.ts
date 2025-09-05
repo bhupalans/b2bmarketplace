@@ -15,22 +15,23 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
 
   try {
     const userRef = adminDb.collection('users').doc(userId);
-    
-    // Construct the data to be updated based on the form fields.
-    // This approach is explicit and avoids complex merging logic that was causing errors.
-    const updateData: Partial<User> = {
-        name: data.name,
-        companyName: data.companyName,
-        phoneNumber: data.phoneNumber,
-        companyDescription: data.companyDescription,
-        taxId: data.taxId,
-        businessType: data.businessType,
-        exportScope: data.exportScope,
-        verificationDetails: data.verificationDetails
-    };
 
-    // Handle address fields based on what's provided in the data.
-    // This is robust against null/undefined values.
+    // This is a more robust way to build the update object.
+    // It avoids issues with 'undefined' values which can cause Firestore errors.
+    const updateData: { [key: string]: any } = {};
+
+    // Map all the direct properties
+    if (data.name) updateData.name = data.name;
+    if (data.companyName) updateData.companyName = data.companyName;
+    if (data.phoneNumber) updateData.phoneNumber = data.phoneNumber;
+    if (data.companyDescription) updateData.companyDescription = data.companyDescription;
+    if (data.taxId) updateData.taxId = data.taxId;
+    if (data.businessType) updateData.businessType = data.businessType;
+    if (data.exportScope) updateData.exportScope = data.exportScope;
+    if (data.verificationDetails) updateData.verificationDetails = data.verificationDetails;
+    
+    // Explicitly handle each address type to avoid errors.
+    // This correctly handles creating or updating the address objects.
     if (data.address) {
         updateData.address = data.address;
     }
@@ -41,15 +42,7 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
         updateData.billingAddress = data.billingAddress;
     }
 
-    // Use a transaction to ensure atomicity. This is best practice.
-    await adminDb.runTransaction(async (transaction) => {
-        const userDoc = await transaction.get(userRef);
-        if (!userDoc.exists) {
-            throw new Error('User not found.');
-        }
-        // Use update instead of set with merge to avoid overwriting entire document
-        transaction.update(userRef, updateData);
-    });
+    await userRef.update(updateData);
 
     // Revalidate paths where user data might be displayed to ensure freshness
     revalidatePath('/profile');
@@ -58,6 +51,8 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
     return { success: true };
   } catch (error: any) {
     console.error('Error updating user profile:', error);
-    return { success: false, error: 'Failed to update profile on the server. Please check the server logs.' };
+    // Provide a more specific error message for debugging if available.
+    const errorMessage = error.message || 'Failed to update profile on the server. Please check the server logs.';
+    return { success: false, error: errorMessage };
   }
 }
