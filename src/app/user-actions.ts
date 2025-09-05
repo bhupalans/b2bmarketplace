@@ -17,7 +17,7 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
     const userRef = adminDb.collection('users').doc(userId);
     const userSnap = await userRef.get();
 
-    if (!userSnap.exists()) {
+    if (!userSnap.exists) {
       return { success: false, error: 'User profile not found.' };
     }
 
@@ -38,9 +38,10 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
           
           if (!snapshot.empty) {
             // A duplicate was found for this key-value pair.
+            const fieldLabel = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
             return { 
               success: false, 
-              error: `This ${key.toUpperCase()} is already registered to another seller.` 
+              error: `This ${fieldLabel} is already registered to another seller.` 
             };
           }
         }
