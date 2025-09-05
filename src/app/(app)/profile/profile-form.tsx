@@ -185,14 +185,16 @@ export function ProfileForm({ user }: ProfileFormProps) {
   // This is a dynamic resolver that incorporates the active verification template.
   const sellerProfileSchema = React.useMemo(() => z.object({
     name: z.string().min(2, "Name is too short."),
-    companyName: z.string().optional(),
+    companyName: z.string().min(1, "Company name is required."),
     phoneNumber: z.string().optional(),
-    companyDescription: z.string().optional(),
+    companyDescription: z.string().min(10, "Company description must be at least 10 characters."),
     taxId: z.string().optional(),
-    businessType: z.enum(["Manufacturer", "Distributor", "Trading Company", "Agent"]).optional(),
+    businessType: z.enum(["Manufacturer", "Distributor", "Trading Company", "Agent"], {
+      required_error: "You must select a business type.",
+    }),
     exportScope: z.array(z.string()).optional(),
     verificationDetails: z.record(z.string()).optional(),
-    address: addressSchema.optional(),
+    address: addressSchema,
   }).superRefine((data, ctx) => {
     // This is where the dynamic validation happens.
     // We find the active template based on the form's current country value.
@@ -578,3 +580,5 @@ export function ProfileForm({ user }: ProfileFormProps) {
     </Form>
   );
 }
+
+    
