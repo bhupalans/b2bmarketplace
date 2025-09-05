@@ -15,9 +15,16 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
 
   try {
     const userRef = adminDb.collection('users').doc(userId);
+    const userSnap = await userRef.get();
 
-    // --- Part 2: Uniqueness Check for Verification Details ---
-    if (data.role === 'seller' && data.verificationDetails) {
+    if (!userSnap.exists()) {
+      return { success: false, error: 'User profile not found.' };
+    }
+
+    const user = userSnap.data() as User;
+
+    // --- Uniqueness Check for Verification Details ---
+    if (user.role === 'seller' && data.verificationDetails) {
       const details = data.verificationDetails;
       for (const key in details) {
         const value = details[key];
