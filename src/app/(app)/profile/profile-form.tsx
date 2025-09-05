@@ -70,27 +70,35 @@ const buyerProfileSchema = z.object({
   billingSameAsShipping: z.boolean().default(false).optional(),
   billingAddress: addressSchema.optional(),
 }).superRefine((data, ctx) => {
-    if (!data.billingSameAsShipping && !data.billingAddress) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Street is required.',
-        path: ['billingAddress.street'],
-      });
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'City is required.',
-        path: ['billingAddress.city'],
-      });
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'ZIP code is required.',
-        path: ['billingAddress.zip'],
-      });
-       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Country is required.',
-        path: ['billingAddress.country'],
-      });
+    if (!data.billingSameAsShipping) {
+      if (!data.billingAddress?.street) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Street is required.',
+          path: ['billingAddress.street'],
+        });
+      }
+      if (!data.billingAddress?.city) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'City is required.',
+          path: ['billingAddress.city'],
+        });
+      }
+      if (!data.billingAddress?.zip) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'ZIP code is required.',
+          path: ['billingAddress.zip'],
+        });
+      }
+       if (!data.billingAddress?.country) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Country is required.',
+          path: ['billingAddress.country'],
+        });
+      }
     }
 });
 
