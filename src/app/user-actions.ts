@@ -16,16 +16,10 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
 
   try {
     const userRef = adminDb.collection('users').doc(userId);
-    const userDoc = await userRef.get();
     
-    if (!userDoc.exists) {
-        return { success: false, error: 'User not found.' };
-    }
-    
-    const existingData = userDoc.data() as User;
-
-    // Create a new object for the update, ensuring address and verification details are handled correctly
-    const updateData: { [key: string]: any } = { // Use 'any' to dynamically build the object
+    // Construct the data to be updated in a straightforward manner.
+    // This new structure avoids complex merging and directly sets the data from the form.
+    const updateData = {
         name: data.name,
         companyName: data.companyName,
         phoneNumber: data.phoneNumber,
@@ -33,26 +27,21 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
         taxId: data.taxId,
         businessType: data.businessType,
         exportScope: data.exportScope,
-        // Deep merge verification details to avoid overwriting existing keys
-        verificationDetails: {
-            ...existingData.verificationDetails,
-            ...data.verificationDetails,
-        }
+        address: data.address,
+        shippingAddress: data.shippingAddress,
+        billingAddress: data.billingAddress,
+        verificationDetails: data.verificationDetails
     };
-    
-    // Conditionally add address fields to avoid 'undefined' errors in Firestore
-    if (data.address) {
-        updateData.address = data.address;
-    }
-    if (data.shippingAddress) {
-        updateData.shippingAddress = data.shippingAddress;
-    }
-    if (data.billingAddress) {
-        updateData.billingAddress = data.billingAddress;
-    }
 
-
-    await userRef.update(updateData);
+    // Use a transaction to ensure atomicity, though a simple update is likely sufficient.
+    // This is more robust.
+    await adminDb.runTransaction(async (transaction) => {
+        const userDoc = await transaction.get(userRef);
+        if (!userDoc.exists) {
+            throw new Error('User not found.');
+        }
+        transaction.update(userRef, updateData);
+    });
 
     // Revalidate paths where user data might be displayed to ensure freshness
     revalidatePath('/profile');
