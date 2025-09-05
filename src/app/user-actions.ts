@@ -25,13 +25,10 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
     const existingData = userDoc.data() as User;
 
     // Create a new object for the update, ensuring address and verification details are handled correctly
-    const updateData = {
+    const updateData: any = { // Use 'any' to dynamically build the object
         name: data.name,
         companyName: data.companyName,
         phoneNumber: data.phoneNumber,
-        address: data.address,
-        shippingAddress: data.shippingAddress, // Add shipping address
-        billingAddress: data.billingAddress,   // Add billing address
         companyDescription: data.companyDescription,
         taxId: data.taxId,
         businessType: data.businessType,
@@ -42,6 +39,18 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
             ...data.verificationDetails,
         }
     };
+    
+    // Conditionally add address fields to avoid 'undefined' errors in Firestore
+    if (data.address) {
+        updateData.address = data.address;
+    }
+    if (data.shippingAddress) {
+        updateData.shippingAddress = data.shippingAddress;
+    }
+    if (data.billingAddress) {
+        updateData.billingAddress = data.billingAddress;
+    }
+
 
     await userRef.update(updateData);
 
