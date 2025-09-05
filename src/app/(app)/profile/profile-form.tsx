@@ -62,47 +62,36 @@ const sellerProfileSchema = z.object({
   address: addressSchema.optional(),
 });
 
-const baseBuyerProfileSchema = z.object({
+const buyerProfileSchema = z.object({
   name: z.string().min(2, "Name is too short."),
   companyName: z.string().optional(),
   phoneNumber: z.string().optional(),
   shippingAddress: addressSchema,
   billingSameAsShipping: z.boolean().default(false).optional(),
-});
-
-const buyerProfileSchema = baseBuyerProfileSchema.extend({
   billingAddress: addressSchema.optional(),
 }).superRefine((data, ctx) => {
-  if (!data.billingSameAsShipping) {
-    if (!data.billingAddress?.street) {
+    if (!data.billingSameAsShipping && !data.billingAddress) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'Street is required.',
         path: ['billingAddress.street'],
       });
-    }
-    if (!data.billingAddress?.city) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'City is required.',
         path: ['billingAddress.city'],
       });
-    }
-    if (!data.billingAddress?.zip) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'ZIP code is required.',
         path: ['billingAddress.zip'],
       });
-    }
-    if (!data.billingAddress?.country) {
-      ctx.addIssue({
+       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'Country is required.',
         path: ['billingAddress.country'],
       });
     }
-  }
 });
 
 
@@ -235,9 +224,9 @@ export function ProfileForm({ user }: ProfileFormProps) {
       name: user.name || "",
       companyName: user.companyName || "",
       phoneNumber: user.phoneNumber || "",
-      address: user.address,
-      shippingAddress: user.shippingAddress,
-      billingAddress: user.billingAddress,
+      address: user.address || undefined,
+      shippingAddress: user.shippingAddress || undefined,
+      billingAddress: user.billingAddress || undefined,
       billingSameAsShipping: false,
       companyDescription: user.companyDescription || "",
       taxId: user.taxId || "",
