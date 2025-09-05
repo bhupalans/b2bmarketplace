@@ -50,18 +50,6 @@ const addressSchema = z.object({
     country: z.string().min(1, 'Country is required'),
 });
 
-const sellerProfileSchema = z.object({
-  name: z.string().min(2, "Name is too short."),
-  companyName: z.string().optional(),
-  phoneNumber: z.string().optional(),
-  companyDescription: z.string().optional(),
-  taxId: z.string().optional(),
-  businessType: z.enum(["Manufacturer", "Distributor", "Trading Company", "Agent"]).optional(),
-  exportScope: z.array(z.string()).optional(),
-  verificationDetails: z.record(z.string()).optional(),
-  address: addressSchema.optional(),
-});
-
 const buyerProfileSchema = z.object({
   name: z.string().min(2, "Name is too short."),
   companyName: z.string().optional(),
@@ -193,6 +181,43 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const { firebaseUser } = useAuth();
   const [verificationTemplates, setVerificationTemplates] = useState<VerificationTemplate[]>([]);
   const [activeTemplate, setActiveTemplate] = useState<VerificationTemplate | null>(null);
+
+  // This is a dynamic resolver that incorporates the active verification template.
+  const sellerProfileSchema = React.useMemo(() => z.object({
+    name: z.string().min(2, "Name is too short."),
+    companyName: z.string().optional(),
+    phoneNumber: z.string().optional(),
+    companyDescription: z.string().optional(),
+    taxId: z.string().optional(),
+    businessType: z.enum(["Manufacturer", "Distributor", "Trading Company", "Agent"]).optional(),
+    exportScope: z.array(z.string()).optional(),
+    verificationDetails: z.record(z.string()).optional(),
+    address: addressSchema.optional(),
+  }).superRefine((data, ctx) => {
+    // This is where the dynamic validation happens.
+    // We find the active template based on the form's current country value.
+    const activeCountry = data.address?.country;
+    const currentTemplate = verificationTemplates.find(t => t.id === activeCountry);
+
+    if (currentTemplate) {
+      currentTemplate.fields.forEach(field => {
+        // If the template field is required...
+        if (field.required) {
+          const value = data.verificationDetails?.[field.name];
+          // ...and the user hasn't provided a value...
+          if (!value || value.trim() === "") {
+            // ...add an error specifically to that field.
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: `${field.label} is required.`,
+              path: [`verificationDetails.${field.name}`], // This targets the exact input field.
+            });
+          }
+        }
+      });
+    }
+  }), [verificationTemplates]); // Re-create the schema if templates change.
+
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(user.role === 'buyer' ? buyerProfileSchema : sellerProfileSchema),
