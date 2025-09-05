@@ -220,7 +220,6 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const { firebaseUser } = useAuth();
   const [verificationTemplates, setVerificationTemplates] = useState<VerificationTemplate[]>([]);
   const [activeTemplate, setActiveTemplate] = useState<VerificationTemplate | null>(null);
-  const [billingSameAsShipping, setBillingSameAsShipping] = useState(false);
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
@@ -236,15 +235,14 @@ export function ProfileForm({ user }: ProfileFormProps) {
       businessType: user.businessType || undefined,
       exportScope: user.exportScope || [],
       verificationDetails: user.verificationDetails || {},
-      // Set flags for validation
       isBuyer: user.role === 'buyer',
       billingSameAsShipping: false,
     },
   });
 
-  const watchedCountry = useWatch({
+  const billingSameAsShipping = useWatch({
     control: form.control,
-    name: 'address.country',
+    name: 'billingSameAsShipping'
   });
 
   const watchedShippingAddress = useWatch({
@@ -252,13 +250,18 @@ export function ProfileForm({ user }: ProfileFormProps) {
     name: 'shippingAddress'
   });
 
+  const watchedCountry = useWatch({
+    control: form.control,
+    name: 'address.country',
+  });
+  
   useEffect(() => {
-    form.setValue('billingSameAsShipping', billingSameAsShipping, { shouldValidate: true });
     // Sync billing address if checkbox is checked
     if (billingSameAsShipping) {
         form.setValue('billingAddress', watchedShippingAddress, { shouldValidate: true });
     }
   }, [billingSameAsShipping, watchedShippingAddress, form]);
+
 
   useEffect(() => {
     async function fetchTemplates() {
@@ -307,7 +310,9 @@ export function ProfileForm({ user }: ProfileFormProps) {
     }
 
     startTransition(async () => {
+      // Use the 'values' object passed into this function, which is the validated form data.
       let finalValues = { ...values };
+      
       // Check the flag from the validated form values
       if (user.role === 'buyer' && finalValues.billingSameAsShipping) {
           finalValues.billingAddress = finalValues.shippingAddress;
@@ -403,22 +408,23 @@ export function ProfileForm({ user }: ProfileFormProps) {
                         <CardDescription>The address for your invoices and payment correspondence.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                         <FormItem className="flex flex-row items-center space-x-2 mb-4">
-                            <Checkbox 
-                                id="sameAsShipping"
-                                checked={billingSameAsShipping}
-                                onCheckedChange={(checked) => {
-                                    const isChecked = Boolean(checked);
-                                    setBillingSameAsShipping(isChecked);
-                                }}
-                            />
-                            <label
-                                htmlFor="sameAsShipping"
-                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                            >
-                                My billing address is the same as my shipping address.
-                            </label>
-                        </FormItem>
+                        <FormField
+                            control={form.control}
+                            name="billingSameAsShipping"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-center space-x-2 mb-4">
+                                    <FormControl>
+                                        <Checkbox
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                    </FormControl>
+                                    <FormLabel className="font-normal">
+                                        My billing address is the same as my shipping address.
+                                    </FormLabel>
+                                </FormItem>
+                            )}
+                        />
                         <AddressFields fieldName="billingAddress" control={form.control} disabled={billingSameAsShipping} />
                     </CardContent>
                 </Card>
