@@ -43,62 +43,43 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
 const addressSchema = z.object({
-    street: z.string().optional(),
-    city: z.string().optional(),
+    street: z.string().min(1, 'Street is required'),
+    city: z.string().min(1, 'City is required'),
     state: z.string().optional(),
-    zip: z.string().optional(),
-    country: z.string().optional(),
-}).optional();
+    zip: z.string().min(1, 'ZIP code is required'),
+    country: z.string().min(1, 'Country is required'),
+});
 
-// Base schema for shared fields
-const baseProfileSchema = z.object({
+const sellerProfileSchema = z.object({
   name: z.string().min(2, "Name is too short."),
   companyName: z.string().optional(),
   phoneNumber: z.string().optional(),
   companyDescription: z.string().optional(),
   taxId: z.string().optional(),
-  businessType: z
-    .enum(["Manufacturer", "Distributor", "Trading Company", "Agent"])
-    .optional(),
+  businessType: z.enum(["Manufacturer", "Distributor", "Trading Company", "Agent"]).optional(),
   exportScope: z.array(z.string()).optional(),
   verificationDetails: z.record(z.string()).optional(),
+  address: addressSchema.optional(),
+  shippingAddress: addressSchema.optional().nullable(),
+  billingAddress: addressSchema.optional().nullable(),
 });
 
-// A flag to control buyer-specific validation
-const formFlagsSchema = z.object({
-  isBuyer: z.boolean(),
-  billingSameAsShipping: z.boolean(),
-});
-
-// The final schema combines everything with conditional validation
-const profileSchema = z.intersection(baseProfileSchema, formFlagsSchema).and(
-  z.object({
-    address: addressSchema,
-    shippingAddress: addressSchema,
-    billingAddress: addressSchema,
-  })
-).refine(data => {
-  // If user is a buyer, shipping address is required
-  if (data.isBuyer) {
-    return data.shippingAddress?.street && data.shippingAddress?.city && data.shippingAddress?.country;
-  }
-  return true;
-}, {
-  message: "Shipping address fields are required for buyers.",
-  path: ["shippingAddress.street"], // Point error to the first field
-}).refine(data => {
-  // If user is a buyer AND billing is not the same as shipping, billing address is required
-  if (data.isBuyer && !data.billingSameAsShipping) {
-    return data.billingAddress?.street && data.billingAddress?.city && data.billingAddress?.country;
-  }
-  return true;
-}, {
-  message: "Billing address fields are required when not the same as shipping.",
-  path: ["billingAddress.street"],
+const buyerProfileSchema = z.object({
+  name: z.string().min(2, "Name is too short."),
+  companyName: z.string().optional(),
+  phoneNumber: z.string().optional(),
+  companyDescription: z.string().optional(),
+  taxId: z.string().optional(),
+  businessType: z.enum(["Manufacturer", "Distributor", "Trading Company", "Agent"]).optional(),
+  exportScope: z.array(z.string()).optional(),
+  verificationDetails: z.record(z.string()).optional(),
+  address: addressSchema.optional().nullable(),
+  shippingAddress: addressSchema,
+  billingAddress: addressSchema,
 });
 
 
-type ProfileFormData = z.infer<typeof profileSchema>;
+type ProfileFormData = z.infer<typeof buyerProfileSchema>;
 
 interface ProfileFormProps {
   user: User;
@@ -111,7 +92,7 @@ const exportScopeItems = [
 
 const AddressFields: React.FC<{
   fieldName: 'address' | 'shippingAddress' | 'billingAddress',
-  control: any, // Pass control from the main form
+  control: any,
   disabled?: boolean
 }> = ({ fieldName, control, disabled = false }) => {
     const watchedCountry = useWatch({ control, name: `${fieldName}.country` });
@@ -222,7 +203,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const [activeTemplate, setActiveTemplate] = useState<VerificationTemplate | null>(null);
 
   const form = useForm<ProfileFormData>({
-    resolver: zodResolver(profileSchema),
+    resolver: zodResolver(user.role === 'buyer' ? buyerProfileSchema : sellerProfileSchema),
     defaultValues: {
       name: user.name || "",
       companyName: user.companyName || "",
@@ -235,19 +216,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
       businessType: user.businessType || undefined,
       exportScope: user.exportScope || [],
       verificationDetails: user.verificationDetails || {},
-      isBuyer: user.role === 'buyer',
-      billingSameAsShipping: false,
     },
-  });
-
-  const billingSameAsShipping = useWatch({
-    control: form.control,
-    name: 'billingSameAsShipping'
-  });
-
-  const watchedShippingAddress = useWatch({
-    control: form.control,
-    name: 'shippingAddress'
   });
 
   const watchedCountry = useWatch({
@@ -255,14 +224,6 @@ export function ProfileForm({ user }: ProfileFormProps) {
     name: 'address.country',
   });
   
-  useEffect(() => {
-    // Sync billing address if checkbox is checked
-    if (billingSameAsShipping) {
-        form.setValue('billingAddress', watchedShippingAddress, { shouldValidate: true });
-    }
-  }, [billingSameAsShipping, watchedShippingAddress, form]);
-
-
   useEffect(() => {
     async function fetchTemplates() {
       try {
@@ -310,16 +271,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
     }
 
     startTransition(async () => {
-      // Use the 'values' object passed into this function, which is the validated form data.
-      let finalValues = { ...values };
-      
-      // Check the flag from the validated form values
-      if (user.role === 'buyer' && finalValues.billingSameAsShipping) {
-          finalValues.billingAddress = finalValues.shippingAddress;
-      }
-      
-      const { isBuyer, billingSameAsShipping, ...dataToSave } = finalValues;
-      const result = await updateUserProfile(firebaseUser.uid, dataToSave);
+      const result = await updateUserProfile(firebaseUser.uid, values);
 
       if (result.success) {
          toast({
@@ -408,24 +360,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                         <CardDescription>The address for your invoices and payment correspondence.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <FormField
-                            control={form.control}
-                            name="billingSameAsShipping"
-                            render={({ field }) => (
-                                <FormItem className="flex flex-row items-center space-x-2 mb-4">
-                                    <FormControl>
-                                        <Checkbox
-                                            checked={field.value}
-                                            onCheckedChange={field.onChange}
-                                        />
-                                    </FormControl>
-                                    <FormLabel className="font-normal">
-                                        My billing address is the same as my shipping address.
-                                    </FormLabel>
-                                </FormItem>
-                            )}
-                        />
-                        <AddressFields fieldName="billingAddress" control={form.control} disabled={billingSameAsShipping} />
+                        <AddressFields fieldName="billingAddress" control={form.control} />
                     </CardContent>
                 </Card>
             </>
@@ -622,3 +557,5 @@ export function ProfileForm({ user }: ProfileFormProps) {
     </Form>
   );
 }
+
+    
