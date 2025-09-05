@@ -48,6 +48,15 @@ const addressSchema = z.object({
     state: z.string().optional(),
     zip: z.string().min(1, 'ZIP code is required'),
     country: z.string().min(1, 'Country is required'),
+}).superRefine((data, ctx) => {
+    // If the selected country has states/provinces, the state field becomes required.
+    if (data.country && statesProvinces[data.country] && !data.state) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'State/Province is required for this country.',
+            path: ['state'],
+        });
+    }
 });
 
 const buyerProfileSchema = z.object({
@@ -186,13 +195,13 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const sellerProfileSchema = React.useMemo(() => z.object({
     name: z.string().min(2, "Name is too short."),
     companyName: z.string().min(1, "Company name is required."),
-    phoneNumber: z.string().optional(),
+    phoneNumber: z.string().min(1, "Business phone number is required."),
     companyDescription: z.string().min(10, "Company description must be at least 10 characters."),
-    taxId: z.string().optional(),
+    taxId: z.string().min(1, "Tax ID / VAT number is required."),
     businessType: z.enum(["Manufacturer", "Distributor", "Trading Company", "Agent"], {
       required_error: "You must select a business type.",
     }),
-    exportScope: z.array(z.string()).optional(),
+    exportScope: z.array(z.string()).nonempty({ message: "Please select at least one export scope." }),
     verificationDetails: z.record(z.string()).optional(),
     address: addressSchema,
   }).superRefine((data, ctx) => {
@@ -580,5 +589,3 @@ export function ProfileForm({ user }: ProfileFormProps) {
     </Form>
   );
 }
-
-    
