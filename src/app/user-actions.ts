@@ -29,14 +29,17 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
       for (const key in details) {
         const value = details[key];
         if (value) { // Only check if a value is provided
+          // This query is simplified to avoid needing a composite index.
           const query = adminDb.collection('users')
             .where(`verificationDetails.${key}`, '==', value)
-            .where('uid', '!=', userId) // Exclude the current user from the check
-            .limit(1);
+            .limit(2); // Limit to 2 to efficiently check for duplicates.
           
           const snapshot = await query.get();
           
-          if (!snapshot.empty) {
+          // Check if any of the results found belong to a *different* user.
+          const isDuplicate = snapshot.docs.some(doc => doc.id !== userId);
+
+          if (isDuplicate) {
             // A duplicate was found for this key-value pair.
             const fieldLabel = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
             return { 
@@ -57,7 +60,6 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
     const directProperties: (keyof ProfileUpdateData)[] = [
       'name', 'companyName', 'phoneNumber', 'companyDescription',
       'taxId', 'businessType', 'exportScope', 'verificationDetails',
-      'billingSameAsShipping'
     ];
 
     directProperties.forEach(prop => {
@@ -69,12 +71,6 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
     // Explicitly handle each address type to avoid errors with undefined values
     if (data.address) {
       updateData.address = data.address;
-    }
-    if (data.shippingAddress) {
-      updateData.shippingAddress = data.shippingAddress;
-    }
-    if (data.billingAddress) {
-      updateData.billingAddress = data.billingAddress;
     }
 
     await userRef.update(updateData);
