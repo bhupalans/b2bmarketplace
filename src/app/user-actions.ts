@@ -16,6 +16,32 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
   try {
     const userRef = adminDb.collection('users').doc(userId);
 
+    // --- Part 2: Uniqueness Check for Verification Details ---
+    if (data.role === 'seller' && data.verificationDetails) {
+      const details = data.verificationDetails;
+      for (const key in details) {
+        const value = details[key];
+        if (value) { // Only check if a value is provided
+          const query = adminDb.collection('users')
+            .where(`verificationDetails.${key}`, '==', value)
+            .where('uid', '!=', userId) // Exclude the current user from the check
+            .limit(1);
+          
+          const snapshot = await query.get();
+          
+          if (!snapshot.empty) {
+            // A duplicate was found for this key-value pair.
+            return { 
+              success: false, 
+              error: `This ${key.toUpperCase()} is already registered to another seller.` 
+            };
+          }
+        }
+      }
+    }
+    // --- End of Uniqueness Check ---
+
+
     const updateData: { [key: string]: any } = {};
 
     // Map all direct properties from the form data to the update object
@@ -23,7 +49,7 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
     const directProperties: (keyof ProfileUpdateData)[] = [
       'name', 'companyName', 'phoneNumber', 'companyDescription',
       'taxId', 'businessType', 'exportScope', 'verificationDetails',
-      'billingSameAsShipping' // Also save the checkbox state
+      'billingSameAsShipping'
     ];
 
     directProperties.forEach(prop => {
