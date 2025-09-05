@@ -14,7 +14,7 @@ export type User = {
   companyName?: string;
   phoneNumber?: string;
   
-  // Address can be generic, but we'll specify for roles on the frontend
+  // Address fields. `address` is generic, while shipping/billing are specific.
   address?: {
     street: string;
     city: string;
@@ -22,6 +22,21 @@ export type User = {
     zip: string;
     country: string;
   };
+  shippingAddress?: {
+    street: string;
+    city: string;
+    state: string;
+    zip: string;
+    country: string;
+  };
+  billingAddress?: {
+    street: string;
+    city: string;
+    state: string;
+    zip: string;
+    country: string;
+  };
+
   taxId?: string; // e.g., VAT ID, EIN for sellers
   verificationDetails?: { [key: string]: string }; // For dynamic verification fields
 
