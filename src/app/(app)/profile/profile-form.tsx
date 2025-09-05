@@ -49,7 +49,6 @@ const addressSchema = z.object({
     zip: z.string().min(1, 'ZIP code is required'),
     country: z.string().min(1, 'Country is required'),
 }).superRefine((data, ctx) => {
-    // If the selected country has states/provinces, the state field becomes required.
     if (data.country && statesProvinces[data.country] && !data.state) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -85,6 +84,7 @@ const AddressFields: React.FC<{
   disabled?: boolean
 }> = ({ fieldName, control, disabled = false }) => {
     const watchedCountry = useWatch({ control, name: `${fieldName}.country` });
+    const isStateRequired = watchedCountry && statesProvinces[watchedCountry] && statesProvinces[watchedCountry].length > 0;
 
     return (
         <div className={cn("space-y-4", disabled && "opacity-50 pointer-events-none")}>
@@ -93,7 +93,7 @@ const AddressFields: React.FC<{
               name={`${fieldName}.street`}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Street Address</FormLabel>
+                  <FormLabel>Street Address <span className="text-destructive">*</span></FormLabel>
                   <FormControl>
                     <Input placeholder="123 Industrial Way" {...field} value={field.value || ''} disabled={disabled} />
                   </FormControl>
@@ -107,7 +107,7 @@ const AddressFields: React.FC<{
                 name={`${fieldName}.city`}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>City</FormLabel>
+                    <FormLabel>City <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Metropolis" {...field} value={field.value || ''} disabled={disabled} />
                     </FormControl>
@@ -120,7 +120,7 @@ const AddressFields: React.FC<{
                 name={`${fieldName}.zip`}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>ZIP / Postal Code</FormLabel>
+                    <FormLabel>ZIP / Postal Code <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="90210" {...field} value={field.value || ''} disabled={disabled} />
                     </FormControl>
@@ -135,7 +135,7 @@ const AddressFields: React.FC<{
                   name={`${fieldName}.country`}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Country</FormLabel>
+                      <FormLabel>Country <span className="text-destructive">*</span></FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value} disabled={disabled}>
                           <FormControl>
                               <SelectTrigger>
@@ -159,8 +159,8 @@ const AddressFields: React.FC<{
                     name={`${fieldName}.state`}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>State / Province</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ''} disabled={disabled || !watchedCountry || (statesProvinces[watchedCountry] || []).length === 0}>
+                        <FormLabel>State / Province {isStateRequired && <span className="text-destructive">*</span>}</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || ''} disabled={disabled || !isStateRequired}>
                             <FormControl>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select a state/province" />
@@ -191,7 +191,6 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const [verificationTemplates, setVerificationTemplates] = useState<VerificationTemplate[]>([]);
   const [activeTemplate, setActiveTemplate] = useState<VerificationTemplate | null>(null);
 
-  // This is a dynamic resolver that incorporates the active verification template.
   const sellerProfileSchema = React.useMemo(() => z.object({
     name: z.string().min(2, "Name is too short."),
     companyName: z.string().min(1, "Company name is required."),
@@ -205,29 +204,24 @@ export function ProfileForm({ user }: ProfileFormProps) {
     verificationDetails: z.record(z.string()).optional(),
     address: addressSchema,
   }).superRefine((data, ctx) => {
-    // This is where the dynamic validation happens.
-    // We find the active template based on the form's current country value.
     const activeCountry = data.address?.country;
     const currentTemplate = verificationTemplates.find(t => t.id === activeCountry);
 
     if (currentTemplate) {
       currentTemplate.fields.forEach(field => {
-        // If the template field is required...
         if (field.required) {
           const value = data.verificationDetails?.[field.name];
-          // ...and the user hasn't provided a value...
           if (!value || value.trim() === "") {
-            // ...add an error specifically to that field.
             ctx.addIssue({
               code: z.ZodIssueCode.custom,
               message: `${field.label} is required.`,
-              path: [`verificationDetails.${field.name}`], // This targets the exact input field.
+              path: [`verificationDetails.${field.name}`],
             });
           }
         }
       });
     }
-  }), [verificationTemplates]); // Re-create the schema if templates change.
+  }), [verificationTemplates]);
 
 
   const form = useForm<ProfileFormData>({
@@ -244,7 +238,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
       businessType: user.businessType || undefined,
       exportScope: user.exportScope || [],
       verificationDetails: user.verificationDetails || {},
-    } as any, // Use 'any' to handle the different default structures.
+    } as any,
     mode: "onChange",
   });
 
@@ -336,7 +330,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Your Full Name</FormLabel>
+                    <FormLabel>Your Full Name <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="e.g., Jane Doe" {...field} />
                     </FormControl>
@@ -349,7 +343,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                 name="companyName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Company Name</FormLabel>
+                    <FormLabel>Company Name {user.role === 'seller' && <span className="text-destructive">*</span>}</FormLabel>
                     <FormControl>
                       <Input placeholder="e.g., Acme Inc." {...field} value={field.value || ''} />
                     </FormControl>
@@ -363,7 +357,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
               name="phoneNumber"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Business Phone Number</FormLabel>
+                  <FormLabel>Business Phone Number {user.role === 'seller' && <span className="text-destructive">*</span>}</FormLabel>
                   <FormControl>
                     <Input placeholder="+1 (555) 123-4567" {...field} value={field.value || ''} />
                   </FormControl>
@@ -424,7 +418,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                 name="companyDescription"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Company Description</FormLabel>
+                    <FormLabel>Company Description <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Textarea
                         placeholder="Describe your company, its mission, and what makes it unique."
@@ -442,7 +436,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                   name="taxId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Tax ID / VAT Number</FormLabel>
+                      <FormLabel>Tax ID / VAT Number <span className="text-destructive">*</span></FormLabel>
                       <FormControl>
                         <Input placeholder="Enter your business tax ID" {...field} value={field.value || ''} />
                       </FormControl>
@@ -455,7 +449,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                   name="businessType"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Business Type</FormLabel>
+                      <FormLabel>Business Type <span className="text-destructive">*</span></FormLabel>
                       <Select
                         onValueChange={field.onChange}
                         defaultValue={field.value}
@@ -484,7 +478,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                 render={() => (
                     <FormItem>
                         <div className="mb-4">
-                            <FormLabel className="text-base">Export Scope</FormLabel>
+                            <FormLabel className="text-base">Export Scope <span className="text-destructive">*</span></FormLabel>
                             <FormDescription>
                                 Select the regions you export to.
                             </FormDescription>
@@ -550,7 +544,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                             }}
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>{fieldTemplate.label}</FormLabel>
+                                    <FormLabel>{fieldTemplate.label} {fieldTemplate.required && <span className="text-destructive">*</span>}</FormLabel>
                                     <FormControl>
                                         <Input 
                                             placeholder={`Enter your ${fieldTemplate.label}`}
@@ -579,11 +573,15 @@ export function ProfileForm({ user }: ProfileFormProps) {
           </Card>
         )}
 
-        <div className="flex justify-end">
-          <Button type="submit" disabled={isPending}>
-            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save Changes
-          </Button>
+        <div className="flex justify-between items-center">
+            {user.role === 'seller' && (
+                 <p className="text-sm text-muted-foreground"><span className="text-destructive">*</span> Indicates a required field.</p>
+            )}
+            <div className="flex-grow"></div>
+            <Button type="submit" disabled={isPending}>
+                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save Changes
+            </Button>
         </div>
       </form>
     </Form>
