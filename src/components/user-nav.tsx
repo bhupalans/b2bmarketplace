@@ -64,12 +64,14 @@ export function UserNav() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem asChild>
-            <Link href={`/sellers/${user.id}`}>
-              <User className="mr-2 h-4 w-4" />
-              <span>Public Profile</span>
-            </Link>
-          </DropdownMenuItem>
+          {user.role === 'seller' && (
+            <DropdownMenuItem asChild>
+              <Link href={`/sellers/${user.id}`}>
+                <User className="mr-2 h-4 w-4" />
+                <span>Public Profile</span>
+              </Link>
+            </DropdownMenuItem>
+          )}
            <DropdownMenuItem asChild>
              <Link href="/profile">
               <Settings className="mr-2 h-4 w-4" />
