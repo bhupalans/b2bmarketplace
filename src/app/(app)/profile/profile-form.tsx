@@ -308,7 +308,8 @@ export function ProfileForm({ user }: ProfileFormProps) {
 
     startTransition(async () => {
       let finalValues = { ...values };
-      if (user.role === 'buyer' && billingSameAsShipping) {
+      // Check the flag from the validated form values
+      if (user.role === 'buyer' && finalValues.billingSameAsShipping) {
           finalValues.billingAddress = finalValues.shippingAddress;
       }
       
