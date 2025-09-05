@@ -60,22 +60,28 @@ const sellerProfileSchema = z.object({
   exportScope: z.array(z.string()).optional(),
   verificationDetails: z.record(z.string()).optional(),
   address: addressSchema.optional(),
-  shippingAddress: addressSchema.optional().nullable(),
-  billingAddress: addressSchema.optional().nullable(),
 });
 
-const buyerProfileSchema = z.object({
+const baseBuyerProfileSchema = z.object({
   name: z.string().min(2, "Name is too short."),
   companyName: z.string().optional(),
   phoneNumber: z.string().optional(),
-  companyDescription: z.string().optional(),
-  taxId: z.string().optional(),
-  businessType: z.enum(["Manufacturer", "Distributor", "Trading Company", "Agent"]).optional(),
-  exportScope: z.array(z.string()).optional(),
-  verificationDetails: z.record(z.string()).optional(),
-  address: addressSchema.optional().nullable(),
   shippingAddress: addressSchema,
-  billingAddress: addressSchema,
+  billingSameAsShipping: z.boolean().default(false).optional(),
+});
+
+const buyerProfileSchema = baseBuyerProfileSchema.extend({
+  billingAddress: addressSchema.optional(),
+}).refine(data => {
+  // If the box is not checked, the billingAddress must be defined.
+  if (!data.billingSameAsShipping) {
+    return !!data.billingAddress;
+  }
+  // If the box is checked, we don't care about the billingAddress.
+  return true;
+}, {
+    message: "Billing address is required.",
+    path: ["billingAddress"],
 });
 
 
@@ -211,6 +217,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
       address: user.address,
       shippingAddress: user.shippingAddress,
       billingAddress: user.billingAddress,
+      billingSameAsShipping: false,
       companyDescription: user.companyDescription || "",
       taxId: user.taxId || "",
       businessType: user.businessType || undefined,
@@ -224,6 +231,11 @@ export function ProfileForm({ user }: ProfileFormProps) {
     name: 'address.country',
   });
   
+  const billingSameAsShipping = useWatch({
+    control: form.control,
+    name: 'billingSameAsShipping'
+  });
+
   useEffect(() => {
     async function fetchTemplates() {
       try {
@@ -238,8 +250,10 @@ export function ProfileForm({ user }: ProfileFormProps) {
         });
       }
     }
-    fetchTemplates();
-  }, [toast]);
+    if (user.role === 'seller') {
+      fetchTemplates();
+    }
+  }, [toast, user.role]);
   
   useEffect(() => {
     const countryCode = user.role === 'seller' ? watchedCountry : form.getValues('shippingAddress.country');
@@ -271,7 +285,12 @@ export function ProfileForm({ user }: ProfileFormProps) {
     }
 
     startTransition(async () => {
-      const result = await updateUserProfile(firebaseUser.uid, values);
+      let finalValues = { ...values };
+      if (user.role === 'buyer' && finalValues.billingSameAsShipping) {
+          finalValues.billingAddress = finalValues.shippingAddress;
+      }
+
+      const result = await updateUserProfile(firebaseUser.uid, finalValues);
 
       if (result.success) {
          toast({
@@ -354,14 +373,37 @@ export function ProfileForm({ user }: ProfileFormProps) {
                         <AddressFields fieldName="shippingAddress" control={form.control} />
                     </CardContent>
                 </Card>
+                
                 <Card>
                     <CardHeader>
                         <CardTitle>Billing Address</CardTitle>
-                        <CardDescription>The address for your invoices and payment correspondence.</CardDescription>
+                         <div className="pt-2">
+                             <FormField
+                                control={form.control}
+                                name="billingSameAsShipping"
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                        <FormControl>
+                                            <Checkbox
+                                                checked={field.value}
+                                                onCheckedChange={field.onChange}
+                                            />
+                                        </FormControl>
+                                        <div className="space-y-1 leading-none">
+                                            <FormLabel>
+                                                My billing address is the same as my shipping address.
+                                            </FormLabel>
+                                        </div>
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
                     </CardHeader>
-                    <CardContent>
-                        <AddressFields fieldName="billingAddress" control={form.control} />
-                    </CardContent>
+                    {!billingSameAsShipping && (
+                        <CardContent>
+                            <AddressFields fieldName="billingAddress" control={form.control} />
+                        </CardContent>
+                    )}
                 </Card>
             </>
         )}
@@ -558,4 +600,5 @@ export function ProfileForm({ user }: ProfileFormProps) {
   );
 }
 
+    
     
