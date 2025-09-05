@@ -50,21 +50,53 @@ const addressSchema = z.object({
     country: z.string().optional(),
 }).optional();
 
-const profileSchema = z.object({
+// Base schema for shared fields
+const baseProfileSchema = z.object({
   name: z.string().min(2, "Name is too short."),
   companyName: z.string().optional(),
   phoneNumber: z.string().optional(),
-  address: addressSchema,
-  shippingAddress: addressSchema,
-  billingAddress: addressSchema,
   companyDescription: z.string().optional(),
   taxId: z.string().optional(),
   businessType: z
     .enum(["Manufacturer", "Distributor", "Trading Company", "Agent"])
     .optional(),
   exportScope: z.array(z.string()).optional(),
-  verificationDetails: z.record(z.string()).optional(), // For dynamic fields
+  verificationDetails: z.record(z.string()).optional(),
 });
+
+// A flag to control buyer-specific validation
+const formFlagsSchema = z.object({
+  isBuyer: z.boolean(),
+  billingSameAsShipping: z.boolean(),
+});
+
+// The final schema combines everything with conditional validation
+const profileSchema = z.intersection(baseProfileSchema, formFlagsSchema).and(
+  z.object({
+    address: addressSchema,
+    shippingAddress: addressSchema,
+    billingAddress: addressSchema,
+  })
+).refine(data => {
+  // If user is a buyer, shipping address is required
+  if (data.isBuyer) {
+    return data.shippingAddress?.street && data.shippingAddress?.city && data.shippingAddress?.country;
+  }
+  return true;
+}, {
+  message: "Shipping address fields are required for buyers.",
+  path: ["shippingAddress.street"], // Point error to the first field
+}).refine(data => {
+  // If user is a buyer AND billing is not the same as shipping, billing address is required
+  if (data.isBuyer && !data.billingSameAsShipping) {
+    return data.billingAddress?.street && data.billingAddress?.city && data.billingAddress?.country;
+  }
+  return true;
+}, {
+  message: "Billing address fields are required when not the same as shipping.",
+  path: ["billingAddress.street"],
+});
+
 
 type ProfileFormData = z.infer<typeof profileSchema>;
 
@@ -204,6 +236,9 @@ export function ProfileForm({ user }: ProfileFormProps) {
       businessType: user.businessType || undefined,
       exportScope: user.exportScope || [],
       verificationDetails: user.verificationDetails || {},
+      // Set flags for validation
+      isBuyer: user.role === 'buyer',
+      billingSameAsShipping: false,
     },
   });
 
@@ -218,9 +253,10 @@ export function ProfileForm({ user }: ProfileFormProps) {
   });
 
   useEffect(() => {
+    form.setValue('billingSameAsShipping', billingSameAsShipping, { shouldValidate: true });
     // Sync billing address if checkbox is checked
     if (billingSameAsShipping) {
-        form.setValue('billingAddress', watchedShippingAddress);
+        form.setValue('billingAddress', watchedShippingAddress, { shouldValidate: true });
     }
   }, [billingSameAsShipping, watchedShippingAddress, form]);
 
@@ -276,7 +312,8 @@ export function ProfileForm({ user }: ProfileFormProps) {
           finalValues.billingAddress = finalValues.shippingAddress;
       }
       
-      const result = await updateUserProfile(firebaseUser.uid, finalValues);
+      const { isBuyer, billingSameAsShipping, ...dataToSave } = finalValues;
+      const result = await updateUserProfile(firebaseUser.uid, dataToSave);
 
       if (result.success) {
          toast({
@@ -369,7 +406,10 @@ export function ProfileForm({ user }: ProfileFormProps) {
                             <Checkbox 
                                 id="sameAsShipping"
                                 checked={billingSameAsShipping}
-                                onCheckedChange={(checked) => setBillingSameAsShipping(Boolean(checked))}
+                                onCheckedChange={(checked) => {
+                                    const isChecked = Boolean(checked);
+                                    setBillingSameAsShipping(isChecked);
+                                }}
                             />
                             <label
                                 htmlFor="sameAsShipping"
