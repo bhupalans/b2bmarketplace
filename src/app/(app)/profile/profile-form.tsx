@@ -67,28 +67,11 @@ const buyerProfileSchema = z.object({
   companyName: z.string().optional(),
   phoneNumber: z.string().optional(),
   shippingAddress: addressSchema,
-  billingSameAsShipping: z.boolean().default(false).optional(),
-  billingAddress: addressSchema.optional(),
-})
-.superRefine((data, ctx) => {
-    if (!data.billingSameAsShipping) {
-        if (!data.billingAddress?.street) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Street is required.", path: ["billingAddress.street"] });
-        }
-        if (!data.billingAddress?.city) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "City is required.", path: ["billingAddress.city"] });
-        }
-        if (!data.billingAddress?.zip) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "ZIP code is required.", path: ["billingAddress.zip"] });
-        }
-        if (!data.billingAddress?.country) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Country is required.", path: ["billingAddress.country"] });
-        }
-    }
+  billingAddress: addressSchema,
 });
 
 
-type ProfileFormData = z.infer<typeof buyerProfileSchema>;
+type ProfileFormData = z.infer<typeof buyerProfileSchema | typeof sellerProfileSchema>;
 
 interface ProfileFormProps {
   user: User;
@@ -220,13 +203,12 @@ export function ProfileForm({ user }: ProfileFormProps) {
       address: user.address,
       shippingAddress: user.shippingAddress,
       billingAddress: user.billingAddress,
-      billingSameAsShipping: user.billingSameAsShipping ?? false,
       companyDescription: user.companyDescription || "",
       taxId: user.taxId || "",
       businessType: user.businessType || undefined,
       exportScope: user.exportScope || [],
       verificationDetails: user.verificationDetails || {},
-    },
+    } as any, // Use 'any' to handle the different default structures.
     mode: "onChange",
   });
 
@@ -235,11 +217,6 @@ export function ProfileForm({ user }: ProfileFormProps) {
     name: 'address.country',
   });
   
-  const billingSameAsShipping = useWatch({
-    control: form.control,
-    name: 'billingSameAsShipping'
-  });
-
   useEffect(() => {
     async function fetchTemplates() {
       try {
@@ -289,12 +266,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
     }
 
     startTransition(async () => {
-      let finalValues = { ...values };
-      if (user.role === 'buyer' && finalValues.billingSameAsShipping) {
-          finalValues.billingAddress = finalValues.shippingAddress;
-      }
-
-      const result = await updateUserProfile(firebaseUser.uid, finalValues);
+      const result = await updateUserProfile(firebaseUser.uid, values);
 
       if (result.success) {
          toast({
@@ -381,33 +353,11 @@ export function ProfileForm({ user }: ProfileFormProps) {
                 <Card>
                     <CardHeader>
                         <CardTitle>Billing Address</CardTitle>
-                         <div className="pt-2">
-                             <FormField
-                                control={form.control}
-                                name="billingSameAsShipping"
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                                        <FormControl>
-                                            <Checkbox
-                                                checked={field.value}
-                                                onCheckedChange={field.onChange}
-                                            />
-                                        </FormControl>
-                                        <div className="space-y-1 leading-none">
-                                            <FormLabel>
-                                                My billing address is the same as my shipping address.
-                                            </FormLabel>
-                                        </div>
-                                    </FormItem>
-                                )}
-                            />
-                        </div>
+                        <CardDescription>The address associated with your payment method.</CardDescription>
                     </CardHeader>
-                    {!billingSameAsShipping && (
-                        <CardContent>
-                            <AddressFields fieldName="billingAddress" control={form.control} />
-                        </CardContent>
-                    )}
+                    <CardContent>
+                        <AddressFields fieldName="billingAddress" control={form.control} />
+                    </CardContent>
                 </Card>
             </>
         )}
