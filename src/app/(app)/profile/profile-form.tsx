@@ -72,16 +72,37 @@ const baseBuyerProfileSchema = z.object({
 
 const buyerProfileSchema = baseBuyerProfileSchema.extend({
   billingAddress: addressSchema.optional(),
-}).refine(data => {
-  // If the box is not checked, the billingAddress must be defined.
+}).superRefine((data, ctx) => {
   if (!data.billingSameAsShipping) {
-    return !!data.billingAddress;
+    if (!data.billingAddress?.street) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Street is required.',
+        path: ['billingAddress.street'],
+      });
+    }
+    if (!data.billingAddress?.city) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'City is required.',
+        path: ['billingAddress.city'],
+      });
+    }
+    if (!data.billingAddress?.zip) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'ZIP code is required.',
+        path: ['billingAddress.zip'],
+      });
+    }
+    if (!data.billingAddress?.country) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Country is required.',
+        path: ['billingAddress.country'],
+      });
+    }
   }
-  // If the box is checked, we don't care about the billingAddress.
-  return true;
-}, {
-    message: "Billing address is required.",
-    path: ["billingAddress"],
 });
 
 
@@ -601,4 +622,6 @@ export function ProfileForm({ user }: ProfileFormProps) {
 }
 
     
+    
+
     
