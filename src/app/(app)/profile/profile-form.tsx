@@ -50,32 +50,6 @@ const addressSchema = z.object({
     country: z.string().min(1, 'Country is required'),
 });
 
-const baseBuyerProfileSchema = z.object({
-  name: z.string().min(2, "Name is too short."),
-  companyName: z.string().optional(),
-  phoneNumber: z.string().optional(),
-  shippingAddress: addressSchema,
-  billingSameAsShipping: z.boolean().default(false).optional(),
-});
-
-const buyerProfileSchema = baseBuyerProfileSchema
-  .extend({
-    billingAddress: addressSchema.optional(),
-  })
-  .refine(
-    (data) => {
-      if (!data.billingSameAsShipping) {
-        return !!data.billingAddress; 
-      }
-      return true;
-    },
-    {
-      message: "Billing address is required when not same as shipping.",
-      path: ["billingAddress"],
-    }
-  );
-
-
 const sellerProfileSchema = z.object({
   name: z.string().min(2, "Name is too short."),
   companyName: z.string().optional(),
@@ -86,6 +60,31 @@ const sellerProfileSchema = z.object({
   exportScope: z.array(z.string()).optional(),
   verificationDetails: z.record(z.string()).optional(),
   address: addressSchema.optional(),
+});
+
+const buyerProfileSchema = z.object({
+  name: z.string().min(2, "Name is too short."),
+  companyName: z.string().optional(),
+  phoneNumber: z.string().optional(),
+  shippingAddress: addressSchema,
+  billingSameAsShipping: z.boolean().default(false).optional(),
+  billingAddress: addressSchema.optional(),
+})
+.superRefine((data, ctx) => {
+    if (!data.billingSameAsShipping) {
+        if (!data.billingAddress?.street) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Street is required.", path: ["billingAddress.street"] });
+        }
+        if (!data.billingAddress?.city) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "City is required.", path: ["billingAddress.city"] });
+        }
+        if (!data.billingAddress?.zip) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "ZIP code is required.", path: ["billingAddress.zip"] });
+        }
+        if (!data.billingAddress?.country) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Country is required.", path: ["billingAddress.country"] });
+        }
+    }
 });
 
 
@@ -221,7 +220,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
       address: user.address,
       shippingAddress: user.shippingAddress,
       billingAddress: user.billingAddress,
-      billingSameAsShipping: user.billingAddress && user.shippingAddress && JSON.stringify(user.billingAddress) === JSON.stringify(user.shippingAddress),
+      billingSameAsShipping: user.billingSameAsShipping ?? false,
       companyDescription: user.companyDescription || "",
       taxId: user.taxId || "",
       businessType: user.businessType || undefined,

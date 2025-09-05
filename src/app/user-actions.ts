@@ -16,30 +16,31 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
   try {
     const userRef = adminDb.collection('users').doc(userId);
 
-    // This is a more robust way to build the update object.
-    // It avoids issues with 'undefined' values which can cause Firestore errors.
     const updateData: { [key: string]: any } = {};
 
-    // Map all the direct properties
-    if (data.name) updateData.name = data.name;
-    if (data.companyName) updateData.companyName = data.companyName;
-    if (data.phoneNumber) updateData.phoneNumber = data.phoneNumber;
-    if (data.companyDescription) updateData.companyDescription = data.companyDescription;
-    if (data.taxId) updateData.taxId = data.taxId;
-    if (data.businessType) updateData.businessType = data.businessType;
-    if (data.exportScope) updateData.exportScope = data.exportScope;
-    if (data.verificationDetails) updateData.verificationDetails = data.verificationDetails;
+    // Map all direct properties from the form data to the update object
+    // This ensures we only try to update fields that were actually on the form
+    const directProperties: (keyof ProfileUpdateData)[] = [
+      'name', 'companyName', 'phoneNumber', 'companyDescription',
+      'taxId', 'businessType', 'exportScope', 'verificationDetails',
+      'billingSameAsShipping' // Also save the checkbox state
+    ];
+
+    directProperties.forEach(prop => {
+      if (data[prop] !== undefined) {
+        updateData[prop] = data[prop];
+      }
+    });
     
-    // Explicitly handle each address type to avoid errors.
-    // This correctly handles creating or updating the address objects.
+    // Explicitly handle each address type to avoid errors with undefined values
     if (data.address) {
-        updateData.address = data.address;
+      updateData.address = data.address;
     }
     if (data.shippingAddress) {
-        updateData.shippingAddress = data.shippingAddress;
+      updateData.shippingAddress = data.shippingAddress;
     }
     if (data.billingAddress) {
-        updateData.billingAddress = data.billingAddress;
+      updateData.billingAddress = data.billingAddress;
     }
 
     await userRef.update(updateData);

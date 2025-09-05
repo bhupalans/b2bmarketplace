@@ -36,6 +36,8 @@ export type User = {
     zip: string;
     country: string;
   };
+  
+  billingSameAsShipping?: boolean; // Persist the checkbox state
 
   taxId?: string; // e.g., VAT ID, EIN for sellers
   verificationDetails?: { [key: string]: string }; // For dynamic verification fields
