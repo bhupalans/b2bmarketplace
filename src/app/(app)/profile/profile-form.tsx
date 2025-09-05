@@ -40,6 +40,7 @@ import { updateUserProfile } from "@/app/user-actions";
 import { useAuth } from "@/contexts/auth-context";
 import { getVerificationTemplatesClient } from "@/lib/firebase";
 import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 
 const addressSchema = z.object({
     street: z.string().optional(),
@@ -76,12 +77,15 @@ const exportScopeItems = [
     { id: 'international', label: 'International Exporter' },
 ];
 
-const AddressFields: React.FC<{ user: User, fieldName: 'address' | 'shippingAddress' | 'billingAddress' }> = ({ user, fieldName }) => {
-    const { control } = useForm<ProfileFormData>();
+const AddressFields: React.FC<{
+  fieldName: 'address' | 'shippingAddress' | 'billingAddress',
+  control: any, // Pass control from the main form
+  disabled?: boolean
+}> = ({ fieldName, control, disabled = false }) => {
     const watchedCountry = useWatch({ control, name: `${fieldName}.country` });
 
     return (
-        <div className="space-y-4">
+        <div className={cn("space-y-4", disabled && "opacity-50 pointer-events-none")}>
             <FormField
               control={control}
               name={`${fieldName}.street`}
@@ -89,7 +93,7 @@ const AddressFields: React.FC<{ user: User, fieldName: 'address' | 'shippingAddr
                 <FormItem>
                   <FormLabel>Street Address</FormLabel>
                   <FormControl>
-                    <Input placeholder="123 Industrial Way" {...field} value={field.value || ''} />
+                    <Input placeholder="123 Industrial Way" {...field} value={field.value || ''} disabled={disabled} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -103,7 +107,7 @@ const AddressFields: React.FC<{ user: User, fieldName: 'address' | 'shippingAddr
                   <FormItem>
                     <FormLabel>City</FormLabel>
                     <FormControl>
-                      <Input placeholder="Metropolis" {...field} value={field.value || ''} />
+                      <Input placeholder="Metropolis" {...field} value={field.value || ''} disabled={disabled} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -116,7 +120,7 @@ const AddressFields: React.FC<{ user: User, fieldName: 'address' | 'shippingAddr
                   <FormItem>
                     <FormLabel>ZIP / Postal Code</FormLabel>
                     <FormControl>
-                      <Input placeholder="90210" {...field} value={field.value || ''} />
+                      <Input placeholder="90210" {...field} value={field.value || ''} disabled={disabled} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -130,7 +134,7 @@ const AddressFields: React.FC<{ user: User, fieldName: 'address' | 'shippingAddr
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Country</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={disabled}>
                           <FormControl>
                               <SelectTrigger>
                                   <SelectValue placeholder="Select a country" />
@@ -154,7 +158,7 @@ const AddressFields: React.FC<{ user: User, fieldName: 'address' | 'shippingAddr
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>State / Province</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ''} disabled={!watchedCountry || (statesProvinces[watchedCountry] || []).length === 0}>
+                        <Select onValueChange={field.onChange} value={field.value || ''} disabled={disabled || !watchedCountry || (statesProvinces[watchedCountry] || []).length === 0}>
                             <FormControl>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select a state/province" />
@@ -184,6 +188,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const { firebaseUser } = useAuth();
   const [verificationTemplates, setVerificationTemplates] = useState<VerificationTemplate[]>([]);
   const [activeTemplate, setActiveTemplate] = useState<VerificationTemplate | null>(null);
+  const [billingSameAsShipping, setBillingSameAsShipping] = useState(false);
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
@@ -206,6 +211,18 @@ export function ProfileForm({ user }: ProfileFormProps) {
     control: form.control,
     name: 'address.country',
   });
+
+  const watchedShippingAddress = useWatch({
+    control: form.control,
+    name: 'shippingAddress'
+  });
+
+  useEffect(() => {
+    // Sync billing address if checkbox is checked
+    if (billingSameAsShipping) {
+        form.setValue('billingAddress', watchedShippingAddress);
+    }
+  }, [billingSameAsShipping, watchedShippingAddress, form]);
 
   useEffect(() => {
     async function fetchTemplates() {
@@ -254,7 +271,12 @@ export function ProfileForm({ user }: ProfileFormProps) {
     }
 
     startTransition(async () => {
-      const result = await updateUserProfile(firebaseUser.uid, values);
+      let finalValues = { ...values };
+      if (user.role === 'buyer' && billingSameAsShipping) {
+          finalValues.billingAddress = finalValues.shippingAddress;
+      }
+      
+      const result = await updateUserProfile(firebaseUser.uid, finalValues);
 
       if (result.success) {
          toast({
@@ -334,7 +356,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                         <CardDescription>Your company's primary delivery location.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <AddressFields user={user} fieldName="shippingAddress" />
+                        <AddressFields fieldName="shippingAddress" control={form.control} />
                     </CardContent>
                 </Card>
                 <Card>
@@ -343,7 +365,20 @@ export function ProfileForm({ user }: ProfileFormProps) {
                         <CardDescription>The address for your invoices and payment correspondence.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <AddressFields user={user} fieldName="billingAddress" />
+                         <FormItem className="flex flex-row items-center space-x-2 mb-4">
+                            <Checkbox 
+                                id="sameAsShipping"
+                                checked={billingSameAsShipping}
+                                onCheckedChange={(checked) => setBillingSameAsShipping(Boolean(checked))}
+                            />
+                            <label
+                                htmlFor="sameAsShipping"
+                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                            >
+                                My billing address is the same as my shipping address.
+                            </label>
+                        </FormItem>
+                        <AddressFields fieldName="billingAddress" control={form.control} disabled={billingSameAsShipping} />
                     </CardContent>
                 </Card>
             </>
@@ -356,7 +391,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                     <CardDescription>Your company's primary physical location.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <AddressFields user={user} fieldName="address" />
+                    <AddressFields fieldName="address" control={form.control} />
                 </CardContent>
             </Card>
         )}
