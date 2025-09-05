@@ -209,7 +209,14 @@ export function ProfileForm({ user }: ProfileFormProps) {
 
     if (currentTemplate) {
       currentTemplate.fields.forEach(field => {
-        if (field.required) {
+        let isRequired = false;
+        if (field.required === 'always') {
+          isRequired = true;
+        } else if (field.required === 'international') {
+          isRequired = data.exportScope?.includes('international') ?? false;
+        }
+
+        if (isRequired) {
           const value = data.verificationDetails?.[field.name];
           if (!value || value.trim() === "") {
             ctx.addIssue({
@@ -247,6 +254,11 @@ export function ProfileForm({ user }: ProfileFormProps) {
     name: 'address.country',
   });
   
+  const watchedExportScope = useWatch({
+    control: form.control,
+    name: 'exportScope',
+  });
+
   useEffect(() => {
     async function fetchTemplates() {
       try {
@@ -529,44 +541,55 @@ export function ProfileForm({ user }: ProfileFormProps) {
                      <h3 className="text-md font-medium">
                         Business Verification ({activeTemplate.countryName})
                      </h3>
-                    {activeTemplate.fields.map(fieldTemplate => (
-                        <FormField
-                            key={fieldTemplate.name}
-                            control={form.control}
-                            name={`verificationDetails.${fieldTemplate.name}` as const}
-                            defaultValue={user?.verificationDetails?.[fieldTemplate.name] || ""}
-                            rules={{ 
-                                required: fieldTemplate.required ? 'This field is required.' : false,
-                                pattern: fieldTemplate.validationRegex ? {
-                                    value: new RegExp(fieldTemplate.validationRegex),
-                                    message: `Please enter a valid ${fieldTemplate.label}.`
-                                } : undefined
-                            }}
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>{fieldTemplate.label} {fieldTemplate.required && <span className="text-destructive">*</span>}</FormLabel>
-                                    <FormControl>
-                                        <Input 
-                                            placeholder={`Enter your ${fieldTemplate.label}`}
-                                            {...field}
-                                            value={field.value || ''}
-                                            onChange={(e) => {
-                                                if (fieldTemplate.name === 'gstn') {
-                                                    field.onChange(e.target.value.toUpperCase());
-                                                } else {
-                                                    field.onChange(e);
-                                                }
-                                            }}
-                                        />
-                                    </FormControl>
-                                    <FormDescription>
-                                        {fieldTemplate.helperText}
-                                    </FormDescription>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    ))}
+                    {activeTemplate.fields.map(fieldTemplate => {
+                        let isRequired = false;
+                        if (fieldTemplate.required === 'always') {
+                            isRequired = true;
+                        } else if (fieldTemplate.required === 'international') {
+                            isRequired = watchedExportScope?.includes('international') ?? false;
+                        }
+
+                        if (fieldTemplate.required === 'never') return null;
+
+                        return (
+                            <FormField
+                                key={fieldTemplate.name}
+                                control={form.control}
+                                name={`verificationDetails.${fieldTemplate.name}` as const}
+                                defaultValue={user?.verificationDetails?.[fieldTemplate.name] || ""}
+                                rules={{ 
+                                    required: isRequired ? 'This field is required.' : false,
+                                    pattern: fieldTemplate.validationRegex ? {
+                                        value: new RegExp(fieldTemplate.validationRegex),
+                                        message: `Please enter a valid ${fieldTemplate.label}.`
+                                    } : undefined
+                                }}
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>{fieldTemplate.label} {isRequired && <span className="text-destructive">*</span>}</FormLabel>
+                                        <FormControl>
+                                            <Input 
+                                                placeholder={`Enter your ${fieldTemplate.label}`}
+                                                {...field}
+                                                value={field.value || ''}
+                                                onChange={(e) => {
+                                                    if (fieldTemplate.name === 'gstn') {
+                                                        field.onChange(e.target.value.toUpperCase());
+                                                    } else {
+                                                        field.onChange(e);
+                                                    }
+                                                }}
+                                            />
+                                        </FormControl>
+                                        <FormDescription>
+                                            {fieldTemplate.helperText}
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        )
+                    })}
                 </div>
               )}
             </CardContent>

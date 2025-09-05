@@ -55,7 +55,7 @@ export function VerificationTemplateFormDialog({ open, onOpenChange, templateId,
       name: z.string().min(1, 'Field name cannot be empty.'),
       label: z.string().min(1, 'Label cannot be empty.'),
       type: z.enum(['text', 'file']),
-      required: z.boolean(),
+      required: z.enum(['always', 'international', 'never']),
       validationRegex: z.string().optional(),
       helperText: z.string().optional(),
     });
@@ -69,7 +69,7 @@ export function VerificationTemplateFormDialog({ open, onOpenChange, templateId,
     resolver: zodResolver(verificationTemplateSchema),
     defaultValues: {
       id: '',
-      fields: [{ name: '', label: '', type: 'text', required: true, validationRegex: '', helperText: '' }],
+      fields: [{ name: '', label: '', type: 'text', required: 'always', validationRegex: '', helperText: '' }],
     },
   });
 
@@ -91,7 +91,7 @@ export function VerificationTemplateFormDialog({ open, onOpenChange, templateId,
         }
         setIsLoading(false);
       } else {
-        form.reset({ id: '', fields: [{ name: '', label: '', type: 'text', required: true, validationRegex: '', helperText: '' }] });
+        form.reset({ id: '', fields: [{ name: '', label: '', type: 'text', required: 'always', validationRegex: '', helperText: '' }] });
       }
     };
 
@@ -228,18 +228,25 @@ export function VerificationTemplateFormDialog({ open, onOpenChange, templateId,
                         />
                         <div className="flex items-center gap-4">
                             <FormField
-                            control={form.control}
-                            name={`fields.${index}.required`}
-                            render={({ field }) => (
-                                <FormItem className="flex flex-row items-start space-x-2 space-y-0 rounded-md p-2 border">
-                                    <FormControl>
-                                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                                    </FormControl>
-                                    <div className="space-y-1 leading-none">
-                                        <FormLabel>Required</FormLabel>
-                                    </div>
+                              control={form.control}
+                              name={`fields.${index}.required`}
+                              render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Requirement</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select requirement level" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="always">Always Required</SelectItem>
+                                            <SelectItem value="international">Required for International Exporters</SelectItem>
+                                            <SelectItem value="never">Not Required</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </FormItem>
-                            )}
+                              )}
                             />
                         </div>
                     </div>
@@ -262,7 +269,7 @@ export function VerificationTemplateFormDialog({ open, onOpenChange, templateId,
                 variant="outline"
                 size="sm"
                 className="mt-4"
-                onClick={() => append({ name: '', label: '', type: 'text', required: true, validationRegex: '', helperText: '' })}
+                onClick={() => append({ name: '', label: '', type: 'text', required: 'always', validationRegex: '', helperText: '' })}
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Field

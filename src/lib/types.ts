@@ -76,7 +76,7 @@ export type VerificationField = {
     name: string; // e.g., "gstn"
     label: string; // e.g., "GSTN"
     type: 'text' | 'file';
-    required: boolean;
+    required: 'always' | 'international' | 'never';
     validationRegex?: string;
     helperText?: string;
 }
