@@ -25,7 +25,7 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
     const existingData = userDoc.data() as User;
 
     // Create a new object for the update, ensuring address and verification details are handled correctly
-    const updateData: any = { // Use 'any' to dynamically build the object
+    const updateData: { [key: string]: any } = { // Use 'any' to dynamically build the object
         name: data.name,
         companyName: data.companyName,
         phoneNumber: data.phoneNumber,
