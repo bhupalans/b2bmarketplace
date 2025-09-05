@@ -41,17 +41,21 @@ import { useAuth } from "@/contexts/auth-context";
 import { getVerificationTemplatesClient } from "@/lib/firebase";
 import { Checkbox } from "@/components/ui/checkbox";
 
-const profileSchema = z.object({
-  name: z.string().min(2, "Name is too short."),
-  companyName: z.string().optional(),
-  phoneNumber: z.string().optional(),
-  address: z.object({
+const addressSchema = z.object({
     street: z.string().optional(),
     city: z.string().optional(),
     state: z.string().optional(),
     zip: z.string().optional(),
     country: z.string().optional(),
-  }),
+}).optional();
+
+const profileSchema = z.object({
+  name: z.string().min(2, "Name is too short."),
+  companyName: z.string().optional(),
+  phoneNumber: z.string().optional(),
+  address: addressSchema,
+  shippingAddress: addressSchema,
+  billingAddress: addressSchema,
   companyDescription: z.string().optional(),
   taxId: z.string().optional(),
   businessType: z
@@ -72,6 +76,108 @@ const exportScopeItems = [
     { id: 'international', label: 'International Exporter' },
 ];
 
+const AddressFields: React.FC<{ user: User, fieldName: 'address' | 'shippingAddress' | 'billingAddress' }> = ({ user, fieldName }) => {
+    const { control } = useForm<ProfileFormData>();
+    const watchedCountry = useWatch({ control, name: `${fieldName}.country` });
+
+    return (
+        <div className="space-y-4">
+            <FormField
+              control={control}
+              name={`${fieldName}.street`}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Street Address</FormLabel>
+                  <FormControl>
+                    <Input placeholder="123 Industrial Way" {...field} value={field.value || ''} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <FormField
+                control={control}
+                name={`${fieldName}.city`}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>City</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Metropolis" {...field} value={field.value || ''} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={control}
+                name={`${fieldName}.zip`}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>ZIP / Postal Code</FormLabel>
+                    <FormControl>
+                      <Input placeholder="90210" {...field} value={field.value || ''} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                  control={control}
+                  name={`${fieldName}.country`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Country</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                              <SelectTrigger>
+                                  <SelectValue placeholder="Select a country" />
+                              </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                              {countries.map(country => (
+                                  <SelectItem key={country.value} value={country.value}>
+                                      {country.label}
+                                  </SelectItem>
+                              ))}
+                          </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                    control={control}
+                    name={`${fieldName}.state`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>State / Province</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || ''} disabled={!watchedCountry || (statesProvinces[watchedCountry] || []).length === 0}>
+                            <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a state/province" />
+                                </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                {(statesProvinces[watchedCountry] || []).map(state => (
+                                    <SelectItem key={state.value} value={state.value}>
+                                        {state.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+            </div>
+        </div>
+    );
+};
+
+
 export function ProfileForm({ user }: ProfileFormProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
@@ -85,13 +191,9 @@ export function ProfileForm({ user }: ProfileFormProps) {
       name: user.name || "",
       companyName: user.companyName || "",
       phoneNumber: user.phoneNumber || "",
-      address: {
-        street: user.address?.street || "",
-        city: user.address?.city || "",
-        state: user.address?.state || "",
-        zip: user.address?.zip || "",
-        country: user.address?.country || "",
-      },
+      address: user.address,
+      shippingAddress: user.shippingAddress,
+      billingAddress: user.billingAddress,
       companyDescription: user.companyDescription || "",
       taxId: user.taxId || "",
       businessType: user.businessType || undefined,
@@ -123,19 +225,23 @@ export function ProfileForm({ user }: ProfileFormProps) {
   }, [toast]);
   
   useEffect(() => {
-    if (watchedCountry) {
-        const availableStates = statesProvinces[watchedCountry] || [];
-        const currentState = form.getValues('address.state');
+    const countryCode = user.role === 'seller' ? watchedCountry : form.getValues('shippingAddress.country');
+    if (countryCode) {
+        const availableStates = statesProvinces[countryCode] || [];
+        const stateFieldName = user.role === 'seller' ? 'address.state' : 'shippingAddress.state';
+        const currentState = form.getValues(stateFieldName as 'address.state');
         if (!availableStates.some(s => s.value === currentState)) {
-            form.setValue('address.state', '');
+            form.setValue(stateFieldName as 'address.state', '');
         }
-
-        const template = verificationTemplates.find(t => t.id === watchedCountry) || null;
-        setActiveTemplate(template);
-    } else {
+        
+        if (user.role === 'seller') {
+            const template = verificationTemplates.find(t => t.id === countryCode) || null;
+            setActiveTemplate(template);
+        }
+    } else if (user.role === 'seller') {
         setActiveTemplate(null);
     }
-  }, [watchedCountry, form, verificationTemplates]);
+  }, [watchedCountry, form, verificationTemplates, user.role]);
 
   const onSubmit = (values: ProfileFormData) => {
     if (!firebaseUser) {
@@ -220,107 +326,40 @@ export function ProfileForm({ user }: ProfileFormProps) {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Business Address</CardTitle>
-            <CardDescription>
-              Your company's primary physical location.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <FormField
-              control={form.control}
-              name="address.street"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Street Address</FormLabel>
-                  <FormControl>
-                    <Input placeholder="123 Industrial Way" {...field} value={field.value || ''} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-               <FormField
-                control={form.control}
-                name="address.city"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>City</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Metropolis" {...field} value={field.value || ''} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-               <FormField
-                control={form.control}
-                name="address.zip"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>ZIP / Postal Code</FormLabel>
-                    <FormControl>
-                      <Input placeholder="90210" {...field} value={field.value || ''} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                  control={form.control}
-                  name="address.country"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Country</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                              <SelectTrigger>
-                                  <SelectValue placeholder="Select a country" />
-                              </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                              {countries.map(country => (
-                                  <SelectItem key={country.value} value={country.value}>
-                                      {country.label}
-                                  </SelectItem>
-                              ))}
-                          </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                    control={form.control}
-                    name="address.state"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>State / Province</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value} disabled={!watchedCountry || (statesProvinces[watchedCountry] || []).length === 0}>
-                            <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select a state/province" />
-                                </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {(statesProvinces[watchedCountry] || []).map(state => (
-                                    <SelectItem key={state.value} value={state.value}>
-                                        {state.label}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-            </div>
-          </CardContent>
-        </Card>
+        {user.role === 'buyer' && (
+            <>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Shipping Address</CardTitle>
+                        <CardDescription>Your company's primary delivery location.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <AddressFields user={user} fieldName="shippingAddress" />
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Billing Address</CardTitle>
+                        <CardDescription>The address for your invoices and payment correspondence.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <AddressFields user={user} fieldName="billingAddress" />
+                    </CardContent>
+                </Card>
+            </>
+        )}
+
+        {user.role === 'seller' && (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Business Address</CardTitle>
+                    <CardDescription>Your company's primary physical location.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <AddressFields user={user} fieldName="address" />
+                </CardContent>
+            </Card>
+        )}
 
         {user.role === "seller" && (
           <Card>

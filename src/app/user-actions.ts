@@ -30,6 +30,8 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
         companyName: data.companyName,
         phoneNumber: data.phoneNumber,
         address: data.address,
+        shippingAddress: data.shippingAddress, // Add shipping address
+        billingAddress: data.billingAddress,   // Add billing address
         companyDescription: data.companyDescription,
         taxId: data.taxId,
         businessType: data.businessType,
