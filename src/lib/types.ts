@@ -100,6 +100,13 @@ export type Product = {
   specifications?: { name: string; value: string }[];
   createdAt?: Timestamp | string;
   updatedAt?: Timestamp | string;
+  
+  // New common fields
+  countryOfOrigin: string;
+  stockAvailability: 'in_stock' | 'out_of_stock' | 'made_to_order';
+  moq: number; // Minimum Order Quantity
+  sku?: string; // Stock Keeping Unit / Model Number
+  leadTime?: string; // e.g., "5-7 business days"
 };
 
 export type Offer = {

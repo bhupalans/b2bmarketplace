@@ -43,6 +43,7 @@ import { Separator } from "./ui/separator";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { Switch } from "./ui/switch";
 import { Checkbox } from "./ui/checkbox";
+import { countries } from "@/lib/geography-data";
 
 const MAX_IMAGES = 5;
 
@@ -51,6 +52,11 @@ const productSchema = z.object({
   description: z.string().min(10, { message: "Description must be at least 10 characters." }),
   priceUSD: z.coerce.number().positive({ message: "Price must be a positive number." }),
   categoryId: z.string().min(1, { message: "Please select a category." }),
+  countryOfOrigin: z.string().min(1, { message: "Please select a country of origin." }),
+  stockAvailability: z.enum(['in_stock', 'out_of_stock', 'made_to_order'], { required_error: 'Please select stock availability.'}),
+  moq: z.coerce.number().int().min(1, { message: "Minimum order quantity must be at least 1." }),
+  sku: z.string().optional(),
+  leadTime: z.string().min(1, { message: "Please provide an estimated lead time." }),
   specifications: z.array(z.object({
       name: z.string(),
       value: z.string().min(1, { message: "Specification value cannot be empty." }),
@@ -100,6 +106,11 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
       description: "",
       priceUSD: undefined,
       categoryId: "",
+      countryOfOrigin: "",
+      stockAvailability: 'in_stock',
+      moq: 1,
+      sku: "",
+      leadTime: "",
       specifications: [],
       existingImages: [],
       newImageFiles: undefined,
@@ -148,6 +159,11 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
       description: "",
       priceUSD: undefined,
       categoryId: "",
+      countryOfOrigin: "",
+      stockAvailability: 'in_stock',
+      moq: 1,
+      sku: "",
+      leadTime: "",
       specifications: [],
       existingImages: [],
       newImageFiles: undefined,
@@ -168,6 +184,11 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                 description: fetchedProduct.description,
                 priceUSD: fetchedProduct.priceUSD,
                 categoryId: fetchedProduct.categoryId,
+                countryOfOrigin: fetchedProduct.countryOfOrigin,
+                stockAvailability: fetchedProduct.stockAvailability,
+                moq: fetchedProduct.moq,
+                sku: fetchedProduct.sku,
+                leadTime: fetchedProduct.leadTime,
                 specifications: fetchedProduct.specifications || [],
                 existingImages: fetchedProduct.images || [],
                 newImageFiles: undefined,
@@ -271,76 +292,176 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
         ) : (
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Product Title</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. Industrial Grade Widgets" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Product Description</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Describe your product in detail..." {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-4 rounded-md border p-4">
+              <h3 className="text-lg font-medium">Core Details</h3>
               <FormField
                 control={form.control}
-                name="priceUSD"
+                name="title"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Price (USD)</FormLabel>
+                    <FormLabel>Product Title</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" {...field} value={field.value ?? ''}/>
+                      <Input placeholder="e.g. Industrial Grade Widgets" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={form.control}
-                name="categoryId"
+                name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Category</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a category" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {categories.filter(c => c.status === 'active').map((c) => (
-                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormLabel>Product Description</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="Describe your product in detail..." {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="priceUSD"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Price per unit (USD)</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.01" {...field} value={field.value ?? ''}/>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="categoryId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Category</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a category" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {categories.filter(c => c.status === 'active').map((c) => (
+                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4 rounded-md border p-4">
+              <h3 className="text-lg font-medium">Logistics & Inventory</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <FormField
+                  control={form.control}
+                  name="sku"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>SKU / Model Number</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. WIDGET-001" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="moq"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Minimum Order Quantity</FormLabel>
+                      <FormControl>
+                        <Input type="number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="countryOfOrigin"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Country of Origin</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a country" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {countries.map((c) => (
+                            <SelectItem key={c.value} value={c.label}>{c.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="leadTime"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Lead Time</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., 5-7 business days" {...field} />
+                        </FormControl>
+                         <FormDescription>Estimated time to ship the order.</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                   <FormField
+                    control={form.control}
+                    name="stockAvailability"
+                    render={({ field }) => (
+                      <FormItem className="space-y-3">
+                        <FormLabel>Stock Availability</FormLabel>
+                        <FormControl>
+                          <RadioGroup
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                            className="flex items-center space-x-4 pt-2"
+                          >
+                            <FormItem className="flex items-center space-x-2">
+                              <FormControl><RadioGroupItem value="in_stock" id="in_stock" /></FormControl>
+                              <FormLabel htmlFor="in_stock" className="font-normal">In Stock</FormLabel>
+                            </FormItem>
+                            <FormItem className="flex items-center space-x-2">
+                              <FormControl><RadioGroupItem value="out_of_stock" id="out_of_stock" /></FormControl>
+                              <FormLabel htmlFor="out_of_stock" className="font-normal">Out of Stock</FormLabel>
+                            </FormItem>
+                            <FormItem className="flex items-center space-x-2">
+                              <FormControl><RadioGroupItem value="made_to_order" id="made_to_order" /></FormControl>
+                              <FormLabel htmlFor="made_to_order" className="font-normal">Made to Order</FormLabel>
+                            </FormItem>
+                          </RadioGroup>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+               </div>
             </div>
             
             {activeTemplate && fields.length > 0 && (
                 <div className="space-y-4 rounded-md border p-4">
-                    <h3 className="text-sm font-medium">Technical Specifications ({activeTemplate.name})</h3>
+                    <h3 className="text-lg font-medium">Technical Specifications ({activeTemplate.name})</h3>
                      <Separator />
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {activeTemplate.fields.map((specField, index) => (

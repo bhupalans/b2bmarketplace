@@ -1,5 +1,4 @@
 
-
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc as getDocClient, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError, setDoc } from 'firebase/firestore';
@@ -260,19 +259,14 @@ async function deleteImages(urls: string[]): Promise<void> {
 }
 
 export async function createOrUpdateProductClient(
-  productFormData: { 
-    title: string, 
-    description: string, 
-    priceUSD: number, 
-    categoryId: string, 
+  productFormData: Omit<Product, 'id' | 'images' | 'status' | 'sellerId' | 'createdAt' | 'updatedAt' | 'specifications' | 'existingImages'> & {
     specifications?: { name: string; value: string }[],
-    existingImages?: string[] 
+    existingImages?: string[]
   },
   newImageFiles: File[],
   sellerId: string,
   productId?: string | null
 ): Promise<Product> {
-  // This is the critical validation check.
   if (!sellerId || typeof sellerId !== 'string' || sellerId.trim() === '') {
     throw new Error('Invalid or missing Seller ID. User must be authenticated.');
   }
@@ -300,8 +294,10 @@ export async function createOrUpdateProductClient(
           throw new Error('At least one image is required for a product.');
       }
       
+      const { existingImages, ...dataToSave } = productFormData;
+
       const productToUpdate = {
-        ...productFormData,
+        ...dataToSave,
         images: finalImageUrls,
         status: 'pending' as const, 
         updatedAt: Timestamp.now(),
@@ -318,9 +314,10 @@ export async function createOrUpdateProductClient(
       }
       
       const uploadedImageUrls = await uploadImages(newImageFiles, sellerId);
-      
+      const { existingImages, ...dataToSave } = productFormData;
+
       const productToCreate = {
-          ...productFormData,
+          ...dataToSave,
           images: uploadedImageUrls,
           sellerId: sellerId,
           status: 'pending' as const,

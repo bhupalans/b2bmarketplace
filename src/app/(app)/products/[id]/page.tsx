@@ -40,9 +40,10 @@ import { Product, User, Category } from "@/lib/types";
 import { getCategoryPathClient } from "@/lib/firebase";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrency } from "@/contexts/currency-context";
-import { CheckCircle, Loader2 } from "lucide-react";
+import { CheckCircle, Loader2, Globe, Package, Clock, Tag } from "lucide-react";
 import { RequestQuoteDialog } from "@/components/request-quote-dialog";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 
 type ProductData = {
   product: Product;
@@ -93,6 +94,16 @@ export default function ProductDetailPage() {
     }
     return priceUSD * rates[currency];
   };
+  
+  const getStockLabel = (stock?: string) => {
+    switch(stock) {
+        case 'in_stock': return 'In Stock';
+        case 'out_of_stock': return 'Out of Stock';
+        case 'made_to_order': return 'Made to Order';
+        default: return 'N/A';
+    }
+  }
+
 
   if (loading) {
     return (
@@ -217,9 +228,42 @@ export default function ProductDetailPage() {
                  <p className="text-3xl font-bold text-primary">
                   {formattedPrice}
                 </p>
+                 <p className="text-sm text-muted-foreground mt-1">per unit</p>
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+                <div className="space-y-2 text-sm">
+                   <div className="flex items-center text-muted-foreground">
+                      <Tag className="mr-2 h-4 w-4" />
+                      Minimum Order: <span className="font-semibold text-foreground ml-1">{product.moq} units</span>
+                   </div>
+                   <div className="flex items-center text-muted-foreground">
+                      <Package className="mr-2 h-4 w-4" />
+                      Availability: 
+                      <Badge 
+                        variant={product.stockAvailability === 'in_stock' ? 'default' : 'secondary'} 
+                        className="ml-1"
+                      >
+                        {getStockLabel(product.stockAvailability)}
+                      </Badge>
+                   </div>
+                   <div className="flex items-center text-muted-foreground">
+                      <Clock className="mr-2 h-4 w-4" />
+                      Lead Time: <span className="font-semibold text-foreground ml-1">{product.leadTime}</span>
+                   </div>
+                   <div className="flex items-center text-muted-foreground">
+                      <Globe className="mr-2 h-4 w-4" />
+                      Country of Origin: <span className="font-semibold text-foreground ml-1">{product.countryOfOrigin}</span>
+                   </div>
+                   {product.sku && (
+                    <div className="flex items-center text-muted-foreground">
+                        SKU: <span className="font-semibold text-foreground ml-1">{product.sku}</span>
+                    </div>
+                   )}
+                </div>
+
+              <Separator />
+
               <p className="text-muted-foreground whitespace-pre-wrap">
                 {product.description}
               </p>
