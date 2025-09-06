@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -190,7 +189,17 @@ export default function ProductDetailPage() {
                     {product.specifications.map((spec) => (
                       <TableRow key={spec.name}>
                         <TableCell className="font-medium">{spec.name}</TableCell>
-                        <TableCell>{spec.value === 'true' ? 'Yes' : spec.value === 'false' ? 'No' : spec.value}</TableCell>
+                        <TableCell>
+                          {spec.value.includes(',') ? (
+                            <div className="flex flex-wrap gap-1">
+                              {spec.value.split(',').map(v => v.trim()).map(val => (
+                                <Badge key={val} variant="secondary">{val}</Badge>
+                              ))}
+                            </div>
+                          ) : (
+                            spec.value === 'true' ? 'Yes' : spec.value === 'false' ? 'No' : spec.value
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

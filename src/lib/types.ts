@@ -62,7 +62,7 @@ export type Category = {
 
 export type SpecTemplateField = {
   name: string;
-  type: 'text' | 'select' | 'radio' | 'switch';
+  type: 'text' | 'select' | 'radio' | 'switch' | 'checkbox';
   options?: string[]; // Comma-separated string of options for select/radio
 }
 

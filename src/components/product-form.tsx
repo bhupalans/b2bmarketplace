@@ -42,6 +42,7 @@ import { Skeleton } from "./ui/skeleton";
 import { Separator } from "./ui/separator";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { Switch } from "./ui/switch";
+import { Checkbox } from "./ui/checkbox";
 
 const MAX_IMAGES = 5;
 
@@ -82,104 +83,6 @@ type ProductFormDialogProps = {
   categories: Category[];
   specTemplates: SpecTemplate[];
 };
-
-const DynamicSpecField = ({ field, specIndex }: { field: SpecTemplateField, specIndex: number }) => {
-    const { control } = useForm<ProductFormData>();
-
-    switch (field.type) {
-        case 'select':
-            return (
-                <FormField
-                    control={control}
-                    name={`specifications.${specIndex}.value`}
-                    render={({ field: formField }) => (
-                        <FormItem>
-                            <FormLabel>{field.name}</FormLabel>
-                            <Select onValueChange={formField.onChange} defaultValue={formField.value}>
-                                <FormControl>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder={`Select ${field.name}`} />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    {field.options?.map(option => (
-                                        <SelectItem key={option} value={option}>{option}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-            );
-        case 'radio':
-            return (
-                 <FormField
-                    control={control}
-                    name={`specifications.${specIndex}.value`}
-                    render={({ field: formField }) => (
-                        <FormItem className="space-y-3">
-                            <FormLabel>{field.name}</FormLabel>
-                            <FormControl>
-                                <RadioGroup
-                                    onValueChange={formField.onChange}
-                                    defaultValue={formField.value}
-                                    className="flex flex-wrap gap-x-4 gap-y-2"
-                                >
-                                    {field.options?.map(option => (
-                                         <FormItem key={option} className="flex items-center space-x-2">
-                                            <FormControl>
-                                                <RadioGroupItem value={option} id={`${field.name}-${option}`} />
-                                            </FormControl>
-                                            <FormLabel htmlFor={`${field.name}-${option}`} className="font-normal">{option}</FormLabel>
-                                        </FormItem>
-                                    ))}
-                                </RadioGroup>
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-            );
-        case 'switch':
-            return (
-                <FormField
-                    control={control}
-                    name={`specifications.${specIndex}.value`}
-                    render={({ field: formField }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                            <div className="space-y-0.5">
-                                <FormLabel>{field.name}</FormLabel>
-                            </div>
-                            <FormControl>
-                                <Switch
-                                    checked={formField.value === 'true'}
-                                    onCheckedChange={(checked) => formField.onChange(String(checked))}
-                                />
-                            </FormControl>
-                        </FormItem>
-                    )}
-                />
-            );
-        case 'text':
-        default:
-            return (
-                <FormField
-                    control={control}
-                    name={`specifications.${index}.value`}
-                    render={({ field: formField }) => (
-                        <FormItem>
-                            <FormLabel>{field.name}</FormLabel>
-                            <FormControl>
-                                <Input placeholder={`Enter ${field.name}`} {...formField} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-            );
-    }
-}
 
 const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, categories, specTemplates }: ProductFormDialogProps) => {
   const { toast } = useToast();
@@ -524,6 +427,51 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                                                         onCheckedChange={(checked) => field.onChange(String(checked))}
                                                     />
                                                 </FormControl>
+                                            </FormItem>
+                                        )}
+                                    />
+                                )}
+                                {specField.type === 'checkbox' && (
+                                    <FormField
+                                        control={form.control}
+                                        name={`specifications.${index}.value`}
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <div className="mb-4">
+                                                    <FormLabel>{specField.name}</FormLabel>
+                                                </div>
+                                                <div className="flex flex-row items-center gap-x-6 gap-y-2 flex-wrap">
+                                                    {specField.options?.map(option => (
+                                                        <FormField
+                                                            key={option}
+                                                            control={form.control}
+                                                            name={`specifications.${index}.value`}
+                                                            render={({ field }) => {
+                                                                const currentValues = field.value ? field.value.split(', ') : [];
+                                                                return (
+                                                                    <FormItem
+                                                                        key={option}
+                                                                        className="flex flex-row items-start space-x-2 space-y-0"
+                                                                    >
+                                                                        <FormControl>
+                                                                            <Checkbox
+                                                                                checked={currentValues.includes(option)}
+                                                                                onCheckedChange={(checked) => {
+                                                                                    const updatedValues = checked
+                                                                                        ? [...currentValues, option]
+                                                                                        : currentValues.filter((value) => value !== option);
+                                                                                    return field.onChange(updatedValues.join(', '));
+                                                                                }}
+                                                                            />
+                                                                        </FormControl>
+                                                                        <FormLabel className="font-normal">{option}</FormLabel>
+                                                                    </FormItem>
+                                                                )
+                                                            }}
+                                                        />
+                                                    ))}
+                                                </div>
+                                                <FormMessage />
                                             </FormItem>
                                         )}
                                     />

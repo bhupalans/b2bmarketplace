@@ -51,15 +51,15 @@ export function SpecTemplateFormDialog({ open, onOpenChange, templateId, onSucce
 
   const specFieldSchema = z.object({
       name: z.string().min(1, 'Field name cannot be empty.'),
-      type: z.enum(['text', 'select', 'radio', 'switch']),
+      type: z.enum(['text', 'select', 'radio', 'switch', 'checkbox']),
       options: z.string().optional(),
     }).refine(data => {
-        if ((data.type === 'select' || data.type === 'radio') && (!data.options || data.options.trim().length === 0)) {
+        if ((data.type === 'select' || data.type === 'radio' || data.type === 'checkbox') && (!data.options || data.options.trim().length === 0)) {
             return false;
         }
         return true;
     }, {
-        message: "Options are required for 'select' and 'radio' types.",
+        message: "Options are required for 'select', 'radio', and 'checkbox' types.",
         path: ['options']
     });
 
@@ -120,7 +120,7 @@ export function SpecTemplateFormDialog({ open, onOpenChange, templateId, onSucce
                     name: f.name,
                     type: f.type,
                 };
-                if ((f.type === 'select' || f.type === 'radio') && f.options) {
+                if ((f.type === 'select' || f.type === 'radio' || f.type === 'checkbox') && f.options) {
                     fieldData.options = f.options.split(',').map(opt => opt.trim()).filter(Boolean);
                 }
                 return fieldData;
@@ -226,12 +226,13 @@ export function SpecTemplateFormDialog({ open, onOpenChange, templateId, onSucce
                                                         <SelectItem value="select">Select (Dropdown)</SelectItem>
                                                         <SelectItem value="radio">Radio Group</SelectItem>
                                                         <SelectItem value="switch">Switch (Toggle)</SelectItem>
+                                                        <SelectItem value="checkbox">Checkbox Group</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                             </FormItem>
                                         )}
                                     />
-                                     {(form.watch(`fields.${index}.type`) === 'select' || form.watch(`fields.${index}.type`) === 'radio') && (
+                                     {(form.watch(`fields.${index}.type`) === 'select' || form.watch(`fields.${index}.type`) === 'radio' || form.watch(`fields.${index}.type`) === 'checkbox') && (
                                          <FormField
                                             control={form.control}
                                             name={`fields.${index}.options`}
