@@ -110,6 +110,15 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers, initia
     return path.join(' > ') || 'N/A';
   }
 
+  const getStockLabel = (stock?: string) => {
+    switch(stock) {
+        case 'in_stock': return 'In Stock';
+        case 'out_of_stock': return 'Out of Stock';
+        case 'made_to_order': return 'Made to Order';
+        default: return 'N/A';
+    }
+  }
+
 
   const handleOpenReview = (product: Product) => {
     setReviewingProduct(product);
@@ -226,6 +235,32 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers, initia
                     
                     <div className="font-medium">Category</div>
                     <div>{getCategoryPath(reviewingProduct.categoryId)}</div>
+
+                    <div className="font-medium">Minimum Order (MOQ)</div>
+                    <div>{reviewingProduct.moq} units</div>
+
+                    <div className="font-medium">Stock Availability</div>
+                    <div>
+                        <Badge 
+                        variant={reviewingProduct.stockAvailability === 'in_stock' ? 'default' : 'secondary'} 
+                        className="ml-1"
+                        >
+                            {getStockLabel(reviewingProduct.stockAvailability)}
+                        </Badge>
+                    </div>
+
+                    <div className="font-medium">Lead Time</div>
+                    <div>{reviewingProduct.leadTime}</div>
+
+                    <div className="font-medium">Country of Origin</div>
+                    <div>{reviewingProduct.countryOfOrigin}</div>
+                    
+                    {reviewingProduct.sku && (
+                        <>
+                        <div className="font-medium">SKU / Model No.</div>
+                        <div>{reviewingProduct.sku}</div>
+                        </>
+                    )}
 
                     <div className="font-medium">Submitted</div>
                     <div>{reviewingProduct.createdAt && typeof reviewingProduct.createdAt === 'string' ? format(parseISO(reviewingProduct.createdAt), 'PPP p') : 'N/A'}</div>
