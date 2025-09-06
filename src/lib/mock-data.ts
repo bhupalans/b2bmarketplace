@@ -54,7 +54,7 @@ export const mockVerificationTemplates: VerificationTemplate[] = [
                 name: 'gstn',
                 label: 'GSTN (Goods and Services Tax Identification Number)',
                 type: 'text',
-                required: true,
+                required: 'always',
                 validationRegex: '^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$',
                 helperText: 'Enter your 15-digit GSTN number.'
             },
@@ -62,7 +62,7 @@ export const mockVerificationTemplates: VerificationTemplate[] = [
                 name: 'iec',
                 label: 'Import Export Code (IEC)',
                 type: 'text',
-                required: false,
+                required: 'international',
                 validationRegex: '^\\d{10}$',
                 helperText: 'Required for international trade.'
             }
@@ -76,7 +76,7 @@ export const mockVerificationTemplates: VerificationTemplate[] = [
                 name: 'abn',
                 label: 'Australian Business Number (ABN)',
                 type: 'text',
-                required: true,
+                required: 'always',
                 validationRegex: '^(\\d *?){11}$',
                 helperText: 'Enter your 11-digit ABN.'
             }
@@ -90,7 +90,7 @@ export const mockVerificationTemplates: VerificationTemplate[] = [
                 name: 'crn',
                 label: 'Company Registration Number (CRN)',
                 type: 'text',
-                required: true,
+                required: 'always',
                 validationRegex: '^([A-Z]{2}\\d{6}|\\d{8})$',
                 helperText: 'Found on your Certificate of Incorporation.'
             },
@@ -98,7 +98,7 @@ export const mockVerificationTemplates: VerificationTemplate[] = [
                 name: 'vat',
                 label: 'VAT Number',
                 type: 'text',
-                required: false,
+                required: 'never',
                 helperText: 'Your Value Added Tax registration number.'
             }
         ]
@@ -173,9 +173,14 @@ export const mockProducts: Product[] = [
     specifications: [
         { name: 'Material', value: 'Reinforced Steel' },
         { name: 'Weight', value: '15.5 kg' },
-        { name: 'SKU', value: 'WID-IND-001' },
     ],
-    status: 'approved'
+    status: 'approved',
+    countryOfOrigin: 'United States',
+    stockAvailability: 'in_stock',
+    moq: 100,
+    moqUnit: 'units',
+    sku: 'WID-IND-001',
+    leadTime: '3-5 business days'
   },
   {
     id: 'prod-2',
@@ -189,9 +194,14 @@ export const mockProducts: Product[] = [
         { name: 'Material', value: 'Hardened Brass' },
         { name: 'Units per Set', value: '12' },
         { name: 'Tolerance', value: '±0.01mm' },
-        { name: 'SKU', value: 'COG-PRE-012' },
     ],
-    status: 'approved'
+    status: 'approved',
+    countryOfOrigin: 'Germany',
+    stockAvailability: 'in_stock',
+    moq: 50,
+    moqUnit: 'sets',
+    sku: 'COG-PRE-012',
+    leadTime: '7 business days'
   },
   {
     id: 'prod-3',
@@ -206,7 +216,13 @@ export const mockProducts: Product[] = [
         { name: 'Weight per Bale', value: '1000 kg' },
         { name: 'Certification', value: 'GOTS Certified' },
     ],
-    status: 'approved'
+    status: 'approved',
+    countryOfOrigin: 'India',
+    stockAvailability: 'in_stock',
+    moq: 1,
+    moqUnit: 'tonne',
+    sku: 'COT-ORG-001',
+    leadTime: '14-21 business days'
   },
   {
     id: 'prod-4',
@@ -221,7 +237,13 @@ export const mockProducts: Product[] = [
         { name: 'Material', value: 'FR-4' },
         { name: 'Quantity', value: '100 boards' },
     ],
-    status: 'approved'
+    status: 'approved',
+    countryOfOrigin: 'China',
+    stockAvailability: 'made_to_order',
+    moq: 5,
+    moqUnit: 'packs',
+    sku: 'PCB-ADV-4L',
+    leadTime: '4-6 weeks'
   },
   {
     id: 'prod-5',
@@ -236,7 +258,13 @@ export const mockProducts: Product[] = [
         { name: 'Speed', value: '0-2 m/s' },
         { name: 'Motor', value: '2 HP Brushless DC' },
     ],
-    status: 'approved'
+    status: 'approved',
+    countryOfOrigin: 'United States',
+    stockAvailability: 'made_to_order',
+    moq: 1,
+    moqUnit: 'system',
+    sku: 'CONV-MOD-10M',
+    leadTime: '3 weeks'
   },
   {
     id: 'prod-6',
@@ -251,7 +279,13 @@ export const mockProducts: Product[] = [
         { name: 'Length', value: '1 meter' },
         { name: 'Quantity', value: '50 rods' },
     ],
-    status: 'approved'
+    status: 'approved',
+    countryOfOrigin: 'Japan',
+    stockAvailability: 'in_stock',
+    moq: 1,
+    moqUnit: 'pack',
+    sku: 'TI-ROD-64-1M',
+    leadTime: '5-7 business days'
   },
   {
     id: 'prod-7',
@@ -268,7 +302,13 @@ export const mockProducts: Product[] = [
         { name: 'Length', value: '22 inches' },
         { name: 'Color', value: 'Natural Black' },
     ],
-    status: 'approved'
+    status: 'approved',
+    countryOfOrigin: 'Brazil',
+    stockAvailability: 'in_stock',
+    moq: 10,
+    moqUnit: 'pieces',
+    sku: 'WIG-LFB-22',
+    leadTime: '2-4 business days'
   },
   {
     id: 'prod-8',
@@ -281,7 +321,6 @@ export const mockProducts: Product[] = [
     specifications: [
         { name: 'Brand Name', value: 'AgroMax' },
         { name: 'Model', value: 'X120' },
-        { name: 'Country of Origin', value: 'Germany' },
         { name: 'Engine Power (HP)', value: '120' },
         { name: 'Drive Type', value: '4-Wheel Drive (4WD)' },
         { name: 'Transmission Type', value: 'CVT (Continuously Variable Transmission)' },
@@ -289,7 +328,13 @@ export const mockProducts: Product[] = [
         { name: 'PTO Speed (RPM)', value: '540 / 1000' },
         { name: 'Hydraulic Capacity (L/min)', value: '75' },
     ],
-    status: 'approved'
+    status: 'approved',
+    countryOfOrigin: 'Germany',
+    stockAvailability: 'made_to_order',
+    moq: 1,
+    moqUnit: 'unit',
+    sku: 'TRACTOR-AMX120',
+    leadTime: '8-12 weeks'
   },
 ];
 

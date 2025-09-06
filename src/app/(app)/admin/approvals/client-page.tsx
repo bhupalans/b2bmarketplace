@@ -236,8 +236,8 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers, initia
                     <div className="font-medium">Category</div>
                     <div>{getCategoryPath(reviewingProduct.categoryId)}</div>
 
-                    <div className="font-medium">Minimum Order (MOQ)</div>
-                    <div>{reviewingProduct.moq} units</div>
+                    <div className="font-medium">Minimum Order</div>
+                    <div>{reviewingProduct.moq} {reviewingProduct.moqUnit}</div>
 
                     <div className="font-medium">Stock Availability</div>
                     <div>

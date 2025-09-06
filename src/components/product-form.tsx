@@ -55,6 +55,7 @@ const productSchema = z.object({
   countryOfOrigin: z.string().min(1, { message: "Please select a country of origin." }),
   stockAvailability: z.enum(['in_stock', 'out_of_stock', 'made_to_order'], { required_error: 'Please select stock availability.'}),
   moq: z.coerce.number().int().min(1, { message: "Minimum order quantity must be at least 1." }),
+  moqUnit: z.string().min(1, { message: "Please specify a unit (e.g., pieces, kg)." }),
   sku: z.string().optional(),
   leadTime: z.string().min(1, { message: "Please provide an estimated lead time." }),
   specifications: z.array(z.object({
@@ -109,6 +110,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
       countryOfOrigin: "",
       stockAvailability: 'in_stock',
       moq: 1,
+      moqUnit: "pieces",
       sku: "",
       leadTime: "",
       specifications: [],
@@ -162,6 +164,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
       countryOfOrigin: "",
       stockAvailability: 'in_stock',
       moq: 1,
+      moqUnit: "pieces",
       sku: "",
       leadTime: "",
       specifications: [],
@@ -187,6 +190,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                 countryOfOrigin: fetchedProduct.countryOfOrigin,
                 stockAvailability: fetchedProduct.stockAvailability,
                 moq: fetchedProduct.moq,
+                moqUnit: fetchedProduct.moqUnit,
                 sku: fetchedProduct.sku,
                 leadTime: fetchedProduct.leadTime,
                 specifications: fetchedProduct.specifications || [],
@@ -361,57 +365,72 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
 
             <div className="space-y-4 rounded-md border p-4">
               <h3 className="text-lg font-medium">Logistics & Inventory</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <FormField
-                  control={form.control}
-                  name="sku"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>SKU / Model Number</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g. WIDGET-001" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="moq"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Minimum Order Quantity</FormLabel>
-                      <FormControl>
-                        <Input type="number" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={form.control}
-                  name="countryOfOrigin"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Country of Origin</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a country" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {countries.map((c) => (
-                            <SelectItem key={c.value} value={c.label}>{c.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="sku"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>SKU / Model Number</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. WIDGET-001" {...field} value={field.value || ''}/>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    <FormField
+                      control={form.control}
+                      name="moq"
+                      render={({ field }) => (
+                        <FormItem className="col-span-2">
+                          <FormLabel>Minimum Order</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="e.g., 100" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="moqUnit"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Unit</FormLabel>
+                          <FormControl>
+                            <Input placeholder="e.g., kg" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+               </div>
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <FormField
+                    control={form.control}
+                    name="countryOfOrigin"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Country of Origin</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a country" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {countries.map((c) => (
+                              <SelectItem key={c.value} value={c.label}>{c.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   <FormField
                     control={form.control}
                     name="leadTime"
@@ -419,44 +438,44 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                       <FormItem>
                         <FormLabel>Lead Time</FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g., 5-7 business days" {...field} />
+                          <Input placeholder="e.g., 5-7 business days" {...field} value={field.value || ''} />
                         </FormControl>
                          <FormDescription>Estimated time to ship the order.</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                   <FormField
+               </div>
+                <FormField
                     control={form.control}
                     name="stockAvailability"
                     render={({ field }) => (
-                      <FormItem className="space-y-3">
+                        <FormItem className="space-y-3">
                         <FormLabel>Stock Availability</FormLabel>
                         <FormControl>
-                          <RadioGroup
+                            <RadioGroup
                             onValueChange={field.onChange}
                             defaultValue={field.value}
                             className="flex items-center space-x-4 pt-2"
-                          >
+                            >
                             <FormItem className="flex items-center space-x-2">
-                              <FormControl><RadioGroupItem value="in_stock" id="in_stock" /></FormControl>
-                              <FormLabel htmlFor="in_stock" className="font-normal">In Stock</FormLabel>
+                                <FormControl><RadioGroupItem value="in_stock" id="in_stock" /></FormControl>
+                                <FormLabel htmlFor="in_stock" className="font-normal">In Stock</FormLabel>
                             </FormItem>
                             <FormItem className="flex items-center space-x-2">
-                              <FormControl><RadioGroupItem value="out_of_stock" id="out_of_stock" /></FormControl>
-                              <FormLabel htmlFor="out_of_stock" className="font-normal">Out of Stock</FormLabel>
+                                <FormControl><RadioGroupItem value="out_of_stock" id="out_of_stock" /></FormControl>
+                                <FormLabel htmlFor="out_of_stock" className="font-normal">Out of Stock</FormLabel>
                             </FormItem>
                             <FormItem className="flex items-center space-x-2">
-                              <FormControl><RadioGroupItem value="made_to_order" id="made_to_order" /></FormControl>
-                              <FormLabel htmlFor="made_to_order" className="font-normal">Made to Order</FormLabel>
+                                <FormControl><RadioGroupItem value="made_to_order" id="made_to_order" /></FormControl>
+                                <FormLabel htmlFor="made_to_order" className="font-normal">Made to Order</FormLabel>
                             </FormItem>
-                          </RadioGroup>
+                            </RadioGroup>
                         </FormControl>
                         <FormMessage />
-                      </FormItem>
+                        </FormItem>
                     )}
-                  />
-               </div>
+                />
             </div>
             
             {activeTemplate && fields.length > 0 && (

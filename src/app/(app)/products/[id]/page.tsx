@@ -228,14 +228,14 @@ export default function ProductDetailPage() {
                  <p className="text-3xl font-bold text-primary">
                   {formattedPrice}
                 </p>
-                 <p className="text-sm text-muted-foreground mt-1">per unit</p>
+                 <p className="text-sm text-muted-foreground mt-1">per {product.moqUnit}</p>
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="space-y-2 text-sm">
                    <div className="flex items-center text-muted-foreground">
                       <Tag className="mr-2 h-4 w-4" />
-                      Minimum Order: <span className="font-semibold text-foreground ml-1">{product.moq} units</span>
+                      Minimum Order: <span className="font-semibold text-foreground ml-1">{product.moq} {product.moqUnit}</span>
                    </div>
                    <div className="flex items-center text-muted-foreground">
                       <Package className="mr-2 h-4 w-4" />

@@ -105,6 +105,7 @@ export type Product = {
   countryOfOrigin: string;
   stockAvailability: 'in_stock' | 'out_of_stock' | 'made_to_order';
   moq: number; // Minimum Order Quantity
+  moqUnit: string; // Unit for MOQ, e.g., "pieces", "kg"
   sku?: string; // Stock Keeping Unit / Model Number
   leadTime?: string; // e.g., "5-7 business days"
 };
