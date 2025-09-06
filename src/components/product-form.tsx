@@ -305,7 +305,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                   <FormItem>
                     <FormLabel>Product Title</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. Industrial Grade Widgets" {...field} />
+                      <Input placeholder="e.g. Industrial Grade Widgets" {...field} value={field.value ?? ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -318,7 +318,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                   <FormItem>
                     <FormLabel>Product Description</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Describe your product in detail..." {...field} />
+                      <Textarea placeholder="Describe your product in detail..." {...field} value={field.value ?? ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -344,7 +344,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Category</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value ?? ''}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a category" />
@@ -373,7 +373,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                       <FormItem>
                         <FormLabel>SKU / Model Number</FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g. WIDGET-001" {...field} value={field.value || ''}/>
+                          <Input placeholder="e.g. WIDGET-001" {...field} value={field.value ?? ''}/>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -387,7 +387,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                         <FormItem className="col-span-2">
                           <FormLabel>Minimum Order</FormLabel>
                           <FormControl>
-                            <Input type="number" placeholder="e.g., 100" {...field} />
+                            <Input type="number" placeholder="e.g., 100" {...field} value={field.value ?? ''} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -400,7 +400,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                         <FormItem>
                           <FormLabel>Unit</FormLabel>
                           <FormControl>
-                            <Input placeholder="e.g., kg" {...field} />
+                            <Input placeholder="e.g., kg" {...field} value={field.value ?? ''} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -415,7 +415,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Country of Origin</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value ?? ''}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select a country" />
@@ -438,7 +438,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                       <FormItem>
                         <FormLabel>Lead Time</FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g., 5-7 business days" {...field} value={field.value || ''} />
+                          <Input placeholder="e.g., 5-7 business days" {...field} value={field.value ?? ''} />
                         </FormControl>
                          <FormDescription>Estimated time to ship the order.</FormDescription>
                         <FormMessage />
@@ -493,7 +493,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                                             <FormItem>
                                                 <FormLabel>{specField.name}</FormLabel>
                                                 <FormControl>
-                                                    <Input placeholder={`Enter ${specField.name}`} {...field} />
+                                                    <Input placeholder={`Enter ${specField.name}`} {...field} value={field.value ?? ''} />
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>
