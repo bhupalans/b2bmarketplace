@@ -303,11 +303,17 @@ export async function createOrUpdateProductClient(
 
       if (originalProduct.status === 'approved' && autoApprovalRules.length > 0) {
         const changedFields = Object.keys(dataToSave).filter(key => {
-            const originalValue = (originalProduct as any)[key];
-            const newValue = (dataToSave as any)[key];
-            // Basic deep-ish comparison for specifications array
-            if (key === 'specifications') {
-                return JSON.stringify(originalValue) !== JSON.stringify(newValue);
+            const fieldKey = key as keyof typeof dataToSave;
+            const originalValue = (originalProduct as any)[fieldKey];
+            const newValue = dataToSave[fieldKey];
+
+            // Deep comparison for specifications array
+            if (fieldKey === 'specifications') {
+                // Treat empty or null arrays as the same
+                const oldSpecs = originalValue || [];
+                const newSpecs = newValue || [];
+                if (oldSpecs.length !== newSpecs.length) return true;
+                return JSON.stringify(oldSpecs) !== JSON.stringify(newSpecs);
             }
             return originalValue !== newValue;
         });
