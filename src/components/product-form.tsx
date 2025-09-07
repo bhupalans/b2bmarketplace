@@ -702,7 +702,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={isSaving}>Cancel</Button>
               <Button type="submit" disabled={isSaving || !firebaseUser}>
                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {productId ? "Save Changes" : "Submit for Review"}
+                {productId ? "Submit for Review" : "Submit for Review"}
               </Button>
             </DialogFooter>
           </form>

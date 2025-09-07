@@ -259,6 +259,7 @@ async function deleteImages(urls: string[]): Promise<void> {
     await Promise.all(deletePromises);
 }
 
+// This function is the new, robust implementation for creating/updating products.
 export async function createOrUpdateProductClient(
   productFormData: Omit<Product, 'id' | 'images' | 'status' | 'sellerId' | 'createdAt' | 'updatedAt'> & {
     existingImages?: string[]
@@ -273,16 +274,18 @@ export async function createOrUpdateProductClient(
 
   try {
     if (productId) {
+      // --- UPDATE LOGIC ---
       const productRef = doc(db, 'products', productId);
-      const docSnap = await getDocClient(productRef);
-      if (!docSnap.exists()) {
+      const originalProductSnap = await getDocClient(productRef);
+      if (!originalProductSnap.exists()) {
         throw new Error("Product to update not found.");
       }
-      const originalProduct = docSnap.data() as Product;
+      const originalProduct = originalProductSnap.data() as Product;
       
       let finalStatus: Product['status'] = originalProduct.status;
       let autoApproved = false;
 
+      // Only run auto-approval logic if the product is already approved.
       if (originalProduct.status === 'approved') {
         const autoApprovalRules = await getProductUpdateRulesClient();
         const editableFields: (keyof Product)[] = [
@@ -291,59 +294,62 @@ export async function createOrUpdateProductClient(
         ];
         
         let requiresReview = false;
-
+        
+        // --- Robust Comparison Logic ---
         for (const key of editableFields) {
-          const originalValue = originalProduct[key as keyof Product];
+          const originalValue = originalProduct[key];
           const newValue = productFormData[key as keyof typeof productFormData];
 
-          // Normalize values for comparison
+          // Normalize undefined/null to empty strings for fair comparison
           const normalizedOriginal = (originalValue === null || originalValue === undefined) ? "" : originalValue;
           const normalizedNew = (newValue === null || newValue === undefined) ? "" : newValue;
 
           let isDifferent = false;
           if (key === 'specifications') {
-             if (JSON.stringify(normalizedOriginal) !== JSON.stringify(normalizedNew)) {
-                isDifferent = true;
-             }
+            if (JSON.stringify(normalizedOriginal) !== JSON.stringify(normalizedNew)) {
+              isDifferent = true;
+            }
           } else if (normalizedOriginal !== normalizedNew) {
             isDifferent = true;
           }
 
           if (isDifferent && !autoApprovalRules.includes(key)) {
             requiresReview = true;
-            break; 
+            break; // Exit early if a review is needed
           }
         }
         
         const originalImages = originalProduct.images || [];
         const keptImages = productFormData.existingImages || [];
         if (newImageFiles.length > 0 || originalImages.length !== keptImages.length) {
-            requiresReview = true;
+          requiresReview = true;
         }
 
-        if (!requiresReview) {
-            finalStatus = 'approved';
-            autoApproved = true;
+        if (requiresReview) {
+          finalStatus = 'pending';
+          autoApproved = false;
         } else {
-            finalStatus = 'pending';
+          finalStatus = 'approved';
+          autoApproved = true;
         }
+      } else {
+        // If the product was 'pending' or 'rejected', it remains so until an admin acts.
+        finalStatus = originalProduct.status;
       }
       
-      const originalImages = originalProduct.images || [];
-      const keptImages = productFormData.existingImages || [];
-      const imagesToDelete = originalImages.filter((url: string) => !keptImages.includes(url));
-
+      // --- Image Handling ---
+      const imagesToDelete = (originalProduct.images || []).filter((url: string) => !(productFormData.existingImages || []).includes(url));
       const [newUploadedUrls] = await Promise.all([
         uploadImages(newImageFiles, sellerId),
         deleteImages(imagesToDelete)
       ]);
-      
-      const finalImageUrls = [...keptImages, ...newUploadedUrls];
+      const finalImageUrls = [...(productFormData.existingImages || []), ...newUploadedUrls];
       
       if (finalImageUrls.length === 0) {
-          throw new Error('At least one image is required for a product.');
+        throw new Error('At least one image is required for a product.');
       }
       
+      // --- Prepare and Save Data ---
       const { existingImages, ...dataToSave } = productFormData;
       const productToUpdate = {
         ...dataToSave,
@@ -360,8 +366,8 @@ export async function createOrUpdateProductClient(
         autoApproved
       };
 
-    } 
-    else {
+    } else {
+      // --- CREATE LOGIC ---
       if (newImageFiles.length === 0) {
         throw new Error('At least one image is required to create a product.');
       }
