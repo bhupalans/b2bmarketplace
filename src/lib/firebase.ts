@@ -280,7 +280,8 @@ export async function createOrUpdateProductClient(
       }
       const originalProduct = docSnap.data() as Product;
       
-      let finalStatus: Product['status'] = 'pending';
+      let finalStatus: Product['status'] = originalProduct.status;
+      let autoApproved = false;
 
       if (originalProduct.status === 'approved') {
         const autoApprovalRules = await getProductUpdateRulesClient();
@@ -292,25 +293,23 @@ export async function createOrUpdateProductClient(
         let requiresReview = false;
         
         for (const key of editableFields) {
-            const formValue = productFormData[key as keyof typeof productFormData];
-            const originalValue = originalProduct[key as keyof Product];
-            
-            // Normalize values for comparison. This is crucial.
-            const newValue = (key === 'priceUSD' || key === 'moq') ? parseFloat(formValue as string) : formValue;
+          const originalValue = originalProduct[key as keyof Product];
+          let newValue = productFormData[key as keyof typeof productFormData];
 
-            if (key === 'specifications') {
-                 if (JSON.stringify(originalValue || []) !== JSON.stringify(newValue || [])) {
-                    if (!autoApprovalRules.includes(key)) {
-                        requiresReview = true;
-                        break;
-                    }
-                }
-            } else if (originalValue !== newValue) {
-                 if (!autoApprovalRules.includes(key)) {
-                    requiresReview = true;
-                    break;
-                }
+          // Normalize undefined/null to empty string for comparison, except for specifications
+          const normalizedOriginalValue = (originalValue === undefined || originalValue === null) && key !== 'specifications' ? '' : originalValue;
+
+          // Normalize new value for numbers
+          if ((key === 'priceUSD' || key === 'moq') && typeof newValue === 'string') {
+              newValue = parseFloat(newValue);
+          }
+
+          if (JSON.stringify(normalizedOriginalValue) !== JSON.stringify(newValue)) {
+            if (!autoApprovalRules.includes(key)) {
+                requiresReview = true;
+                break;
             }
+          }
         }
         
         const originalImages = originalProduct.images || [];
@@ -322,7 +321,12 @@ export async function createOrUpdateProductClient(
             requiresReview = true;
         }
 
-        finalStatus = requiresReview ? 'pending' : 'approved';
+        if (requiresReview) {
+            finalStatus = 'pending';
+        } else {
+            finalStatus = 'approved';
+            autoApproved = true;
+        }
       }
       
       const originalImages = originalProduct.images || [];
@@ -353,7 +357,7 @@ export async function createOrUpdateProductClient(
       const updatedData = convertTimestamps(updatedDocSnap.data());
       return { 
         product: { id: productId, ...updatedData } as Product, 
-        autoApproved: finalStatus === 'approved' 
+        autoApproved
       };
 
     } 

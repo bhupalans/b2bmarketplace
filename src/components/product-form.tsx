@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { memo, useEffect, useState, useTransition, useCallback } from "react";
@@ -57,7 +58,7 @@ const productSchema = z.object({
   moq: z.coerce.number().int().min(1, { message: "Minimum order quantity must be at least 1." }),
   moqUnit: z.string().min(1, { message: "Please specify a unit (e.g., pieces, kg)." }),
   sku: z.string().optional(),
-  leadTime: z.string().min(1, { message: "Please provide an estimated lead time." }),
+  leadTime: z.string().optional(),
   specifications: z.array(z.object({
       name: z.string(),
       value: z.string().min(1, { message: "Specification value cannot be empty." }),
@@ -191,8 +192,8 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                 stockAvailability: fetchedProduct.stockAvailability,
                 moq: fetchedProduct.moq,
                 moqUnit: fetchedProduct.moqUnit,
-                sku: fetchedProduct.sku,
-                leadTime: fetchedProduct.leadTime,
+                sku: fetchedProduct.sku || '',
+                leadTime: fetchedProduct.leadTime || '',
                 specifications: fetchedProduct.specifications || [],
                 existingImages: fetchedProduct.images || [],
                 newImageFiles: undefined,
@@ -293,7 +294,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
         <DialogHeader>
           <DialogTitle>{productId ? "Edit Product" : "Create New Product"}</DialogTitle>
           <DialogDescription>
-            {productId ? "Edit the details for your product listing. Your changes will be sent for re-approval." : "Fill out the details below. Your product will be submitted for admin review."}
+            {productId ? "Edit the details for your product listing." : "Fill out the details below. Your product will be submitted for admin review."}
           </DialogDescription>
         </DialogHeader>
         {isLoadingProduct ? (
@@ -701,7 +702,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={isSaving}>Cancel</Button>
               <Button type="submit" disabled={isSaving || !firebaseUser}>
                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Submit for Review
+                {productId ? "Save Changes" : "Submit for Review"}
               </Button>
             </DialogFooter>
           </form>
