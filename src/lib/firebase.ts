@@ -259,6 +259,29 @@ async function deleteImages(urls: string[]): Promise<void> {
     await Promise.all(deletePromises);
 }
 
+// Deep comparison function for specifications array
+function areSpecificationsEqual(
+  specs1: { name: string; value: string }[] | undefined,
+  specs2: { name: string; value: string }[] | undefined
+): boolean {
+  const s1 = specs1 || [];
+  const s2 = specs2 || [];
+
+  if (s1.length !== s2.length) {
+    return false;
+  }
+
+  const s1Map = new Map(s1.map(item => [item.name, item.value]));
+
+  for (const item of s2) {
+    if (!s1Map.has(item.name) || s1Map.get(item.name) !== item.value) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 // This function is the new, robust implementation for creating/updating products.
 export async function createOrUpdateProductClient(
   productFormData: Omit<Product, 'id' | 'images' | 'status' | 'sellerId' | 'createdAt' | 'updatedAt'> & {
@@ -288,53 +311,52 @@ export async function createOrUpdateProductClient(
       // Only run auto-approval logic if the product is already approved.
       if (originalProduct.status === 'approved') {
         const autoApprovalRules = await getProductUpdateRulesClient();
+        const changedFields: (keyof Product)[] = [];
+
+        // List of all editable fields by the user
         const editableFields: (keyof Product)[] = [
-          'title', 'description', 'priceUSD', 'categoryId', 'countryOfOrigin',
-          'stockAvailability', 'moq', 'moqUnit', 'sku', 'leadTime', 'specifications'
+            'title', 'description', 'priceUSD', 'categoryId', 'countryOfOrigin',
+            'stockAvailability', 'moq', 'moqUnit', 'sku', 'leadTime', 'specifications'
         ];
-        
-        let requiresReview = false;
-        
-        // --- Robust Comparison Logic ---
+
         for (const key of editableFields) {
-          const originalValue = originalProduct[key];
+          const originalValue = originalProduct[key as keyof Product];
           const newValue = productFormData[key as keyof typeof productFormData];
 
-          // Normalize undefined/null to empty strings for fair comparison
+          // Normalize undefined, null, and empty strings for comparison
           const normalizedOriginal = (originalValue === null || originalValue === undefined) ? "" : originalValue;
           const normalizedNew = (newValue === null || newValue === undefined) ? "" : newValue;
 
-          let isDifferent = false;
           if (key === 'specifications') {
-            if (JSON.stringify(normalizedOriginal) !== JSON.stringify(normalizedNew)) {
-              isDifferent = true;
+            if (!areSpecificationsEqual(originalProduct.specifications, productFormData.specifications)) {
+              changedFields.push(key);
             }
-          } else if (normalizedOriginal !== normalizedNew) {
-            isDifferent = true;
-          }
-
-          if (isDifferent && !autoApprovalRules.includes(key)) {
-            requiresReview = true;
-            break; // Exit early if a review is needed
+          } else if (String(normalizedOriginal) !== String(normalizedNew)) {
+             changedFields.push(key);
           }
         }
         
+        // Image change detection
         const originalImages = originalProduct.images || [];
         const keptImages = productFormData.existingImages || [];
         if (newImageFiles.length > 0 || originalImages.length !== keptImages.length) {
-          requiresReview = true;
+            changedFields.push('images');
         }
 
+        const requiresReview = changedFields.some(field => !autoApprovalRules.includes(field));
+        
         if (requiresReview) {
-          finalStatus = 'pending';
-          autoApproved = false;
+            finalStatus = 'pending';
+            autoApproved = false;
         } else {
-          finalStatus = 'approved';
-          autoApproved = true;
+            finalStatus = 'approved';
+            autoApproved = true;
         }
+
       } else {
         // If the product was 'pending' or 'rejected', it remains so until an admin acts.
         finalStatus = originalProduct.status;
+        autoApproved = false;
       }
       
       // --- Image Handling ---
