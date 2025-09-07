@@ -1,4 +1,5 @@
 
+
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc as getDocClient, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError, setDoc } from 'firebase/firestore';
@@ -297,31 +298,31 @@ export async function createOrUpdateProductClient(
       
       const { existingImages, ...dataToSave } = productFormData;
 
-      // Auto-approval logic
       const autoApprovalRules = await getProductUpdateRulesClient();
       let finalStatus: Product['status'] = 'pending';
 
       if (originalProduct.status === 'approved' && autoApprovalRules.length > 0) {
-        const changedFields = Object.keys(dataToSave).filter(key => {
-            const fieldKey = key as keyof typeof dataToSave;
-            const originalValue = (originalProduct as any)[fieldKey];
-            const newValue = dataToSave[fieldKey];
+        
+        // Define the list of fields that are directly editable on the form
+        const editableFields: (keyof typeof dataToSave)[] = [
+            'title', 'description', 'priceUSD', 'categoryId', 'countryOfOrigin',
+            'stockAvailability', 'moq', 'moqUnit', 'sku', 'leadTime', 'specifications'
+        ];
 
-            // Deep comparison for specifications array
-            if (fieldKey === 'specifications') {
-                // Treat empty or null arrays as the same
-                const oldSpecs = originalValue || [];
-                const newSpecs = newValue || [];
-                if (oldSpecs.length !== newSpecs.length) return true;
-                return JSON.stringify(oldSpecs) !== JSON.stringify(newSpecs);
-            }
-            return originalValue !== newValue;
+        const changedFields = editableFields.filter(key => {
+            const originalValue = originalProduct[key as keyof Product];
+            const newValue = dataToSave[key as keyof typeof dataToSave];
+
+            // Handle undefined/null vs empty string/array cases
+            const normalizedOriginal = originalValue === undefined || originalValue === null ? "" : JSON.stringify(originalValue);
+            const normalizedNew = newValue === undefined || newValue === null ? "" : JSON.stringify(newValue);
+            
+            return normalizedOriginal !== normalizedNew;
         });
         
-        // Auto-approve only if all changed fields are in the rules and no new images were added.
         const allChangesAreAutoApproved = changedFields.every(field => autoApprovalRules.includes(field));
 
-        if (allChangesAreAutoApproved && newUploadedUrls.length === 0) {
+        if (allChangesAreAutoApproved && newUploadedUrls.length === 0 && imagesToDelete.length === 0) {
             finalStatus = 'approved';
         }
       }
