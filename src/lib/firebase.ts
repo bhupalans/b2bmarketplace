@@ -291,41 +291,41 @@ export async function createOrUpdateProductClient(
         ];
         
         let requiresReview = false;
-        
+
         for (const key of editableFields) {
           const originalValue = originalProduct[key as keyof Product];
-          let newValue = productFormData[key as keyof typeof productFormData];
+          const newValue = productFormData[key as keyof typeof productFormData];
 
-          // Normalize undefined/null to empty string for comparison, except for specifications
-          const normalizedOriginalValue = (originalValue === undefined || originalValue === null) && key !== 'specifications' ? '' : originalValue;
+          // Normalize values for comparison
+          const normalizedOriginal = (originalValue === null || originalValue === undefined) ? "" : originalValue;
+          const normalizedNew = (newValue === null || newValue === undefined) ? "" : newValue;
 
-          // Normalize new value for numbers
-          if ((key === 'priceUSD' || key === 'moq') && typeof newValue === 'string') {
-              newValue = parseFloat(newValue);
+          let isDifferent = false;
+          if (key === 'specifications') {
+             if (JSON.stringify(normalizedOriginal) !== JSON.stringify(normalizedNew)) {
+                isDifferent = true;
+             }
+          } else if (normalizedOriginal !== normalizedNew) {
+            isDifferent = true;
           }
 
-          if (JSON.stringify(normalizedOriginalValue) !== JSON.stringify(newValue)) {
-            if (!autoApprovalRules.includes(key)) {
-                requiresReview = true;
-                break;
-            }
+          if (isDifferent && !autoApprovalRules.includes(key)) {
+            requiresReview = true;
+            break; 
           }
         }
         
         const originalImages = originalProduct.images || [];
         const keptImages = productFormData.existingImages || [];
-        const newImageCount = newImageFiles.length;
-        const removedImageCount = originalImages.filter((url: string) => !keptImages.includes(url)).length;
-
-        if (newImageCount > 0 || removedImageCount > 0) {
+        if (newImageFiles.length > 0 || originalImages.length !== keptImages.length) {
             requiresReview = true;
         }
 
-        if (requiresReview) {
-            finalStatus = 'pending';
-        } else {
+        if (!requiresReview) {
             finalStatus = 'approved';
             autoApproved = true;
+        } else {
+            finalStatus = 'pending';
         }
       }
       
