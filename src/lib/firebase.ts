@@ -260,14 +260,13 @@ async function deleteImages(urls: string[]): Promise<void> {
 }
 
 export async function createOrUpdateProductClient(
-  productFormData: Omit<Product, 'id' | 'images' | 'status' | 'sellerId' | 'createdAt' | 'updatedAt' | 'specifications' | 'existingImages'> & {
-    specifications?: { name: string; value: string }[],
+  productFormData: Omit<Product, 'id' | 'images' | 'status' | 'sellerId' | 'createdAt' | 'updatedAt'> & {
     existingImages?: string[]
   },
   newImageFiles: File[],
   sellerId: string,
   productId?: string | null
-): Promise<Product> {
+): Promise<{ product: Product, autoApproved: boolean }> {
   if (!sellerId || typeof sellerId !== 'string' || sellerId.trim() === '') {
     throw new Error('Invalid or missing Seller ID. User must be authenticated.');
   }
@@ -280,6 +279,51 @@ export async function createOrUpdateProductClient(
         throw new Error("Product to update not found.");
       }
       const originalProduct = docSnap.data() as Product;
+      
+      let finalStatus: Product['status'] = 'pending';
+
+      if (originalProduct.status === 'approved') {
+        const autoApprovalRules = await getProductUpdateRulesClient();
+        const editableFields: (keyof Product)[] = [
+          'title', 'description', 'priceUSD', 'categoryId', 'countryOfOrigin',
+          'stockAvailability', 'moq', 'moqUnit', 'sku', 'leadTime', 'specifications'
+        ];
+        
+        let requiresReview = false;
+        
+        for (const key of editableFields) {
+            const formValue = productFormData[key as keyof typeof productFormData];
+            const originalValue = originalProduct[key as keyof Product];
+            
+            // Normalize values for comparison. This is crucial.
+            const newValue = (key === 'priceUSD' || key === 'moq') ? parseFloat(formValue as string) : formValue;
+
+            if (key === 'specifications') {
+                 if (JSON.stringify(originalValue || []) !== JSON.stringify(newValue || [])) {
+                    if (!autoApprovalRules.includes(key)) {
+                        requiresReview = true;
+                        break;
+                    }
+                }
+            } else if (originalValue !== newValue) {
+                 if (!autoApprovalRules.includes(key)) {
+                    requiresReview = true;
+                    break;
+                }
+            }
+        }
+        
+        const originalImages = originalProduct.images || [];
+        const keptImages = productFormData.existingImages || [];
+        const newImageCount = newImageFiles.length;
+        const removedImageCount = originalImages.filter((url: string) => !keptImages.includes(url)).length;
+
+        if (newImageCount > 0 || removedImageCount > 0) {
+            requiresReview = true;
+        }
+
+        finalStatus = requiresReview ? 'pending' : 'approved';
+      }
       
       const originalImages = originalProduct.images || [];
       const keptImages = productFormData.existingImages || [];
@@ -296,44 +340,6 @@ export async function createOrUpdateProductClient(
           throw new Error('At least one image is required for a product.');
       }
       
-      let finalStatus: Product['status'] = 'pending';
-
-      if (originalProduct.status === 'approved') {
-        const autoApprovalRules = await getProductUpdateRulesClient();
-        const editableFields: (keyof Product)[] = [
-          'title', 'description', 'priceUSD', 'categoryId', 'countryOfOrigin',
-          'stockAvailability', 'moq', 'moqUnit', 'sku', 'leadTime', 'specifications'
-        ];
-        
-        let requiresReview = false;
-
-        for (const key of editableFields) {
-            const originalValue = originalProduct[key];
-            const newValue = productFormData[key as keyof typeof productFormData];
-
-            // Normalize values for comparison
-            const normalizedOriginal = JSON.stringify(originalValue ?? null);
-            const normalizedNew = JSON.stringify(newValue ?? null);
-
-            if (normalizedOriginal !== normalizedNew) {
-                // A field has changed. Check if it's on the auto-approval list.
-                if (!autoApprovalRules.includes(key)) {
-                    // This change is NOT on the auto-approval list, so it requires review.
-                    requiresReview = true;
-                    break; 
-                }
-            }
-        }
-        
-        // Also check if new images were added or existing ones removed. This requires re-approval.
-        if (newUploadedUrls.length > 0 || imagesToDelete.length > 0) {
-            requiresReview = true;
-        }
-
-        finalStatus = requiresReview ? 'pending' : 'approved';
-      }
-
-      // Destructure after comparison to prepare for saving
       const { existingImages, ...dataToSave } = productFormData;
       const productToUpdate = {
         ...dataToSave,
@@ -345,7 +351,10 @@ export async function createOrUpdateProductClient(
       await updateDoc(productRef, productToUpdate);
       const updatedDocSnap = await getDocClient(productRef);
       const updatedData = convertTimestamps(updatedDocSnap.data());
-      return { id: productId, ...updatedData } as Product;
+      return { 
+        product: { id: productId, ...updatedData } as Product, 
+        autoApproved: finalStatus === 'approved' 
+      };
 
     } 
     else {
@@ -368,13 +377,17 @@ export async function createOrUpdateProductClient(
       const docRef = await addDoc(collection(db, 'products'), productToCreate);
       const newDocSnap = await getDocClient(docRef);
       const newData = convertTimestamps(newDocSnap.data());
-      return { id: docRef.id, ...newData } as Product;
+      return { 
+          product: { id: docRef.id, ...newData } as Product, 
+          autoApproved: false 
+      };
     }
   } catch(error) {
       console.error("Error in createOrUpdateProductClient:", error);
       throw error;
   }
 }
+
 
 export async function deleteProductClient(product: Product): Promise<void> {
     if (!product || !product.id) {
@@ -899,5 +912,3 @@ export async function saveProductUpdateRulesClient(fields: string[]): Promise<vo
 
 
 export { app, auth, db, storage };
-
-    

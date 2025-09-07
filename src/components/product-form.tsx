@@ -245,19 +245,32 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
       const filesToUpload = newImageFiles ? Array.from(newImageFiles) : [];
 
       try {
-        const savedProduct = await createOrUpdateProductClient(
+        const result = await createOrUpdateProductClient(
           productData,
           filesToUpload,
           firebaseUser.uid,
           productId
         );
         
-        toast({
-            title: productId ? "Product Updated" : "Product Submitted",
-            description: productId 
-                ? `Your changes to "${savedProduct.title}" have been submitted for review.`
-                : `Your product "${savedProduct.title}" has been submitted for review.`,
-        });
+        if (productId) {
+            if (result.autoApproved) {
+                 toast({
+                    title: "Product Updated",
+                    description: "Your changes were auto-approved and are now live.",
+                });
+            } else {
+                 toast({
+                    title: "Product Updated",
+                    description: `Your changes to "${result.product.title}" have been submitted for review.`,
+                });
+            }
+        } else {
+             toast({
+                title: "Product Submitted",
+                description: `Your product "${result.product.title}" has been submitted for review.`,
+            });
+        }
+        
         onSuccess();
       } catch (error: any) {
          toast({
