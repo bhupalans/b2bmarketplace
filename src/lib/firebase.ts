@@ -296,42 +296,45 @@ export async function createOrUpdateProductClient(
           throw new Error('At least one image is required for a product.');
       }
       
-      const { existingImages, ...dataToSave } = productFormData;
-
-      const autoApprovalRules = await getProductUpdateRulesClient();
       let finalStatus: Product['status'] = 'pending';
 
       if (originalProduct.status === 'approved') {
-        finalStatus = 'approved'; // Assume it stays approved unless a change requires review
-
-        const editableFields: (keyof typeof dataToSave)[] = [
+        const autoApprovalRules = await getProductUpdateRulesClient();
+        const editableFields: (keyof Product)[] = [
           'title', 'description', 'priceUSD', 'categoryId', 'countryOfOrigin',
           'stockAvailability', 'moq', 'moqUnit', 'sku', 'leadTime', 'specifications'
         ];
+        
+        let requiresReview = false;
 
         for (const key of editableFields) {
-          const originalValue = originalProduct[key as keyof Product];
-          const newValue = dataToSave[key as keyof typeof dataToSave];
+            const originalValue = originalProduct[key];
+            const newValue = productFormData[key as keyof typeof productFormData];
 
-          const normalizedOriginal = JSON.stringify(originalValue ?? null);
-          const normalizedNew = JSON.stringify(newValue ?? null);
+            // Normalize values for comparison
+            const normalizedOriginal = JSON.stringify(originalValue ?? null);
+            const normalizedNew = JSON.stringify(newValue ?? null);
 
-          if (normalizedOriginal !== normalizedNew) {
-            // A field has changed. Check if it's on the auto-approval list.
-            if (!autoApprovalRules.includes(key)) {
-              // This change is NOT on the auto-approval list, so it requires review.
-              finalStatus = 'pending';
-              break; // No need to check other fields
+            if (normalizedOriginal !== normalizedNew) {
+                // A field has changed. Check if it's on the auto-approval list.
+                if (!autoApprovalRules.includes(key)) {
+                    // This change is NOT on the auto-approval list, so it requires review.
+                    requiresReview = true;
+                    break; 
+                }
             }
-          }
         }
         
         // Also check if new images were added or existing ones removed. This requires re-approval.
         if (newUploadedUrls.length > 0 || imagesToDelete.length > 0) {
-            finalStatus = 'pending';
+            requiresReview = true;
         }
+
+        finalStatus = requiresReview ? 'pending' : 'approved';
       }
 
+      // Destructure after comparison to prepare for saving
+      const { existingImages, ...dataToSave } = productFormData;
       const productToUpdate = {
         ...dataToSave,
         images: finalImageUrls,
@@ -833,7 +836,7 @@ export async function sendQuoteRequest(data: {
         }
     }
 
-    const formattedMessage = `<b>New Quote Request</b><br/><b>Product:</b> ${data.productTitle}<br/><b>Quantity:</b> ${data.quantity}<br/><br/><b>Buyer's Message:</b><br/>${safeRequirements}`;
+    const formattedMessage = `&lt;b&gt;New Quote Request&lt;/b&gt;&lt;br/&gt;&lt;b&gt;Product:&lt;/b&gt; ${data.productTitle}&lt;br/&gt;&lt;b&gt;Quantity:&lt;/b&gt; ${data.quantity}&lt;br/&gt;&lt;br/&gt;&lt;b&gt;Buyer's Message:&lt;/b&gt;&lt;br/&gt;${safeRequirements}`;
     
     await sendMessage(conversationId, data.buyerId, formattedMessage, { isQuoteRequest: true });
 
@@ -896,3 +899,5 @@ export async function saveProductUpdateRulesClient(fields: string[]): Promise<vo
 
 
 export { app, auth, db, storage };
+
+    
