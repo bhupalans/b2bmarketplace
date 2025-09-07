@@ -301,29 +301,34 @@ export async function createOrUpdateProductClient(
       const autoApprovalRules = await getProductUpdateRulesClient();
       let finalStatus: Product['status'] = 'pending';
 
-      if (originalProduct.status === 'approved' && autoApprovalRules.length > 0) {
-        
-        // Define the list of fields that are directly editable on the form
+      if (originalProduct.status === 'approved') {
+        finalStatus = 'approved'; // Assume it stays approved unless a change requires review
+
         const editableFields: (keyof typeof dataToSave)[] = [
-            'title', 'description', 'priceUSD', 'categoryId', 'countryOfOrigin',
-            'stockAvailability', 'moq', 'moqUnit', 'sku', 'leadTime', 'specifications'
+          'title', 'description', 'priceUSD', 'categoryId', 'countryOfOrigin',
+          'stockAvailability', 'moq', 'moqUnit', 'sku', 'leadTime', 'specifications'
         ];
 
-        const changedFields = editableFields.filter(key => {
-            const originalValue = originalProduct[key as keyof Product];
-            const newValue = dataToSave[key as keyof typeof dataToSave];
+        for (const key of editableFields) {
+          const originalValue = originalProduct[key as keyof Product];
+          const newValue = dataToSave[key as keyof typeof dataToSave];
 
-            // Handle undefined/null vs empty string/array cases
-            const normalizedOriginal = originalValue === undefined || originalValue === null ? "" : JSON.stringify(originalValue);
-            const normalizedNew = newValue === undefined || newValue === null ? "" : JSON.stringify(newValue);
-            
-            return normalizedOriginal !== normalizedNew;
-        });
+          const normalizedOriginal = JSON.stringify(originalValue ?? null);
+          const normalizedNew = JSON.stringify(newValue ?? null);
+
+          if (normalizedOriginal !== normalizedNew) {
+            // A field has changed. Check if it's on the auto-approval list.
+            if (!autoApprovalRules.includes(key)) {
+              // This change is NOT on the auto-approval list, so it requires review.
+              finalStatus = 'pending';
+              break; // No need to check other fields
+            }
+          }
+        }
         
-        const allChangesAreAutoApproved = changedFields.every(field => autoApprovalRules.includes(field));
-
-        if (allChangesAreAutoApproved && newUploadedUrls.length === 0 && imagesToDelete.length === 0) {
-            finalStatus = 'approved';
+        // Also check if new images were added or existing ones removed. This requires re-approval.
+        if (newUploadedUrls.length > 0 || imagesToDelete.length > 0) {
+            finalStatus = 'pending';
         }
       }
 
