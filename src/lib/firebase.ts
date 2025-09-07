@@ -278,8 +278,9 @@ export async function createOrUpdateProductClient(
       if (!docSnap.exists()) {
         throw new Error("Product to update not found.");
       }
+      const originalProduct = docSnap.data() as Product;
       
-      const originalImages = docSnap.data().images || [];
+      const originalImages = originalProduct.images || [];
       const keptImages = productFormData.existingImages || [];
       const imagesToDelete = originalImages.filter((url: string) => !keptImages.includes(url));
 
@@ -296,10 +297,33 @@ export async function createOrUpdateProductClient(
       
       const { existingImages, ...dataToSave } = productFormData;
 
+      // Auto-approval logic
+      const autoApprovalRules = await getProductUpdateRulesClient();
+      let finalStatus: Product['status'] = 'pending';
+
+      if (originalProduct.status === 'approved' && autoApprovalRules.length > 0) {
+        const changedFields = Object.keys(dataToSave).filter(key => {
+            const originalValue = (originalProduct as any)[key];
+            const newValue = (dataToSave as any)[key];
+            // Basic deep-ish comparison for specifications array
+            if (key === 'specifications') {
+                return JSON.stringify(originalValue) !== JSON.stringify(newValue);
+            }
+            return originalValue !== newValue;
+        });
+        
+        // Auto-approve only if all changed fields are in the rules and no new images were added.
+        const allChangesAreAutoApproved = changedFields.every(field => autoApprovalRules.includes(field));
+
+        if (allChangesAreAutoApproved && newUploadedUrls.length === 0) {
+            finalStatus = 'approved';
+        }
+      }
+
       const productToUpdate = {
         ...dataToSave,
         images: finalImageUrls,
-        status: 'pending' as const, 
+        status: finalStatus,
         updatedAt: Timestamp.now(),
       };
 
@@ -307,6 +331,7 @@ export async function createOrUpdateProductClient(
       const updatedDocSnap = await getDocClient(productRef);
       const updatedData = convertTimestamps(updatedDocSnap.data());
       return { id: productId, ...updatedData } as Product;
+
     } 
     else {
       if (newImageFiles.length === 0) {
@@ -841,6 +866,21 @@ export function streamMessagesForAdmin(conversationId: string, callback: (messag
     return unsubscribe;
 }
 
+// --- Admin Settings ---
+
+export async function getProductUpdateRulesClient(): Promise<string[]> {
+    const docRef = doc(db, 'settings', 'productUpdateRules');
+    const docSnap = await getDocClient(docRef);
+    if (docSnap.exists()) {
+        return docSnap.data().autoApproveFields || [];
+    }
+    return [];
+}
+
+export async function saveProductUpdateRulesClient(fields: string[]): Promise<void> {
+    const docRef = doc(db, 'settings', 'productUpdateRules');
+    await setDoc(docRef, { autoApproveFields: fields });
+}
 
 
 export { app, auth, db, storage };
