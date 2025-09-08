@@ -259,7 +259,7 @@ async function deleteImages(urls: string[]): Promise<void> {
     await Promise.all(deletePromises);
 }
 
-// Deep comparison function for specifications array
+// Deep comparison function for specifications array. It is robust to key order.
 function areSpecificationsEqual(
   specs1: { name: string; value: string }[] | undefined,
   specs2: { name: string; value: string }[] | undefined
@@ -270,17 +270,20 @@ function areSpecificationsEqual(
   if (s1.length !== s2.length) {
     return false;
   }
+  
+  // Sort both arrays by name to ensure consistent order for comparison
+  const sortedS1 = [...s1].sort((a, b) => a.name.localeCompare(b.name));
+  const sortedS2 = [...s2].sort((a, b) => a.name.localeCompare(b.name));
 
-  const s1Map = new Map(s1.map(item => [item.name, item.value]));
-
-  for (const item of s2) {
-    if (!s1Map.has(item.name) || s1Map.get(item.name) !== item.value) {
+  for (let i = 0; i < sortedS1.length; i++) {
+    if (sortedS1[i].name !== sortedS2[i].name || sortedS1[i].value !== sortedS2[i].value) {
       return false;
     }
   }
 
   return true;
 }
+
 
 // This function is the new, robust implementation for creating/updating products.
 export async function createOrUpdateProductClient(
@@ -321,17 +324,17 @@ export async function createOrUpdateProductClient(
 
         for (const key of editableFields) {
           const originalValue = originalProduct[key as keyof Product];
-          const newValue = productFormData[key as keyof typeof productFormData];
+          let submittedValue = productFormData[key as keyof typeof productFormData];
 
-          // Normalize undefined, null, and empty strings for comparison
+          // Normalize undefined/null to empty strings for a more reliable comparison.
           const normalizedOriginal = (originalValue === null || originalValue === undefined) ? "" : originalValue;
-          const normalizedNew = (newValue === null || newValue === undefined) ? "" : newValue;
+          const normalizedSubmitted = (submittedValue === null || submittedValue === undefined) ? "" : submittedValue;
 
           if (key === 'specifications') {
             if (!areSpecificationsEqual(originalProduct.specifications, productFormData.specifications)) {
               changedFields.push(key);
             }
-          } else if (String(normalizedOriginal) !== String(normalizedNew)) {
+          } else if (String(normalizedOriginal) !== String(normalizedSubmitted)) {
              changedFields.push(key);
           }
         }
@@ -354,8 +357,9 @@ export async function createOrUpdateProductClient(
         }
 
       } else {
-        // If the product was 'pending' or 'rejected', it remains so until an admin acts.
-        finalStatus = originalProduct.status;
+        // If the product was previously 'rejected' or 'pending', any new submission
+        // should put it back into the 'pending' state for review.
+        finalStatus = 'pending';
         autoApproved = false;
       }
       
