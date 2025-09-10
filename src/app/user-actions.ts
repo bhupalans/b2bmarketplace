@@ -93,13 +93,11 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
   }
 }
 
-export async function submitVerificationDocuments(formData: FormData) {
+export async function submitVerificationDocuments(formData: FormData, token: string) {
   try {
-    const authHeader = (await import('next/headers')).headers().get('Authorization');
-    if (!authHeader) {
+    if (!token) {
       throw new Error('Not authenticated');
     }
-    const token = authHeader.split('Bearer ')[1];
     const decodedToken = await getAuth().verifyIdToken(token);
     const userId = decodedToken.uid;
 

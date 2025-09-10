@@ -16,6 +16,7 @@ import { Loader2, UploadCloud, File as FileIcon, X, CheckCircle, AlertTriangle, 
 import { useToast } from '@/hooks/use-toast';
 import { submitVerificationDocuments } from '@/app/user-actions';
 import { ScanDocumentDialog } from '@/components/scan-document-dialog';
+import { useAuth } from '@/contexts/auth-context';
 
 interface VerificationClientPageProps {
   user: User;
@@ -33,6 +34,7 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
   const { toast } = useToast();
   const [scanDialogOpen, setScanDialogOpen] = useState(false);
   const [activeScanField, setActiveScanField] = useState<string | null>(null);
+  const { firebaseUser } = useAuth();
 
   const activeTemplate = useMemo(() => {
     if (!user.address?.country) return null;
@@ -91,7 +93,7 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
 
 
   const handleSubmit = () => {
-    if (!canSubmit) return;
+    if (!canSubmit || !firebaseUser) return;
 
     startSubmitTransition(async () => {
         try {
@@ -100,7 +102,8 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
                 formData.append(fieldName, state.file);
             });
             
-            const result = await submitVerificationDocuments(formData);
+            const token = await firebaseUser.getIdToken();
+            const result = await submitVerificationDocuments(formData, token);
 
             if (result.success && result.updatedUser) {
                 setUser(result.updatedUser);
