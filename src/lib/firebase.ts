@@ -9,10 +9,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { filterContactDetails } from '@/ai/flows/filter-contact-details';
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  apiKey: "YOUR_API_KEY",
   authDomain: "b2b-marketplace-udg1v.firebaseapp.com",
   projectId: "b2b-marketplace-udg1v",
-  storageBucket: "b2b-marketplace-udg1v.firebasestorage.app",
+  storageBucket: "b2b-marketplace-udg1v.appspot.com",
   messagingSenderId: "822558435203",
   appId: "1:822558435203:web:c462791316c4540a2e78b6"
 };
