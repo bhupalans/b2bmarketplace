@@ -12,9 +12,10 @@ import {
 } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Loader2, UploadCloud, File as FileIcon, X, CheckCircle, AlertTriangle, ShieldCheck, ShieldX } from 'lucide-react';
+import { Loader2, UploadCloud, File as FileIcon, X, CheckCircle, AlertTriangle, ShieldCheck, ShieldX, Camera } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { submitVerificationDocuments } from '@/app/user-actions';
+import { ScanDocumentDialog } from '@/components/scan-document-dialog';
 
 interface VerificationClientPageProps {
   user: User;
@@ -30,6 +31,8 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
   const [fileUploads, setFileUploads] = useState<FileUploadState>({});
   const [isSubmitting, startSubmitTransition] = useTransition();
   const { toast } = useToast();
+  const [scanDialogOpen, setScanDialogOpen] = useState(false);
+  const [activeScanField, setActiveScanField] = useState<string | null>(null);
 
   const activeTemplate = useMemo(() => {
     if (!user.address?.country) return null;
@@ -50,20 +53,27 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      handleFileSelect(file, fieldName);
+    }
+  };
+
+  const handleFileSelect = (file: File, fieldName: string) => {
+    if (file.size > 5 * 1024 * 1024) { // 5MB limit
         toast({ variant: 'destructive', title: 'File too large', description: 'Please upload files smaller than 5MB.'});
         return;
-      }
-      setFileUploads(prev => ({
+    }
+    setFileUploads(prev => ({
         ...prev,
         [fieldName]: { file, preview: URL.createObjectURL(file), progress: 0 }
-      }));
-    }
+    }));
   };
   
   const handleRemoveFile = (fieldName: string) => {
       setFileUploads(prev => {
           const newState = {...prev};
+          if (newState[fieldName]) {
+              URL.revokeObjectURL(newState[fieldName].preview);
+          }
           delete newState[fieldName];
           return newState;
       })
@@ -105,6 +115,18 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
     });
   };
 
+  const handleOpenScanDialog = (fieldName: string) => {
+    setActiveScanField(fieldName);
+    setScanDialogOpen(true);
+  }
+
+  const handleScanComplete = (file: File) => {
+    if (activeScanField) {
+        handleFileSelect(file, activeScanField);
+    }
+    setActiveScanField(null);
+  }
+
   const StatusAlert = () => {
     switch (user.verificationStatus) {
         case 'verified':
@@ -144,6 +166,7 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
 
 
   return (
+    <>
     <div className="space-y-6 max-w-4xl mx-auto">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Verification Center</h1>
@@ -190,7 +213,6 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
                                     <CheckCircle className="h-5 w-5 text-green-600" />
                                     <span className="text-sm font-medium">{existingDoc.fileName}</span>
                                 </div>
-                                {/* Allow re-upload */}
                                 <label htmlFor={field.name} className="text-sm text-primary hover:underline cursor-pointer">
                                     Replace
                                     <input type="file" id={field.name} className="hidden" onChange={(e) => handleFileChange(e, field.name)} disabled={isSubmitting || user.verificationStatus === 'pending'}/>
@@ -207,16 +229,21 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
                                 </Button>
                             </div>
                         ) : (
-                             <label htmlFor={field.name} className="mt-2 flex justify-center w-full rounded-md border-2 border-dashed border-gray-300 px-6 py-10 text-center cursor-pointer hover:border-primary">
-                                <div className="text-center">
-                                    <UploadCloud className="mx-auto h-12 w-12 text-gray-400" />
-                                    <p className="mt-2 text-sm text-muted-foreground">
-                                        Click to upload or drag and drop
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">PDF, PNG, JPG up to 5MB</p>
-                                </div>
-                                <input id={field.name} name={field.name} type="file" className="sr-only" onChange={(e) => handleFileChange(e, field.name)} accept=".pdf,.png,.jpg,.jpeg" disabled={isSubmitting || user.verificationStatus === 'pending'} />
-                            </label>
+                             <div className="mt-2 flex flex-col sm:flex-row gap-2">
+                                <label htmlFor={field.name} className="flex-1 flex justify-center w-full rounded-md border-2 border-dashed border-gray-300 px-6 py-10 text-center cursor-pointer hover:border-primary">
+                                    <div className="text-center">
+                                        <UploadCloud className="mx-auto h-12 w-12 text-gray-400" />
+                                        <p className="mt-2 text-sm text-muted-foreground">
+                                            Click to upload or drag and drop
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">PDF, PNG, JPG up to 5MB</p>
+                                    </div>
+                                    <input id={field.name} name={field.name} type="file" className="sr-only" onChange={(e) => handleFileChange(e, field.name)} accept=".pdf,.png,.jpg,.jpeg" disabled={isSubmitting || user.verificationStatus === 'pending'} />
+                                </label>
+                                <Button type="button" variant="outline" className="sm:h-auto" onClick={() => handleOpenScanDialog(field.name)} disabled={isSubmitting || user.verificationStatus === 'pending'}>
+                                    <Camera className="mr-2 h-4 w-4" /> Scan Document
+                                </Button>
+                             </div>
                         )}
                     </div>
                 )
@@ -233,5 +260,12 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
         </CardContent>
       </Card>
     </div>
+    <ScanDocumentDialog 
+        open={scanDialogOpen}
+        onOpenChange={setScanDialogOpen}
+        onScanComplete={handleScanComplete}
+        documentName={activeScanField}
+    />
+    </>
   );
 }
