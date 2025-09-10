@@ -6,13 +6,16 @@ import admin from 'firebase-admin';
 
 const appName = 'firebase-admin-app-b2b-marketplace';
 
+// This function ensures the Firebase Admin app is initialized only once.
 function getAdminApp() {
-  // Check if the app is already initialized
+  // Check if the app is already initialized to prevent errors.
   if (admin.apps.some((app) => app?.name === appName)) {
     return admin.app(appName);
   }
 
-  // Explicitly setting the project ID and storage bucket makes initialization more robust.
+  // If not initialized, create a new app instance.
+  // Explicitly setting the project ID and storage bucket makes initialization more robust,
+  // especially in serverless environments.
   return admin.initializeApp(
     {
       projectId: 'b2b-marketplace-udg1v',
