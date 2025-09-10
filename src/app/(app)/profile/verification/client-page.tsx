@@ -154,6 +154,11 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
                 <AlertTitle>Verification Required</AlertTitle>
                 <AlertDescription>
                     There was an issue with your previous submission. Please review the requirements and re-submit your documents.
+                    {user.verificationRejectionReason && (
+                        <p className="mt-2 font-semibold">
+                            Admin Feedback: <span className="font-normal italic">"{user.verificationRejectionReason}"</span>
+                        </p>
+                    )}
                 </AlertDescription>
             </Alert>
         default:

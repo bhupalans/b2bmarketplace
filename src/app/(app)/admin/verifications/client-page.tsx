@@ -35,6 +35,7 @@ import { Separator } from '@/components/ui/separator';
 import { format, parseISO } from 'date-fns';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { countries } from '@/lib/geography-data';
+import { RejectionReasonDialog } from '@/components/rejection-reason-dialog';
 
 interface AdminVerificationsClientPageProps {
     initialUsers: User[];
@@ -48,6 +49,7 @@ export function AdminVerificationsClientPage({ initialUsers }: AdminVerification
   const { user } = useAuth();
   const [reviewingUser, setReviewingUser] = useState<User | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [rejectingUser, setRejectingUser] = useState<User | null>(null);
 
   React.useEffect(() => {
     getVerificationTemplatesClient().then(setVerificationTemplates);
@@ -58,7 +60,7 @@ export function AdminVerificationsClientPage({ initialUsers }: AdminVerification
     return verificationTemplates.find(t => t.id === reviewingUser.address.country) || null;
   }, [reviewingUser, verificationTemplates]);
 
-  const handleAction = async (action: 'approve' | 'reject', userId: string) => {
+  const handleAction = async (action: 'approve' | 'reject', userId: string, reason?: string) => {
     setProcessingState(action === 'approve' ? 'approving' : 'rejecting');
     startTransition(async () => {
         if (!user || user.role !== 'admin') {
@@ -68,13 +70,13 @@ export function AdminVerificationsClientPage({ initialUsers }: AdminVerification
         }
 
         try {
-            await updateUserVerificationStatusClient(userId, action === 'approve' ? 'verified' : 'rejected');
+            await updateUserVerificationStatusClient(userId, action === 'approve' ? 'verified' : 'rejected', reason);
             setPendingUsers(prev => prev.filter(p => p.id !== userId));
             toast({
                 title: `Seller ${action}d`,
                 description: `The seller has been successfully ${action}d.`,
             });
-            setReviewingUser(null); // Close dialog on success
+            setReviewingUser(null);
         } catch (error: any) {
             console.error("Error updating user verification status:", error);
             toast({
@@ -95,6 +97,10 @@ export function AdminVerificationsClientPage({ initialUsers }: AdminVerification
   const handleOpenReview = (userToReview: User) => {
     setReviewingUser(userToReview);
   }
+  
+  const handleOpenRejectionDialog = (userToReject: User) => {
+    setRejectingUser(userToReject);
+  }
 
   const handleCloseReview = () => {
     if (!processingState) {
@@ -102,7 +108,16 @@ export function AdminVerificationsClientPage({ initialUsers }: AdminVerification
     }
   }
 
+  const handleConfirmRejection = (reason: string) => {
+    if (rejectingUser) {
+        handleAction('reject', rejectingUser.id, reason);
+    }
+    setRejectingUser(null);
+  };
+
+
   return (
+    <>
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Seller Verifications</h1>
@@ -223,7 +238,7 @@ export function AdminVerificationsClientPage({ initialUsers }: AdminVerification
                 <Button 
                     variant="outline"
                     className="text-red-600 border-red-600 hover:bg-red-100 hover:text-red-700"
-                    onClick={() => handleAction('reject', reviewingUser.id)}
+                    onClick={() => handleOpenRejectionDialog(reviewingUser)}
                     disabled={!!processingState}
                 >
                    {processingState === 'rejecting' ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4 mr-2" />}
@@ -241,7 +256,13 @@ export function AdminVerificationsClientPage({ initialUsers }: AdminVerification
           </DialogContent>
         </Dialog>
       )}
-
     </div>
+     <RejectionReasonDialog
+        open={!!rejectingUser}
+        onOpenChange={() => setRejectingUser(null)}
+        onConfirm={handleConfirmRejection}
+        isSubmitting={processingState === 'rejecting'}
+     />
+    </>
   );
 }

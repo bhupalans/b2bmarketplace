@@ -12,7 +12,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyDL_o5j6RtqjCwFN5iTtvUj6nFfyDJaaxc",
   authDomain: "b2b-marketplace-udg1v.firebaseapp.com",
   projectId: "b2b-marketplace-udg1v",
-  storageBucket: "b2b-marketplace-udg1v.firebasestorage.app",
+  storageBucket: "b2b-marketplace-udg1v.appspot.com",
   messagingSenderId: "822558435203",
   appId: "1:822558435203:web:c462791316c4540a2e78b6"
 };
@@ -939,13 +939,27 @@ export async function getPendingVerificationsClient(): Promise<User[]> {
 
 export async function updateUserVerificationStatusClient(
   userId: string,
-  status: 'verified' | 'rejected'
+  status: 'verified' | 'rejected',
+  reason?: string
 ): Promise<void> {
   const userRef = doc(db, 'users', userId);
-  await updateDoc(userRef, { 
+  const dataToUpdate: { 
+      verificationStatus: 'verified' | 'rejected';
+      verified: boolean;
+      verificationRejectionReason?: string;
+  } = { 
       verificationStatus: status,
-      verified: status === 'verified' // Also update the boolean 'verified' flag
-  });
+      verified: status === 'verified'
+  };
+
+  if (status === 'rejected') {
+    dataToUpdate.verificationRejectionReason = reason;
+  } else {
+    // Clear the reason if they are approved
+    dataToUpdate.verificationRejectionReason = '';
+  }
+
+  await updateDoc(userRef, dataToUpdate);
 }
 
 

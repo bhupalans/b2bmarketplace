@@ -59,7 +59,8 @@ export type User = {
           url: string;
           fileName: string;
       }
-  }
+  };
+  verificationRejectionReason?: string;
 };
 
 export type Category = {
