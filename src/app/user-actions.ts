@@ -1,10 +1,9 @@
 
 'use server';
 
-import { adminDb, adminStorage } from '@/lib/firebase-admin';
+import { adminDb, adminStorage, adminAuth } from '@/lib/firebase-admin';
 import { User } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
-import { getAuth } from 'firebase-admin/auth';
 import { v4 as uuidv4 } from 'uuid';
 
 type ProfileUpdateData = Omit<User, 'id' | 'uid' | 'email' | 'role' | 'avatar' | 'memberSince' | 'username'>;
@@ -98,7 +97,7 @@ export async function submitVerificationDocuments(formData: FormData, token: str
     if (!token) {
       throw new Error('Not authenticated');
     }
-    const decodedToken = await getAuth().verifyIdToken(token);
+    const decodedToken = await adminAuth.verifyIdToken(token);
     const userId = decodedToken.uid;
 
     const userRef = adminDb.collection('users').doc(userId);

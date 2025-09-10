@@ -18,8 +18,8 @@ function getAdminApp() {
   // especially in serverless environments.
   return admin.initializeApp(
     {
-      projectId: 'b2b-marketplace-udg1v',
-      storageBucket: 'b2b-marketplace-udg1v.firebasestorage.app',
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
     },
     appName
   );
