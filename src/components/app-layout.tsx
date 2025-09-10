@@ -200,6 +200,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                     </SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
                                 <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={pathname === '/admin/verifications'}>
+                                        <Link href="/admin/verifications">Verifications</Link>
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                                <SidebarMenuSubItem>
                                     <SidebarMenuSubButton asChild isActive={pathname === '/admin/conversations'}>
                                         <Link href="/admin/conversations">Conversations</Link>
                                     </SidebarMenuSubButton>
