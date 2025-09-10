@@ -9,6 +9,7 @@ export type User = {
   username?: string;
   avatar: string;
   role: 'buyer' | 'seller' | 'admin';
+  createdAt?: string;
   
   // New production-ready fields
   companyName?: string;
@@ -43,13 +44,22 @@ export type User = {
   verificationDetails?: { [key: string]: string }; // For dynamic verification fields
 
   // Existing fields
-  verified?: boolean;
+  verified?: boolean; // This will now represent the overall verified status
   businessType?: 'Manufacturer' | 'Distributor' | 'Trading Company' | 'Agent';
   exportScope?: string[]; // 'domestic' | 'international'
   location?: string; // This might become redundant with address, but let's keep it for now.
   memberSince?: number;
   certifications?: string[];
   companyDescription?: string;
+
+  // New Verification Fields
+  verificationStatus?: 'unverified' | 'pending' | 'verified' | 'rejected';
+  verificationDocuments?: {
+      [fieldName: string]: {
+          url: string;
+          fileName: string;
+      }
+  }
 };
 
 export type Category = {
@@ -75,7 +85,7 @@ export type SpecTemplate = {
 export type VerificationField = {
     name: string; // e.g., "gstn"
     label: string; // e.g., "GSTN"
-    type: 'text' | 'file';
+    type: 'text' | 'file'; // File type might not be used, but good to have
     required: 'always' | 'international' | 'never';
     validationRegex?: string;
     helperText?: string;

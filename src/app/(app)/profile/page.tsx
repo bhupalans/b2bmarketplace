@@ -9,8 +9,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, ShieldAlert } from "lucide-react";
 import { ProfileForm } from "./profile-form";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import Link from "next/link";
 
 export default function ProfilePage() {
   const { user, loading } = useAuth();
@@ -31,6 +33,9 @@ export default function ProfilePage() {
     );
   }
 
+  const isUnverifiedSeller = user.role === 'seller' && user.verificationStatus !== 'verified';
+
+
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div>
@@ -39,6 +44,19 @@ export default function ProfilePage() {
           Keep your business and contact information up-to-date.
         </p>
       </div>
+
+       {isUnverifiedSeller && (
+        <Alert>
+          <ShieldAlert className="h-4 w-4" />
+          <AlertTitle>Verification Required</AlertTitle>
+          <AlertDescription>
+            Your account is not yet verified. Please complete the verification process to gain full access and build trust with buyers. 
+            <Link href="/profile/verification" className="font-semibold text-primary hover:underline ml-1">
+              Go to Verification Center
+            </Link>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <ProfileForm user={user} />
     </div>

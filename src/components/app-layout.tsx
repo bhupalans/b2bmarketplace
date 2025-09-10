@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building, Home, PanelLeft, Loader2, LayoutDashboard, Package, Shield, FileText, FolderTree, MessageSquare, MessagesSquare, Gavel, CheckSquare, Settings } from "lucide-react";
+import { Building, Home, PanelLeft, Loader2, LayoutDashboard, Package, Shield, FileText, FolderTree, MessageSquare, MessagesSquare, Gavel, CheckSquare, Settings, ShieldCheck } from "lucide-react";
 import {
   SidebarProvider,
   Sidebar,
@@ -39,7 +39,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const protectedRoutes = ['/dashboard', '/my-products', '/admin', '/messages'];
+    const protectedRoutes = ['/dashboard', '/my-products', '/admin', '/messages', '/profile'];
     const sellerOnlyRoutes = ['/dashboard', '/my-products'];
     const adminOnlyRoutes = ['/admin'];
 
@@ -79,7 +79,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
 
-  const isProtectedRoute = ['/dashboard', '/my-products', '/admin'].some(path => pathname.startsWith(path));
+  const isProtectedRoute = ['/dashboard', '/my-products', '/admin', '/profile'].some(path => pathname.startsWith(path));
   if (isProtectedRoute && !firebaseUser) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -162,6 +162,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     <Link href="/my-products">
                       <Package />
                       <span className="sr-only">My Products</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                 <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname.startsWith("/profile/verification")}
+                    tooltip="Verification"
+                  >
+                    <Link href="/profile/verification">
+                      <ShieldCheck />
+                      <span className="sr-only">Verification</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

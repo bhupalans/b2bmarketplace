@@ -15,7 +15,7 @@ import {
 import { useAuth } from "@/contexts/auth-context";
 import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
-import { CreditCard, LogOut, Settings, User, LayoutDashboard, Package, MessageSquare } from "lucide-react";
+import { CreditCard, LogOut, Settings, User, LayoutDashboard, Package, MessageSquare, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -78,6 +78,14 @@ export function UserNav() {
               <span>My Profile</span>
             </Link>
           </DropdownMenuItem>
+           {user.role === 'seller' && (
+            <DropdownMenuItem asChild>
+              <Link href="/profile/verification">
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                <span>Verification</span>
+              </Link>
+            </DropdownMenuItem>
+          )}
           {user.role === 'seller' && (
             <>
               <DropdownMenuItem asChild>

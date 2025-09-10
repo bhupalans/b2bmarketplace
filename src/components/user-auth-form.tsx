@@ -10,9 +10,10 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
 } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { findUserByUsername } from "@/lib/database";
+import { User } from "@/lib/types";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -84,13 +85,15 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
         );
         const user = userCredential.user;
         
-        const userProfile = {
+        const userProfile: Omit<User, "id"> = {
           uid: user.uid,
           name: signupValues.name,
           email: signupValues.email,
           role: signupValues.role,
           avatar: `https://i.pravatar.cc/150?u=${user.uid}`,
-          username: signupValues.name.toLowerCase().replace(/\s+/g, '') + Math.floor(Math.random() * 1000)
+          username: signupValues.name.toLowerCase().replace(/\s+/g, '') + Math.floor(Math.random() * 1000),
+          verificationStatus: 'unverified',
+          createdAt: new Date().toISOString(),
         };
 
         await setDoc(doc(db, "users", user.uid), userProfile);
@@ -104,14 +107,11 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
         const loginValues = values as z.infer<typeof loginSchema>;
         let emailToLogin = loginValues.loginId;
         
-        // If loginId doesn't contain "@", assume it's a username and find the corresponding email.
         if (!emailToLogin.includes('@')) {
             const user = await findUserByUsername(emailToLogin);
             if (user) {
                 emailToLogin = user.email;
             } else {
-                // If the username is not found, we throw an error to be caught by the catch block.
-                // This makes the logic consistent with a failed password attempt.
                 throw new Error("auth/invalid-credential");
             }
         }
@@ -128,7 +128,6 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
       let title = "Authentication Failed";
       let description = "An unexpected error occurred.";
 
-      // This logic now correctly handles modern Firebase auth errors for login.
       if (error.code === 'auth/invalid-credential' || error.message === 'auth/invalid-credential') {
         description = "The username/email or password you entered is incorrect.";
       } else if (error.code === 'auth/operation-not-allowed' || (error.message && error.message.includes('identitytoolkit'))) {
@@ -137,7 +136,6 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
       } else if (error.code === 'auth/email-already-in-use') {
         description = "This email address is already in use by another account."
       }
-
 
       toast({
         variant: "destructive",

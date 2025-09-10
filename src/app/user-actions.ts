@@ -1,12 +1,13 @@
 
 'use server';
 
-import { adminDb } from '@/lib/firebase-admin';
+import { adminDb, adminStorage } from '@/lib/firebase-admin';
 import { User } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
+import { getAuth } from 'firebase-admin/auth';
+import { v4 as uuidv4 } from 'uuid';
 
-// This defines the shape of the data we expect from the profile form.
-type ProfileUpdateData = Omit<User, 'id' | 'uid' | 'email' | 'role' | 'avatar' | 'verified' | 'memberSince' | 'username'>;
+type ProfileUpdateData = Omit<User, 'id' | 'uid' | 'email' | 'role' | 'avatar' | 'memberSince' | 'username'>;
 
 export async function updateUserProfile(userId: string, data: ProfileUpdateData) {
   if (!userId) {
@@ -23,24 +24,20 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
 
     const user = userSnap.data() as User;
 
-    // --- Uniqueness Check for Verification Details ---
     if (user.role === 'seller' && data.verificationDetails) {
       const details = data.verificationDetails;
       for (const key in details) {
         const value = details[key];
-        if (value) { // Only check if a value is provided
-          // This query is simplified to avoid needing a composite index.
+        if (value) {
           const query = adminDb.collection('users')
             .where(`verificationDetails.${key}`, '==', value)
-            .limit(2); // Limit to 2 to efficiently check for duplicates.
+            .limit(2);
           
           const snapshot = await query.get();
           
-          // Check if any of the results found belong to a *different* user.
           const isDuplicate = snapshot.docs.some(doc => doc.id !== userId);
 
           if (isDuplicate) {
-            // A duplicate was found for this key-value pair.
             const fieldLabel = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
             return { 
               success: false, 
@@ -50,13 +47,11 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
         }
       }
     }
-    // --- End of Uniqueness Check ---
 
+    const updateData: { [key: string]: any } = {
+        updatedAt: new Date().toISOString()
+    };
 
-    const updateData: { [key: string]: any } = {};
-
-    // Map all direct properties from the form data to the update object
-    // This ensures we only try to update fields that were actually on the form
     const directProperties: (keyof ProfileUpdateData)[] = [
       'name', 'companyName', 'phoneNumber', 'companyDescription',
       'taxId', 'businessType', 'exportScope', 'verificationDetails',
@@ -68,22 +63,93 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
       }
     });
     
-    // Explicitly handle each address type to avoid errors with undefined values
     if (data.address) {
       updateData.address = data.address;
+    }
+     if (data.shippingAddress) {
+      updateData.shippingAddress = data.shippingAddress;
+    }
+     if (data.billingAddress) {
+      updateData.billingAddress = data.billingAddress;
+    }
+
+    // If address is updated, and user is a seller, clear verification documents
+    // as requirements may have changed for the new country.
+    if (data.address?.country && data.address.country !== user.address?.country) {
+      updateData.verificationStatus = 'unverified';
+      updateData.verificationDocuments = {};
     }
 
     await userRef.update(updateData);
 
-    // Revalidate paths where user data might be displayed to ensure freshness
     revalidatePath('/profile');
     revalidatePath(`/sellers/${userId}`);
 
     return { success: true };
   } catch (error: any) {
     console.error('Error updating user profile:', error);
-    // Provide a more specific error message for debugging if available.
     const errorMessage = error.message || 'Failed to update profile on the server. Please check the server logs.';
     return { success: false, error: errorMessage };
+  }
+}
+
+export async function submitVerificationDocuments(formData: FormData) {
+  try {
+    const authHeader = (await import('next/headers')).headers().get('Authorization');
+    if (!authHeader) {
+      throw new Error('Not authenticated');
+    }
+    const token = authHeader.split('Bearer ')[1];
+    const decodedToken = await getAuth().verifyIdToken(token);
+    const userId = decodedToken.uid;
+
+    const userRef = adminDb.collection('users').doc(userId);
+    const userSnap = await userRef.get();
+    if (!userSnap.exists) {
+      throw new Error('User not found.');
+    }
+    const user = userSnap.data() as User;
+
+    const bucket = adminStorage.bucket();
+    const uploadedDocs: { [key: string]: { url: string, fileName: string } } = {};
+
+    for (const [fieldName, file] of formData.entries()) {
+      if (file instanceof File) {
+        const filePath = `verification-documents/${userId}/${uuidv4()}-${file.name}`;
+        const buffer = Buffer.from(await file.arrayBuffer());
+        
+        await bucket.file(filePath).save(buffer, {
+            metadata: { contentType: file.type }
+        });
+
+        const [signedUrl] = await bucket.file(filePath).getSignedUrl({
+            action: 'read',
+            expires: '03-09-2491'
+        });
+        
+        uploadedDocs[fieldName] = { url: signedUrl, fileName: file.name };
+      }
+    }
+
+    if (Object.keys(uploadedDocs).length > 0) {
+      await userRef.update({
+        verificationStatus: 'pending',
+        verificationDocuments: { ...user.verificationDocuments, ...uploadedDocs }
+      });
+    } else {
+        await userRef.update({
+            verificationStatus: 'pending'
+        });
+    }
+    
+    revalidatePath('/profile/verification');
+    revalidatePath('/profile');
+
+    const updatedUserSnap = await userRef.get();
+    return { success: true, updatedUser: updatedUserSnap.data() as User };
+
+  } catch(error: any) {
+    console.error("Error submitting verification docs:", error);
+    return { success: false, error: error.message || "Failed to submit documents." };
   }
 }
