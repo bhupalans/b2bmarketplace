@@ -9,12 +9,15 @@ import {
   DialogTitle,
   DialogFooter,
   DialogDescription,
+  DialogClose
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Loader2, Camera, RefreshCw, Check, AlertTriangle } from 'lucide-react';
+import { Loader2, Camera, RefreshCw, Check, AlertTriangle, X as CloseIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import { Alert, AlertTitle, AlertDescription } from './ui/alert';
+import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ScanDocumentDialogProps {
   open: boolean;
@@ -35,6 +38,8 @@ export function ScanDocumentDialog({
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const isMobile = useIsMobile();
+
 
   const stopCamera = useCallback(() => {
     if (stream) {
@@ -117,17 +122,31 @@ export function ScanDocumentDialog({
     }
   };
 
+  const contentClass = isMobile 
+    ? "h-screen w-screen max-w-full rounded-none border-none flex flex-col p-0"
+    : "sm:max-w-xl";
+
+  const headerClass = isMobile ? "p-4 border-b" : "";
+  const bodyClass = isMobile ? "flex-grow overflow-hidden" : "";
+  const footerClass = isMobile ? "p-4 border-t bg-background" : "";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
-        <DialogHeader>
+      <DialogContent className={contentClass}>
+        <DialogHeader className={headerClass}>
           <DialogTitle>Scan Document</DialogTitle>
-          <DialogDescription>
-            Position your document within the frame and capture the image.
-          </DialogDescription>
+          {!isMobile && (
+            <DialogDescription>
+              Position your document within the frame and capture the image.
+            </DialogDescription>
+          )}
+          <DialogClose className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+             <CloseIcon className="h-4 w-4" />
+             <span className="sr-only">Close</span>
+          </DialogClose>
         </DialogHeader>
         
-        <div className="relative aspect-video w-full overflow-hidden rounded-md border bg-muted">
+        <div className={cn("relative w-full overflow-hidden bg-muted", isMobile ? 'h-full' : 'aspect-video rounded-md border')}>
             <canvas ref={canvasRef} className="hidden" />
             {hasCameraPermission === null && !capturedImage && (
                 <div className="absolute inset-0 flex items-center justify-center">
@@ -152,7 +171,7 @@ export function ScanDocumentDialog({
             )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className={footerClass}>
           {capturedImage ? (
             <div className="flex w-full justify-between">
               <Button variant="ghost" onClick={handleRetake}>
@@ -165,7 +184,7 @@ export function ScanDocumentDialog({
               </Button>
             </div>
           ) : (
-            <Button onClick={handleCapture} disabled={hasCameraPermission !== true}>
+            <Button onClick={handleCapture} disabled={hasCameraPermission !== true} className={isMobile ? 'w-full py-6 text-lg' : ''}>
               <Camera className="mr-2 h-4 w-4" />
               Capture Image
             </Button>
@@ -175,3 +194,5 @@ export function ScanDocumentDialog({
     </Dialog>
   );
 }
+
+    

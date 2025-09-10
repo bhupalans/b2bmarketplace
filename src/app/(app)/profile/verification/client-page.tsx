@@ -16,7 +16,7 @@ import { Loader2, UploadCloud, File as FileIcon, X, CheckCircle, AlertTriangle, 
 import { useToast } from '@/hooks/use-toast';
 import { submitVerificationDocuments } from '@/app/user-actions';
 import { ScanDocumentDialog } from '@/components/scan-document-dialog';
-import { useAuth } from '@/contexts/auth-context';
+import { useAuth } from '@/hooks/use-auth';
 
 interface VerificationClientPageProps {
   user: User;
@@ -216,15 +216,24 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
                         {field.helperText && <p className="text-sm text-muted-foreground">{field.helperText}</p>}
                         
                         {existingDoc && !newUpload ? (
-                            <div className="p-3 rounded-md border bg-muted/50 flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <CheckCircle className="h-5 w-5 text-green-600" />
-                                    <span className="text-sm font-medium">{existingDoc.fileName}</span>
+                             <div className="p-3 rounded-md border bg-muted/50 flex flex-col sm:flex-row items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 flex-grow">
+                                    <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                                    <span className="text-sm font-medium truncate">{existingDoc.fileName}</span>
                                 </div>
-                                <label htmlFor={field.name} className="text-sm text-primary hover:underline cursor-pointer">
-                                    Replace
-                                    <input type="file" id={field.name} className="hidden" onChange={(e) => handleFileChange(e, field.name)} disabled={isSubmitting || user.verificationStatus === 'pending'}/>
-                                </label>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                    <Button asChild variant="outline" size="sm">
+                                        <label htmlFor={field.name} className="cursor-pointer">
+                                            <UploadCloud className="mr-2 h-4 w-4"/>
+                                            Replace File
+                                            <input type="file" id={field.name} className="hidden" onChange={(e) => handleFileChange(e, field.name)} disabled={isSubmitting || user.verificationStatus === 'pending'}/>
+                                        </label>
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => handleOpenScanDialog(field.name)} disabled={isSubmitting || user.verificationStatus === 'pending'}>
+                                        <Camera className="mr-2 h-4 w-4" />
+                                        Re-scan
+                                    </Button>
+                                </div>
                             </div>
                         ) : newUpload ? (
                              <div className="p-3 rounded-md border bg-muted/50 flex items-center justify-between">
@@ -277,3 +286,5 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
     </>
   );
 }
+
+    
