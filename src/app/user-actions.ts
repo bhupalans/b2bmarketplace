@@ -134,6 +134,7 @@ export async function submitVerificationDocuments(formData: FormData, token: str
         verificationDocuments: { ...user.verificationDocuments, ...uploadedDocs }
       });
     } else {
+        // This case handles re-submission without changing any files.
         await userRef.update({
             verificationStatus: 'pending'
         });

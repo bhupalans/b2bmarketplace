@@ -41,6 +41,24 @@ interface AdminVerificationsClientPageProps {
     initialUsers: User[];
 }
 
+const DocumentReviewItem: React.FC<{ label: string, doc?: { url: string, fileName: string } }> = ({ label, doc }) => {
+    if (!doc) return null;
+    return (
+        <div className="flex items-center justify-between rounded-md border p-3">
+            <div>
+                <p className="font-medium">{label}</p>
+                <p className="text-xs text-muted-foreground">{doc.fileName}</p>
+            </div>
+            <Button asChild variant="secondary" size="sm">
+                <a href={doc.url} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    View Document
+                </a>
+            </Button>
+        </div>
+    );
+};
+
 export function AdminVerificationsClientPage({ initialUsers }: AdminVerificationsClientPageProps) {
   const [pendingUsers, setPendingUsers] = useState<User[]>(initialUsers);
   const [verificationTemplates, setVerificationTemplates] = useState<VerificationTemplate[]>([]);
@@ -187,7 +205,7 @@ export function AdminVerificationsClientPage({ initialUsers }: AdminVerification
             </DialogHeader>
             <div className="space-y-6 py-4 max-h-[70vh] overflow-y-auto pr-4">
                 <div className="space-y-2">
-                    <h3 className="font-semibold text-lg">Submitted Information</h3>
+                    <h3 className="font-semibold text-lg">Submitted Business Information</h3>
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                         {activeTemplate?.fields.map(field => {
                             const value = reviewingUser.verificationDetails?.[field.name];
@@ -204,33 +222,29 @@ export function AdminVerificationsClientPage({ initialUsers }: AdminVerification
 
               <Separator />
 
-              <div className="space-y-2">
+              <div className="space-y-4">
                 <h3 className="font-semibold text-lg">Submitted Documents</h3>
-                {activeTemplate && reviewingUser.verificationDocuments ? (
-                    <div className="space-y-3">
-                        {activeTemplate.fields.map(field => {
-                            const doc = reviewingUser.verificationDocuments?.[field.name];
-                            if (!doc) return null;
+                <div className="space-y-3">
+                    {activeTemplate?.fields.length ? (
+                        activeTemplate.fields.map(field => (
+                            <DocumentReviewItem 
+                                key={field.name}
+                                label={field.label}
+                                doc={reviewingUser.verificationDocuments?.[field.name]}
+                            />
+                        ))
+                    ) : <p className="text-sm text-muted-foreground">No business documents were required for this country.</p>}
 
-                            return (
-                                <div key={field.name} className="flex items-center justify-between rounded-md border p-3">
-                                    <div>
-                                        <p className="font-medium">{field.label}</p>
-                                        <p className="text-xs text-muted-foreground">{doc.fileName}</p>
-                                    </div>
-                                    <Button asChild variant="secondary" size="sm">
-                                        <a href={doc.url} target="_blank" rel="noopener noreferrer">
-                                            <ExternalLink className="mr-2 h-4 w-4" />
-                                            View Document
-                                        </a>
-                                    </Button>
-                                </div>
-                            )
-                        })}
-                    </div>
-                ) : (
-                    <p className="text-sm text-muted-foreground">No documents were submitted or the template could not be found.</p>
-                )}
+                     <DocumentReviewItem 
+                        label="Address Proof"
+                        doc={reviewingUser.verificationDocuments?.addressProof}
+                    />
+
+                    <DocumentReviewItem 
+                        label="ID Proof"
+                        doc={reviewingUser.verificationDocuments?.idProof}
+                    />
+                </div>
               </div>
 
             </div>

@@ -55,10 +55,18 @@ export type User = {
   // New Verification Fields
   verificationStatus?: 'unverified' | 'pending' | 'verified' | 'rejected';
   verificationDocuments?: {
-      [fieldName: string]: {
+      [fieldName: string]: { // For dynamic business docs like 'gstn', 'abn'
           url: string;
           fileName: string;
-      }
+      } | undefined;
+      addressProof?: {
+        url: string;
+        fileName: string;
+      };
+      idProof?: {
+        url: string;
+        fileName: string;
+      };
   };
   verificationRejectionReason?: string;
 };
