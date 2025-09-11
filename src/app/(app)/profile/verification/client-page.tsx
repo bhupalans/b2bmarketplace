@@ -20,6 +20,8 @@ import { useAuth } from '@/contexts/auth-context';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Progress } from '@/components/ui/progress';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 
 interface VerificationClientPageProps {
   user: User;
@@ -29,6 +31,8 @@ interface VerificationClientPageProps {
 type FileUploadState = {
   [key: string]: { file: File, preview: string, progress: number, error?: string } | undefined
 }
+
+type AddressProofType = 'statement' | 'card';
 
 const StepIndicator: React.FC<{ currentStep: number; totalSteps: number, isMobile: boolean }> = ({ currentStep, totalSteps, isMobile }) => (
     <div className="flex items-center gap-4 mb-6">
@@ -94,9 +98,9 @@ const ExistingFileDisplay: React.FC<{
              <Button asChild variant="outline" size="sm">
                 <label htmlFor={field.name} className="cursor-pointer">
                     <UploadCloud className="mr-2 h-4 w-4"/>
-                    Replace
-                    <input type="file" id={field.name} className="hidden" onChange={onFileChange} disabled={disabled}/>
+                    Replace File
                 </label>
+                <input type="file" id={field.name} className="hidden" onChange={onFileChange} disabled={disabled}/>
             </Button>
             <Button variant="outline" size="sm" onClick={onScanClick} disabled={disabled}>
                 <Camera className="mr-2 h-4 w-4" />
@@ -117,6 +121,7 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
   const { firebaseUser } = useAuth();
   const isMobile = useIsMobile();
   const [step, setStep] = useState(1);
+  const [addressProofType, setAddressProofType] = useState<AddressProofType>('statement');
   const TOTAL_STEPS = 3;
 
   const activeTemplate = useMemo(() => {
@@ -135,15 +140,23 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
     });
   }, [activeTemplate, user.exportScope]);
 
-  const allRequiredFields = useMemo(() => {
-    const fields = [...businessDocFields];
-    fields.push({ name: 'addressProof', label: 'Address Proof', type: 'file', required: 'always' });
-    fields.push({ name: 'idProof', label: 'ID Proof', type: 'file', required: 'always' });
-    return fields;
-  }, [businessDocFields]);
 
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  const handleFileSelect = useCallback((file: File, fieldName: string) => {
+    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast({ variant: 'destructive', title: 'File too large', description: 'Please upload files smaller than 5MB.'});
+        return;
+    }
+    setFileUploads(prev => ({
+        ...prev,
+        [fieldName]: { file, preview: URL.createObjectURL(file), progress: 0 }
+    }));
+    e.target.value = ''; // Reset file input
+  }, [toast]);
+  
+  const handleScanSelect = useCallback((file: File, fieldName: string) => {
     if (file.size > 5 * 1024 * 1024) { // 5MB limit
         toast({ variant: 'destructive', title: 'File too large', description: 'Please upload files smaller than 5MB.'});
         return;
@@ -153,7 +166,7 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
         [fieldName]: { file, preview: URL.createObjectURL(file), progress: 0 }
     }));
   }, [toast]);
-  
+
   const handleRemoveFile = useCallback((fieldName: string) => {
       setFileUploads(prev => {
           const newState = {...prev};
@@ -168,10 +181,20 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
   
   const canSubmit = useMemo(() => {
       if (isSubmitting || user.verificationStatus === 'pending') return false;
-      return allRequiredFields.every(field => {
-        return fileUploads[field.name] || user.verificationDocuments?.[field.name];
-      });
-  }, [isSubmitting, user, allRequiredFields, fileUploads]);
+      
+      const allBusinessFieldsMet = businessDocFields.every(field => 
+          fileUploads[field.name] || user.verificationDocuments?.[field.name]
+      );
+      
+      const addressProofMet = addressProofType === 'statement'
+          ? !!(fileUploads.addressProof || user.verificationDocuments?.addressProof)
+          : !!(fileUploads.addressProof_front || user.verificationDocuments?.addressProof_front) &&
+            !!(fileUploads.addressProof_back || user.verificationDocuments?.addressProof_back);
+
+      const idProofMet = !!(fileUploads.idProof || user.verificationDocuments?.idProof);
+      
+      return allBusinessFieldsMet && addressProofMet && idProofMet;
+  }, [isSubmitting, user, businessDocFields, fileUploads, addressProofType]);
 
 
   const handleSubmit = () => {
@@ -186,6 +209,9 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
                 }
             });
             
+            // Add address proof type to form data so server knows which fields to look for
+            formData.append('addressProofType', addressProofType);
+
             const token = await firebaseUser.getIdToken();
             const result = await submitVerificationDocuments(formData, token);
 
@@ -209,7 +235,7 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
 
   const handleScanComplete = (file: File) => {
     if (activeScanField) {
-        handleFileSelect(file, activeScanField);
+        handleScanSelect(file, activeScanField);
     }
     setActiveScanField(null);
   }
@@ -272,14 +298,14 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
             <ExistingFileDisplay
                 field={field}
                 existingDoc={user.verificationDocuments[field.name]!}
-                onFileChange={(e) => handleFileSelect(e.target.files![0], field.name)}
+                onFileChange={(e) => handleFileSelect(e, field.name)}
                 onScanClick={() => handleOpenScanDialog(field.name)}
                 disabled={isSubmitting || user.verificationStatus === 'pending'}
             />
         ) : (
              <FileUploadArea
                 field={field}
-                onFileChange={(e) => handleFileSelect(e.target.files![0], field.name)}
+                onFileChange={(e) => handleFileSelect(e, field.name)}
                 onScanClick={() => handleOpenScanDialog(field.name)}
                 disabled={isSubmitting || user.verificationStatus === 'pending'}
              />
@@ -287,35 +313,63 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
     </div>
   ));
 
-  const addressProofField = { name: 'addressProof', label: 'Address Proof', helperText: 'Upload a utility bill or bank statement showing your business address.'};
+  const addressProofStatementField = { name: 'addressProof', label: 'Utility Bill or Bank Statement', helperText: 'Upload a document showing your business address.'};
+  const addressProofCardFrontField = { name: 'addressProof_front', label: 'ID Card (Front)', helperText: 'Upload the front of your ID card.'};
+  const addressProofCardBackField = { name: 'addressProof_back', label: 'ID Card (Back)', helperText: 'Upload the back of your ID card.'};
+
   const step2Content = (
-      <div className="space-y-2">
-            <label className="text-sm font-medium">
-                {addressProofField.label} <span className="text-destructive">*</span>
-            </label>
-            <p className="text-sm text-muted-foreground">{addressProofField.helperText}</p>
-            {fileUploads.addressProof ? (
-                <UploadedFileDisplay 
-                    docName={addressProofField.label}
-                    fileState={fileUploads.addressProof}
-                    onRemove={() => handleRemoveFile('addressProof')}
-                />
-            ) : user.verificationDocuments?.addressProof ? (
-                <ExistingFileDisplay
-                    field={addressProofField}
-                    existingDoc={user.verificationDocuments.addressProof}
-                    onFileChange={(e) => handleFileSelect(e.target.files![0], 'addressProof')}
-                    onScanClick={() => handleOpenScanDialog('addressProof')}
-                    disabled={isSubmitting || user.verificationStatus === 'pending'}
-                />
-            ) : (
-                <FileUploadArea
-                    field={addressProofField}
-                    onFileChange={(e) => handleFileSelect(e.target.files![0], 'addressProof')}
-                    onScanClick={() => handleOpenScanDialog('addressProof')}
-                    disabled={isSubmitting || user.verificationStatus === 'pending'}
-                />
-            )}
+      <div className="space-y-4">
+        <RadioGroup value={addressProofType} onValueChange={(v) => setAddressProofType(v as AddressProofType)} className="flex gap-4">
+            <div>
+                <RadioGroupItem value="statement" id="statement" className="peer sr-only" />
+                <Label htmlFor="statement" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
+                    Statement / Bill
+                </Label>
+            </div>
+            <div>
+                <RadioGroupItem value="card" id="card" className="peer sr-only" />
+                <Label htmlFor="card" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
+                    ID Card
+                </Label>
+            </div>
+        </RadioGroup>
+
+        {addressProofType === 'statement' ? (
+          <div className="space-y-2">
+              <label className="text-sm font-medium">{addressProofStatementField.label} <span className="text-destructive">*</span></label>
+              <p className="text-sm text-muted-foreground">{addressProofStatementField.helperText}</p>
+              {fileUploads.addressProof ? (
+                  <UploadedFileDisplay docName={addressProofStatementField.label} fileState={fileUploads.addressProof} onRemove={() => handleRemoveFile('addressProof')} />
+              ) : user.verificationDocuments?.addressProof ? (
+                  <ExistingFileDisplay field={addressProofStatementField} existingDoc={user.verificationDocuments.addressProof} onFileChange={(e) => handleFileSelect(e, 'addressProof')} onScanClick={() => handleOpenScanDialog('addressProof')} disabled={isSubmitting || user.verificationStatus === 'pending'} />
+              ) : (
+                  <FileUploadArea field={addressProofStatementField} onFileChange={(e) => handleFileSelect(e, 'addressProof')} onScanClick={() => handleOpenScanDialog('addressProof')} disabled={isSubmitting || user.verificationStatus === 'pending'} />
+              )}
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+                <label className="text-sm font-medium">{addressProofCardFrontField.label} <span className="text-destructive">*</span></label>
+                {fileUploads.addressProof_front ? (
+                    <UploadedFileDisplay docName={addressProofCardFrontField.label} fileState={fileUploads.addressProof_front} onRemove={() => handleRemoveFile('addressProof_front')} />
+                ) : user.verificationDocuments?.addressProof_front ? (
+                    <ExistingFileDisplay field={addressProofCardFrontField} existingDoc={user.verificationDocuments.addressProof_front} onFileChange={(e) => handleFileSelect(e, 'addressProof_front')} onScanClick={() => handleOpenScanDialog('addressProof_front')} disabled={isSubmitting || user.verificationStatus === 'pending'} />
+                ) : (
+                    <FileUploadArea field={addressProofCardFrontField} onFileChange={(e) => handleFileSelect(e, 'addressProof_front')} onScanClick={() => handleOpenScanDialog('addressProof_front')} disabled={isSubmitting || user.verificationStatus === 'pending'} />
+                )}
+            </div>
+            <div className="space-y-2">
+                <label className="text-sm font-medium">{addressProofCardBackField.label} <span className="text-destructive">*</span></label>
+                {fileUploads.addressProof_back ? (
+                    <UploadedFileDisplay docName={addressProofCardBackField.label} fileState={fileUploads.addressProof_back} onRemove={() => handleRemoveFile('addressProof_back')} />
+                ) : user.verificationDocuments?.addressProof_back ? (
+                    <ExistingFileDisplay field={addressProofCardBackField} existingDoc={user.verificationDocuments.addressProof_back} onFileChange={(e) => handleFileSelect(e, 'addressProof_back')} onScanClick={() => handleOpenScanDialog('addressProof_back')} disabled={isSubmitting || user.verificationStatus === 'pending'} />
+                ) : (
+                    <FileUploadArea field={addressProofCardBackField} onFileChange={(e) => handleFileSelect(e, 'addressProof_back')} onScanClick={() => handleOpenScanDialog('addressProof_back')} disabled={isSubmitting || user.verificationStatus === 'pending'} />
+                )}
+            </div>
+          </div>
+        )}
       </div>
   );
   
@@ -336,14 +390,14 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
                 <ExistingFileDisplay
                     field={idProofField}
                     existingDoc={user.verificationDocuments.idProof}
-                    onFileChange={(e) => handleFileSelect(e.target.files![0], 'idProof')}
+                    onFileChange={(e) => handleFileSelect(e, 'idProof')}
                     onScanClick={() => handleOpenScanDialog('idProof')}
                     disabled={isSubmitting || user.verificationStatus === 'pending'}
                 />
             ) : (
                  <FileUploadArea
                     field={idProofField}
-                    onFileChange={(e) => handleFileSelect(e.target.files![0], 'idProof')}
+                    onFileChange={(e) => handleFileSelect(e, 'idProof')}
                     onScanClick={() => handleOpenScanDialog('idProof')}
                     disabled={isSubmitting || user.verificationStatus === 'pending'}
                 />
@@ -374,15 +428,15 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
             <CardDescription className="text-red-600">
               Please complete your business address in your profile to see verification requirements.
             </CardDescription>
-          ) : !activeTemplate ? (
+          ) : !activeTemplate && businessDocFields.length === 0 ? (
             <CardDescription>
               No specific business verification documents are required for your selected country ({user.address.country}).
             </CardDescription>
-          ) : (
-            <CardDescription>
-              Based on your country ({activeTemplate.countryName}), please upload the required documents.
-            </CardDescription>
-          )}
+          ) : step === 1 ? (
+             <CardDescription>
+                Based on your country ({activeTemplate?.countryName}), please upload the required documents.
+             </CardDescription>
+          ) : null}
         </CardHeader>
         <CardContent className="space-y-4">
             {step === 1 && (businessDocFields.length > 0 ? step1Content : <p className="text-sm text-muted-foreground">No specific business documents are required for your country. Proceed to the next step.</p>)}

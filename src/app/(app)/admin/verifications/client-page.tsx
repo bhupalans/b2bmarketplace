@@ -236,8 +236,18 @@ export function AdminVerificationsClientPage({ initialUsers }: AdminVerification
                     ) : <p className="text-sm text-muted-foreground">No business documents were required for this country.</p>}
 
                      <DocumentReviewItem 
-                        label="Address Proof"
+                        label="Address Proof (Statement/Bill)"
                         doc={reviewingUser.verificationDocuments?.addressProof}
+                    />
+                    
+                     <DocumentReviewItem 
+                        label="Address Proof (Card Front)"
+                        doc={reviewingUser.verificationDocuments?.addressProof_front}
+                    />
+                    
+                     <DocumentReviewItem 
+                        label="Address Proof (Card Back)"
+                        doc={reviewingUser.verificationDocuments?.addressProof_back}
                     />
 
                     <DocumentReviewItem 

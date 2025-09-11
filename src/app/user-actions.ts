@@ -109,6 +109,27 @@ export async function submitVerificationDocuments(formData: FormData, token: str
 
     const bucket = adminStorage.bucket();
     const uploadedDocs: { [key: string]: { url: string, fileName: string } } = {};
+    const addressProofType = formData.get('addressProofType');
+    
+    // Clear old address proof fields when a new type is chosen
+    const docUpdates: { [key: string]: any } = {};
+    if (user.verificationDocuments) {
+        docUpdates['verificationDocuments'] = { ...user.verificationDocuments };
+    }
+    
+    if (addressProofType === 'card') {
+      if (docUpdates.verificationDocuments?.addressProof) {
+        delete docUpdates.verificationDocuments.addressProof;
+      }
+    } else { // statement
+      if (docUpdates.verificationDocuments?.addressProof_front) {
+        delete docUpdates.verificationDocuments.addressProof_front;
+      }
+       if (docUpdates.verificationDocuments?.addressProof_back) {
+        delete docUpdates.verificationDocuments.addressProof_back;
+      }
+    }
+
 
     for (const [fieldName, file] of formData.entries()) {
       if (file instanceof File) {
@@ -128,11 +149,15 @@ export async function submitVerificationDocuments(formData: FormData, token: str
       }
     }
 
-    if (Object.keys(uploadedDocs).length > 0) {
-      await userRef.update({
-        verificationStatus: 'pending',
-        verificationDocuments: { ...user.verificationDocuments, ...uploadedDocs }
-      });
+    if (Object.keys(uploadedDocs).length > 0 || Object.keys(docUpdates).length > 0) {
+      docUpdates['verificationStatus'] = 'pending';
+      if (!docUpdates.verificationDocuments) {
+          docUpdates.verificationDocuments = {};
+      }
+      docUpdates.verificationDocuments = { ...docUpdates.verificationDocuments, ...uploadedDocs };
+      
+      await userRef.update(docUpdates);
+
     } else {
         // This case handles re-submission without changing any files.
         await userRef.update({

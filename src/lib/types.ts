@@ -59,7 +59,15 @@ export type User = {
           url: string;
           fileName: string;
       } | undefined;
-      addressProof?: {
+      addressProof?: { // For single-file proofs like utility bills
+        url: string;
+        fileName: string;
+      };
+      addressProof_front?: { // For card-based proofs
+        url: string;
+        fileName: string;
+      };
+      addressProof_back?: { // For card-based proofs
         url: string;
         fileName: string;
       };
