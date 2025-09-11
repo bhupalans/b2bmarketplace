@@ -96,12 +96,12 @@ const ExistingFileDisplay: React.FC<{
         </div>
         <div className="flex items-center gap-2 flex-shrink-0 self-end sm:self-center">
              <Button asChild variant="outline" size="sm">
-                <label htmlFor={field.name} className="cursor-pointer">
+                <label htmlFor={field.name} className="cursor-pointer flex items-center">
                     <UploadCloud className="mr-2 h-4 w-4"/>
                     Replace File
                 </label>
-                <input type="file" id={field.name} className="hidden" onChange={onFileChange} disabled={disabled}/>
             </Button>
+            <input type="file" id={field.name} className="hidden" onChange={onFileChange} disabled={disabled}/>
             <Button variant="outline" size="sm" onClick={onScanClick} disabled={disabled}>
                 <Camera className="mr-2 h-4 w-4" />
                 Re-scan
@@ -474,3 +474,4 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
     </>
   );
 }
+
