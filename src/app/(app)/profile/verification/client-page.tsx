@@ -16,7 +16,7 @@ import { Loader2, UploadCloud, File as FileIcon, X, CheckCircle, AlertTriangle, 
 import { useToast } from '@/hooks/use-toast';
 import { submitVerificationDocuments } from '@/app/user-actions';
 import { ScanDocumentDialog } from '@/components/scan-document-dialog';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/contexts/auth-context';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Progress } from '@/components/ui/progress';
