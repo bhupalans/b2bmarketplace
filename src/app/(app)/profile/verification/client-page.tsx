@@ -279,7 +279,7 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>Complete Your Verification</AlertTitle>
                 <AlertDescription>
-                    Follow the steps to upload the required documents, build trust with buyers, and unlock full marketplace features.
+                    Follow the steps to upload the required documents, build trust with buyers/sellers, and unlock full marketplace features.
                 </AlertDescription>
             </Alert>
     }
