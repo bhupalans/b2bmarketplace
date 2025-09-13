@@ -17,7 +17,7 @@ export default function VerificationPage() {
 
   useEffect(() => {
     async function fetchTemplates() {
-        if (!user || user.role !== 'seller') {
+        if (!user) {
             setLoading(false);
             return;
         }
@@ -46,10 +46,10 @@ export default function VerificationPage() {
     );
   }
 
-  if (!user || user.role !== 'seller') {
+  if (!user) {
     return (
       <div className="text-center py-10">
-        This page is for sellers only.
+        Please log in to access the verification center.
       </div>
     );
   }

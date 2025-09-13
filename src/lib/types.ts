@@ -14,6 +14,8 @@ export type User = {
   // New production-ready fields
   companyName?: string;
   phoneNumber?: string;
+  jobTitle?: string; // Buyer-specific
+  companyWebsite?: string; // Buyer-specific
   
   // Address fields. `address` is generic, while shipping/billing are specific.
   address?: {

@@ -78,14 +78,12 @@ export function UserNav() {
               <span>My Profile</span>
             </Link>
           </DropdownMenuItem>
-           {user.role === 'seller' && (
-            <DropdownMenuItem asChild>
-              <Link href="/profile/verification">
-                <ShieldCheck className="mr-2 h-4 w-4" />
-                <span>Verification</span>
-              </Link>
-            </DropdownMenuItem>
-          )}
+           <DropdownMenuItem asChild>
+            <Link href="/profile/verification">
+              <ShieldCheck className="mr-2 h-4 w-4" />
+              <span>Verification</span>
+            </Link>
+          </DropdownMenuItem>
           {user.role === 'seller' && (
             <>
               <DropdownMenuItem asChild>

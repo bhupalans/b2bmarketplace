@@ -58,16 +58,26 @@ const addressSchema = z.object({
     }
 });
 
-const buyerProfileSchema = z.object({
+const profileSchema = z.object({
   name: z.string().min(2, "Name is too short."),
   companyName: z.string().optional(),
   phoneNumber: z.string().optional(),
-  shippingAddress: addressSchema,
-  billingAddress: addressSchema,
+  shippingAddress: addressSchema.optional(),
+  billingAddress: addressSchema.optional(),
+  address: addressSchema.optional(),
+  // Buyer specific
+  jobTitle: z.string().optional(),
+  companyWebsite: z.string().optional().refine(val => !val || z.string().url().safeParse(val).success, { message: 'Please enter a valid URL.' }),
+  // Seller specific
+  companyDescription: z.string().optional(),
+  taxId: z.string().optional(),
+  businessType: z.enum(["Manufacturer", "Distributor", "Trading Company", "Agent"]).optional(),
+  exportScope: z.array(z.string()).optional(),
+  verificationDetails: z.record(z.string()).optional(),
 });
 
 
-type ProfileFormData = z.infer<typeof buyerProfileSchema | typeof sellerProfileSchema>;
+type ProfileFormData = z.infer<typeof profileSchema>;
 
 interface ProfileFormProps {
   user: User;
@@ -191,48 +201,52 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const [verificationTemplates, setVerificationTemplates] = useState<VerificationTemplate[]>([]);
   const [activeTemplate, setActiveTemplate] = useState<VerificationTemplate | null>(null);
 
-  const sellerProfileSchema = React.useMemo(() => z.object({
-    name: z.string().min(2, "Name is too short."),
-    companyName: z.string().min(1, "Company name is required."),
-    phoneNumber: z.string().min(1, "Business phone number is required."),
-    companyDescription: z.string().min(10, "Company description must be at least 10 characters."),
-    taxId: z.string().min(1, "Tax ID / VAT number is required."),
-    businessType: z.enum(["Manufacturer", "Distributor", "Trading Company", "Agent"], {
-      required_error: "You must select a business type.",
-    }),
-    exportScope: z.array(z.string()).nonempty({ message: "Please select at least one export scope." }),
-    verificationDetails: z.record(z.string()).optional(),
-    address: addressSchema,
-  }).superRefine((data, ctx) => {
-    const activeCountry = data.address?.country;
-    const currentTemplate = verificationTemplates.find(t => t.id === activeCountry);
-
-    if (currentTemplate) {
-      currentTemplate.fields.forEach(field => {
-        let isRequired = false;
-        if (field.required === 'always') {
-          isRequired = true;
-        } else if (field.required === 'international') {
-          isRequired = data.exportScope?.includes('international') ?? false;
+  const finalSchema = React.useMemo(() => {
+    return profileSchema.superRefine((data, ctx) => {
+        if (user.role === 'seller') {
+            if (!data.companyName) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Company name is required.", path: ['companyName']});
+            if (!data.phoneNumber) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Business phone number is required.", path: ['phoneNumber']});
+            if (!data.companyDescription || data.companyDescription.length < 10) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Company description must be at least 10 characters.", path: ['companyDescription']});
+            if (!data.taxId) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Tax ID / VAT number is required.", path: ['taxId']});
+            if (!data.businessType) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "You must select a business type.", path: ['businessType']});
+            if (!data.exportScope || data.exportScope.length === 0) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Please select at least one export scope.", path: ['exportScope']});
+            if (!data.address) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Business address is required.", path: ['address'] });
+        }
+        if (user.role === 'buyer') {
+             if (!data.shippingAddress) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Shipping address is required.", path: ['shippingAddress'] });
+             if (!data.billingAddress) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Billing address is required.", path: ['billingAddress'] });
         }
 
-        if (isRequired) {
-          const value = data.verificationDetails?.[field.name];
-          if (!value || value.trim() === "") {
-            ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              message: `${field.label} is required.`,
-              path: [`verificationDetails.${field.name}`],
-            });
-          }
+        const activeCountry = user.role === 'seller' ? data.address?.country : data.shippingAddress?.country;
+        const currentTemplate = verificationTemplates.find(t => t.id === activeCountry);
+
+        if (currentTemplate) {
+          currentTemplate.fields.forEach(field => {
+            let isRequired = false;
+            if (field.required === 'always') {
+              isRequired = true;
+            } else if (field.required === 'international') {
+              isRequired = data.exportScope?.includes('international') ?? false;
+            }
+
+            if (isRequired && user.role === 'seller') { // Only enforce for sellers in profile for now
+              const value = data.verificationDetails?.[field.name];
+              if (!value || value.trim() === "") {
+                ctx.addIssue({
+                  code: z.ZodIssueCode.custom,
+                  message: `${field.label} is required.`,
+                  path: [`verificationDetails.${field.name}`],
+                });
+              }
+            }
+          });
         }
-      });
-    }
-  }), [verificationTemplates]);
+    });
+  }, [user.role, verificationTemplates]);
 
 
   const form = useForm<ProfileFormData>({
-    resolver: zodResolver(user.role === 'buyer' ? buyerProfileSchema : sellerProfileSchema),
+    resolver: zodResolver(finalSchema),
     defaultValues: {
       name: user.name || "",
       companyName: user.companyName || "",
@@ -240,18 +254,20 @@ export function ProfileForm({ user }: ProfileFormProps) {
       address: user.address,
       shippingAddress: user.shippingAddress,
       billingAddress: user.billingAddress,
+      jobTitle: user.jobTitle || "",
+      companyWebsite: user.companyWebsite || "",
       companyDescription: user.companyDescription || "",
       taxId: user.taxId || "",
       businessType: user.businessType || undefined,
       exportScope: user.exportScope || [],
       verificationDetails: user.verificationDetails || {},
-    } as any,
+    },
     mode: "onChange",
   });
 
   const watchedCountry = useWatch({
     control: form.control,
-    name: 'address.country',
+    name: user.role === 'seller' ? 'address.country' : 'shippingAddress.country',
   });
   
   const watchedExportScope = useWatch({
@@ -273,13 +289,11 @@ export function ProfileForm({ user }: ProfileFormProps) {
         });
       }
     }
-    if (user.role === 'seller') {
-      fetchTemplates();
-    }
-  }, [toast, user.role]);
+    fetchTemplates();
+  }, [toast]);
   
   useEffect(() => {
-    const countryCode = user.role === 'seller' ? watchedCountry : form.getValues('shippingAddress.country');
+    const countryCode = watchedCountry;
     if (countryCode) {
         const availableStates = statesProvinces[countryCode] || [];
         const stateFieldName = user.role === 'seller' ? 'address.state' : 'shippingAddress.state';
@@ -288,11 +302,9 @@ export function ProfileForm({ user }: ProfileFormProps) {
             form.setValue(stateFieldName as 'address.state', '');
         }
         
-        if (user.role === 'seller') {
-            const template = verificationTemplates.find(t => t.id === countryCode) || null;
-            setActiveTemplate(template);
-        }
-    } else if (user.role === 'seller') {
+        const template = verificationTemplates.find(t => t.id === countryCode) || null;
+        setActiveTemplate(template);
+    } else {
         setActiveTemplate(null);
     }
   }, [watchedCountry, form, verificationTemplates, user.role]);
@@ -377,6 +389,36 @@ export function ProfileForm({ user }: ProfileFormProps) {
                 </FormItem>
               )}
             />
+             {user.role === 'buyer' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                        control={form.control}
+                        name="jobTitle"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Job Title</FormLabel>
+                                <FormControl>
+                                <Input placeholder="e.g., Procurement Manager" {...field} value={field.value || ''} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="companyWebsite"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Company Website</FormLabel>
+                                <FormControl>
+                                <Input placeholder="e.g., https://www.acme.com" {...field} value={field.value || ''} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </div>
+            )}
           </CardContent>
         </Card>
 
@@ -534,72 +576,72 @@ export function ProfileForm({ user }: ProfileFormProps) {
                     </FormItem>
                 )}
                 />
-
-              {activeTemplate && (
-                <div className="space-y-4 pt-4">
-                    <Separator />
-                     <h3 className="text-md font-medium">
-                        Business Verification ({activeTemplate.countryName})
-                     </h3>
-                    {activeTemplate.fields.map(fieldTemplate => {
-                        let isRequired = false;
-                        if (fieldTemplate.required === 'always') {
-                            isRequired = true;
-                        } else if (fieldTemplate.required === 'international') {
-                            isRequired = watchedExportScope?.includes('international') ?? false;
-                        }
-
-                        if (fieldTemplate.required === 'never') return null;
-
-                        return (
-                            <FormField
-                                key={fieldTemplate.name}
-                                control={form.control}
-                                name={`verificationDetails.${fieldTemplate.name}` as const}
-                                defaultValue={user?.verificationDetails?.[fieldTemplate.name] || ""}
-                                rules={{ 
-                                    required: isRequired ? 'This field is required.' : false,
-                                    pattern: fieldTemplate.validationRegex ? {
-                                        value: new RegExp(fieldTemplate.validationRegex),
-                                        message: `Please enter a valid ${fieldTemplate.label}.`
-                                    } : undefined
-                                }}
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>{fieldTemplate.label} {isRequired && <span className="text-destructive">*</span>}</FormLabel>
-                                        <FormControl>
-                                            <Input 
-                                                placeholder={`Enter your ${fieldTemplate.label}`}
-                                                {...field}
-                                                value={field.value || ''}
-                                                onChange={(e) => {
-                                                    if (fieldTemplate.name === 'gstn') {
-                                                        field.onChange(e.target.value.toUpperCase());
-                                                    } else {
-                                                        field.onChange(e);
-                                                    }
-                                                }}
-                                            />
-                                        </FormControl>
-                                        <FormDescription>
-                                            {fieldTemplate.helperText}
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        )
-                    })}
-                </div>
-              )}
             </CardContent>
           </Card>
         )}
 
+        {activeTemplate && (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Business Verification ({activeTemplate.countryName})</CardTitle>
+                    <CardDescription>This information is required to verify your business identity.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                {activeTemplate.fields.map(fieldTemplate => {
+                    let isRequired = false;
+                    if (fieldTemplate.required === 'always') {
+                        isRequired = true;
+                    } else if (fieldTemplate.required === 'international' && user.role === 'seller') {
+                        isRequired = watchedExportScope?.includes('international') ?? false;
+                    }
+
+                    if (fieldTemplate.required === 'never') return null;
+
+                    return (
+                        <FormField
+                            key={fieldTemplate.name}
+                            control={form.control}
+                            name={`verificationDetails.${fieldTemplate.name}` as const}
+                            defaultValue={user?.verificationDetails?.[fieldTemplate.name] || ""}
+                            rules={{ 
+                                required: isRequired ? 'This field is required.' : false,
+                                pattern: fieldTemplate.validationRegex ? {
+                                    value: new RegExp(fieldTemplate.validationRegex),
+                                    message: `Please enter a valid ${fieldTemplate.label}.`
+                                } : undefined
+                            }}
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{fieldTemplate.label} {isRequired && <span className="text-destructive">*</span>}</FormLabel>
+                                    <FormControl>
+                                        <Input 
+                                            placeholder={`Enter your ${fieldTemplate.label}`}
+                                            {...field}
+                                            value={field.value || ''}
+                                            onChange={(e) => {
+                                                if (fieldTemplate.name === 'gstn') {
+                                                    field.onChange(e.target.value.toUpperCase());
+                                                } else {
+                                                    field.onChange(e);
+                                                }
+                                            }}
+                                        />
+                                    </FormControl>
+                                    <FormDescription>
+                                        {fieldTemplate.helperText}
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    )
+                })}
+                </CardContent>
+            </Card>
+        )}
+
         <div className="flex justify-between items-center">
-            {user.role === 'seller' && (
-                 <p className="text-sm text-muted-foreground"><span className="text-destructive">*</span> Indicates a required field.</p>
-            )}
+            <p className="text-sm text-muted-foreground"><span className="text-destructive">*</span> Indicates a required field.</p>
             <div className="flex-grow"></div>
             <Button type="submit" disabled={isPending}>
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

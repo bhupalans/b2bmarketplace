@@ -126,18 +126,32 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </SidebarMenuButton>
             </SidebarMenuItem>
             {user && (
-                 <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname.startsWith("/messages")}
-                    tooltip="Messages"
-                  >
-                    <Link href="/messages">
-                      <MessageSquare />
-                      <span className="sr-only">Messages</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                 <>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton
+                            asChild
+                            isActive={pathname.startsWith("/messages")}
+                            tooltip="Messages"
+                        >
+                            <Link href="/messages">
+                            <MessageSquare />
+                            <span className="sr-only">Messages</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton
+                            asChild
+                            isActive={pathname.startsWith("/profile/verification")}
+                            tooltip="Verification"
+                        >
+                            <Link href="/profile/verification">
+                            <ShieldCheck />
+                            <span className="sr-only">Verification</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                 </>
             )}
              {user?.role === 'seller' && (
               <>
@@ -162,18 +176,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     <Link href="/my-products">
                       <Package />
                       <span className="sr-only">My Products</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                 <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname.startsWith("/profile/verification")}
-                    tooltip="Verification"
-                  >
-                    <Link href="/profile/verification">
-                      <ShieldCheck />
-                      <span className="sr-only">Verification</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

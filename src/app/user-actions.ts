@@ -23,6 +23,7 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
 
     const user = userSnap.data() as User;
 
+    // This logic is primarily for sellers, but could be adapted for buyers if needed.
     if (user.role === 'seller' && data.verificationDetails) {
       const details = data.verificationDetails;
       for (const key in details) {
@@ -40,7 +41,7 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
             const fieldLabel = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
             return { 
               success: false, 
-              error: `This ${fieldLabel} is already registered to another seller.` 
+              error: `This ${fieldLabel} is already registered to another user.` 
             };
           }
         }
@@ -54,6 +55,7 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
     const directProperties: (keyof ProfileUpdateData)[] = [
       'name', 'companyName', 'phoneNumber', 'companyDescription',
       'taxId', 'businessType', 'exportScope', 'verificationDetails',
+      'jobTitle', 'companyWebsite'
     ];
 
     directProperties.forEach(prop => {
@@ -71,10 +73,13 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
      if (data.billingAddress) {
       updateData.billingAddress = data.billingAddress;
     }
+    
+    const previousCountry = user.role === 'seller' ? user.address?.country : user.shippingAddress?.country;
+    const newCountry = user.role === 'seller' ? data.address?.country : data.shippingAddress?.country;
 
     // If address is updated, and user is a seller, clear verification documents
     // as requirements may have changed for the new country.
-    if (data.address?.country && data.address.country !== user.address?.country) {
+    if (newCountry && newCountry !== previousCountry) {
       updateData.verificationStatus = 'unverified';
       updateData.verificationDocuments = {};
     }

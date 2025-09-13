@@ -33,7 +33,7 @@ export default function ProfilePage() {
     );
   }
 
-  const isUnverifiedSeller = user.role === 'seller' && user.verificationStatus !== 'verified';
+  const isUnverifiedUser = user.verificationStatus !== 'verified';
 
 
   return (
@@ -45,12 +45,12 @@ export default function ProfilePage() {
         </p>
       </div>
 
-       {isUnverifiedSeller && (
+       {isUnverifiedUser && (
         <Alert>
           <ShieldAlert className="h-4 w-4" />
           <AlertTitle>Verification Required</AlertTitle>
           <AlertDescription>
-            Your account is not yet verified. Please complete the verification process to gain full access and build trust with buyers. 
+            Your account is not yet verified. Please complete the verification process to gain full access and build trust. 
             <Link href="/profile/verification" className="font-semibold text-primary hover:underline ml-1">
               Go to Verification Center
             </Link>

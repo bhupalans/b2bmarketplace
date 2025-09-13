@@ -36,6 +36,7 @@ import { format, parseISO } from 'date-fns';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { countries } from '@/lib/geography-data';
 import { RejectionReasonDialog } from '@/components/rejection-reason-dialog';
+import { Badge } from '@/components/ui/badge';
 
 interface AdminVerificationsClientPageProps {
     initialUsers: User[];
@@ -74,8 +75,9 @@ export function AdminVerificationsClientPage({ initialUsers }: AdminVerification
   }, []);
   
   const activeTemplate = useMemo(() => {
-    if (!reviewingUser?.address?.country) return null;
-    return verificationTemplates.find(t => t.id === reviewingUser.address.country) || null;
+    const country = reviewingUser?.role === 'seller' ? reviewingUser?.address?.country : reviewingUser?.shippingAddress?.country;
+    if (!country) return null;
+    return verificationTemplates.find(t => t.id === country) || null;
   }, [reviewingUser, verificationTemplates]);
 
   const handleAction = async (action: 'approve' | 'reject', userId: string, reason?: string) => {
@@ -91,15 +93,15 @@ export function AdminVerificationsClientPage({ initialUsers }: AdminVerification
             await updateUserVerificationStatusClient(userId, action === 'approve' ? 'verified' : 'rejected', reason);
             setPendingUsers(prev => prev.filter(p => p.id !== userId));
             toast({
-                title: `Seller ${action}d`,
-                description: `The seller has been successfully ${action}d.`,
+                title: `User ${action}d`,
+                description: `The user has been successfully ${action}d.`,
             });
             setReviewingUser(null);
         } catch (error: any) {
             console.error("Error updating user verification status:", error);
             toast({
                 variant: 'destructive',
-                title: `Error ${action}ing Seller`,
+                title: `Error ${action}ing User`,
                 description: error.message || 'An unknown error occurred.',
             });
         } finally {
@@ -108,7 +110,9 @@ export function AdminVerificationsClientPage({ initialUsers }: AdminVerification
     });
   };
   
-  const getCountryName = (countryCode: string) => {
+  const getCountryName = (user: User) => {
+      const countryCode = user.role === 'seller' ? user.address?.country : user.shippingAddress?.country;
+      if (!countryCode) return 'N/A';
       return countries.find(c => c.value === countryCode)?.label || countryCode;
   }
 
@@ -138,22 +142,23 @@ export function AdminVerificationsClientPage({ initialUsers }: AdminVerification
     <>
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Seller Verifications</h1>
-        <p className="text-muted-foreground">Review and approve or reject new seller verification submissions.</p>
+        <h1 className="text-3xl font-bold tracking-tight">User Verifications</h1>
+        <p className="text-muted-foreground">Review and approve or reject new user verification submissions.</p>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>Pending Verifications</CardTitle>
           <CardDescription>
-            There are {pendingUsers.length} seller(s) awaiting verification.
+            There are {pendingUsers.length} user(s) awaiting verification.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Seller</TableHead>
+                <TableHead>User</TableHead>
+                <TableHead>Role</TableHead>
                 <TableHead>Company</TableHead>
                 <TableHead>Country</TableHead>
                 <TableHead>Submitted At</TableHead>
@@ -171,8 +176,9 @@ export function AdminVerificationsClientPage({ initialUsers }: AdminVerification
                         </Avatar>
                         {pUser.name}
                     </TableCell>
+                    <TableCell><Badge variant="secondary" className="capitalize">{pUser.role}</Badge></TableCell>
                     <TableCell>{pUser.companyName || 'N/A'}</TableCell>
-                    <TableCell>{pUser.address?.country ? getCountryName(pUser.address.country) : 'N/A'}</TableCell>
+                    <TableCell>{getCountryName(pUser)}</TableCell>
                     <TableCell>{pUser.verificationDocuments ? 'Recent' : 'N/A'}</TableCell>
                     <TableCell className="text-right">
                         <Button variant="outline" size="sm" onClick={() => handleOpenReview(pUser)}>
@@ -184,7 +190,7 @@ export function AdminVerificationsClientPage({ initialUsers }: AdminVerification
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={6} className="h-24 text-center">
                     No pending verifications to review.
                   </TableCell>
                 </TableRow>
@@ -200,7 +206,7 @@ export function AdminVerificationsClientPage({ initialUsers }: AdminVerification
             <DialogHeader>
               <DialogTitle>Review Verification: {reviewingUser.name}</DialogTitle>
               <DialogDescription>
-                Company: {reviewingUser.companyName}
+                Role: <span className="font-semibold capitalize">{reviewingUser.role}</span> | Company: {reviewingUser.companyName || 'N/A'}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-6 py-4 max-h-[70vh] overflow-y-auto pr-4">
