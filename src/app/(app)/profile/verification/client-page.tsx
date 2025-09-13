@@ -16,7 +16,7 @@ import { Loader2, UploadCloud, File as FileIcon, X, CheckCircle, AlertTriangle, 
 import { useToast } from '@/hooks/use-toast';
 import { submitVerificationDocuments } from '@/app/user-actions';
 import { ScanDocumentDialog } from '@/components/scan-document-dialog';
-import { useAuth } from '@/contexts/auth-context';
+import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Progress } from '@/components/ui/progress';
@@ -125,20 +125,23 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
   const TOTAL_STEPS = 3;
 
   const activeTemplate = useMemo(() => {
-    if (!user.address?.country) return null;
-    return verificationTemplates.find(t => t.id === user.address.country) || null;
-  }, [user.address?.country, verificationTemplates]);
+    const country = user.role === 'seller' ? user.address?.country : user.shippingAddress?.country;
+    if (!country) return null;
+    return verificationTemplates.find(t => t.id === country) || null;
+  }, [user.role, user.address?.country, user.shippingAddress?.country, verificationTemplates]);
 
   const businessDocFields = useMemo(() => {
     if (!activeTemplate) return [];
     return activeTemplate.fields.filter(field => {
+      if (field.required === 'never') return false;
       if (field.required === 'always') return true;
       if (field.required === 'international') {
-        return user.exportScope?.includes('international');
+        // For sellers, check their export scope. For buyers, assume international applies.
+        return user.role === 'seller' ? user.exportScope?.includes('international') : true;
       }
       return false;
     });
-  }, [activeTemplate, user.exportScope]);
+  }, [activeTemplate, user.role, user.exportScope]);
 
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
@@ -405,6 +408,7 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
       </div>
   );
 
+  const userCountry = user.role === 'seller' ? user.address?.country : user.shippingAddress?.country;
 
   return (
     <>
@@ -424,13 +428,13 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
            {step === 1 && <CardTitle>Step 1: Business Documents</CardTitle>}
            {step === 2 && <CardTitle>Step 2: Address Proof</CardTitle>}
            {step === 3 && <CardTitle>Step 3: ID Proof</CardTitle>}
-          {!user.address?.country ? (
+          {!userCountry ? (
             <CardDescription className="text-red-600">
-              Please complete your business address in your profile to see verification requirements.
+              Please complete your {user.role === 'seller' ? 'business' : 'shipping'} address in your profile to see verification requirements.
             </CardDescription>
           ) : !activeTemplate && businessDocFields.length === 0 ? (
             <CardDescription>
-              No specific business verification documents are required for your selected country ({user.address.country}).
+              No specific business verification documents are required for your selected country ({userCountry}).
             </CardDescription>
           ) : step === 1 ? (
              <CardDescription>
@@ -474,4 +478,3 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
     </>
   );
 }
-
