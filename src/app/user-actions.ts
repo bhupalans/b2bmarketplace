@@ -22,9 +22,9 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
     }
 
     const user = userSnap.data() as User;
-    const countryCode = data.address?.country || data.shippingAddress?.country;
+    const countryCode = data.address?.country;
 
-    // This logic is for sellers and buyers
+    // This logic is for sellers and buyers, now based on the primary `address` field
     if (countryCode && data.verificationDetails) {
         const templatesSnap = await adminDb.collection('verificationTemplates').doc(countryCode).get();
         if (templatesSnap.exists) {
@@ -34,7 +34,6 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
             for (const field of template.fields) {
                 const value = details[field.name];
                 if (value) {
-                    // This key is now globally unique, e.g., "gstn-IN"
                     const scopedKey = `${field.name}-${countryCode}`;
                     const query = adminDb.collection('users')
                         .where(`scopedVerificationIds.${scopedKey}`, '==', value)
@@ -63,7 +62,7 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
     // Rebuild scopedVerificationIds
     if (countryCode && data.verificationDetails) {
         const templatesSnap = await adminDb.collection('verificationTemplates').doc(countryCode).get();
-        if (templatesSnap.exists()) {
+        if (templatesSnap.exists) {
             const template = templatesSnap.data() as VerificationTemplate;
             template.fields.forEach(field => {
                 const value = data.verificationDetails?.[field.name];
@@ -79,7 +78,7 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
     const directProperties: (keyof ProfileUpdateData)[] = [
       'name', 'companyName', 'phoneNumber', 'companyDescription',
       'taxId', 'businessType', 'exportScope', 'verificationDetails',
-      'jobTitle', 'companyWebsite'
+      'jobTitle', 'companyWebsite', 'billingSameAsShipping'
     ];
 
     directProperties.forEach(prop => {
@@ -98,11 +97,10 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
       updateData.billingAddress = data.billingAddress;
     }
     
-    const previousCountry = user.role === 'seller' ? user.address?.country : user.shippingAddress?.country;
-    const newCountry = user.role === 'seller' ? data.address?.country : data.shippingAddress?.country;
+    const previousCountry = user.address?.country;
+    const newCountry = data.address?.country;
 
-    // If address is updated, and user is a seller, clear verification documents
-    // as requirements may have changed for the new country.
+    // If primary address country changes, verification needs to be redone.
     if (newCountry && newCountry !== previousCountry) {
       updateData.verificationStatus = 'unverified';
       updateData.verificationDocuments = {};
@@ -205,5 +203,3 @@ export async function submitVerificationDocuments(formData: FormData, token: str
     return { success: false, error: error.message || "Failed to submit documents." };
   }
 }
-
-    
