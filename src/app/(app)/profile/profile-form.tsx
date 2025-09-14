@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useTransition, useEffect, useState } from "react";
@@ -59,18 +58,16 @@ const addressSchema = z.object({
     }
 });
 
-const profileSchema = z.object({
+const baseProfileSchema = z.object({
   name: z.string().min(2, "Name is too short."),
   companyName: z.string().optional(),
   phoneNumber: z.string().optional(),
-  address: addressSchema, // Now required for everyone
+  address: addressSchema,
   shippingAddress: addressSchema.optional(),
   billingAddress: addressSchema.optional(),
   billingSameAsShipping: z.boolean().optional(),
-  // Buyer specific
   jobTitle: z.string().optional(),
   companyWebsite: z.string().optional().refine(val => !val || z.string().url().safeParse(val).success, { message: 'Please enter a valid URL.' }),
-  // Seller specific
   companyDescription: z.string().optional(),
   taxId: z.string().optional(),
   businessType: z.enum(["Manufacturer", "Distributor", "Trading Company", "Agent"]).optional(),
@@ -79,16 +76,11 @@ const profileSchema = z.object({
 });
 
 
-type ProfileFormData = z.infer<typeof profileSchema>;
+type ProfileFormData = z.infer<typeof baseProfileSchema>;
 
 interface ProfileFormProps {
   user: User;
 }
-
-const exportScopeItems = [
-    { id: 'domestic', label: 'Domestic Exporter' },
-    { id: 'international', label: 'International Exporter' },
-];
 
 const AddressFields: React.FC<{
   fieldName: 'address' | 'shippingAddress' | 'billingAddress',
@@ -203,10 +195,27 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const [verificationTemplates, setVerificationTemplates] = useState<VerificationTemplate[]>([]);
   const [activeTemplate, setActiveTemplate] = useState<VerificationTemplate | null>(null);
 
-  const finalSchema = React.useMemo(() => {
-    return profileSchema.superRefine((data, ctx) => {
-        if (!data.address) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Primary Business Address is required.", path: ['address'] });
+  useEffect(() => {
+    async function fetchTemplates() {
+      try {
+        const templates = await getVerificationTemplatesClient();
+        setVerificationTemplates(templates);
+      } catch (error) {
+        console.error("Failed to fetch verification templates:", error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Could not load verification options.",
+        });
+      }
+    }
+    fetchTemplates();
+  }, [toast]);
+  
 
+  const finalSchema = React.useMemo(() => {
+    return baseProfileSchema.superRefine((data, ctx) => {
+        // --- Role based required fields ---
         if (user.role === 'seller') {
             if (!data.companyName) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Company name is required.", path: ['companyName']});
             if (!data.phoneNumber) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Business phone number is required.", path: ['phoneNumber']});
@@ -221,34 +230,45 @@ export function ProfileForm({ user }: ProfileFormProps) {
                 ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Billing address is required if not same as shipping.", path: ['billingAddress'] });
              }
         }
-
-        const activeCountry = data.address?.country;
-        const currentTemplate = verificationTemplates.find(t => t.id === activeCountry);
-
-        if (currentTemplate) {
-          currentTemplate.fields.forEach(field => {
+        
+        // --- Dynamic validation based on active template ---
+        if (activeTemplate) {
+          activeTemplate.fields.forEach(field => {
+            const value = data.verificationDetails?.[field.name];
             let isRequired = false;
+            
             if (field.required === 'always') {
               isRequired = true;
             } else if (field.required === 'international') {
-              // Now always applies if role is buyer, as buyers are implicitly international
               isRequired = user.role === 'buyer' || (data.exportScope?.includes('international') ?? false);
             }
 
-            if (isRequired) {
-              const value = data.verificationDetails?.[field.name];
-              if (!value || value.trim() === "") {
-                ctx.addIssue({
-                  code: z.ZodIssueCode.custom,
-                  message: `${field.label} is required.`,
-                  path: [`verificationDetails.${field.name}`],
-                });
-              }
+            if (isRequired && (!value || value.trim() === "")) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: `${field.label} is required.`,
+                path: [`verificationDetails.${field.name}`],
+              });
+            }
+
+            if (value && field.validationRegex) {
+                try {
+                    const regex = new RegExp(field.validationRegex);
+                    if (!regex.test(value)) {
+                        ctx.addIssue({
+                            code: z.ZodIssueCode.custom,
+                            message: `Please enter a valid ${field.label}.`,
+                            path: [`verificationDetails.${field.name}`],
+                        });
+                    }
+                } catch(e) {
+                    console.error("Invalid regex in verification template:", field.validationRegex);
+                }
             }
           });
         }
     });
-  }, [user.role, verificationTemplates]);
+  }, [user.role, activeTemplate]);
 
 
   const form = useForm<ProfileFormData>({
@@ -296,29 +316,12 @@ export function ProfileForm({ user }: ProfileFormProps) {
 
 
   useEffect(() => {
-    async function fetchTemplates() {
-      try {
-        const templates = await getVerificationTemplatesClient();
-        setVerificationTemplates(templates);
-      } catch (error) {
-        console.error("Failed to fetch verification templates:", error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Could not load verification options.",
-        });
-      }
-    }
-    fetchTemplates();
-  }, [toast]);
-  
-  useEffect(() => {
     const countryCode = watchedPrimaryCountry;
     if (countryCode) {
         const availableStates = statesProvinces[countryCode] || [];
         const stateFieldName = 'address.state';
         const currentState = form.getValues(stateFieldName);
-        if (!availableStates.some(s => s.value === currentState)) {
+        if (availableStates.length > 0 && !availableStates.some(s => s.value === currentState)) {
             form.setValue(stateFieldName, '');
         }
         
@@ -328,6 +331,11 @@ export function ProfileForm({ user }: ProfileFormProps) {
         setActiveTemplate(null);
     }
   }, [watchedPrimaryCountry, form, verificationTemplates]);
+
+  useEffect(() => {
+    // Re-trigger validation when the active template changes, as requirements may have changed
+    form.trigger('verificationDetails');
+  }, [activeTemplate, watchedExportScope, form]);
 
   const onSubmit = (values: ProfileFormData) => {
     if (!firebaseUser) {
@@ -647,13 +655,6 @@ export function ProfileForm({ user }: ProfileFormProps) {
                             control={form.control}
                             name={`verificationDetails.${fieldTemplate.name}` as const}
                             defaultValue={user?.verificationDetails?.[fieldTemplate.name] || ""}
-                            rules={{ 
-                                required: isRequired ? 'This field is required.' : false,
-                                pattern: fieldTemplate.validationRegex ? {
-                                    value: new RegExp(fieldTemplate.validationRegex),
-                                    message: `Please enter a valid ${fieldTemplate.label}.`
-                                } : undefined
-                            }}
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>{fieldTemplate.label} {isRequired && <span className="text-destructive">*</span>}</FormLabel>
