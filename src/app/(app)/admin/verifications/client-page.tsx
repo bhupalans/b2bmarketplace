@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useTransition, useMemo } from 'react';
@@ -75,7 +76,7 @@ export function AdminVerificationsClientPage({ initialUsers }: AdminVerification
   }, []);
   
   const activeTemplate = useMemo(() => {
-    const country = reviewingUser?.role === 'seller' ? reviewingUser?.address?.country : reviewingUser?.shippingAddress?.country;
+    const country = reviewingUser?.address?.country;
     if (!country) return null;
     return verificationTemplates.find(t => t.id === country) || null;
   }, [reviewingUser, verificationTemplates]);
@@ -111,7 +112,7 @@ export function AdminVerificationsClientPage({ initialUsers }: AdminVerification
   };
   
   const getCountryName = (user: User) => {
-      const countryCode = user.role === 'seller' ? user.address?.country : user.shippingAddress?.country;
+      const countryCode = user.address?.country;
       if (!countryCode) return 'N/A';
       return countries.find(c => c.value === countryCode)?.label || countryCode;
   }

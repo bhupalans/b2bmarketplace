@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useTransition, useMemo, useCallback } from 'react';
@@ -125,10 +126,10 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
   const TOTAL_STEPS = 3;
 
   const activeTemplate = useMemo(() => {
-    const country = user.role === 'seller' ? user.address?.country : user.shippingAddress?.country;
+    const country = user.address?.country;
     if (!country) return null;
     return verificationTemplates.find(t => t.id === country) || null;
-  }, [user.role, user.address?.country, user.shippingAddress?.country, verificationTemplates]);
+  }, [user.address?.country, verificationTemplates]);
 
   const businessDocFields = useMemo(() => {
     if (!activeTemplate) return [];
@@ -137,7 +138,7 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
       if (field.required === 'always') return true;
       if (field.required === 'international') {
         // For sellers, check their export scope. For buyers, assume international applies.
-        return user.role === 'seller' ? user.exportScope?.includes('international') : true;
+        return user.role === 'buyer' || (user.role === 'seller' && user.exportScope?.includes('international'));
       }
       return false;
     });
@@ -250,7 +251,7 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
                 <ShieldCheck className="h-4 w-4 text-green-600" />
                 <AlertTitle className="text-green-800 dark:text-green-300">You are Verified!</AlertTitle>
                 <AlertDescription className="text-green-700 dark:text-green-400">
-                    Your business information has been successfully verified. Buyers will now see a "Verified" badge on your profile.
+                    Your business information has been successfully verified. You now have full access to marketplace features.
                 </AlertDescription>
             </Alert>
         case 'pending':
@@ -408,7 +409,7 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
       </div>
   );
 
-  const userCountry = user.role === 'seller' ? user.address?.country : user.shippingAddress?.country;
+  const userCountry = user.address?.country;
 
   return (
     <>
@@ -430,7 +431,7 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
            {step === 3 && <CardTitle>Step 3: ID Proof</CardTitle>}
           {!userCountry ? (
             <CardDescription className="text-red-600">
-              Please complete your {user.role === 'seller' ? 'business' : 'shipping'} address in your profile to see verification requirements.
+              Please complete your Primary Business Address in your profile to see verification requirements.
             </CardDescription>
           ) : !activeTemplate && businessDocFields.length === 0 ? (
             <CardDescription>

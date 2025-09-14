@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useTransition, useEffect, useState } from "react";
@@ -62,9 +63,10 @@ const profileSchema = z.object({
   name: z.string().min(2, "Name is too short."),
   companyName: z.string().optional(),
   phoneNumber: z.string().optional(),
+  address: addressSchema, // Now required for everyone
   shippingAddress: addressSchema.optional(),
   billingAddress: addressSchema.optional(),
-  address: addressSchema.optional(),
+  billingSameAsShipping: z.boolean().optional(),
   // Buyer specific
   jobTitle: z.string().optional(),
   companyWebsite: z.string().optional().refine(val => !val || z.string().url().safeParse(val).success, { message: 'Please enter a valid URL.' }),
@@ -203,6 +205,8 @@ export function ProfileForm({ user }: ProfileFormProps) {
 
   const finalSchema = React.useMemo(() => {
     return profileSchema.superRefine((data, ctx) => {
+        if (!data.address) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Primary Business Address is required.", path: ['address'] });
+
         if (user.role === 'seller') {
             if (!data.companyName) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Company name is required.", path: ['companyName']});
             if (!data.phoneNumber) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Business phone number is required.", path: ['phoneNumber']});
@@ -210,14 +214,15 @@ export function ProfileForm({ user }: ProfileFormProps) {
             if (!data.taxId) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Tax ID / VAT number is required.", path: ['taxId']});
             if (!data.businessType) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "You must select a business type.", path: ['businessType']});
             if (!data.exportScope || data.exportScope.length === 0) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Please select at least one export scope.", path: ['exportScope']});
-            if (!data.address) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Business address is required.", path: ['address'] });
         }
         if (user.role === 'buyer') {
              if (!data.shippingAddress) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Shipping address is required.", path: ['shippingAddress'] });
-             if (!data.billingAddress) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Billing address is required.", path: ['billingAddress'] });
+             if (!data.billingSameAsShipping && !data.billingAddress) {
+                ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Billing address is required if not same as shipping.", path: ['billingAddress'] });
+             }
         }
 
-        const activeCountry = user.role === 'seller' ? data.address?.country : data.shippingAddress?.country;
+        const activeCountry = data.address?.country;
         const currentTemplate = verificationTemplates.find(t => t.id === activeCountry);
 
         if (currentTemplate) {
@@ -226,10 +231,11 @@ export function ProfileForm({ user }: ProfileFormProps) {
             if (field.required === 'always') {
               isRequired = true;
             } else if (field.required === 'international') {
-              isRequired = data.exportScope?.includes('international') ?? false;
+              // Now always applies if role is buyer, as buyers are implicitly international
+              isRequired = user.role === 'buyer' || (data.exportScope?.includes('international') ?? false);
             }
 
-            if (isRequired && user.role === 'seller') { // Only enforce for sellers in profile for now
+            if (isRequired) {
               const value = data.verificationDetails?.[field.name];
               if (!value || value.trim() === "") {
                 ctx.addIssue({
@@ -254,6 +260,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
       address: user.address,
       shippingAddress: user.shippingAddress,
       billingAddress: user.billingAddress,
+      billingSameAsShipping: user.billingSameAsShipping || false,
       jobTitle: user.jobTitle || "",
       companyWebsite: user.companyWebsite || "",
       companyDescription: user.companyDescription || "",
@@ -265,15 +272,28 @@ export function ProfileForm({ user }: ProfileFormProps) {
     mode: "onChange",
   });
 
-  const watchedCountry = useWatch({
+  const watchedPrimaryCountry = useWatch({
     control: form.control,
-    name: user.role === 'seller' ? 'address.country' : 'shippingAddress.country',
+    name: 'address.country',
   });
   
   const watchedExportScope = useWatch({
     control: form.control,
     name: 'exportScope',
   });
+
+  const watchedBillingSameAsShipping = useWatch({
+    control: form.control,
+    name: 'billingSameAsShipping'
+  });
+
+  useEffect(() => {
+    if (watchedBillingSameAsShipping) {
+      const shippingAddress = form.getValues('shippingAddress');
+      form.setValue('billingAddress', shippingAddress);
+    }
+  }, [watchedBillingSameAsShipping, form]);
+
 
   useEffect(() => {
     async function fetchTemplates() {
@@ -293,13 +313,13 @@ export function ProfileForm({ user }: ProfileFormProps) {
   }, [toast]);
   
   useEffect(() => {
-    const countryCode = watchedCountry;
+    const countryCode = watchedPrimaryCountry;
     if (countryCode) {
         const availableStates = statesProvinces[countryCode] || [];
-        const stateFieldName = user.role === 'seller' ? 'address.state' : 'shippingAddress.state';
-        const currentState = form.getValues(stateFieldName as 'address.state');
+        const stateFieldName = 'address.state';
+        const currentState = form.getValues(stateFieldName);
         if (!availableStates.some(s => s.value === currentState)) {
-            form.setValue(stateFieldName as 'address.state', '');
+            form.setValue(stateFieldName, '');
         }
         
         const template = verificationTemplates.find(t => t.id === countryCode) || null;
@@ -307,7 +327,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
     } else {
         setActiveTemplate(null);
     }
-  }, [watchedCountry, form, verificationTemplates, user.role]);
+  }, [watchedPrimaryCountry, form, verificationTemplates]);
 
   const onSubmit = (values: ProfileFormData) => {
     if (!firebaseUser) {
@@ -318,9 +338,15 @@ export function ProfileForm({ user }: ProfileFormProps) {
         });
         return;
     }
+    
+    const finalValues = {...values};
+    if (values.billingSameAsShipping) {
+      finalValues.billingAddress = values.shippingAddress;
+    }
+
 
     startTransition(async () => {
-      const result = await updateUserProfile(firebaseUser.uid, values);
+      const result = await updateUserProfile(firebaseUser.uid, finalValues);
 
       if (result.success) {
          toast({
@@ -421,6 +447,16 @@ export function ProfileForm({ user }: ProfileFormProps) {
             )}
           </CardContent>
         </Card>
+        
+        <Card>
+            <CardHeader>
+                <CardTitle>Primary Business Address</CardTitle>
+                <CardDescription>Your company's official registered address. This determines verification requirements.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <AddressFields fieldName="address" control={form.control} />
+            </CardContent>
+        </Card>
 
         {user.role === 'buyer' && (
             <>
@@ -439,23 +475,31 @@ export function ProfileForm({ user }: ProfileFormProps) {
                         <CardTitle>Billing Address</CardTitle>
                         <CardDescription>The address associated with your payment method.</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <AddressFields fieldName="billingAddress" control={form.control} />
+                    <CardContent className="space-y-4">
+                         <FormField
+                            control={form.control}
+                            name="billingSameAsShipping"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                    <FormControl>
+                                        <Checkbox
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                    </FormControl>
+                                    <FormLabel className="font-normal">
+                                        Billing address is the same as shipping address
+                                    </FormLabel>
+                                </FormItem>
+                            )}
+                        />
+                       
+                        {!watchedBillingSameAsShipping && (
+                             <AddressFields fieldName="billingAddress" control={form.control} />
+                        )}
                     </CardContent>
                 </Card>
             </>
-        )}
-
-        {user.role === 'seller' && (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Business Address</CardTitle>
-                    <CardDescription>Your company's primary physical location.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <AddressFields fieldName="address" control={form.control} />
-                </CardContent>
-            </Card>
         )}
 
         {user.role === "seller" && (
@@ -584,15 +628,15 @@ export function ProfileForm({ user }: ProfileFormProps) {
             <Card>
                 <CardHeader>
                     <CardTitle>Business Verification ({activeTemplate.countryName})</CardTitle>
-                    <CardDescription>This information is required to verify your business identity.</CardDescription>
+                    <CardDescription>This information is required to verify your business identity based on your primary address.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                 {activeTemplate.fields.map(fieldTemplate => {
                     let isRequired = false;
                     if (fieldTemplate.required === 'always') {
                         isRequired = true;
-                    } else if (fieldTemplate.required === 'international' && user.role === 'seller') {
-                        isRequired = watchedExportScope?.includes('international') ?? false;
+                    } else if (fieldTemplate.required === 'international') {
+                        isRequired = user.role === 'buyer' || (watchedExportScope?.includes('international') ?? false);
                     }
 
                     if (fieldTemplate.required === 'never') return null;
