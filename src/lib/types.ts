@@ -44,6 +44,7 @@ export type User = {
 
   taxId?: string; // e.g., VAT ID, EIN for sellers
   verificationDetails?: { [key: string]: string }; // For dynamic verification fields
+  scopedVerificationIds?: { [key: string]: string }; // For country-scoped unique ID checks e.g., { "gstn-IN": "..." }
 
   // Existing fields
   verified?: boolean; // This will now represent the overall verified status
@@ -195,3 +196,5 @@ export type OfferSuggestion = {
   quantity?: number;
   pricePerUnit?: number;
 }
+
+    

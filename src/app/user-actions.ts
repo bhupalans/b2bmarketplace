@@ -2,7 +2,7 @@
 'use server';
 
 import { adminDb, adminStorage, adminAuth } from '@/lib/firebase-admin';
-import { User } from '@/lib/types';
+import { User, VerificationTemplate } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -22,35 +22,59 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
     }
 
     const user = userSnap.data() as User;
+    const countryCode = data.address?.country || data.shippingAddress?.country;
 
-    // This logic is primarily for sellers, but could be adapted for buyers if needed.
-    if (user.role === 'seller' && data.verificationDetails) {
-      const details = data.verificationDetails;
-      for (const key in details) {
-        const value = details[key];
-        if (value) {
-          const query = adminDb.collection('users')
-            .where(`verificationDetails.${key}`, '==', value)
-            .limit(2);
-          
-          const snapshot = await query.get();
-          
-          const isDuplicate = snapshot.docs.some(doc => doc.id !== userId);
+    // This logic is for sellers and buyers
+    if (countryCode && data.verificationDetails) {
+        const templatesSnap = await adminDb.collection('verificationTemplates').doc(countryCode).get();
+        if (templatesSnap.exists) {
+            const template = templatesSnap.data() as VerificationTemplate;
+            const details = data.verificationDetails;
 
-          if (isDuplicate) {
-            const fieldLabel = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-            return { 
-              success: false, 
-              error: `This ${fieldLabel} is already registered to another user.` 
-            };
-          }
+            for (const field of template.fields) {
+                const value = details[field.name];
+                if (value) {
+                    // This key is now globally unique, e.g., "gstn-IN"
+                    const scopedKey = `${field.name}-${countryCode}`;
+                    const query = adminDb.collection('users')
+                        .where(`scopedVerificationIds.${scopedKey}`, '==', value)
+                        .limit(2);
+                    
+                    const snapshot = await query.get();
+                    
+                    const isDuplicate = snapshot.docs.some(doc => doc.id !== userId);
+
+                    if (isDuplicate) {
+                        return { 
+                            success: false, 
+                            error: `This ${field.label} is already registered to another user in this country.` 
+                        };
+                    }
+                }
+            }
         }
-      }
     }
 
     const updateData: { [key: string]: any } = {
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        scopedVerificationIds: {} // Reset and rebuild
     };
+
+    // Rebuild scopedVerificationIds
+    if (countryCode && data.verificationDetails) {
+        const templatesSnap = await adminDb.collection('verificationTemplates').doc(countryCode).get();
+        if (templatesSnap.exists()) {
+            const template = templatesSnap.data() as VerificationTemplate;
+            template.fields.forEach(field => {
+                const value = data.verificationDetails?.[field.name];
+                if (value) {
+                    const scopedKey = `${field.name}-${countryCode}`;
+                    updateData.scopedVerificationIds[scopedKey] = value;
+                }
+            });
+        }
+    }
+
 
     const directProperties: (keyof ProfileUpdateData)[] = [
       'name', 'companyName', 'phoneNumber', 'companyDescription',
@@ -181,3 +205,5 @@ export async function submitVerificationDocuments(formData: FormData, token: str
     return { success: false, error: error.message || "Failed to submit documents." };
   }
 }
+
+    
