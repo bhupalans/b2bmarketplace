@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useTransition, useEffect, useState } from "react";
+import React, { useTransition, useEffect, useState, useMemo } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -212,67 +212,65 @@ export function ProfileForm({ user }: ProfileFormProps) {
     fetchTemplates();
   }, [toast]);
   
-
-  const finalSchema = React.useMemo(() => {
-    return baseProfileSchema.superRefine((data, ctx) => {
-        // --- Role based required fields ---
-        if (user.role === 'seller') {
-            if (!data.companyName) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Company name is required.", path: ['companyName']});
-            if (!data.phoneNumber) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Business phone number is required.", path: ['phoneNumber']});
-            if (!data.companyDescription || data.companyDescription.length < 10) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Company description must be at least 10 characters.", path: ['companyDescription']});
-            if (!data.taxId) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Tax ID / VAT number is required.", path: ['taxId']});
-            if (!data.businessType) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "You must select a business type.", path: ['businessType']});
-            if (!data.exportScope || data.exportScope.length === 0) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Please select at least one export scope.", path: ['exportScope']});
-        }
-        if (user.role === 'buyer') {
-             if (!data.shippingAddress) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Shipping address is required.", path: ['shippingAddress'] });
-             if (!data.billingSameAsShipping && !data.billingAddress) {
-                ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Billing address is required if not same as shipping.", path: ['billingAddress'] });
-             }
-        }
-        
-        // --- Dynamic validation based on active template ---
-        if (activeTemplate) {
-          activeTemplate.fields.forEach(field => {
-            const value = data.verificationDetails?.[field.name];
-            let isRequired = false;
-            
-            if (field.required === 'always') {
-              isRequired = true;
-            } else if (field.required === 'international') {
-              isRequired = user.role === 'buyer' || (data.exportScope?.includes('international') ?? false);
+  const form = useForm<ProfileFormData>({
+    resolver: zodResolver(
+      useMemo(() => {
+        return baseProfileSchema.superRefine((data, ctx) => {
+            // --- Role based required fields ---
+            if (user.role === 'seller') {
+                if (!data.companyName) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Company name is required.", path: ['companyName']});
+                if (!data.phoneNumber) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Business phone number is required.", path: ['phoneNumber']});
+                if (!data.companyDescription || data.companyDescription.length < 10) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Company description must be at least 10 characters.", path: ['companyDescription']});
+                if (!data.taxId) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Tax ID / VAT number is required.", path: ['taxId']});
+                if (!data.businessType) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "You must select a business type.", path: ['businessType']});
+                if (!data.exportScope || data.exportScope.length === 0) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Please select at least one export scope.", path: ['exportScope']});
             }
+            if (user.role === 'buyer') {
+                 if (!data.shippingAddress) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Shipping address is required.", path: ['shippingAddress'] });
+                 if (!data.billingSameAsShipping && !data.billingAddress) {
+                    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Billing address is required if not same as shipping.", path: ['billingAddress'] });
+                 }
+            }
+            
+            // --- Dynamic validation based on active template ---
+            if (activeTemplate) {
+              activeTemplate.fields.forEach(field => {
+                const value = data.verificationDetails?.[field.name];
+                let isRequired = false;
+                
+                if (field.required === 'always') {
+                  isRequired = true;
+                } else if (field.required === 'international') {
+                  isRequired = user.role === 'buyer' || (data.exportScope?.includes('international') ?? false);
+                }
 
-            if (isRequired && (!value || value.trim() === "")) {
-              ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: `${field.label} is required.`,
-                path: [`verificationDetails.${field.name}`],
+                if (isRequired && (!value || value.trim() === "")) {
+                  ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: `${field.label} is required.`,
+                    path: [`verificationDetails.${field.name}`],
+                  });
+                }
+
+                if (value && field.validationRegex) {
+                    try {
+                        const regex = new RegExp(field.validationRegex);
+                        if (!regex.test(value)) {
+                            ctx.addIssue({
+                                code: z.ZodIssueCode.custom,
+                                message: `Please enter a valid ${field.label}.`,
+                                path: [`verificationDetails.${field.name}`],
+                            });
+                        }
+                    } catch(e) {
+                        console.error("Invalid regex in verification template:", field.validationRegex);
+                    }
+                }
               });
             }
-
-            if (value && field.validationRegex) {
-                try {
-                    const regex = new RegExp(field.validationRegex);
-                    if (!regex.test(value)) {
-                        ctx.addIssue({
-                            code: z.ZodIssueCode.custom,
-                            message: `Please enter a valid ${field.label}.`,
-                            path: [`verificationDetails.${field.name}`],
-                        });
-                    }
-                } catch(e) {
-                    console.error("Invalid regex in verification template:", field.validationRegex);
-                }
-            }
-          });
-        }
-    });
-  }, [user.role, activeTemplate]);
-
-
-  const form = useForm<ProfileFormData>({
-    resolver: zodResolver(finalSchema),
+        });
+      }, [user.role, activeTemplate])
+    ),
     defaultValues: {
       name: user.name || "",
       companyName: user.companyName || "",
@@ -370,6 +368,11 @@ export function ProfileForm({ user }: ProfileFormProps) {
       }
     });
   };
+
+  const exportScopeItems = [
+    { id: 'domestic', label: 'Domestic' },
+    { id: 'international', label: 'International' }
+  ];
 
   return (
     <Form {...form}>
@@ -697,5 +700,3 @@ export function ProfileForm({ user }: ProfileFormProps) {
     </Form>
   );
 }
-
-    
