@@ -15,7 +15,7 @@ import {
 import { useAuth } from "@/contexts/auth-context";
 import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
-import { CreditCard, LogOut, Settings, User, LayoutDashboard, Package, MessageSquare, ShieldCheck } from "lucide-react";
+import { CreditCard, LogOut, Settings, User, LayoutDashboard, Package, MessageSquare, ShieldCheck, FileText, Handshake } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -98,7 +98,21 @@ export function UserNav() {
                   <span>My Products</span>
                 </Link>
               </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/sourcing">
+                  <Handshake className="mr-2 h-4 w-4" />
+                  <span>Browse Buy Leads</span>
+                </Link>
+              </DropdownMenuItem>
             </>
+          )}
+          {user.role === 'buyer' && (
+            <DropdownMenuItem asChild>
+              <Link href="/sourcing/create">
+                <FileText className="mr-2 h-4 w-4" />
+                <span>Post Sourcing Request</span>
+              </Link>
+            </DropdownMenuItem>
           )}
            <DropdownMenuItem asChild>
              <Link href="/messages">

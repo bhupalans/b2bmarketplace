@@ -141,6 +141,22 @@ export type Product = {
   leadTime?: string; // e.g., "5-7 business days"
 };
 
+export type SourcingRequest = {
+  id: string;
+  title: string;
+  buyerId: string;
+  buyerName: string; // Denormalized
+  buyerCountry: string; // Denormalized
+  categoryId: string;
+  description: string;
+  quantity: number;
+  quantityUnit: string;
+  targetPriceUSD?: number;
+  status: 'active' | 'closed';
+  createdAt: Timestamp | string;
+  expiresAt: Timestamp | string;
+};
+
 export type Offer = {
   id: string;
   productId: string;
@@ -177,10 +193,12 @@ export type Message = {
 export type Conversation = {
     id: string;
     participantIds: string[];
-    productId: string;
-    productTitle: string;
-    productImage: string;
-    productSellerId: string; // Keep track of the seller for the product
+    productId?: string;
+    productTitle?: string;
+    productImage?: string;
+    productSellerId?: string; // Keep track of the seller for the product
+    sourcingRequestId?: string;
+    sourcingRequestTitle?: string;
     createdAt: Timestamp;
     lastMessage: {
         text: string;
@@ -197,5 +215,3 @@ export type OfferSuggestion = {
   quantity?: number;
   pricePerUnit?: number;
 }
-
-    

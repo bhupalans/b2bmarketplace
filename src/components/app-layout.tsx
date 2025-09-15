@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building, Home, PanelLeft, Loader2, LayoutDashboard, Package, Shield, FileText, FolderTree, MessageSquare, MessagesSquare, Gavel, CheckSquare, Settings, ShieldCheck, Database } from "lucide-react";
+import { Building, Home, PanelLeft, Loader2, LayoutDashboard, Package, Shield, FileText, FolderTree, MessageSquare, MessagesSquare, Gavel, CheckSquare, Settings, ShieldCheck, Database, Search, Handshake } from "lucide-react";
 import {
   SidebarProvider,
   Sidebar,
@@ -39,12 +39,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const protectedRoutes = ['/dashboard', '/my-products', '/admin', '/messages', '/profile'];
+    const protectedRoutes = ['/dashboard', '/my-products', '/admin', '/messages', '/profile', '/sourcing/create'];
     const sellerOnlyRoutes = ['/dashboard', '/my-products'];
+    const buyerOnlyRoutes = ['/sourcing/create'];
     const adminOnlyRoutes = ['/admin'];
 
     const isProtectedRoute = protectedRoutes.some(path => pathname.startsWith(path));
     const isSellerOnlyRoute = sellerOnlyRoutes.some(path => pathname.startsWith(path));
+    const isBuyerOnlyRoute = buyerOnlyRoutes.some(path => pathname.startsWith(path));
     const isAdminOnlyRoute = adminOnlyRoutes.some(path => pathname.startsWith(path));
 
     if (!loading) {
@@ -52,6 +54,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         router.push("/login");
       } else if (firebaseUser) {
         if (isSellerOnlyRoute && user?.role !== 'seller') {
+          router.push("/");
+        }
+         if (isBuyerOnlyRoute && user?.role !== 'buyer') {
           router.push("/");
         }
         if (isAdminOnlyRoute && user?.role !== 'admin') {
@@ -79,7 +84,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
 
-  const isProtectedRoute = ['/dashboard', '/my-products', '/admin', '/profile'].some(path => pathname.startsWith(path));
+  const isProtectedRoute = ['/dashboard', '/my-products', '/admin', '/profile', '/sourcing/create'].some(path => pathname.startsWith(path));
   if (isProtectedRoute && !firebaseUser) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -88,7 +93,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
   
-  if ((pathname.startsWith('/dashboard') && user?.role !== 'seller') || (pathname.startsWith('/admin') && user?.role !== 'admin')) {
+  if ((pathname.startsWith('/dashboard') && user?.role !== 'seller') || (pathname.startsWith('/admin') && user?.role !== 'admin') || (pathname.startsWith('/sourcing/create') && user?.role !== 'buyer')) {
       return (
         <div className="flex h-screen items-center justify-center">
             <p>Access Denied. Redirecting...</p>
@@ -125,6 +130,20 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
+            
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname.startsWith("/sourcing")}
+                tooltip="Sourcing Requests"
+              >
+                <Link href="/sourcing">
+                  <Handshake />
+                  <span className="sr-only">Sourcing Requests</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
             {user && (
                  <>
                     <SidebarMenuItem>
@@ -180,6 +199,20 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </>
+            )}
+            {user?.role === 'buyer' && (
+              <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname.startsWith("/sourcing/create")}
+                    tooltip="Post a Sourcing Request"
+                  >
+                    <Link href="/sourcing/create">
+                      <FileText />
+                      <span className="sr-only">Post a Request</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
             )}
              {user?.role === 'admin' && (
                 <Collapsible asChild defaultOpen={pathname.startsWith('/admin')}>
