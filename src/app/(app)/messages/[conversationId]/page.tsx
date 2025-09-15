@@ -120,7 +120,16 @@ export default function ConversationPage() {
         <div className="flex-1">
           <p className="font-semibold">{otherParticipant.name}</p>
           <p className="text-sm text-muted-foreground">
-            Regarding: <Link href={`/products/${conversation.productId}`} className="hover:underline">{conversation.productTitle}</Link>
+            Regarding:{" "}
+            {conversation.productId ? (
+              <Link href={`/products/${conversation.productId}`} className="hover:underline">
+                {conversation.productTitle}
+              </Link>
+            ) : conversation.sourcingRequestId ? (
+              <Link href={`/sourcing/${conversation.sourcingRequestId}`} className="hover:underline">
+                {conversation.sourcingRequestTitle}
+              </Link>
+            ) : null}
           </p>
         </div>
         {isSeller && (
