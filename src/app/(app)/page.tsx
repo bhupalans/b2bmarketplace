@@ -105,7 +105,7 @@ export default function HomePage() {
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold">Explore Our Categories</h2>
           <Button variant="link" asChild>
-            <Link href="/products">View All <ArrowRight className="ml-2 h-4 w-4" /></Link>
+            <Link href="/categories">View All <ArrowRight className="ml-2 h-4 w-4" /></Link>
           </Button>
         </div>
         <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">

@@ -25,12 +25,22 @@ export function useProducts() {
         // Filter products to only include those in an active category
         const activeProducts = allApprovedProducts.filter(p => {
             let currentId: string | null | undefined = p.categoryId;
+            if (!currentId) return false; // Ensure product has a category
+
             const categoryMap = new Map(allCategories.map(c => [c.id, c]));
-            while(currentId) {
-                if (activeCategoryIds.has(currentId)) {
+            
+            // Check if the product's direct category is active
+            if (activeCategoryIds.has(currentId)) {
+                return true;
+            }
+
+            // Check if any parent category is active
+            let parentId = categoryMap.get(currentId)?.parentId;
+            while(parentId) {
+                if (activeCategoryIds.has(parentId)) {
                     return true;
                 }
-                currentId = categoryMap.get(currentId)?.parentId;
+                parentId = categoryMap.get(parentId)?.parentId;
             }
             return false;
         });
