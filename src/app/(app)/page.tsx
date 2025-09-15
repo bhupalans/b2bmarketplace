@@ -12,7 +12,7 @@ import React, { useEffect, useState } from "react";
 import { ProductCard } from "@/components/product-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
-import { homePageImages } from "@/lib/placeholder-images.json";
+import homePageImages from "@/lib/placeholder-images.json";
 import { formatDistanceToNow } from "date-fns";
 
 const iconMap: { [key: string]: React.ElementType } = {
