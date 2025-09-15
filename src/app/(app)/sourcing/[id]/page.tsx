@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, notFound } from 'next/navigation';
 import { SourcingRequest, User } from '@/lib/types';
 import { getSourcingRequestClient, getUserClient } from '@/lib/firebase';
-import { Loader2, MapPin, Calendar, Package, DollarSign, ShieldCheck } from 'lucide-react';
+import { Loader2, MapPin, Calendar, Package, DollarSign, ShieldCheck, Building } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -61,7 +61,8 @@ export default function SourcingRequestDetailPage() {
 
   const expiresAtDate = typeof request.expiresAt === 'string' ? new Date(request.expiresAt) : request.expiresAt.toDate();
   const createdAtDate = typeof request.createdAt === 'string' ? new Date(request.createdAt) : request.createdAt.toDate();
-  
+  const buyerLocation = [buyer.address?.city, buyer.address?.country].filter(Boolean).join(', ');
+
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div className="space-y-2">
@@ -120,6 +121,26 @@ export default function SourcingRequestDetailPage() {
                             <ShieldCheck className="h-4 w-4 mr-2" /> Verified Buyer
                         </Badge>
                     )}
+                     <div className="space-y-2 text-sm">
+                        {buyer.businessType && (
+                            <div className="flex items-center">
+                            <Building className="mr-3 h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium">{buyer.businessType}</span>
+                            </div>
+                        )}
+                        {buyerLocation && (
+                            <div className="flex items-center">
+                            <MapPin className="mr-3 h-4 w-4 text-muted-foreground" />
+                            <span>{buyerLocation}</span>
+                            </div>
+                        )}
+                        {buyer.createdAt && (
+                            <div className="flex items-center">
+                            <Calendar className="mr-3 h-4 w-4 text-muted-foreground" />
+                            <span>Member since {format(new Date(buyer.createdAt), 'yyyy')}</span>
+                            </div>
+                        )}
+                     </div>
                     <ContactBuyerDialog request={request} buyer={buyer} />
                 </CardContent>
             </Card>
