@@ -4,7 +4,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc as getDocClient, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError, setDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate, VerificationTemplate, VerificationField } from './types';
+import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate, VerificationTemplate, VerificationField, SourcingRequest } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { filterContactDetails } from '@/ai/flows/filter-contact-details';
 
@@ -159,6 +159,17 @@ export async function getUsersClient(): Promise<User[]> {
     } as User;
   });
   return userList;
+}
+
+export async function getUserClient(userId: string): Promise<User | null> {
+    const userRef = doc(db, 'users', userId);
+    const userSnap = await getDocClient(userRef);
+
+    if (!userSnap.exists()) {
+        return null;
+    }
+    const userData = convertTimestamps(userSnap.data());
+    return { id: userSnap.id, uid: userSnap.id, ...userData } as User;
 }
 
 export async function getUsersByIdsClient(userIds: string[]): Promise<Map<string, User>> {
@@ -978,6 +989,48 @@ export async function saveProductUpdateRulesClient(fields: string[]): Promise<vo
     const docRef = doc(db, 'settings', 'productUpdateRules');
     await setDoc(docRef, { autoApproveFields: fields });
 }
+
+// --- Sourcing Request Functions ---
+
+export async function createSourcingRequestClient(
+    requestData: Omit<SourcingRequest, 'id' | 'buyerId' | 'buyerName' | 'buyerCountry' | 'status' | 'createdAt'>,
+    buyer: User
+): Promise<SourcingRequest> {
+    if (!buyer.address?.country) {
+        throw new Error("Please complete your primary business address in your profile before posting a request.");
+    }
+    
+    const newRequest: Omit<SourcingRequest, 'id'> = {
+        ...requestData,
+        buyerId: buyer.uid,
+        buyerName: buyer.companyName || buyer.name,
+        buyerCountry: buyer.address.country,
+        status: 'active',
+        createdAt: serverTimestamp() as Timestamp,
+    };
+    
+    const docRef = await addDoc(collection(db, "sourcingRequests"), newRequest);
+    const newDocSnap = await getDocClient(docRef);
+    const newData = convertTimestamps(newDocSnap.data());
+    return { id: docRef.id, ...newData } as SourcingRequest;
+}
+
+export async function getSourcingRequestsClient(): Promise<SourcingRequest[]> {
+    const requestsRef = collection(db, "sourcingRequests");
+    const q = query(requestsRef, where("status", "==", "active"), orderBy("createdAt", "desc"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...convertTimestamps(docSnap.data()) } as SourcingRequest));
+}
+
+export async function getSourcingRequestClient(id: string): Promise<SourcingRequest | null> {
+    const requestRef = doc(db, 'sourcingRequests', id);
+    const docSnap = await getDocClient(requestRef);
+    if (!docSnap.exists()) {
+        return null;
+    }
+    return { id: docSnap.id, ...convertTimestamps(docSnap.data()) } as SourcingRequest;
+}
+
 
 
 export { app, auth, db, storage };
