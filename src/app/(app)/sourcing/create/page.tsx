@@ -68,9 +68,9 @@ export default function CreateSourcingRequestPage() {
       title: "",
       description: "",
       categoryId: "",
-      quantity: undefined,
+      quantity: "" as any,
       quantityUnit: "units",
-      targetPriceUSD: undefined,
+      targetPriceUSD: "" as any,
       expiresInDays: 30,
     },
   });
