@@ -5,13 +5,12 @@ import React, { useEffect, useState } from 'react';
 import { useParams, notFound } from 'next/navigation';
 import { SourcingRequest, User } from '@/lib/types';
 import { getSourcingRequestClient, getUserClient } from '@/lib/firebase';
-import { Loader2, MapPin, Calendar, Package, DollarSign, User as UserIcon, Building } from 'lucide-react';
+import { Loader2, MapPin, Calendar, Package, DollarSign, ShieldCheck } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import Link from 'next/link';
+import { ContactBuyerDialog } from '@/components/contact-buyer-dialog';
 
 export default function SourcingRequestDetailPage() {
   const params = useParams();
@@ -121,9 +120,7 @@ export default function SourcingRequestDetailPage() {
                             <ShieldCheck className="h-4 w-4 mr-2" /> Verified Buyer
                         </Badge>
                     )}
-                    <Button size="lg" className="w-full">
-                        Contact Buyer & Submit Quote
-                    </Button>
+                    <ContactBuyerDialog request={request} buyer={buyer} />
                 </CardContent>
             </Card>
         </div>

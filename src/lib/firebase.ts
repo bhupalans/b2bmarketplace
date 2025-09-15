@@ -589,31 +589,43 @@ export async function deleteCategoryClient(categoryId: string): Promise<void> {
 export async function findOrCreateConversation(data: {
     buyerId: string;
     sellerId: string;
-    productId: string;
-    productTitle: string;
-    productImage: string;
+    productId?: string;
+    productTitle?: string;
+    productImage?: string;
+    sourcingRequestId?: string;
+    sourcingRequestTitle?: string;
 }): Promise<{ conversationId: string, isNew: boolean }> {
-  const productSnap = await getDocClient(doc(db, "products", data.productId));
-  if (!productSnap.exists()) {
-    throw new Error("Cannot start conversation: Product does not exist.");
+
+  const hasProduct = !!data.productId;
+  const hasSourcingRequest = !!data.sourcingRequestId;
+
+  let conversationQuery;
+
+  if (hasProduct) {
+     conversationQuery = query(
+        collection(db, 'conversations'),
+        where('participantIds', 'array-contains', data.buyerId),
+        where('productId', '==', data.productId)
+      );
+  } else if (hasSourcingRequest) {
+      conversationQuery = query(
+        collection(db, 'conversations'),
+        where('participantIds', 'array-contains', data.sellerId),
+        where('sourcingRequestId', '==', data.sourcingRequestId)
+      );
+  } else {
+    throw new Error("A conversation must be linked to a product or a sourcing request.");
   }
-  const productData = productSnap.data();
-  const productSellerId = productData.sellerId;
 
-
-  const conversationQuery = query(
-    collection(db, 'conversations'),
-    where('participantIds', 'array-contains', data.buyerId),
-    where('productId', '==', data.productId)
-  );
 
   const querySnapshot = await getDocs(conversationQuery);
   let existingConversation: (Conversation & { id: string }) | null = null;
 
+  const otherParticipantId = hasProduct ? data.sellerId : data.buyerId;
 
   querySnapshot.forEach(docSnap => {
       const conv = docSnap.data() as Conversation;
-      if (conv.participantIds.includes(data.sellerId)) {
+      if (conv.participantIds.includes(otherParticipantId)) {
           existingConversation = { id: docSnap.id, ...conv };
       }
   });
@@ -622,19 +634,38 @@ export async function findOrCreateConversation(data: {
     return { conversationId: existingConversation.id, isNew: false };
   }
   
-  const conversationRef = await addDoc(collection(db, 'conversations'), {
+  const conversationData: Partial<Conversation> = {
     participantIds: [data.buyerId, data.sellerId],
-    productId: data.productId,
-    productTitle: data.productTitle,
-    productImage: data.productImage,
-    productSellerId: productSellerId, // Store the seller's ID for easy access
-    createdAt: serverTimestamp(),
-    lastMessage: {
+    createdAt: serverTimestamp() as Timestamp,
+    lastMessage: null,
+  };
+
+  if (hasProduct) {
+    const productSnap = await getDocClient(doc(db, "products", data.productId!));
+    if (!productSnap.exists()) {
+        throw new Error("Cannot start conversation: Product does not exist.");
+    }
+    const productData = productSnap.data();
+    conversationData.productId = data.productId;
+    conversationData.productTitle = data.productTitle;
+    conversationData.productImage = data.productImage;
+    conversationData.productSellerId = productData.sellerId;
+    conversationData.lastMessage = {
         text: `Conversation about "${data.productTitle}" started.`,
         senderId: 'system',
-        timestamp: serverTimestamp()
-    },
-  });
+        timestamp: serverTimestamp() as Timestamp
+    };
+  } else if (hasSourcingRequest) {
+    conversationData.sourcingRequestId = data.sourcingRequestId;
+    conversationData.sourcingRequestTitle = data.sourcingRequestTitle;
+    conversationData.lastMessage = {
+        text: `Response to sourcing request: "${data.sourcingRequestTitle}"`,
+        senderId: 'system',
+        timestamp: serverTimestamp() as Timestamp
+    };
+  }
+  
+  const conversationRef = await addDoc(collection(db, 'conversations'), conversationData);
 
   return { conversationId: conversationRef.id, isNew: true };
 }
@@ -896,12 +927,44 @@ export async function sendQuoteRequest(data: {
         }
     }
 
-    const formattedMessage = `&lt;b&gt;New Quote Request&lt;/b&gt;&lt;br/&gt;&lt;b&gt;Product:&lt;/b&gt; ${data.productTitle}&lt;br/&gt;&lt;b&gt;Quantity:&lt;/b&gt; ${data.quantity}&lt;br/&gt;&lt;br/&gt;&lt;b&gt;Buyer's Message:&lt;/b&gt;&lt;br/&gt;${safeRequirements}`;
+    const formattedMessage = `<b>New Quote Request</b><br/><b>Product:</b> ${data.productTitle}<br/><b>Quantity:</b> ${data.quantity}<br/><br/><b>Buyer's Message:</b><br/>${safeRequirements}`;
     
     await sendMessage(conversationId, data.buyerId, formattedMessage, { isQuoteRequest: true });
 
     return conversationId;
 }
+
+export async function sendQuoteForSourcingRequest(data: {
+    sellerId: string;
+    buyerId: string;
+    sourcingRequestId: string;
+    sourcingRequestTitle: string;
+    message: string;
+}): Promise<string> {
+    const { conversationId } = await findOrCreateConversation({
+        buyerId: data.buyerId,
+        sellerId: data.sellerId,
+        sourcingRequestId: data.sourcingRequestId,
+        sourcingRequestTitle: data.sourcingRequestTitle,
+    });
+
+    let safeMessage = data.message;
+    if (data.message.trim()) {
+        try {
+            const result = await filterContactDetails({ message: data.message });
+            safeMessage = result.modifiedMessage;
+        } catch (error) {
+            console.error("AI contact filtering failed for quote response. Sending original message.", error);
+        }
+    }
+
+    const formattedMessage = `<b>Quote for Sourcing Request:</b> ${data.sourcingRequestTitle}<br/><br/><b>Seller's Message:</b><br/>${safeMessage}`;
+    
+    await sendMessage(conversationId, data.sellerId, formattedMessage, { isQuoteRequest: true });
+
+    return conversationId;
+}
+
 
 
 // --- Admin Client Functions ---
@@ -1017,7 +1080,7 @@ export async function createSourcingRequestClient(
 
 export async function getSourcingRequestsClient(): Promise<SourcingRequest[]> {
     const requestsRef = collection(db, "sourcingRequests");
-    const q = query(requestsRef, where("status", "==", "active"), orderBy("createdAt", "desc"));
+    const q = query(requestsRef, where("status", "==", "active"), where("expiresAt", ">", new Date()), orderBy("expiresAt", "asc"));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...convertTimestamps(docSnap.data()) } as SourcingRequest));
 }
