@@ -122,10 +122,23 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               <SidebarMenuButton
                 asChild
                 isActive={pathname === "/"}
-                tooltip="Products"
+                tooltip="Home"
               >
                 <Link href="/">
                   <Home />
+                  <span className="sr-only">Home</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
+             <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname.startsWith("/products")}
+                tooltip="Products"
+              >
+                <Link href="/products">
+                  <Package />
                   <span className="sr-only">Products</span>
                 </Link>
               </SidebarMenuButton>
@@ -281,14 +294,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <header className={cn("sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6", isMessagesPage && "hidden")}>
+        <header className={cn("sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6", isMessagesPage && "hidden", pathname !== '/' && 'sm:hidden')}>
           <SidebarTrigger className="sm:hidden" />
           <div className="flex-1" />
           <div className="hidden sm:block">
             <UserNav />
           </div>
         </header>
-        <main className={cn("flex-1", isMessagesPage ? 'p-0' : "p-4 sm:px-6 sm:py-0")}>{children}</main>
+        <main className={cn("flex-1", isMessagesPage ? 'p-0' : "p-4 sm:px-6 sm:py-0", pathname === '/' && 'p-0 sm:p-0')}>{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );

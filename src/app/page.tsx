@@ -1,11 +1,11 @@
 
 import AppLayout from "./(app)/layout";
-import ProductsPage from "./(app)/page";
+import HomePage from "./(app)/page";
 
 export default function Home() {
   return (
     <AppLayout>
-      <ProductsPage />
+      <HomePage />
     </AppLayout>
   );
 }

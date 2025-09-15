@@ -1,5 +1,6 @@
 
 import { AppLayout as Layout } from "@/components/app-layout";
+import { usePathname } from "next/navigation";
 
 export default async function AppLayout({
   children,

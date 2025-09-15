@@ -1,0 +1,7 @@
+{
+    "hero": {
+        "src": "https://picsum.photos/seed/homepageHero/1280/800",
+        "alt": "A modern factory with robotics and workers",
+        "hint": "factory robotics"
+    }
+}

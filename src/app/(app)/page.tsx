@@ -1,135 +1,185 @@
 
 "use client";
 
-import React, { useState, useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Category, Product, SourcingRequest } from "@/lib/types";
+import { getActiveCategoriesClient, getProductsClient, getSourcingRequestsClient } from "@/lib/firebase";
+import { ArrowRight, Search, Building, Package, ShieldCheck, Globe, Handshake } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import React, { useEffect, useState } from "react";
 import { ProductCard } from "@/components/product-card";
-import { CurrencySwitcher } from "@/components/currency-switcher";
-import { CategorySidebar } from "@/components/category-sidebar";
-import { Category, Product } from "@/lib/types";
-import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
-import { useProducts } from "@/hooks/use-products";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { homePageImages } from "@/lib/placeholder-images.json";
+import { formatDistanceToNow } from "date-fns";
 
-// Helper function to get all descendant category IDs
-const getDescendantCategoryIds = (
-  categoryId: string,
-  allCategories: Category[]
-): string[] => {
-  const descendantIds: string[] = [];
-  const queue = [categoryId];
-  
-  while (queue.length > 0) {
-    const currentId = queue.shift();
-    if (currentId) {
-      descendantIds.push(currentId);
-      const children = allCategories.filter(c => c.parentId === currentId);
-      children.forEach(child => queue.push(child.id));
-    }
-  }
-  
-  return descendantIds;
+const iconMap: { [key: string]: React.ElementType } = {
+    "Industrial Supplies": Building,
+    "Raw Materials": Package,
+    "Electronics": Package,
+    "Beauty & Personal Care": Package,
+    "Agriculture": Package,
 };
 
-
-export default function ProductsPage() {
-  const { products, categories, loading } = useProducts();
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
-    null
-  );
-  const [searchTerm, setSearchTerm] = useState("");
-
-  const filteredProducts = useMemo(() => {
-    if (loading) {
-      return [];
-    }
-
-    let filtered = products;
-
-    // Filter by category
-    if (selectedCategoryId) {
-      const categoryIdsToFilter = getDescendantCategoryIds(selectedCategoryId, categories);
-      filtered = filtered.filter((product) =>
-        categoryIdsToFilter.includes(product.categoryId)
-      );
-    }
+const SourcingRequestCard = ({ request }: { request: SourcingRequest }) => {
+    const expiresAtDate = typeof request.expiresAt === 'string' ? new Date(request.expiresAt) : request.expiresAt.toDate();
     
-    // Filter by search term
-    if (searchTerm) {
-      filtered = filtered.filter(product => 
-        product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.description.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
+    return (
+        <Card className="flex flex-col h-full">
+            <CardHeader>
+                <CardTitle className="text-base line-clamp-2 leading-snug">
+                     <Link href={`/sourcing/${request.id}`} className="hover:underline">
+                        {request.title}
+                     </Link>
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="flex-grow text-sm">
+                <p>Quantity: <span className="font-semibold">{request.quantity.toLocaleString()} {request.quantityUnit}</span></p>
+                <p>Country: <span className="font-semibold">{request.buyerCountry}</span></p>
+            </CardContent>
+            <CardContent className="text-xs text-muted-foreground">
+                Expires in {formatDistanceToNow(expiresAtDate)}
+            </CardContent>
+        </Card>
+    )
+}
 
-    return filtered;
-  }, [selectedCategoryId, searchTerm, products, categories, loading]);
-  
-  const handleSelectCategory = (categoryId: string | null) => {
-    setSelectedCategoryId(categoryId);
-  };
+export default function HomePage() {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [requests, setRequests] = useState<SourcingRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+        try {
+            setLoading(true);
+            const [cats, prods, reqs] = await Promise.all([
+                getActiveCategoriesClient(),
+                getProductsClient(),
+                getSourcingRequestsClient(),
+            ]);
+            setCategories(cats.filter(c => !c.parentId).slice(0, 6)); // Top-level categories only
+            setProducts(prods.slice(0, 3)); // Get first 3 featured products
+            setRequests(reqs.slice(0, 3)); // Get first 3 featured requests
+        } catch (error) {
+            console.error("Failed to fetch homepage data:", error);
+        } finally {
+            setLoading(false);
+        }
+    }
+    fetchData();
+  }, []);
 
   return (
-    <div className="grid grid-cols-1 gap-8 md:grid-cols-[280px_1fr]">
-      <aside>
-        <CategorySidebar
-          categories={categories}
-          loading={loading}
-          selectedCategoryId={selectedCategoryId}
-          onSelectCategory={handleSelectCategory}
+    <div className="space-y-12 md:space-y-20">
+      {/* Hero Section */}
+      <section className="relative -mx-4 sm:-mx-6 mt-[-1rem] sm:mt-[-1.5rem] flex h-[60vh] max-h-[600px] min-h-[400px] items-center justify-center text-center">
+        <div className="absolute inset-0 bg-black/50 z-10" />
+        <Image
+          src={homePageImages.hero.src}
+          alt={homePageImages.hero.alt}
+          fill
+          className="object-cover"
+          priority
+          data-ai-hint={homePageImages.hero.hint}
         />
-      </aside>
-      <main className="space-y-6">
-        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold tracking-tight">Products</h1>
-            {!loading && (
-              <p className="text-muted-foreground">
-                Showing {filteredProducts.length} of {products.length} products
-              </p>
-            )}
-          </div>
-          <CurrencySwitcher />
-        </div>
-        
-        <div className="relative">
+        <div className="relative z-20 mx-auto max-w-2xl text-primary-foreground px-4">
+          <h1 className="text-4xl font-bold tracking-tight md:text-6xl">
+            The Global B2B Marketplace
+          </h1>
+          <p className="mt-4 text-lg text-primary-foreground/80">
+            Connect with verified suppliers, find quality products, or post your sourcing needs to get competitive quotes.
+          </p>
+          <div className="relative mx-auto mt-8 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input
-              placeholder="Search products by title or description..."
-              className="w-full pl-10"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              disabled={loading}
-            />
+            <Input placeholder="Search for products..." className="w-full rounded-full bg-background/90 py-6 pl-10 text-foreground" />
+          </div>
         </div>
-        
-        {loading ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
-             {Array.from({ length: 6 }).map((_, i) => (
+      </section>
+
+      {/* Categories Section */}
+      <section className="mx-auto max-w-6xl px-4 sm:px-6">
+        <h2 className="text-3xl font-bold text-center">Explore Our Categories</h2>
+        <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+          {loading ? Array.from({length: 6}).map((_, i) => <Skeleton key={i} className="h-32 w-full"/>) :
+           categories.map(cat => {
+               const Icon = iconMap[cat.name] || Package;
+               return (
+                <Link href="/products" key={cat.id}>
+                    <Card className="group flex h-32 flex-col items-center justify-center p-4 text-center transition-all hover:bg-primary hover:text-primary-foreground">
+                        <Icon className="h-8 w-8 text-primary transition-all group-hover:text-primary-foreground" />
+                        <p className="mt-2 text-sm font-semibold">{cat.name}</p>
+                    </Card>
+                </Link>
+               )
+           })}
+        </div>
+      </section>
+
+      {/* Why Choose Us Section */}
+      <section className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-3 text-center">
+              <div className="flex flex-col items-center">
+                  <ShieldCheck className="h-12 w-12 text-primary"/>
+                  <h3 className="mt-4 text-xl font-semibold">Verified Suppliers</h3>
+                  <p className="mt-2 text-muted-foreground">Connect with trusted and vetted suppliers from around the world to ensure quality and reliability.</p>
+              </div>
+               <div className="flex flex-col items-center">
+                  <Handshake className="h-12 w-12 text-primary"/>
+                  <h3 className="mt-4 text-xl font-semibold">Direct Sourcing</h3>
+                  <p className="mt-2 text-muted-foreground">Post your specific needs and receive competitive quotes directly from interested sellers.</p>
+              </div>
+               <div className="flex flex-col items-center">
+                  <Globe className="h-12 w-12 text-primary"/>
+                  <h3 className="mt-4 text-xl font-semibold">Global Reach</h3>
+                  <p className="mt-2 text-muted-foreground">Expand your business horizons by accessing a vast network of international buyers and sellers.</p>
+              </div>
+          </div>
+      </section>
+
+
+      {/* Featured Products Section */}
+      <section className="mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-3xl font-bold">Featured Products</h2>
+          <Button variant="link" asChild>
+            <Link href="/products">View All <ArrowRight className="ml-2 h-4 w-4" /></Link>
+          </Button>
+        </div>
+        <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {loading ? Array.from({length: 3}).map((_, i) => (
                 <Card key={i}>
-                  <CardHeader className="p-0">
-                     <Skeleton className="aspect-video w-full" />
-                  </CardHeader>
-                  <CardContent className="p-6">
-                    <Skeleton className="h-6 w-3/4" />
-                    <Skeleton className="mt-2 h-4 w-full" />
-                     <Skeleton className="mt-4 h-8 w-1/2" />
-                  </CardContent>
-                  <CardFooter className="p-6 pt-0">
-                    <Skeleton className="h-10 w-full" />
-                  </CardFooter>
+                  <CardHeader className="p-0"><Skeleton className="aspect-video w-full" /></CardHeader>
+                  <CardContent className="p-6"><Skeleton className="h-6 w-3/4" /><Skeleton className="mt-2 h-4 w-full" /></CardContent>
                 </Card>
-              ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
-            {filteredProducts.map((product: Product) => (
-              <ProductCard key={product.id} product={product} />
+            )) : products.map(product => (
+                <ProductCard key={product.id} product={product} />
             ))}
-          </div>
-        )}
-      </main>
+        </div>
+      </section>
+
+       {/* Latest Sourcing Requests Section */}
+      <section className="mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-3xl font-bold">Latest Sourcing Requests</h2>
+          <Button variant="link" asChild>
+            <Link href="/sourcing">View All <ArrowRight className="ml-2 h-4 w-4" /></Link>
+          </Button>
+        </div>
+        <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {loading ? Array.from({length: 3}).map((_, i) => (
+                <Card key={i}>
+                  <CardHeader><Skeleton className="h-6 w-full" /></CardHeader>
+                  <CardContent><Skeleton className="h-4 w-1/2" /><Skeleton className="mt-2 h-4 w-1/3" /></CardContent>
+                </Card>
+            )) : requests.map(request => (
+                <SourcingRequestCard key={request.id} request={request} />
+            ))}
+        </div>
+      </section>
     </div>
   );
 }
