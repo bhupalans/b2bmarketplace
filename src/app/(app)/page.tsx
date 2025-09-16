@@ -113,7 +113,7 @@ export default function HomePage() {
            categories.map(cat => {
                const Icon = iconMap[cat.name] || Package;
                return (
-                <Link href="/products" key={cat.id}>
+                <Link href={`/products?category=${cat.id}`} key={cat.id}>
                     <Card className="group flex h-32 flex-col items-center justify-center p-4 text-center transition-all hover:bg-primary hover:text-primary-foreground">
                         <Icon className="h-8 w-8 text-primary transition-all group-hover:text-primary-foreground" />
                         <p className="mt-2 text-sm font-semibold">{cat.name}</p>

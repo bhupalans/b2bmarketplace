@@ -41,14 +41,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (loading) return; // Wait until authentication status is resolved
 
-    const authRoutes = ['/login', '/signup'];
+    const authRoutes = ['/login', '/signup', '/seed-database'];
     if (firebaseUser && authRoutes.includes(pathname)) {
         router.push('/');
         return;
     }
     
     // Define routes and their required roles
-    const routes = {
+    const routes: { [key: string]: 'seller' | 'buyer' | 'admin' | 'any' } = {
         '/dashboard': 'seller',
         '/my-products': 'seller',
         '/sourcing/create': 'buyer',
@@ -61,7 +61,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     
     for (const route in routes) {
         if (pathname.startsWith(route)) {
-            requiredRole = routes[route as keyof typeof routes];
+            requiredRole = routes[route];
             break;
         }
     }
@@ -82,7 +82,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
              }
         }
     }
-
   }, [firebaseUser, user, loading, router, pathname]);
   
   if (loading) {
@@ -320,5 +319,3 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   );
 }
-
-    
