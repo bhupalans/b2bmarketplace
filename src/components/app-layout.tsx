@@ -39,31 +39,50 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const protectedRoutes = ['/dashboard', '/my-products', '/admin', '/messages', '/profile', '/sourcing/create'];
-    const sellerOnlyRoutes = ['/dashboard', '/my-products'];
-    const buyerOnlyRoutes = ['/sourcing/create'];
-    const adminOnlyRoutes = ['/admin'];
+    if (loading) return; // Wait until authentication status is resolved
 
-    const isProtectedRoute = protectedRoutes.some(path => pathname.startsWith(path));
-    const isSellerOnlyRoute = sellerOnlyRoutes.some(path => pathname.startsWith(path));
-    const isBuyerOnlyRoute = buyerOnlyRoutes.some(path => pathname.startsWith(path));
-    const isAdminOnlyRoute = adminOnlyRoutes.some(path => pathname.startsWith(path));
-
-    if (!loading) {
-      if (!firebaseUser && isProtectedRoute) {
-        router.push("/login");
-      } else if (firebaseUser) {
-        if (isSellerOnlyRoute && user?.role !== 'seller') {
-          router.push("/");
-        }
-         if (isBuyerOnlyRoute && user?.role !== 'buyer') {
-          router.push("/");
-        }
-        if (isAdminOnlyRoute && user?.role !== 'admin') {
-          router.push("/");
-        }
-      }
+    const authRoutes = ['/login', '/signup'];
+    if (firebaseUser && authRoutes.includes(pathname)) {
+        router.push('/');
+        return;
     }
+    
+    // Define routes and their required roles
+    const routes = {
+        '/dashboard': 'seller',
+        '/my-products': 'seller',
+        '/sourcing/create': 'buyer',
+        '/admin': 'admin',
+        '/messages': 'any', // any authenticated user
+        '/profile': 'any'
+    };
+
+    let requiredRole: 'seller' | 'buyer' | 'admin' | 'any' | null = null;
+    
+    for (const route in routes) {
+        if (pathname.startsWith(route)) {
+            requiredRole = routes[route as keyof typeof routes];
+            break;
+        }
+    }
+
+    // If a route requires authentication (has a role assigned)
+    if (requiredRole) {
+        if (!firebaseUser) {
+            // If user is not logged in, redirect to login
+            router.push('/login');
+            return;
+        }
+        
+        // If the user is logged in, check their role
+        if (user) {
+             if (requiredRole !== 'any' && user.role !== requiredRole) {
+                 // If user role doesn't match, redirect to homepage
+                 router.push('/');
+             }
+        }
+    }
+
   }, [firebaseUser, user, loading, router, pathname]);
   
   if (loading) {
@@ -75,31 +94,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }
   
   const isMessagesPage = pathname.startsWith('/messages') || pathname.startsWith('/admin/conversations');
+  // We don't need this check anymore as the main effect handles it, but it prevents a flash of content
   if (isMessagesPage && !firebaseUser) {
       return (
         <div className="flex h-screen items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin" />
         </div>
       )
-  }
-
-
-  const isProtectedRoute = ['/dashboard', '/my-products', '/admin', '/profile', '/sourcing/create'].some(path => pathname.startsWith(path));
-  if (isProtectedRoute && !firebaseUser) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-  
-  if ((pathname.startsWith('/dashboard') && user?.role !== 'seller') || (pathname.startsWith('/admin') && user?.role !== 'admin') || (pathname.startsWith('/sourcing/create') && user?.role !== 'buyer')) {
-      return (
-        <div className="flex h-screen items-center justify-center">
-            <p>Access Denied. Redirecting...</p>
-            <Loader2 className="ml-2 h-8 w-8 animate-spin" />
-        </div>
-    );
   }
 
 
@@ -144,6 +145,19 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </SidebarMenuButton>
             </SidebarMenuItem>
             
+             <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname.startsWith("/categories")}
+                tooltip="Categories"
+              >
+                <Link href="/categories">
+                  <FolderTree />
+                  <span className="sr-only">Categories</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
@@ -306,3 +320,5 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   );
 }
+
+    
