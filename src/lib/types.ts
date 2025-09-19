@@ -232,3 +232,12 @@ export type Question = {
   createdAt: Timestamp | string;
   answer?: Answer;
 };
+
+export type AppNotification = {
+  id: string;
+  userId: string; // The user who should receive the notification
+  message: string;
+  link: string; // URL to navigate to when clicked
+  read: boolean;
+  createdAt: string;
+};

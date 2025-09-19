@@ -3,9 +3,9 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc as getDocClient, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError, setDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate, VerificationTemplate, VerificationField, SourcingRequest, Question, Answer } from './types';
+import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate, VerificationTemplate, VerificationField, SourcingRequest, Question, Answer, AppNotification } from './types';
 import { v4 as uuidv4 } from 'uuid';
-import { filterContactDetails } from '@/ai/flows/filter-contact-details';
+import { moderateMessageContent } from '@/ai/flows/moderate-message-content';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDL_o5j6RtqjCwFN5iTtvUj6nFfyDJaaxc",
@@ -796,10 +796,10 @@ export async function sendMessage(conversationId: string, senderId: string, text
     let modifiedMessage = text;
     if (!options?.isQuoteRequest && !options?.offerStatusUpdate) {
         try {
-            const result = await filterContactDetails({ message: text });
+            const result = await moderateMessageContent({ message: text });
             modifiedMessage = result.modifiedMessage;
         } catch (error) {
-            console.error("AI contact filtering failed. Sending original message.", error);
+            console.error("AI content moderation failed. Sending original message.", error);
         }
     }
 
@@ -958,10 +958,10 @@ export async function sendQuoteRequest(data: {
     let safeRequirements = data.requirements;
     if (data.requirements.trim()) {
         try {
-            const result = await filterContactDetails({ message: data.requirements });
+            const result = await moderateMessageContent({ message: data.requirements });
             safeRequirements = result.modifiedMessage;
         } catch (error) {
-            console.error("AI contact filtering failed for quote request. Sending original message.", error);
+            console.error("AI content moderation failed for quote request. Sending original message.", error);
         }
     }
 
@@ -989,10 +989,10 @@ export async function sendQuoteForSourcingRequest(data: {
     let safeMessage = data.message;
     if (data.message.trim()) {
         try {
-            const result = await filterContactDetails({ message: data.message });
+            const result = await moderateMessageContent({ message: data.message });
             safeMessage = result.modifiedMessage;
         } catch (error) {
-            console.error("AI contact filtering failed for quote response. Sending original message.", error);
+            console.error("AI content moderation failed for quote response. Sending original message.", error);
         }
     }
 
@@ -1147,7 +1147,7 @@ export async function addQuestionToProduct(
   buyerName: string,
   questionText: string
 ): Promise<Question> {
-    const filtered = await filterContactDetails({ message: questionText });
+    const filtered = await moderateMessageContent({ message: questionText });
 
     const newQuestionData = {
         productId,
@@ -1172,9 +1172,15 @@ export async function addAnswerToQuestion(data: {
     sellerName: string;
     answerText: string;
 }): Promise<Question> {
-    const filtered = await filterContactDetails({ message: data.answerText });
+    const filtered = await moderateMessageContent({ message: data.answerText });
     
     const questionRef = doc(db, 'products', data.productId, 'questions', data.questionId);
+    const questionSnap = await getDocClient(questionRef);
+    if (!questionSnap.exists()) {
+        throw new Error("Question not found.");
+    }
+    const question = questionSnap.data() as Question;
+
 
     const answerData: Answer = {
         text: filtered.modifiedMessage,
@@ -1183,12 +1189,49 @@ export async function addAnswerToQuestion(data: {
         answeredAt: serverTimestamp() as Timestamp,
     };
 
-    await updateDoc(questionRef, {
-        answer: answerData
-    });
+    // --- Notification Creation ---
+    const notificationData: Omit<AppNotification, 'id'> = {
+        userId: question.buyerId,
+        message: `Your question on product "${questionSnap.ref.parent.parent?.id}" has been answered.`,
+        link: `/products/${data.productId}`,
+        read: false,
+        createdAt: serverTimestamp() as Timestamp,
+    };
+    const notificationRef = doc(collection(db, 'notifications'));
+    // --- End Notification Creation ---
+
+    const batch = writeBatch(db);
+    batch.update(questionRef, { answer: answerData });
+    batch.set(notificationRef, notificationData);
+
+    await batch.commit();
 
     const updatedQuestionSnap = await getDocClient(questionRef);
     return { id: updatedQuestionSnap.id, ...convertTimestamps(updatedQuestionSnap.data()) } as Question;
+}
+
+// --- Notification Functions ---
+
+export function getNotificationsClient(userId: string, callback: (notifications: AppNotification[]) => void): () => void {
+    const notificationsRef = collection(db, 'notifications');
+    const q = query(notificationsRef, where('userId', '==', userId), orderBy('createdAt', 'desc'), limit(30));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const notifications = snapshot.docs.map(docSnap => ({
+            id: docSnap.id,
+            ...convertTimestamps(docSnap.data()),
+        } as AppNotification));
+        callback(notifications);
+    }, (error) => {
+        console.error("Error fetching notifications:", error);
+    });
+
+    return unsubscribe;
+}
+
+export async function markNotificationAsReadClient(notificationId: string): Promise<void> {
+    const notificationRef = doc(db, 'notifications', notificationId);
+    await updateDoc(notificationRef, { read: true });
 }
 
 

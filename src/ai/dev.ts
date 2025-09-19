@@ -1,4 +1,4 @@
 import { config } from 'dotenv';
 config();
 
-import '@/ai/flows/filter-contact-details.ts';
+import '@/ai/flows/moderate-message-content.ts';
