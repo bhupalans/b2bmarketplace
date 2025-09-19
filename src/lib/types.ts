@@ -215,3 +215,20 @@ export type OfferSuggestion = {
   quantity?: number;
   pricePerUnit?: number;
 }
+
+export type Answer = {
+  text: string;
+  sellerId: string;
+  sellerName: string;
+  answeredAt: Timestamp | string;
+};
+
+export type Question = {
+  id: string;
+  productId: string;
+  buyerId: string;
+  buyerName: string; // denormalized
+  text: string;
+  createdAt: Timestamp | string;
+  answer?: Answer;
+};

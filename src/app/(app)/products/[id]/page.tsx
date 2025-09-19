@@ -1,11 +1,12 @@
 
+
 "use client";
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
-import { getProductAndSellerClient } from "@/lib/firebase";
+import { getProductAndSellerClient, getQuestionsForProductClient } from "@/lib/firebase";
 import {
   Card,
   CardContent,
@@ -36,7 +37,7 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import { Product, User, Category } from "@/lib/types";
+import { Product, User, Category, Question } from "@/lib/types";
 import { getCategoryPathClient } from "@/lib/firebase";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrency } from "@/contexts/currency-context";
@@ -44,6 +45,9 @@ import { CheckCircle, Loader2, Globe, Package, Clock, Tag } from "lucide-react";
 import { RequestQuoteDialog } from "@/components/request-quote-dialog";
 import { Separator } from "@/components/ui/separator";
 import { ProductCard } from "@/components/product-card";
+import { QuestionForm } from "@/components/question-form";
+import { QuestionItem } from "@/components/question-item";
+import { useAuth } from "@/contexts/auth-context";
 
 type ProductData = {
   product: Product;
@@ -55,9 +59,11 @@ type ProductData = {
 export default function ProductDetailPage() {
   const params = useParams();
   const { id } = params;
+  const { user: currentUser } = useAuth();
   const { currency, rates } = useCurrency();
 
   const [productData, setProductData] = useState<ProductData | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [categoryPath, setCategoryPath] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -68,12 +74,17 @@ export default function ProductDetailPage() {
       
       try {
         setLoading(true);
-        const data = await getProductAndSellerClient(id as string);
+        const [data, fetchedQuestions] = await Promise.all([
+          getProductAndSellerClient(id as string),
+          getQuestionsForProductClient(id as string)
+        ]);
+
         if (!data) {
           setError("Product not found.");
           return;
         }
         setProductData(data);
+        setQuestions(fetchedQuestions);
         
         if (data.product.categoryId) {
             const path = await getCategoryPathClient(data.product.categoryId);
@@ -89,6 +100,10 @@ export default function ProductDetailPage() {
 
     fetchData();
   }, [id]);
+
+  const onQuestionSubmitted = (newQuestion: Question) => {
+    setQuestions(prev => [newQuestion, ...prev]);
+  };
 
   const getConvertedPrice = (priceUSD: number) => {
     if (currency === "USD" || !rates[currency]) {
@@ -301,6 +316,27 @@ export default function ProductDetailPage() {
           )}
         </div>
       </div>
+      
+       <Card>
+        <CardHeader>
+            <CardTitle>Questions & Answers</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+            <QuestionForm
+                productId={product.id}
+                onQuestionSubmitted={onQuestionSubmitted}
+            />
+            <Separator />
+            <div className="space-y-4">
+                {questions.length > 0 ? (
+                    questions.map(q => <QuestionItem key={q.id} question={q} />)
+                ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">No questions have been asked yet. Be the first!</p>
+                )}
+            </div>
+        </CardContent>
+      </Card>
+      
       {sellerProducts.length > 0 && (
           <Card>
             <CardHeader>

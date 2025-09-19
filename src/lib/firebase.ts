@@ -4,7 +4,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc as getDocClient, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError, setDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate, VerificationTemplate, VerificationField, SourcingRequest } from './types';
+import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate, VerificationTemplate, VerificationField, SourcingRequest, Question } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { filterContactDetails } from '@/ai/flows/filter-contact-details';
 
@@ -1123,6 +1123,37 @@ export async function getSourcingRequestClient(id: string): Promise<SourcingRequ
     return { id: docSnap.id, ...convertTimestamps(docSnap.data()) } as SourcingRequest;
 }
 
+// --- Q&A Functions ---
+
+export async function getQuestionsForProductClient(productId: string): Promise<Question[]> {
+  const questionsRef = collection(db, 'products', productId, 'questions');
+  const q = query(questionsRef, orderBy('createdAt', 'desc'));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...convertTimestamps(docSnap.data()) } as Question));
+}
+
+export async function addQuestionToProduct(
+  productId: string,
+  buyerId: string,
+  buyerName: string,
+  questionText: string
+): Promise<Question> {
+    const filtered = await filterContactDetails({ message: questionText });
+
+    const newQuestionData = {
+        productId,
+        buyerId,
+        buyerName,
+        text: filtered.modifiedMessage,
+        createdAt: serverTimestamp() as Timestamp,
+    };
+    
+    const productQuestionsRef = collection(db, 'products', productId, 'questions');
+    const docRef = await addDoc(productQuestionsRef, newQuestionData);
+    const newDocSnap = await getDocClient(docRef);
+    
+    return { id: docRef.id, ...convertTimestamps(newDocSnap.data()) } as Question;
+}
 
 
 export { app, auth, db, storage };
