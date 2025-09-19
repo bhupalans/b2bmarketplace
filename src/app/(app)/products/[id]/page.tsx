@@ -61,7 +61,7 @@ export default function ProductDetailPage() {
   const { user: currentUser } = useAuth();
   const { currency, rates } = useCurrency();
 
-  const [productData, setProductData = useState<ProductData | null>(null);
+  const [productData, setProductData] = useState<ProductData | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [categoryPath, setCategoryPath] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
