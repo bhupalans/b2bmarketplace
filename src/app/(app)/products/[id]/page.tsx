@@ -42,12 +42,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrency } from "@/contexts/currency-context";
 import { CheckCircle, Loader2, Globe, Package, Clock, Tag } from "lucide-react";
 import { RequestQuoteDialog } from "@/components/request-quote-dialog";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { ProductCard } from "@/components/product-card";
 
 type ProductData = {
   product: Product;
   seller: User | null;
+  similarProducts: Product[];
+  sellerProducts: Product[];
 }
 
 export default function ProductDetailPage() {
@@ -66,7 +68,7 @@ export default function ProductDetailPage() {
       
       try {
         setLoading(true);
-        const data = await getProductAndSellerClient(id);
+        const data = await getProductAndSellerClient(id as string);
         if (!data) {
           setError("Product not found.");
           return;
@@ -121,7 +123,7 @@ export default function ProductDetailPage() {
     notFound();
   }
 
-  const { product, seller } = productData;
+  const { product, seller, similarProducts, sellerProducts } = productData;
 
   const formattedPrice = new Intl.NumberFormat(undefined, {
     style: "currency",
@@ -299,6 +301,35 @@ export default function ProductDetailPage() {
           )}
         </div>
       </div>
+      {sellerProducts.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>More Products From This Seller</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {sellerProducts.map((p) => (
+                  <ProductCard key={p.id} product={p} />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {similarProducts.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Similar Products in This Category</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {similarProducts.map((p) => (
+                  <ProductCard key={p.id} product={p} />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
     </div>
   );
 }

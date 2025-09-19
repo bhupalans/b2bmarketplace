@@ -60,7 +60,7 @@ export async function getProductClient(productId: string): Promise<Product | nul
     return { id: productSnap.id, ...productData } as Product;
 }
 
-export async function getProductAndSellerClient(productId: string): Promise<{ product: Product; seller: User | null } | null> {
+export async function getProductAndSellerClient(productId: string): Promise<{ product: Product; seller: User | null; similarProducts: Product[]; sellerProducts: Product[] } | null> {
   const product = await getProductClient(productId);
   if (!product || product.status !== 'approved') {
     return null;
@@ -80,7 +80,36 @@ export async function getProductAndSellerClient(productId: string): Promise<{ pr
     }
   }
 
-  return { product, seller };
+  // Fetch similar products (same category, different product)
+  const similarProductsQuery = query(
+    collection(db, "products"),
+    where("categoryId", "==", product.categoryId),
+    where("status", "==", "approved"),
+    limit(4) // Fetch a bit more to account for the current product
+  );
+  const similarSnapshot = await getDocs(similarProductsQuery);
+  const similarProducts = similarSnapshot.docs
+    .map(docSnap => ({ id: docSnap.id, ...convertTimestamps(docSnap.data()) } as Product))
+    .filter(p => p.id !== productId) // Exclude the current product
+    .slice(0, 3); // Take the first 3
+
+  // Fetch other products from the same seller
+  let sellerProducts: Product[] = [];
+  if (product.sellerId) {
+    const sellerProductsQuery = query(
+      collection(db, "products"),
+      where("sellerId", "==", product.sellerId),
+      where("status", "==", "approved"),
+      limit(4)
+    );
+    const sellerSnapshot = await getDocs(sellerProductsQuery);
+    sellerProducts = sellerSnapshot.docs
+      .map(docSnap => ({ id: docSnap.id, ...convertTimestamps(docSnap.data()) } as Product))
+      .filter(p => p.id !== productId)
+      .slice(0, 3);
+  }
+
+  return { product, seller, similarProducts, sellerProducts };
 }
 
 export async function getSellerAndProductsClient(sellerId: string): Promise<{ seller: User; products: Product[] } | null> {
