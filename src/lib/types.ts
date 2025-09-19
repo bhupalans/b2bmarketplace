@@ -1,5 +1,4 @@
 
-
 import type { FieldValue, Timestamp } from "firebase/firestore";
 
 export type User = {
@@ -139,6 +138,7 @@ export type Product = {
   moqUnit: string; // Unit for MOQ, e.g., "pieces", "kg"
   sku?: string; // Stock Keeping Unit / Model Number
   leadTime?: string; // e.g., "5-7 business days"
+  unansweredQuestions?: number;
 };
 
 export type SourcingRequest = {

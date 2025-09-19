@@ -1,14 +1,26 @@
-
 "use client";
 
 import React from 'react';
 import { Question } from '@/lib/types';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
+import { useAuth } from '@/contexts/auth-context';
+import { AnswerForm } from './answer-form';
 
-export function QuestionItem({ question }: { question: Question }) {
+export function QuestionItem({ 
+    question,
+    onAnswerSubmitted,
+    currentSellerId 
+}: { 
+    question: Question,
+    onAnswerSubmitted: (question: Question) => void,
+    currentSellerId?: string | null
+}) {
+  const { user } = useAuth();
   const askedAt = typeof question.createdAt === 'string' ? new Date(question.createdAt) : question.createdAt.toDate();
   const answeredAt = question.answer?.answeredAt ? (typeof question.answer.answeredAt === 'string' ? new Date(question.answer.answeredAt) : question.answer.answeredAt.toDate()) : null;
+
+  const isCurrentUserTheSeller = user?.id === currentSellerId;
 
   return (
     <div className="flex flex-col space-y-4 border-b pb-4 last:border-b-0 last:pb-0">
@@ -36,6 +48,12 @@ export function QuestionItem({ question }: { question: Question }) {
             </p>
             </div>
         </div>
+      ) : isCurrentUserTheSeller ? (
+        <AnswerForm 
+            productId={question.productId} 
+            question={question} 
+            onAnswerSubmitted={onAnswerSubmitted}
+        />
       ) : (
         <div className="pl-11 text-sm text-muted-foreground italic">
             Awaiting answer from seller...

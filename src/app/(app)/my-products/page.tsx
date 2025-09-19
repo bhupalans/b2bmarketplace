@@ -24,7 +24,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, PlusCircle, Trash2, Edit, Loader2 } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Trash2, Edit, Loader2, MessageSquare } from "lucide-react";
 import { Category, Product, SpecTemplate } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
 import { getSellerProductsClient, getActiveCategoriesClient, deleteProductClient, getSpecTemplatesClient } from '@/lib/firebase';
@@ -42,6 +42,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from '@/components/ui/badge';
+import Link from 'next/link';
 
 export default function MyProductsPage() {
   const { user } = useAuth();
@@ -221,7 +222,19 @@ export default function MyProductsPage() {
                           />
                         </div>
                       </TableCell>
-                      <TableCell className="font-medium">{product.title}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                           <Link href={`/products/${product.id}`} className="hover:underline">{product.title}</Link>
+                           {!!product.unansweredQuestions && (
+                            <Link href={`/products/${product.id}`}>
+                                <Badge variant="destructive" className="flex items-center gap-1 cursor-pointer">
+                                    <MessageSquare className="h-3 w-3" />
+                                    {product.unansweredQuestions}
+                                </Badge>
+                            </Link>
+                           )}
+                        </div>
+                      </TableCell>
                       <TableCell>${product.priceUSD.toFixed(2)}</TableCell>
                       <TableCell>
                         <Badge

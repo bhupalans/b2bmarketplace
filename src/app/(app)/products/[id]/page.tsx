@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -62,7 +61,7 @@ export default function ProductDetailPage() {
   const { user: currentUser } = useAuth();
   const { currency, rates } = useCurrency();
 
-  const [productData, setProductData] = useState<ProductData | null>(null);
+  const [productData, setProductData = useState<ProductData | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [categoryPath, setCategoryPath] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -104,6 +103,10 @@ export default function ProductDetailPage() {
   const onQuestionSubmitted = (newQuestion: Question) => {
     setQuestions(prev => [newQuestion, ...prev]);
   };
+  
+  const onAnswerSubmitted = (answeredQuestion: Question) => {
+    setQuestions(prev => prev.map(q => q.id === answeredQuestion.id ? answeredQuestion : q));
+  }
 
   const getConvertedPrice = (priceUSD: number) => {
     if (currency === "USD" || !rates[currency]) {
@@ -319,7 +322,7 @@ export default function ProductDetailPage() {
       
        <Card>
         <CardHeader>
-            <CardTitle>Questions & Answers</CardTitle>
+            <CardTitle>Questions &amp; Answers</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
             <QuestionForm
@@ -329,7 +332,13 @@ export default function ProductDetailPage() {
             <Separator />
             <div className="space-y-4">
                 {questions.length > 0 ? (
-                    questions.map(q => <QuestionItem key={q.id} question={q} />)
+                    questions.map(q => 
+                        <QuestionItem 
+                            key={q.id} 
+                            question={q} 
+                            onAnswerSubmitted={onAnswerSubmitted}
+                            currentSellerId={product.sellerId}
+                        />)
                 ) : (
                     <p className="text-sm text-muted-foreground text-center py-4">No questions have been asked yet. Be the first!</p>
                 )}

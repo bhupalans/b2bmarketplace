@@ -1,10 +1,9 @@
 
-
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc as getDocClient, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError, setDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate, VerificationTemplate, VerificationField, SourcingRequest, Question } from './types';
+import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate, VerificationTemplate, VerificationField, SourcingRequest, Question, Answer } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { filterContactDetails } from '@/ai/flows/filter-contact-details';
 
@@ -233,11 +232,21 @@ export async function getSellerProductsClient(sellerId: string): Promise<Product
     const productsRef = collection(db, "products");
     const q = query(productsRef, where("sellerId", "==", sellerId));
     const querySnapshot = await getDocs(q);
-    const products = querySnapshot.docs.map(docSnap => {
-        const data = docSnap.data();
-        return { id: docSnap.id, ...convertTimestamps(data) } as Product;
+
+    const productPromises = querySnapshot.docs.map(async (docSnap) => {
+        const product = { id: docSnap.id, ...convertTimestamps(docSnap.data()) } as Product;
+        
+        // Fetch unanswered questions count for each product
+        const questionsRef = collection(db, "products", product.id, "questions");
+        const unansweredQuery = query(questionsRef, where("answer", "==", null));
+        const unansweredSnapshot = await getDocs(unansweredQuery);
+        product.unansweredQuestions = unansweredSnapshot.size;
+        
+        return product;
     });
 
+    const products = await Promise.all(productPromises);
+    
     return products.sort((a,b) => {
         const dateA = a.createdAt ? new Date(a.createdAt as string).getTime() : 0;
         const dateB = b.createdAt ? new Date(b.createdAt as string).getTime() : 0;
@@ -327,7 +336,7 @@ function areSpecificationsEqual(
 
 // This function is the new, robust implementation for creating/updating products.
 export async function createOrUpdateProductClient(
-  productFormData: Omit<Product, 'id' | 'images' | 'status' | 'sellerId' | 'createdAt' | 'updatedAt'> & {
+  productFormData: Omit<Product, 'id' | 'images' | 'status' | 'sellerId' | 'createdAt' | 'updatedAt' | 'unansweredQuestions'> & {
     existingImages?: string[]
   },
   newImageFiles: File[],
@@ -956,7 +965,7 @@ export async function sendQuoteRequest(data: {
         }
     }
 
-    const formattedMessage = `<b>New Quote Request</b><br/><b>Product:</b> ${data.productTitle}<br/><b>Quantity:</b> ${data.quantity}<br/><br/><b>Buyer's Message:</b><br/>${safeRequirements}`;
+    const formattedMessage = `&lt;b&gt;New Quote Request&lt;/b&gt;&lt;br/&gt;&lt;b&gt;Product:&lt;/b&gt; ${data.productTitle}&lt;br/&gt;&lt;b&gt;Quantity:&lt;/b&gt; ${data.quantity}&lt;br/&gt;&lt;br/&gt;&lt;b&gt;Buyer's Message:&lt;/b&gt;&lt;br/&gt;${safeRequirements}`;
     
     await sendMessage(conversationId, data.buyerId, formattedMessage, { isQuoteRequest: true });
 
@@ -987,7 +996,7 @@ export async function sendQuoteForSourcingRequest(data: {
         }
     }
 
-    const formattedMessage = `<b>Quote for Sourcing Request:</b> ${data.sourcingRequestTitle}<br/><br/><b>Seller's Message:</b><br/>${safeMessage}`;
+    const formattedMessage = `&lt;b&gt;Quote for Sourcing Request:&lt;/b&gt; ${data.sourcingRequestTitle}&lt;br/&gt;&lt;br/&gt;&lt;b&gt;Seller's Message:&lt;/b&gt;&lt;br/&gt;${safeMessage}`;
     
     await sendMessage(conversationId, data.sellerId, formattedMessage, { isQuoteRequest: true });
 
@@ -1109,7 +1118,7 @@ export async function createSourcingRequestClient(
 
 export async function getSourcingRequestsClient(): Promise<SourcingRequest[]> {
     const requestsRef = collection(db, "sourcingRequests");
-    const q = query(requestsRef, where("status", "==", "active"), where("expiresAt", ">", new Date()), orderBy("status"), orderBy("expiresAt", "asc"));
+    const q = query(requestsRef, where("status", "==", "active"), where("expiresAt", "&gt;", new Date()), orderBy("status"), orderBy("expiresAt", "asc"));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...convertTimestamps(docSnap.data()) } as SourcingRequest));
 }
@@ -1146,6 +1155,7 @@ export async function addQuestionToProduct(
         buyerName,
         text: filtered.modifiedMessage,
         createdAt: serverTimestamp() as Timestamp,
+        answer: null,
     };
     
     const productQuestionsRef = collection(db, 'products', productId, 'questions');
@@ -1154,6 +1164,33 @@ export async function addQuestionToProduct(
     
     return { id: docRef.id, ...convertTimestamps(newDocSnap.data()) } as Question;
 }
+
+export async function addAnswerToQuestion(data: {
+    productId: string;
+    questionId: string;
+    sellerId: string;
+    sellerName: string;
+    answerText: string;
+}): Promise<Question> {
+    const filtered = await filterContactDetails({ message: data.answerText });
+    
+    const questionRef = doc(db, 'products', data.productId, 'questions', data.questionId);
+
+    const answerData: Answer = {
+        text: filtered.modifiedMessage,
+        sellerId: data.sellerId,
+        sellerName: data.sellerName,
+        answeredAt: serverTimestamp() as Timestamp,
+    };
+
+    await updateDoc(questionRef, {
+        answer: answerData
+    });
+
+    const updatedQuestionSnap = await getDocClient(questionRef);
+    return { id: updatedQuestionSnap.id, ...convertTimestamps(updatedQuestionSnap.data()) } as Question;
+}
+
 
 
 export { app, auth, db, storage };
