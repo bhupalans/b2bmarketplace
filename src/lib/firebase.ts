@@ -1118,7 +1118,7 @@ export async function createSourcingRequestClient(
 
 export async function getSourcingRequestsClient(): Promise<SourcingRequest[]> {
     const requestsRef = collection(db, "sourcingRequests");
-    const q = query(requestsRef, where("status", "==", "active"), where("expiresAt", "&gt;", new Date()), orderBy("status"), orderBy("expiresAt", "asc"));
+    const q = query(requestsRef, where("status", "==", "active"), where("expiresAt", ">", new Date()), orderBy("expiresAt", "asc"));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...convertTimestamps(docSnap.data()) } as SourcingRequest));
 }
