@@ -50,7 +50,7 @@ const FileUploadArea: React.FC<{
     disabled: boolean;
 }> = ({ field, onFileChange, onScanClick, disabled }) => (
     <div className="flex flex-col md:flex-row gap-2">
-        <label htmlFor={field.name} className="flex-1 flex justify-center w-full rounded-md border-2 border-dashed border-gray-300 px-6 py-10 text-center cursor-pointer hover:border-primary transition-colors">
+        <label htmlFor={field.name} className={cn("flex-1 flex justify-center w-full rounded-md border-2 border-dashed border-gray-300 px-6 py-10 text-center transition-colors", !disabled && "cursor-pointer hover:border-primary")}>
             <div className="text-center">
                 <UploadCloud className="mx-auto h-12 w-12 text-gray-400" />
                 <p className="mt-2 text-sm text-muted-foreground">
@@ -96,8 +96,8 @@ const ExistingFileDisplay: React.FC<{
             <span className="text-sm font-medium truncate">{existingDoc.fileName}</span>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0 self-end sm:self-center">
-             <Button asChild variant="outline" size="sm">
-                <label htmlFor={field.name} className="cursor-pointer flex items-center">
+             <Button asChild variant="outline" size="sm" disabled={disabled}>
+                <label htmlFor={field.name} className={cn("flex items-center", !disabled && "cursor-pointer")}>
                     <UploadCloud className="mr-2 h-4 w-4"/>
                     Replace File
                 </label>
@@ -182,21 +182,26 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
   }, []);
   
   const canSubmit = useMemo(() => {
-      if (isSubmitting || user.verificationStatus === 'pending') return false;
-      
-      const allBusinessFieldsMet = businessDocFields.every(field => 
-          fileUploads[field.name] || user.verificationDocuments?.[field.name]
-      );
-      
-      const addressProofMet = addressProofType === 'statement'
-          ? !!(fileUploads.addressProof || user.verificationDocuments?.addressProof)
-          : !!(fileUploads.addressProof_front || user.verificationDocuments?.addressProof_front) &&
-            !!(fileUploads.addressProof_back || user.verificationDocuments?.addressProof_back);
+    if (isSubmitting) return false;
 
-      const idProofMet = !!(fileUploads.idProof || user.verificationDocuments?.idProof);
-      
-      return allBusinessFieldsMet && addressProofMet && idProofMet;
-  }, [isSubmitting, user, businessDocFields, fileUploads, addressProofType]);
+    // A submission is valid if at least one new file is being uploaded.
+    if (Object.keys(fileUploads).length > 0) return true;
+    
+    // Or if the status is not pending and all required fields have existing documents
+    if (user.verificationStatus !== 'pending') {
+        const allBusinessFieldsMet = businessDocFields.every(field => 
+            user.verificationDocuments?.[field.name]
+        );
+        const addressProofMet = addressProofType === 'statement'
+            ? !!(user.verificationDocuments?.addressProof)
+            : !!(user.verificationDocuments?.addressProof_front) &&
+              !!(user.verificationDocuments?.addressProof_back);
+        const idProofMet = !!(user.verificationDocuments?.idProof);
+        return allBusinessFieldsMet && addressProofMet && idProofMet;
+    }
+
+    return false;
+  }, [isSubmitting, user.verificationStatus, user.verificationDocuments, fileUploads, businessDocFields, addressProofType]);
 
 
   const handleSubmit = () => {
@@ -256,7 +261,7 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
                 <Loader2 className="h-4 w-4 text-yellow-600 animate-spin" />
                 <AlertTitle className="text-yellow-800 dark:text-yellow-300">Verification Pending</AlertTitle>
                 <AlertDescription className="text-yellow-700 dark:text-yellow-400">
-                    Your documents have been submitted and are awaiting review by our team. This usually takes 2-3 business days.
+                    Your documents have been submitted and are awaiting review by our team. This usually takes 2-3 business days. You can submit additional documents if needed.
                 </AlertDescription>
             </Alert>
         case 'rejected':
@@ -301,14 +306,14 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
                 existingDoc={user.verificationDocuments[field.name]!}
                 onFileChange={(e) => handleFileSelect(e, field.name)}
                 onScanClick={() => handleOpenScanDialog(field.name)}
-                disabled={isSubmitting || user.verificationStatus === 'pending'}
+                disabled={isSubmitting}
             />
         ) : (
              <FileUploadArea
                 field={field}
                 onFileChange={(e) => handleFileSelect(e, field.name)}
                 onScanClick={() => handleOpenScanDialog(field.name)}
-                disabled={isSubmitting || user.verificationStatus === 'pending'}
+                disabled={isSubmitting}
              />
         )}
     </div>
@@ -342,9 +347,9 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
               {fileUploads.addressProof ? (
                   <UploadedFileDisplay docName={addressProofStatementField.label} fileState={fileUploads.addressProof} onRemove={() => handleRemoveFile('addressProof')} />
               ) : user.verificationDocuments?.addressProof ? (
-                  <ExistingFileDisplay field={addressProofStatementField} existingDoc={user.verificationDocuments.addressProof} onFileChange={(e) => handleFileSelect(e, 'addressProof')} onScanClick={() => handleOpenScanDialog('addressProof')} disabled={isSubmitting || user.verificationStatus === 'pending'} />
+                  <ExistingFileDisplay field={addressProofStatementField} existingDoc={user.verificationDocuments.addressProof} onFileChange={(e) => handleFileSelect(e, 'addressProof')} onScanClick={() => handleOpenScanDialog('addressProof')} disabled={isSubmitting} />
               ) : (
-                  <FileUploadArea field={addressProofStatementField} onFileChange={(e) => handleFileSelect(e, 'addressProof')} onScanClick={() => handleOpenScanDialog('addressProof')} disabled={isSubmitting || user.verificationStatus === 'pending'} />
+                  <FileUploadArea field={addressProofStatementField} onFileChange={(e) => handleFileSelect(e, 'addressProof')} onScanClick={() => handleOpenScanDialog('addressProof')} disabled={isSubmitting} />
               )}
           </div>
         ) : (
@@ -354,9 +359,9 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
                 {fileUploads.addressProof_front ? (
                     <UploadedFileDisplay docName={addressProofCardFrontField.label} fileState={fileUploads.addressProof_front} onRemove={() => handleRemoveFile('addressProof_front')} />
                 ) : user.verificationDocuments?.addressProof_front ? (
-                    <ExistingFileDisplay field={addressProofCardFrontField} existingDoc={user.verificationDocuments.addressProof_front} onFileChange={(e) => handleFileSelect(e, 'addressProof_front')} onScanClick={() => handleOpenScanDialog('addressProof_front')} disabled={isSubmitting || user.verificationStatus === 'pending'} />
+                    <ExistingFileDisplay field={addressProofCardFrontField} existingDoc={user.verificationDocuments.addressProof_front} onFileChange={(e) => handleFileSelect(e, 'addressProof_front')} onScanClick={() => handleOpenScanDialog('addressProof_front')} disabled={isSubmitting} />
                 ) : (
-                    <FileUploadArea field={addressProofCardFrontField} onFileChange={(e) => handleFileSelect(e, 'addressProof_front')} onScanClick={() => handleOpenScanDialog('addressProof_front')} disabled={isSubmitting || user.verificationStatus === 'pending'} />
+                    <FileUploadArea field={addressProofCardFrontField} onFileChange={(e) => handleFileSelect(e, 'addressProof_front')} onScanClick={() => handleOpenScanDialog('addressProof_front')} disabled={isSubmitting} />
                 )}
             </div>
             <div className="space-y-2">
@@ -364,9 +369,9 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
                 {fileUploads.addressProof_back ? (
                     <UploadedFileDisplay docName={addressProofCardBackField.label} fileState={fileUploads.addressProof_back} onRemove={() => handleRemoveFile('addressProof_back')} />
                 ) : user.verificationDocuments?.addressProof_back ? (
-                    <ExistingFileDisplay field={addressProofCardBackField} existingDoc={user.verificationDocuments.addressProof_back} onFileChange={(e) => handleFileSelect(e, 'addressProof_back')} onScanClick={() => handleOpenScanDialog('addressProof_back')} disabled={isSubmitting || user.verificationStatus === 'pending'} />
+                    <ExistingFileDisplay field={addressProofCardBackField} existingDoc={user.verificationDocuments.addressProof_back} onFileChange={(e) => handleFileSelect(e, 'addressProof_back')} onScanClick={() => handleOpenScanDialog('addressProof_back')} disabled={isSubmitting} />
                 ) : (
-                    <FileUploadArea field={addressProofCardBackField} onFileChange={(e) => handleFileSelect(e, 'addressProof_back')} onScanClick={() => handleOpenScanDialog('addressProof_back')} disabled={isSubmitting || user.verificationStatus === 'pending'} />
+                    <FileUploadArea field={addressProofCardBackField} onFileChange={(e) => handleFileSelect(e, 'addressProof_back')} onScanClick={() => handleOpenScanDialog('addressProof_back')} disabled={isSubmitting} />
                 )}
             </div>
           </div>
@@ -393,14 +398,14 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
                     existingDoc={user.verificationDocuments.idProof}
                     onFileChange={(e) => handleFileSelect(e, 'idProof')}
                     onScanClick={() => handleOpenScanDialog('idProof')}
-                    disabled={isSubmitting || user.verificationStatus === 'pending'}
+                    disabled={isSubmitting}
                 />
             ) : (
                  <FileUploadArea
                     field={idProofField}
                     onFileChange={(e) => handleFileSelect(e, 'idProof')}
                     onScanClick={() => handleOpenScanDialog('idProof')}
-                    disabled={isSubmitting || user.verificationStatus === 'pending'}
+                    disabled={isSubmitting}
                 />
             )}
       </div>
