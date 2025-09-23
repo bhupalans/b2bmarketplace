@@ -8,6 +8,21 @@ import { v4 as uuidv4 } from 'uuid';
 
 type ProfileUpdateData = Omit<User, 'id' | 'uid' | 'email' | 'role' | 'avatar' | 'memberSince' | 'username'>;
 
+// Helper function to deep compare verification details
+const areDetailsEqual = (d1?: { [key: string]: string }, d2?: { [key: string]: string }): boolean => {
+    const details1 = d1 || {};
+    const details2 = d2 || {};
+    const keys1 = Object.keys(details1);
+    const keys2 = Object.keys(details2);
+
+    if (keys1.length !== keys2.length) return false;
+
+    for (const key of keys1) {
+        if (details1[key] !== details2[key]) return false;
+    }
+    return true;
+};
+
 export async function updateUserProfile(userId: string, data: ProfileUpdateData): Promise<{ success: true; user: User } | { success: false; error: string }> {
   if (!userId) {
     return { success: false, error: 'User not authenticated.' };
@@ -23,37 +38,8 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
 
     const user = userSnap.data() as User;
     const countryCode = data.address?.country;
-
-    // This logic is for sellers and buyers, now based on the primary `address` field
-    if (countryCode && data.verificationDetails) {
-        const templatesSnap = await adminDb.collection('verificationTemplates').doc(countryCode).get();
-        if (templatesSnap.exists) {
-            const template = templatesSnap.data() as VerificationTemplate;
-            const details = data.verificationDetails;
-
-            for (const field of template.fields) {
-                const value = details[field.name];
-                if (value) {
-                    const scopedKey = `${field.name}-${countryCode}`;
-                    const query = adminDb.collection('users')
-                        .where(`scopedVerificationIds.${scopedKey}`, '==', value)
-                        .limit(2);
-                    
-                    const snapshot = await query.get();
-                    
-                    const isDuplicate = snapshot.docs.some(doc => doc.id !== userId);
-
-                    if (isDuplicate) {
-                        return { 
-                            success: false, 
-                            error: `This ${field.label} is already registered to another user in this country.` 
-                        };
-                    }
-                }
-            }
-        }
-    }
-
+    
+    // --- Verification Logic ---
     const updateData: { [key: string]: any } = {
         updatedAt: new Date().toISOString(),
         scopedVerificationIds: {} // Reset and rebuild
@@ -64,17 +50,46 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
         const templatesSnap = await adminDb.collection('verificationTemplates').doc(countryCode).get();
         if (templatesSnap.exists) {
             const template = templatesSnap.data() as VerificationTemplate;
-            template.fields.forEach(field => {
-                const value = data.verificationDetails?.[field.name];
+            for (const field of template.fields) {
+                const value = data.verificationDetails[field.name];
                 if (value) {
                     const scopedKey = `${field.name}-${countryCode}`;
+                    // Check for duplicates before adding
+                    const query = adminDb.collection('users')
+                        .where(`scopedVerificationIds.${scopedKey}`, '==', value)
+                        .limit(2);
+                    
+                    const snapshot = await query.get();
+                    const isDuplicate = snapshot.docs.some(doc => doc.id !== userId);
+
+                    if (isDuplicate) {
+                        return { 
+                            success: false, 
+                            error: `This ${field.label} is already registered to another user in this country.` 
+                        };
+                    }
                     updateData.scopedVerificationIds[scopedKey] = value;
                 }
-            });
+            }
         }
     }
+    
+    // --- Start: Re-verification Logic ---
+    const previousCountry = user.address?.country;
+    const newCountry = data.address?.country;
+    const verificationDetailsChanged = !areDetailsEqual(user.verificationDetails, data.verificationDetails);
+
+    // If primary address country changes OR if critical verification details change, reset status to pending.
+    if (user.verificationStatus === 'verified' && ( (newCountry && newCountry !== previousCountry) || verificationDetailsChanged) ) {
+      updateData.verificationStatus = 'pending';
+    } else if (newCountry && newCountry !== previousCountry) { // Also handle if user was not verified yet and changed country
+      updateData.verificationStatus = 'unverified';
+      updateData.verificationDocuments = {};
+    }
+    // --- End: Re-verification Logic ---
 
 
+    // --- Property Mapping ---
     const directProperties: (keyof ProfileUpdateData)[] = [
       'name', 'companyName', 'phoneNumber', 'companyDescription',
       'taxId', 'businessType', 'exportScope', 'verificationDetails',
@@ -87,25 +102,11 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
       }
     });
     
-    if (data.address) {
-      updateData.address = data.address;
-    }
-     if (data.shippingAddress) {
-      updateData.shippingAddress = data.shippingAddress;
-    }
-     if (data.billingAddress) {
-      updateData.billingAddress = data.billingAddress;
-    }
+    if (data.address) updateData.address = data.address;
+    if (data.shippingAddress) updateData.shippingAddress = data.shippingAddress;
+    if (data.billingAddress) updateData.billingAddress = data.billingAddress;
     
-    const previousCountry = user.address?.country;
-    const newCountry = data.address?.country;
-
-    // If primary address country changes, verification needs to be redone.
-    if (newCountry && newCountry !== previousCountry) {
-      updateData.verificationStatus = 'unverified';
-      updateData.verificationDocuments = {};
-    }
-
+    
     await userRef.update(updateData);
     const updatedUserSnap = await userRef.get();
     const updatedUser = { id: updatedUserSnap.id, ...updatedUserSnap.data() } as User;
@@ -141,7 +142,6 @@ export async function submitVerificationDocuments(formData: FormData, token: str
     const uploadedDocs: { [key: string]: { url: string, fileName: string } } = {};
     const addressProofType = formData.get('addressProofType');
     
-    // Clear old address proof fields when a new type is chosen
     const docUpdates: { [key: string]: any } = {};
     if (user.verificationDocuments) {
         docUpdates['verificationDocuments'] = { ...user.verificationDocuments };
@@ -189,7 +189,6 @@ export async function submitVerificationDocuments(formData: FormData, token: str
       await userRef.update(docUpdates);
 
     } else {
-        // This case handles re-submission without changing any files.
         await userRef.update({
             verificationStatus: 'pending'
         });

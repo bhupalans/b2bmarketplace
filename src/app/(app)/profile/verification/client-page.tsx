@@ -113,13 +113,12 @@ const ExistingFileDisplay: React.FC<{
 
 
 export function VerificationClientPage({ user: initialUser, verificationTemplates }: VerificationClientPageProps) {
-  const [user, setUser] = useState(initialUser);
+  const { user, updateUserContext, firebaseUser } = useAuth();
   const [fileUploads, setFileUploads] = useState<FileUploadState>({});
   const [isSubmitting, startSubmitTransition] = useTransition();
   const { toast } = useToast();
   const [scanDialogOpen, setScanDialogOpen] = useState(false);
   const [activeScanField, setActiveScanField] = useState<string | null>(null);
-  const { firebaseUser } = useAuth();
   const isMobile = useIsMobile();
   const [step, setStep] = useState(1);
   const [addressProofType, setAddressProofType] = useState<AddressProofType>('statement');
@@ -137,7 +136,6 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
       if (field.required === 'never') return false;
       if (field.required === 'always') return true;
       if (field.required === 'international') {
-        // For sellers, check their export scope. For buyers, assume international applies.
         return user.role === 'buyer' || (user.role === 'seller' && user.exportScope?.includes('international'));
       }
       return false;
@@ -213,15 +211,14 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
                 }
             });
             
-            // Add address proof type to form data so server knows which fields to look for
             formData.append('addressProofType', addressProofType);
 
             const token = await firebaseUser.getIdToken();
             const result = await submitVerificationDocuments(formData, token);
 
             if (result.success && result.updatedUser) {
-                setUser(result.updatedUser);
-                setFileUploads({}); // Clear uploads on success
+                updateUserContext(result.updatedUser);
+                setFileUploads({});
                 toast({ title: 'Verification Submitted', description: 'Your documents are now pending review.' });
             } else {
                 toast({ variant: 'destructive', title: 'Submission Failed', description: result.error || 'An unknown error occurred.' });
