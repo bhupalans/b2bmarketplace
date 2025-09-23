@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 type ProfileUpdateData = Omit<User, 'id' | 'uid' | 'email' | 'role' | 'avatar' | 'memberSince' | 'username'>;
 
-export async function updateUserProfile(userId: string, data: ProfileUpdateData) {
+export async function updateUserProfile(userId: string, data: ProfileUpdateData): Promise<{ success: true; user: User } | { success: false; error: string }> {
   if (!userId) {
     return { success: false, error: 'User not authenticated.' };
   }
@@ -107,11 +107,14 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
     }
 
     await userRef.update(updateData);
+    const updatedUserSnap = await userRef.get();
+    const updatedUser = { id: updatedUserSnap.id, ...updatedUserSnap.data() } as User;
+
 
     revalidatePath('/profile');
     revalidatePath(`/sellers/${userId}`);
 
-    return { success: true };
+    return { success: true, user: updatedUser };
   } catch (error: any) {
     console.error('Error updating user profile:', error);
     const errorMessage = error.message || 'Failed to update profile on the server. Please check the server logs.';

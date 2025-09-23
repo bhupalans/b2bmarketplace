@@ -12,6 +12,7 @@ type AuthContextType = {
   user: User | null;
   firebaseUser: FirebaseUser | null;
   loading: boolean;
+  updateUserContext: (newUser: User) => void;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -60,8 +61,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => unsubscribe();
   }, []);
 
+  const updateUserContext = (newUser: User) => {
+    setUser(newUser);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, firebaseUser, loading }}>
+    <AuthContext.Provider value={{ user, firebaseUser, loading, updateUserContext }}>
         {children}
     </AuthContext.Provider>
   );

@@ -191,7 +191,7 @@ const AddressFields: React.FC<{
 export function ProfileForm({ user }: ProfileFormProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
-  const { firebaseUser } = useAuth();
+  const { firebaseUser, updateUserContext } = useAuth();
   const [verificationTemplates, setVerificationTemplates] = useState<VerificationTemplate[]>([]);
   const [activeTemplate, setActiveTemplate] = useState<VerificationTemplate | null>(null);
 
@@ -354,11 +354,13 @@ export function ProfileForm({ user }: ProfileFormProps) {
     startTransition(async () => {
       const result = await updateUserProfile(firebaseUser.uid, finalValues);
 
-      if (result.success) {
+      if (result.success && result.user) {
          toast({
             title: "Profile Updated",
             description: "Your information has been successfully saved.",
         });
+        // This is the new part: update the global context
+        updateUserContext(result.user);
       } else {
         toast({
             variant: "destructive",
