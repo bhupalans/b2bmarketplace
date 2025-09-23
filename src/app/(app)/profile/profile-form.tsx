@@ -32,7 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, Edit, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { countries, statesProvinces } from "@/lib/geography-data";
@@ -194,6 +194,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const { firebaseUser, updateUserContext } = useAuth();
   const [verificationTemplates, setVerificationTemplates] = useState<VerificationTemplate[]>([]);
   const [activeTemplate, setActiveTemplate] = useState<VerificationTemplate | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     async function fetchTemplates() {
@@ -216,7 +217,6 @@ export function ProfileForm({ user }: ProfileFormProps) {
     resolver: zodResolver(
       useMemo(() => {
         return baseProfileSchema.superRefine((data, ctx) => {
-            // --- Role based required fields ---
             if (user.role === 'seller') {
                 if (!data.companyName) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Company name is required.", path: ['companyName']});
                 if (!data.phoneNumber) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Business phone number is required.", path: ['phoneNumber']});
@@ -232,7 +232,6 @@ export function ProfileForm({ user }: ProfileFormProps) {
                  }
             }
             
-            // --- Dynamic validation based on active template ---
             if (activeTemplate) {
               activeTemplate.fields.forEach(field => {
                 const value = data.verificationDetails?.[field.name];
@@ -305,6 +304,25 @@ export function ProfileForm({ user }: ProfileFormProps) {
     name: 'billingSameAsShipping'
   });
 
+  const resetFormToInitialState = () => {
+    form.reset({
+      name: user.name || "",
+      companyName: user.companyName || "",
+      phoneNumber: user.phoneNumber || "",
+      address: user.address,
+      shippingAddress: user.shippingAddress,
+      billingAddress: user.billingAddress,
+      billingSameAsShipping: user.billingSameAsShipping || false,
+      jobTitle: user.jobTitle || "",
+      companyWebsite: user.companyWebsite || "",
+      companyDescription: user.companyDescription || "",
+      taxId: user.taxId || "",
+      businessType: user.businessType || undefined,
+      exportScope: user.exportScope || [],
+      verificationDetails: user.verificationDetails || {},
+    });
+  }
+
   useEffect(() => {
     if (watchedBillingSameAsShipping) {
       const shippingAddress = form.getValues('shippingAddress');
@@ -331,7 +349,6 @@ export function ProfileForm({ user }: ProfileFormProps) {
   }, [watchedPrimaryCountry, form, verificationTemplates]);
 
   useEffect(() => {
-    // Re-trigger validation when the active template changes, as requirements may have changed
     form.trigger('verificationDetails');
   }, [activeTemplate, watchedExportScope, form]);
 
@@ -350,7 +367,6 @@ export function ProfileForm({ user }: ProfileFormProps) {
       finalValues.billingAddress = values.shippingAddress;
     }
 
-
     startTransition(async () => {
       const result = await updateUserProfile(firebaseUser.uid, finalValues);
 
@@ -359,8 +375,8 @@ export function ProfileForm({ user }: ProfileFormProps) {
             title: "Profile Updated",
             description: "Your information has been successfully saved.",
         });
-        // This is the new part: update the global context
         updateUserContext(result.user);
+        setIsEditing(false); // Lock the form after successful save
       } else {
         toast({
             variant: "destructive",
@@ -370,6 +386,11 @@ export function ProfileForm({ user }: ProfileFormProps) {
       }
     });
   };
+  
+  const handleCancel = () => {
+    resetFormToInitialState();
+    setIsEditing(false);
+  }
 
   const exportScopeItems = [
     { id: 'domestic', label: 'Domestic' },
@@ -379,177 +400,24 @@ export function ProfileForm({ user }: ProfileFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Basic Information</CardTitle>
-            <CardDescription>
-              Your personal and company contact details.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Your Full Name <span className="text-destructive">*</span></FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Jane Doe" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="companyName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Company Name {user.role === 'seller' && <span className="text-destructive">*</span>}</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Acme Inc." {...field} value={field.value || ''} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <FormField
-              control={form.control}
-              name="phoneNumber"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Business Phone Number {user.role === 'seller' && <span className="text-destructive">*</span>}</FormLabel>
-                  <FormControl>
-                    <Input placeholder="+1 (555) 123-4567" {...field} value={field.value || ''} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-             {user.role === 'buyer' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                        control={form.control}
-                        name="jobTitle"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Job Title</FormLabel>
-                                <FormControl>
-                                <Input placeholder="e.g., Procurement Manager" {...field} value={field.value || ''} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name="companyWebsite"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Company Website</FormLabel>
-                                <FormControl>
-                                <Input placeholder="e.g., https://www.acme.com" {...field} value={field.value || ''} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                </div>
-            )}
-          </CardContent>
-        </Card>
-        
-        <Card>
-            <CardHeader>
-                <CardTitle>Primary Business Address</CardTitle>
-                <CardDescription>Your company's official registered address. This determines verification requirements.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <AddressFields fieldName="address" control={form.control} />
-            </CardContent>
-        </Card>
-
-        {user.role === 'buyer' && (
-            <>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Shipping Address</CardTitle>
-                        <CardDescription>Your company's primary delivery location.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <AddressFields fieldName="shippingAddress" control={form.control} />
-                    </CardContent>
-                </Card>
-                
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Billing Address</CardTitle>
-                        <CardDescription>The address associated with your payment method.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                         <FormField
-                            control={form.control}
-                            name="billingSameAsShipping"
-                            render={({ field }) => (
-                                <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                                    <FormControl>
-                                        <Checkbox
-                                            checked={field.value}
-                                            onCheckedChange={field.onChange}
-                                        />
-                                    </FormControl>
-                                    <FormLabel className="font-normal">
-                                        Billing address is the same as shipping address
-                                    </FormLabel>
-                                </FormItem>
-                            )}
-                        />
-                       
-                        {!watchedBillingSameAsShipping && (
-                             <AddressFields fieldName="billingAddress" control={form.control} />
-                        )}
-                    </CardContent>
-                </Card>
-            </>
-        )}
-
-        {user.role === "seller" && (
+        <fieldset disabled={!isEditing || isPending} className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Seller Details</CardTitle>
+              <CardTitle>Basic Information</CardTitle>
               <CardDescription>
-                Information that helps build trust with buyers.
+                Your personal and company contact details.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="companyDescription"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Company Description <span className="text-destructive">*</span></FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Describe your company, its mission, and what makes it unique."
-                        {...field}
-                        value={field.value || ''}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="taxId"
+                  name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Tax ID / VAT Number <span className="text-destructive">*</span></FormLabel>
+                      <FormLabel>Your Full Name <span className="text-destructive">*</span></FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter your business tax ID" {...field} value={field.value || ''} />
+                        <Input placeholder="e.g., Jane Doe" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -557,146 +425,315 @@ export function ProfileForm({ user }: ProfileFormProps) {
                 />
                 <FormField
                   control={form.control}
-                  name="businessType"
+                  name="companyName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Business Type <span className="text-destructive">*</span></FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select your business type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Manufacturer">Manufacturer</SelectItem>
-                          <SelectItem value="Distributor">Distributor</SelectItem>
-                          <SelectItem value="Trading Company">Trading Company</SelectItem>
-                          <SelectItem value="Agent">Agent</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>Company Name {user.role === 'seller' && <span className="text-destructive">*</span>}</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Acme Inc." {...field} value={field.value || ''} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
-
-               <FormField
+              <FormField
                 control={form.control}
-                name="exportScope"
-                render={() => (
-                    <FormItem>
-                        <div className="mb-4">
-                            <FormLabel className="text-base">Export Scope <span className="text-destructive">*</span></FormLabel>
-                            <FormDescription>
-                                Select the regions you export to.
-                            </FormDescription>
-                        </div>
-                        <div className="flex flex-row items-center gap-x-6 gap-y-2 flex-wrap">
-                        {exportScopeItems.map((item) => (
-                            <FormField
-                                key={item.id}
-                                control={form.control}
-                                name="exportScope"
-                                render={({ field }) => {
-                                    return (
-                                    <FormItem
-                                        key={item.id}
-                                        className="flex flex-row items-start space-x-2 space-y-0"
-                                    >
-                                        <FormControl>
-                                        <Checkbox
-                                            checked={field.value?.includes(item.id)}
-                                            onCheckedChange={(checked) => {
-                                                return checked
-                                                ? field.onChange([...(field.value || []), item.id])
-                                                : field.onChange(
-                                                    field.value?.filter(
-                                                        (value) => value !== item.id
-                                                    )
-                                                    )
-                                            }}
-                                        />
-                                        </FormControl>
-                                        <FormLabel className="font-normal">
-                                        {item.label}
-                                        </FormLabel>
-                                    </FormItem>
-                                    )
-                                }}
-                                />
-                        ))}
-                        </div>
-                        <FormMessage />
-                    </FormItem>
+                name="phoneNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Business Phone Number {user.role === 'seller' && <span className="text-destructive">*</span>}</FormLabel>
+                    <FormControl>
+                      <Input placeholder="+1 (555) 123-4567" {...field} value={field.value || ''} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )}
-                />
+              />
+              {user.role === 'buyer' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                          control={form.control}
+                          name="jobTitle"
+                          render={({ field }) => (
+                              <FormItem>
+                                  <FormLabel>Job Title</FormLabel>
+                                  <FormControl>
+                                  <Input placeholder="e.g., Procurement Manager" {...field} value={field.value || ''} />
+                                  </FormControl>
+                                  <FormMessage />
+                              </FormItem>
+                          )}
+                      />
+                      <FormField
+                          control={form.control}
+                          name="companyWebsite"
+                          render={({ field }) => (
+                              <FormItem>
+                                  <FormLabel>Company Website</FormLabel>
+                                  <FormControl>
+                                  <Input placeholder="e.g., https://www.acme.com" {...field} value={field.value || ''} />
+                                  </FormControl>
+                                  <FormMessage />
+                              </FormItem>
+                          )}
+                      />
+                  </div>
+              )}
             </CardContent>
           </Card>
-        )}
+          
+          <Card>
+              <CardHeader>
+                  <CardTitle>Primary Business Address</CardTitle>
+                  <CardDescription>Your company's official registered address. This determines verification requirements.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                  <AddressFields fieldName="address" control={form.control} />
+              </CardContent>
+          </Card>
 
-        {activeTemplate && (
+          {user.role === 'buyer' && (
+              <>
+                  <Card>
+                      <CardHeader>
+                          <CardTitle>Shipping Address</CardTitle>
+                          <CardDescription>Your company's primary delivery location.</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                          <AddressFields fieldName="shippingAddress" control={form.control} />
+                      </CardContent>
+                  </Card>
+                  
+                  <Card>
+                      <CardHeader>
+                          <CardTitle>Billing Address</CardTitle>
+                          <CardDescription>The address associated with your payment method.</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                           <FormField
+                              control={form.control}
+                              name="billingSameAsShipping"
+                              render={({ field }) => (
+                                  <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                      <FormControl>
+                                          <Checkbox
+                                              checked={field.value}
+                                              onCheckedChange={field.onChange}
+                                          />
+                                      </FormControl>
+                                      <FormLabel className="font-normal">
+                                          Billing address is the same as shipping address
+                                      </FormLabel>
+                                  </FormItem>
+                              )}
+                          />
+                        
+                          {!watchedBillingSameAsShipping && (
+                               <AddressFields fieldName="billingAddress" control={form.control} />
+                          )}
+                      </CardContent>
+                  </Card>
+              </>
+          )}
+
+          {user.role === "seller" && (
             <Card>
-                <CardHeader>
-                    <CardTitle>Business Verification ({activeTemplate.countryName})</CardTitle>
-                    <CardDescription>This information is required to verify your business identity based on your primary address.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                {activeTemplate.fields.map(fieldTemplate => {
-                    let isRequired = false;
-                    if (fieldTemplate.required === 'always') {
-                        isRequired = true;
-                    } else if (fieldTemplate.required === 'international') {
-                        isRequired = user.role === 'buyer' || (watchedExportScope?.includes('international') ?? false);
-                    }
-
-                    if (fieldTemplate.required === 'never') return null;
-
-                    return (
-                        <FormField
-                            key={fieldTemplate.name}
-                            control={form.control}
-                            name={`verificationDetails.${fieldTemplate.name}` as const}
-                            defaultValue={user?.verificationDetails?.[fieldTemplate.name] || ""}
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>{fieldTemplate.label} {isRequired && <span className="text-destructive">*</span>}</FormLabel>
-                                    <FormControl>
-                                        <Input 
-                                            placeholder={`Enter your ${fieldTemplate.label}`}
-                                            {...field}
-                                            value={field.value || ''}
-                                            onChange={(e) => {
-                                                if (fieldTemplate.name === 'gstn') {
-                                                    field.onChange(e.target.value.toUpperCase());
-                                                } else {
-                                                    field.onChange(e);
-                                                }
-                                            }}
-                                        />
-                                    </FormControl>
-                                    <FormDescription>
-                                        {fieldTemplate.helperText}
-                                    </FormDescription>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
+              <CardHeader>
+                <CardTitle>Seller Details</CardTitle>
+                <CardDescription>
+                  Information that helps build trust with buyers.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="companyDescription"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Company Description <span className="text-destructive">*</span></FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Describe your company, its mission, and what makes it unique."
+                          {...field}
+                          value={field.value || ''}
                         />
-                    )
-                })}
-                </CardContent>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="taxId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tax ID / VAT Number <span className="text-destructive">*</span></FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter your business tax ID" {...field} value={field.value || ''} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="businessType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Business Type <span className="text-destructive">*</span></FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select your business type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Manufacturer">Manufacturer</SelectItem>
+                            <SelectItem value="Distributor">Distributor</SelectItem>
+                            <SelectItem value="Trading Company">Trading Company</SelectItem>
+                            <SelectItem value="Agent">Agent</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                 <FormField
+                  control={form.control}
+                  name="exportScope"
+                  render={() => (
+                      <FormItem>
+                          <div className="mb-4">
+                              <FormLabel className="text-base">Export Scope <span className="text-destructive">*</span></FormLabel>
+                              <FormDescription>
+                                  Select the regions you export to.
+                              </FormDescription>
+                          </div>
+                          <div className="flex flex-row items-center gap-x-6 gap-y-2 flex-wrap">
+                          {exportScopeItems.map((item) => (
+                              <FormField
+                                  key={item.id}
+                                  control={form.control}
+                                  name="exportScope"
+                                  render={({ field }) => {
+                                      return (
+                                      <FormItem
+                                          key={item.id}
+                                          className="flex flex-row items-start space-x-2 space-y-0"
+                                      >
+                                          <FormControl>
+                                          <Checkbox
+                                              checked={field.value?.includes(item.id)}
+                                              onCheckedChange={(checked) => {
+                                                  return checked
+                                                  ? field.onChange([...(field.value || []), item.id])
+                                                  : field.onChange(
+                                                      field.value?.filter(
+                                                          (value) => value !== item.id
+                                                      )
+                                                      )
+                                              }}
+                                          />
+                                          </FormControl>
+                                          <FormLabel className="font-normal">
+                                          {item.label}
+                                          </FormLabel>
+                                      </FormItem>
+                                      )
+                                  }}
+                                  />
+                          ))}
+                          </div>
+                          <FormMessage />
+                      </FormItem>
+                  )}
+                  />
+              </CardContent>
             </Card>
-        )}
+          )}
+
+          {activeTemplate && (
+              <Card>
+                  <CardHeader>
+                      <CardTitle>Business Verification ({activeTemplate.countryName})</CardTitle>
+                      <CardDescription>This information is required to verify your business identity based on your primary address.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                  {activeTemplate.fields.map(fieldTemplate => {
+                      let isRequired = false;
+                      if (fieldTemplate.required === 'always') {
+                          isRequired = true;
+                      } else if (fieldTemplate.required === 'international') {
+                          isRequired = user.role === 'buyer' || (watchedExportScope?.includes('international') ?? false);
+                      }
+
+                      if (fieldTemplate.required === 'never') return null;
+
+                      return (
+                          <FormField
+                              key={fieldTemplate.name}
+                              control={form.control}
+                              name={`verificationDetails.${fieldTemplate.name}` as const}
+                              defaultValue={user?.verificationDetails?.[fieldTemplate.name] || ""}
+                              render={({ field }) => (
+                                  <FormItem>
+                                      <FormLabel>{fieldTemplate.label} {isRequired && <span className="text-destructive">*</span>}</FormLabel>
+                                      <FormControl>
+                                          <Input 
+                                              placeholder={`Enter your ${fieldTemplate.label}`}
+                                              {...field}
+                                              value={field.value || ''}
+                                              onChange={(e) => {
+                                                  if (fieldTemplate.name === 'gstn') {
+                                                      field.onChange(e.target.value.toUpperCase());
+                                                  } else {
+                                                      field.onChange(e);
+                                                  }
+                                              }}
+                                          />
+                                      </FormControl>
+                                      <FormDescription>
+                                          {fieldTemplate.helperText}
+                                      </FormDescription>
+                                      <FormMessage />
+                                  </FormItem>
+                              )}
+                          />
+                      )
+                  })}
+                  </CardContent>
+              </Card>
+          )}
+        </fieldset>
 
         <div className="flex justify-between items-center">
             <p className="text-sm text-muted-foreground"><span className="text-destructive">*</span> Indicates a required field.</p>
             <div className="flex-grow"></div>
-            <Button type="submit" disabled={isPending}>
-                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save Changes
-            </Button>
+
+            {!isEditing ? (
+              <Button type="button" onClick={() => setIsEditing(true)}>
+                <Edit className="mr-2 h-4 w-4" />
+                Edit Profile
+              </Button>
+            ) : (
+              <div className="flex gap-2">
+                <Button type="button" variant="ghost" onClick={handleCancel} disabled={isPending}>
+                  <X className="mr-2 h-4 w-4" />
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isPending}>
+                  {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save Changes
+                </Button>
+              </div>
+            )}
         </div>
       </form>
     </Form>
