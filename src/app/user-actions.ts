@@ -39,13 +39,11 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
     const user = userSnap.data() as User;
     const countryCode = data.address?.country;
     
-    // --- Verification Logic ---
     const updateData: { [key: string]: any } = {
         updatedAt: new Date().toISOString(),
-        scopedVerificationIds: {} // Reset and rebuild
+        scopedVerificationIds: {} 
     };
 
-    // Rebuild scopedVerificationIds
     if (countryCode && data.verificationDetails) {
         const templatesSnap = await adminDb.collection('verificationTemplates').doc(countryCode).get();
         if (templatesSnap.exists) {
@@ -54,7 +52,6 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
                 const value = data.verificationDetails[field.name];
                 if (value) {
                     const scopedKey = `${field.name}-${countryCode}`;
-                    // Check for duplicates before adding
                     const query = adminDb.collection('users')
                         .where(`scopedVerificationIds.${scopedKey}`, '==', value)
                         .limit(2);
@@ -78,11 +75,11 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
     const previousCountry = user.address?.country;
     const newCountry = data.address?.country;
     const verificationDetailsChanged = !areDetailsEqual(user.verificationDetails, data.verificationDetails);
+    const companyNameChanged = user.companyName !== data.companyName;
 
-    // If primary address country changes OR if critical verification details change, reset status to pending.
-    if (user.verificationStatus === 'verified' && ( (newCountry && newCountry !== previousCountry) || verificationDetailsChanged) ) {
+    if (user.verificationStatus === 'verified' && ( (newCountry && newCountry !== previousCountry) || verificationDetailsChanged || companyNameChanged) ) {
       updateData.verificationStatus = 'pending';
-    } else if (newCountry && newCountry !== previousCountry) { // Also handle if user was not verified yet and changed country
+    } else if (newCountry && newCountry !== previousCountry) { 
       updateData.verificationStatus = 'unverified';
       updateData.verificationDocuments = {};
     }
@@ -123,7 +120,7 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
   }
 }
 
-export async function submitVerificationDocuments(formData: FormData, token: string) {
+export async function submitVerificationDocuments(formData: FormData, token: string): Promise<{ success: true; updatedUser: User } | { success: false; error: string }> {
   try {
     if (!token) {
       throw new Error('Not authenticated');
@@ -179,26 +176,33 @@ export async function submitVerificationDocuments(formData: FormData, token: str
       }
     }
 
-    if (Object.keys(uploadedDocs).length > 0 || Object.keys(docUpdates).length > 0) {
-      docUpdates['verificationStatus'] = 'pending';
-      if (!docUpdates.verificationDocuments) {
-          docUpdates.verificationDocuments = {};
-      }
-      docUpdates.verificationDocuments = { ...docUpdates.verificationDocuments, ...uploadedDocs };
-      
-      await userRef.update(docUpdates);
+    let shouldUpdateStatus = false;
+    // Update status to pending if new files are uploaded, or if the user was not already pending/verified.
+    if (Object.keys(uploadedDocs).length > 0 || (user.verificationStatus !== 'pending' && user.verificationStatus !== 'verified')) {
+      shouldUpdateStatus = true;
+    }
 
-    } else {
-        await userRef.update({
-            verificationStatus: 'pending'
-        });
+    if (shouldUpdateStatus) {
+      docUpdates['verificationStatus'] = 'pending';
+    }
+
+    if (Object.keys(uploadedDocs).length > 0) {
+        if (!docUpdates.verificationDocuments) {
+            docUpdates.verificationDocuments = {};
+        }
+        docUpdates.verificationDocuments = { ...docUpdates.verificationDocuments, ...uploadedDocs };
+    }
+      
+    if (Object.keys(docUpdates).length > 0) {
+        await userRef.update(docUpdates);
     }
     
     revalidatePath('/profile/verification');
     revalidatePath('/profile');
 
     const updatedUserSnap = await userRef.get();
-    return { success: true, updatedUser: updatedUserSnap.data() as User };
+    const updatedUser = { id: updatedUserSnap.id, uid: userId, ...updatedUserSnap.data() } as User;
+    return { success: true, updatedUser };
 
   } catch(error: any) {
     console.error("Error submitting verification docs:", error);

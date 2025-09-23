@@ -85,8 +85,9 @@ interface ProfileFormProps {
 const AddressFields: React.FC<{
   fieldName: 'address' | 'shippingAddress' | 'billingAddress',
   control: any,
-  disabled?: boolean
-}> = ({ fieldName, control, disabled = false }) => {
+  disabled?: boolean,
+  isEditing: boolean,
+}> = ({ fieldName, control, disabled = false, isEditing }) => {
     const watchedCountry = useWatch({ control, name: `${fieldName}.country` });
     const isStateRequired = watchedCountry && statesProvinces[watchedCountry] && statesProvinces[watchedCountry].length > 0;
 
@@ -154,6 +155,11 @@ const AddressFields: React.FC<{
                               ))}
                           </SelectContent>
                       </Select>
+                      {fieldName === 'address' && isEditing && (
+                        <FormDescription className="text-destructive text-xs">
+                          Changing your country will require re-verification.
+                        </FormDescription>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -376,7 +382,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
             description: "Your information has been successfully saved.",
         });
         updateUserContext(result.user);
-        setIsEditing(false); // Lock the form after successful save
+        setIsEditing(false);
       } else {
         toast({
             variant: "destructive",
@@ -432,6 +438,11 @@ export function ProfileForm({ user }: ProfileFormProps) {
                       <FormControl>
                         <Input placeholder="e.g., Acme Inc." {...field} value={field.value || ''} />
                       </FormControl>
+                      {isEditing && user.role === 'seller' && (
+                        <FormDescription className="text-destructive text-xs">
+                          Changing your company name will require re-verification.
+                        </FormDescription>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -489,7 +500,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                   <CardDescription>Your company's official registered address. This determines verification requirements.</CardDescription>
               </CardHeader>
               <CardContent>
-                  <AddressFields fieldName="address" control={form.control} />
+                  <AddressFields fieldName="address" control={form.control} isEditing={isEditing} />
               </CardContent>
           </Card>
 
@@ -501,7 +512,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                           <CardDescription>Your company's primary delivery location.</CardDescription>
                       </CardHeader>
                       <CardContent>
-                          <AddressFields fieldName="shippingAddress" control={form.control} />
+                          <AddressFields fieldName="shippingAddress" control={form.control} isEditing={isEditing} />
                       </CardContent>
                   </Card>
                   
@@ -530,7 +541,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                           />
                         
                           {!watchedBillingSameAsShipping && (
-                               <AddressFields fieldName="billingAddress" control={form.control} />
+                               <AddressFields fieldName="billingAddress" control={form.control} isEditing={isEditing} />
                           )}
                       </CardContent>
                   </Card>
@@ -699,6 +710,11 @@ export function ProfileForm({ user }: ProfileFormProps) {
                                               }}
                                           />
                                       </FormControl>
+                                      {isEditing && (
+                                        <FormDescription className="text-destructive text-xs">
+                                          Changing this will require re-verification.
+                                        </FormDescription>
+                                      )}
                                       <FormDescription>
                                           {fieldTemplate.helperText}
                                       </FormDescription>
