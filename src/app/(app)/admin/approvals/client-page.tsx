@@ -42,6 +42,7 @@ import { updateProductStatus } from '@/lib/firebase';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { format, parseISO } from 'date-fns';
+import { RejectionReasonDialog } from '@/components/rejection-reason-dialog';
 
 interface AdminApprovalsClientPageProps {
     initialProducts: Product[];
@@ -58,8 +59,10 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers, initia
   const { user } = useAuth();
   const [reviewingProduct, setReviewingProduct] = useState<Product | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [rejectingProduct, setRejectingProduct] = useState<Product | null>(null);
 
-  const handleAction = async (action: 'approve' | 'reject', productId: string) => {
+
+  const handleAction = async (action: 'approve' | 'reject', productId: string, reason?: string) => {
     setProcessingState(action === 'approve' ? 'approving' : 'rejecting');
     startTransition(async () => {
         if (!user || user.role !== 'admin') {
@@ -69,7 +72,7 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers, initia
         }
 
         try {
-            await updateProductStatus(productId, action === 'approve' ? 'approved' : 'rejected');
+            await updateProductStatus(productId, action === 'approve' ? 'approved' : 'rejected', reason);
             setPendingProducts(prev => prev.filter(p => p.id !== productId));
             toast({
                 title: `Product ${action}d`,
@@ -129,6 +132,18 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers, initia
       setReviewingProduct(null);
     }
   }
+  
+  const handleOpenRejectionDialog = (productToReject: Product) => {
+    setRejectingProduct(productToReject);
+  }
+
+  const handleConfirmRejection = (reason: string) => {
+    if (rejectingProduct) {
+        handleAction('reject', rejectingProduct.id, reason);
+    }
+    setRejectingProduct(null);
+  };
+
 
   return (
     <div className="space-y-6">
@@ -303,7 +318,7 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers, initia
                 <Button 
                     variant="outline"
                     className="text-red-600 border-red-600 hover:bg-red-100 hover:text-red-700"
-                    onClick={() => handleAction('reject', reviewingProduct.id)}
+                    onClick={() => handleOpenRejectionDialog(reviewingProduct)}
                     disabled={!!processingState}
                 >
                    {processingState === 'rejecting' ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4 mr-2" />}
@@ -321,6 +336,13 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers, initia
           </DialogContent>
         </Dialog>
       )}
+
+      <RejectionReasonDialog
+        open={!!rejectingProduct}
+        onOpenChange={() => setRejectingProduct(null)}
+        onConfirm={handleConfirmRejection}
+        isSubmitting={processingState === 'rejecting'}
+     />
 
     </div>
   );

@@ -259,7 +259,8 @@ export async function getSellerProductsClient(sellerId: string): Promise<Product
 // Client-side function to update product status, to be secured by Firestore rules
 export async function updateProductStatus(
   productId: string,
-  status: 'approved' | 'rejected'
+  status: 'approved' | 'rejected',
+  reason?: string,
 ): Promise<void> {
   const productRef = doc(db, 'products', productId);
   
@@ -270,16 +271,14 @@ export async function updateProductStatus(
   try {
       const productSnap = await getDocClient(productRef);
       if (productSnap.exists()) {
-          const product = { id: productSnap.id, ...productSnap.data() } as Product;
+          // IMPORTANT: Convert the product data to a plain serializable object
+          const product = { id: productSnap.id, ...convertTimestamps(productSnap.data()) } as Product;
           const seller = await getUserClient(product.sellerId);
           if (seller) {
               if (status === 'approved') {
                   await sendProductApprovedEmail({ seller, product });
               } else if (status === 'rejected') {
-                  // This is a simple implementation. A more robust solution would allow
-                  // the admin to enter a rejection reason.
-                  const reason = "Your product did not meet our listing guidelines. Please review and resubmit.";
-                  await sendProductRejectedEmail({ seller, product, reason });
+                  await sendProductRejectedEmail({ seller, product, reason: reason || "Your product did not meet our listing guidelines. Please review and resubmit." });
               }
           }
       }
@@ -1221,7 +1220,7 @@ export async function addAnswerToQuestion(data: {
         message: `Your question on a product has been answered by ${data.sellerName}.`,
         link: `/products/${data.productId}`,
         read: false,
-        createdAt: serverTimestamp() as Timestamp,
+        createdAt: new Date().toISOString(),
     };
     const notificationRef = doc(collection(db, 'notifications'));
     // --- End Notification Creation ---
