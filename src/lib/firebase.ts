@@ -1,4 +1,5 @@
 
+
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc as getDocClient, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError, setDoc } from 'firebase/firestore';
@@ -6,7 +7,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'fire
 import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate, VerificationTemplate, VerificationField, SourcingRequest, Question, Answer, AppNotification } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { moderateMessageContent } from '@/ai/flows/moderate-message-content';
-import { sendQuestionAnsweredEmail } from '@/services/email';
+import { sendQuestionAnsweredEmail, sendProductApprovedEmail, sendProductRejectedEmail } from '@/services/email';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDL_o5j6RtqjCwFN5iTtvUj6nFfyDJaaxc",
@@ -261,7 +262,31 @@ export async function updateProductStatus(
   status: 'approved' | 'rejected'
 ): Promise<void> {
   const productRef = doc(db, 'products', productId);
+  
+  // First, update the document status
   await updateDoc(productRef, { status });
+
+  // Then, fetch the updated product and seller to send an email notification
+  try {
+      const productSnap = await getDocClient(productRef);
+      if (productSnap.exists()) {
+          const product = { id: productSnap.id, ...productSnap.data() } as Product;
+          const seller = await getUserClient(product.sellerId);
+          if (seller) {
+              if (status === 'approved') {
+                  await sendProductApprovedEmail({ seller, product });
+              } else if (status === 'rejected') {
+                  // This is a simple implementation. A more robust solution would allow
+                  // the admin to enter a rejection reason.
+                  const reason = "Your product did not meet our listing guidelines. Please review and resubmit.";
+                  await sendProductRejectedEmail({ seller, product, reason });
+              }
+          }
+      }
+  } catch (emailError) {
+      console.error("Failed to send product status notification email:", emailError);
+      // We don't re-throw the error because the primary action (updating status) was successful.
+  }
 }
 
 // Rewritten, robust image upload function
