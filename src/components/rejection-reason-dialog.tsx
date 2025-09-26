@@ -42,7 +42,7 @@ export function RejectionReasonDialog({
         <DialogHeader>
           <DialogTitle>Confirm Rejection</DialogTitle>
           <DialogDescription>
-            Please provide a reason for rejecting this verification. This will be shown to the seller.
+            Please provide a reason for rejecting this item. This will be shown to the user.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
