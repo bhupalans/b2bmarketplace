@@ -6,6 +6,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'fire
 import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate, VerificationTemplate, VerificationField, SourcingRequest, Question, Answer, AppNotification } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { moderateMessageContent } from '@/ai/flows/moderate-message-content';
+import { sendQuestionAnsweredEmail } from '@/services/email';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDL_o5j6RtqjCwFN5iTtvUj6nFfyDJaaxc",
@@ -205,7 +206,7 @@ export async function getUsersByIdsClient(userIds: string[]): Promise<Map<string
         return new Map();
     }
     const userMap = new Map<string, User>();
-    // Firestore 'in' queries are limited to 30 items. For a larger app, this would need chunking.
+    // Firestore 'in' queries are limited to 30 items. For a larger app, this would need to chunking.
     const userIdsToFetch = [...new Set(userIds)]; // Remove duplicates
     
     // Chunk the userIds to respect Firestore's 30-item limit for 'in' queries
@@ -1192,7 +1193,7 @@ export async function addAnswerToQuestion(data: {
     // --- Notification Creation ---
     const notificationData: Omit<AppNotification, 'id'> = {
         userId: question.buyerId,
-        message: `Your question on product "${questionSnap.ref.parent.parent?.id}" has been answered.`,
+        message: `Your question on a product has been answered by ${data.sellerName}.`,
         link: `/products/${data.productId}`,
         read: false,
         createdAt: serverTimestamp() as Timestamp,
@@ -1207,7 +1208,17 @@ export async function addAnswerToQuestion(data: {
     await batch.commit();
 
     const updatedQuestionSnap = await getDocClient(questionRef);
-    return { id: updatedQuestionSnap.id, ...convertTimestamps(updatedQuestionSnap.data()) } as Question;
+    const finalQuestion = { id: updatedQuestionSnap.id, ...convertTimestamps(updatedQuestionSnap.data()) } as Question;
+    
+    // Send email after everything is committed
+    const buyer = await getUserClient(question.buyerId);
+    const product = await getProductClient(data.productId);
+
+    if (buyer && product) {
+        await sendQuestionAnsweredEmail({ buyer, product, question: finalQuestion });
+    }
+
+    return finalQuestion;
 }
 
 // --- Notification Functions ---

@@ -31,7 +31,7 @@ const NotificationItem = ({ notification, onMarkAsRead }: { notification: AppNot
             )}
         >
             <div className="flex items-start gap-4">
-                {!notification.read && <div className="h-2 w-2 rounded-full bg-primary mt-1.5" />}
+                {!notification.read && <div className="h-2 w-2 rounded-full bg-primary mt-1.5 flex-shrink-0" />}
                 <div className={cn("flex-1", notification.read && "pl-4")}>
                     <p className="font-medium">{notification.message}</p>
                     <p className="text-sm text-muted-foreground mt-1">
@@ -63,8 +63,14 @@ export default function NotificationsPage() {
 
     const handleMarkAsRead = async (id: string) => {
         try {
-            await markNotificationAsReadClient(id);
-            setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+            // Find the notification first to see if it's already read
+            const notification = notifications.find(n => n.id === id);
+            // Only mark as read if it's currently unread to avoid unnecessary Firestore writes
+            if (notification && !notification.read) {
+                await markNotificationAsReadClient(id);
+                // Optimistically update the UI
+                setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+            }
         } catch (error) {
             console.error("Failed to mark notification as read", error);
         }
