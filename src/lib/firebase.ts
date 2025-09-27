@@ -7,7 +7,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'fire
 import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate, VerificationTemplate, VerificationField, SourcingRequest, Question, Answer, AppNotification } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { moderateMessageContent } from '@/ai/flows/moderate-message-content';
-import { sendQuestionAnsweredEmail, sendProductApprovedEmail, sendProductRejectedEmail } from '@/services/email';
+import { sendQuestionAnsweredEmail, sendProductApprovedEmail, sendProductRejectedEmail, sendUserVerifiedEmail, sendUserRejectedEmail } from '@/services/email';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDL_o5j6RtqjCwFN5iTtvUj6nFfyDJaaxc",
@@ -271,20 +271,23 @@ export async function updateProductStatus(
   try {
       const productSnap = await getDocClient(productRef);
       if (productSnap.exists()) {
-          // IMPORTANT: Convert the product data to a plain serializable object
           const product = { id: productSnap.id, ...convertTimestamps(productSnap.data()) } as Product;
           const seller = await getUserClient(product.sellerId);
+          
           if (seller) {
               if (status === 'approved') {
                   await sendProductApprovedEmail({ seller, product });
               } else if (status === 'rejected') {
-                  await sendProductRejectedEmail({ seller, product, reason: reason || "Your product did not meet our listing guidelines. Please review and resubmit." });
+                  await sendProductRejectedEmail({ 
+                      seller, 
+                      product, 
+                      reason: reason || "Your product did not meet our listing guidelines. Please review and resubmit." 
+                  });
               }
           }
       }
   } catch (emailError) {
       console.error("Failed to send product status notification email:", emailError);
-      // We don't re-throw the error because the primary action (updating status) was successful.
   }
 }
 
@@ -1097,6 +1100,23 @@ export async function updateUserVerificationStatusClient(
   }
 
   await updateDoc(userRef, dataToUpdate);
+
+  try {
+    const userSnap = await getDocClient(userRef);
+    if (userSnap.exists()) {
+      const user = { id: userSnap.id, ...convertTimestamps(userSnap.data()) } as User;
+      if (status === 'verified') {
+        await sendUserVerifiedEmail({ user });
+      } else if (status === 'rejected') {
+        await sendUserRejectedEmail({
+          user,
+          reason: reason || "Your verification documents could not be approved. Please review and re-submit.",
+        });
+      }
+    }
+  } catch (emailError) {
+    console.error("Failed to send user verification status email:", emailError);
+  }
 }
 
 

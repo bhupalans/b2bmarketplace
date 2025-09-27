@@ -4,15 +4,20 @@
 import { Resend } from 'resend';
 import { User, Product, Question } from '@/lib/types';
 
-if (!process.env.RESEND_API_KEY) {
-    console.warn("Email service is not configured. RESEND_API_KEY is missing. Emails will not be sent.");
-}
-
 const fromAddress = 'B2B Marketplace <notifications@b2btest.veloglobal.in>';
 
+// Helper function to initialize Resend and check for API key
+function getResend() {
+    if (!process.env.RESEND_API_KEY) {
+        console.warn("Email service is not configured. RESEND_API_KEY is missing. Emails will not be sent.");
+        return null;
+    }
+    return new Resend(process.env.RESEND_API_KEY);
+}
+
 export async function sendQuestionAnsweredEmail({ buyer, product, question }: { buyer: User, product: Product, question: Question }) {
-    if (!process.env.RESEND_API_KEY) return; // Don't try to send if not configured
-    const resend = new Resend(process.env.RESEND_API_KEY);
+    const resend = getResend();
+    if (!resend) return;
 
     const productUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/products/${product.id}`;
 
@@ -43,13 +48,12 @@ export async function sendQuestionAnsweredEmail({ buyer, product, question }: { 
         console.log(`Answer notification email sent to ${buyer.email}`);
     } catch (error) {
         console.error(`Failed to send question answered email to ${buyer.email}:`, error);
-        // In a production app, you might want to add more robust error handling or logging here.
     }
 }
 
 export async function sendProductApprovedEmail({ seller, product }: { seller: User, product: Product }) {
-    if (!process.env.RESEND_API_KEY) return;
-    const resend = new Resend(process.env.RESEND_API_KEY);
+    const resend = getResend();
+    if (!resend) return;
 
     const productUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/products/${product.id}`;
 
@@ -79,10 +83,10 @@ export async function sendProductApprovedEmail({ seller, product }: { seller: Us
 }
 
 export async function sendProductRejectedEmail({ seller, product, reason }: { seller: User, product: Product, reason: string }) {
-    if (!process.env.RESEND_API_KEY) return;
-    const resend = new Resend(process.env.RESEND_API_KEY);
+    const resend = getResend();
+    if (!resend) return;
 
-    const editProductUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/my-products`; // Links to the list where they can find and edit
+    const editProductUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/my-products`;
 
     try {
         await resend.emails.send({
@@ -108,5 +112,69 @@ export async function sendProductRejectedEmail({ seller, product, reason }: { se
         console.log(`Product rejected email sent to ${seller.email}`);
     } catch (error) {
         console.error(`Failed to send product rejected email to ${seller.email}:`, error);
+    }
+}
+
+export async function sendUserVerifiedEmail({ user }: { user: User }) {
+    const resend = getResend();
+    if (!resend) return;
+
+    const profileUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/profile`;
+
+    try {
+        await resend.emails.send({
+            from: fromAddress,
+            to: user.email,
+            subject: `Congratulations! Your account has been verified.`,
+            html: `
+                <div style="font-family: sans-serif; line-height: 1.5;">
+                    <h1>Hi ${user.name},</h1>
+                    <p>Great news! Your account on the B2B Marketplace has been successfully verified.</p>
+                    <p>You now have access to all marketplace features, including contacting sellers and buyers. This verified status will be displayed on your profile to build trust within the community.</p>
+                    <p>
+                        <a href="${profileUrl}" style="display: inline-block; padding: 10px 15px; background-color: #28a745; color: #ffffff; text-decoration: none; border-radius: 5px;">
+                            View Your Profile
+                        </a>
+                    </p>
+                    <p><small>You are receiving this because you submitted your details for verification on the B2B Marketplace.</small></p>
+                </div>
+            `
+        });
+        console.log(`User verified email sent to ${user.email}`);
+    } catch (error) {
+        console.error(`Failed to send user verified email to ${user.email}:`, error);
+    }
+}
+
+export async function sendUserRejectedEmail({ user, reason }: { user: User, reason: string }) {
+    const resend = getResend();
+    if (!resend) return;
+
+    const verificationUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/profile/verification`;
+
+    try {
+        await resend.emails.send({
+            from: fromAddress,
+            to: user.email,
+            subject: `Action Required: Your account verification`,
+            html: `
+                <div style="font-family: sans-serif; line-height: 1.5;">
+                    <h1>Hi ${user.name},</h1>
+                    <p>We've reviewed your verification submission, but unfortunately, we could not approve it at this time.</p>
+                    <p style="color: #555;">Reason provided by our admin team:</p>
+                    <p style="font-style: italic; border-left: 3px solid #dc3545; padding-left: 10px;">"${reason}"</p>
+                    <p>Please review the feedback, make the necessary corrections to your documents or profile information, and re-submit for approval.</p>
+                    <p>
+                        <a href="${verificationUrl}" style="display: inline-block; padding: 10px 15px; background-color: #007bff; color: #ffffff; text-decoration: none; border-radius: 5px;">
+                            Return to Verification Center
+                        </a>
+                    </p>
+                    <p><small>You are receiving this because you submitted your details for verification on the B2B Marketplace.</small></p>
+                </div>
+            `
+        });
+        console.log(`User rejected email sent to ${user.email}`);
+    } catch (error) {
+        console.error(`Failed to send user rejected email to ${user.email}:`, error);
     }
 }
