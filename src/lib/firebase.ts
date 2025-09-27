@@ -278,9 +278,14 @@ export async function updateProductStatus(
               if (status === 'approved') {
                   await sendProductApprovedEmail({ seller, product });
               } else if (status === 'rejected') {
+                  const serializableProduct = {
+                    ...product,
+                    createdAt: product.createdAt ? new Date(product.createdAt).toISOString() : undefined,
+                    updatedAt: product.updatedAt ? new Date(product.updatedAt).toISOString() : undefined,
+                  };
                   await sendProductRejectedEmail({ 
                       seller, 
-                      product, 
+                      product: serializableProduct, 
                       reason: reason || "Your product did not meet our listing guidelines. Please review and resubmit." 
                   });
               }
@@ -1106,21 +1111,11 @@ export async function updateUserVerificationStatusClient(
     if (userSnap.exists()) {
       const user = { id: userSnap.id, ...convertTimestamps(userSnap.data()) } as User;
       
-      // Create a simplified, serializable user object for the email functions
-      const serializableUserForEmail = {
-        id: user.id,
-        uid: user.uid,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        avatar: user.avatar
-      };
-
       if (status === 'verified') {
-        await sendUserVerifiedEmail({ user: serializableUserForEmail });
+        await sendUserVerifiedEmail({ user });
       } else if (status === 'rejected') {
         await sendUserRejectedEmail({
-          user: serializableUserForEmail,
+          user,
           reason: reason || "Your verification documents could not be approved. Please review and re-submit.",
         });
       }
