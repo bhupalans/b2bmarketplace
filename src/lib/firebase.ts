@@ -1105,11 +1105,22 @@ export async function updateUserVerificationStatusClient(
     const userSnap = await getDocClient(userRef);
     if (userSnap.exists()) {
       const user = { id: userSnap.id, ...convertTimestamps(userSnap.data()) } as User;
+      
+      // Create a simplified, serializable user object for the email functions
+      const serializableUserForEmail = {
+        id: user.id,
+        uid: user.uid,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar
+      };
+
       if (status === 'verified') {
-        await sendUserVerifiedEmail({ user });
+        await sendUserVerifiedEmail({ user: serializableUserForEmail });
       } else if (status === 'rejected') {
         await sendUserRejectedEmail({
-          user,
+          user: serializableUserForEmail,
           reason: reason || "Your verification documents could not be approved. Please review and re-submit.",
         });
       }

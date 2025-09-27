@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { Resend } from 'resend';
@@ -115,9 +116,9 @@ export async function sendProductRejectedEmail({ seller, product, reason }: { se
     }
 }
 
-export async function sendUserVerifiedEmail({ user }: { user: User }) {
+export async function sendUserVerifiedEmail({ user }: { user: Partial<User> }) {
     const resend = getResend();
-    if (!resend) return;
+    if (!resend || !user.email) return;
 
     const profileUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/profile`;
 
@@ -146,9 +147,9 @@ export async function sendUserVerifiedEmail({ user }: { user: User }) {
     }
 }
 
-export async function sendUserRejectedEmail({ user, reason }: { user: User, reason: string }) {
+export async function sendUserRejectedEmail({ user, reason }: { user: Partial<User>, reason: string }) {
     const resend = getResend();
-    if (!resend) return;
+    if (!resend || !user.email) return;
 
     const verificationUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/profile/verification`;
 
