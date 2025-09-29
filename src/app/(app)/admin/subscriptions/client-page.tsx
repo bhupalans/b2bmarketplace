@@ -103,86 +103,84 @@ export function SubscriptionsClientPage({ initialPlans }: SubscriptionsClientPag
   }
 
   return (
-    <>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Subscription Plans</h1>
-            <p className="text-muted-foreground">Manage pricing and feature tiers for sellers.</p>
-          </div>
-          <Button onClick={handleCreate}>
-            <PlusCircle className="mr-2" />
-            Create Plan
-          </Button>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Subscription Plans</h1>
+          <p className="text-muted-foreground">Manage pricing and feature tiers for sellers.</p>
         </div>
+        <Button onClick={handleCreate}>
+          <PlusCircle className="mr-2" />
+          Create Plan
+        </Button>
+      </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Plan List</CardTitle>
-            <CardDescription>
-              You have {plans.length} plan(s) defined for sellers.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Plan Name</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Product Limit</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {plans.length > 0 ? (
-                  plans.map((plan) => (
-                    <TableRow key={plan.id}>
-                      <TableCell className="font-medium">{plan.name}</TableCell>
-                      <TableCell>${plan.price.toFixed(2)} / month</TableCell>
-                      <TableCell>{formatLimit(plan.productLimit)}</TableCell>
-                      <TableCell>
-                         <Badge variant={plan.status === 'active' ? 'default' : 'secondary'} className="capitalize">
-                            {plan.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <span className="sr-only">Open menu</span>
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEdit(plan.id)}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              <span>Edit</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-red-500 hover:text-red-600 focus:text-red-600"
-                              onClick={() => handleDeleteInitiate(plan)}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              <span>Delete</span>
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
-                      No subscription plans found. Get started by creating one!
+      <Card>
+        <CardHeader>
+          <CardTitle>Plan List</CardTitle>
+          <CardDescription>
+            You have {plans.length} plan(s) defined for sellers.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Plan Name</TableHead>
+                <TableHead>Price</TableHead>
+                <TableHead>Product Limit</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {plans.length > 0 ? (
+                plans.map((plan) => (
+                  <TableRow key={plan.id}>
+                    <TableCell className="font-medium">{plan.name}</TableCell>
+                    <TableCell>${plan.price.toFixed(2)} / month</TableCell>
+                    <TableCell>{formatLimit(plan.productLimit)}</TableCell>
+                    <TableCell>
+                       <Badge variant={plan.status === 'active' ? 'default' : 'secondary'} className="capitalize">
+                          {plan.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEdit(plan.id)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            <span>Edit</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-red-500 hover:text-red-600 focus:text-red-600"
+                            onClick={() => handleDeleteInitiate(plan)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            <span>Delete</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </div>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    No subscription plans found. Get started by creating one!
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       <SubscriptionPlanFormDialog
         key={selectedPlanId || 'new'}
@@ -200,6 +198,6 @@ export function SubscriptionsClientPage({ initialPlans }: SubscriptionsClientPag
         itemType="subscription plan"
         itemName={planToDelete?.name}
       />
-    </>
+    </div>
   );
 }
