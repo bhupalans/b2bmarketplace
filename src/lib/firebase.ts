@@ -4,7 +4,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc as getDocClient, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError, setDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate, VerificationTemplate, VerificationField, SourcingRequest, Question, Answer, AppNotification } from './types';
+import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate, VerificationTemplate, VerificationField, SourcingRequest, Question, Answer, AppNotification, SubscriptionPlan } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { moderateMessageContent } from '@/ai/flows/moderate-message-content';
 import { sendQuestionAnsweredEmail, sendProductApprovedEmail, sendProductRejectedEmail, sendUserVerifiedEmail, sendUserRejectedEmail } from '@/services/email';
@@ -1295,6 +1295,47 @@ export async function markNotificationAsReadClient(notificationId: string): Prom
     await updateDoc(notificationRef, { read: true });
 }
 
+// --- Subscription Plan Client Functions ---
+
+export async function getSubscriptionPlansClient(): Promise<SubscriptionPlan[]> {
+  const plansCol = collection(db, "subscriptionPlans");
+  const snapshot = await getDocs(plansCol);
+  return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...convertTimestamps(docSnap.data()) } as SubscriptionPlan));
+}
+
+export async function createOrUpdateSubscriptionPlanClient(
+  planData: Omit<SubscriptionPlan, 'id'>,
+  planId?: string | null
+): Promise<SubscriptionPlan> {
+  const dataToSave = {
+    ...planData,
+    updatedAt: Timestamp.now(),
+  };
+
+  if (planId) {
+    const planRef = doc(db, 'subscriptionPlans', planId);
+    await updateDoc(planRef, dataToSave);
+    const updatedDoc = await getDocClient(planRef);
+    return { id: planId, ...updatedDoc.data() } as SubscriptionPlan;
+  } else {
+    const docRef = await addDoc(collection(db, 'subscriptionPlans'), {
+      ...dataToSave,
+      createdAt: Timestamp.now(),
+    });
+    const newDoc = await getDocClient(docRef);
+    return { id: docRef.id, ...newDoc.data() } as SubscriptionPlan;
+  }
+}
+
+export async function deleteSubscriptionPlanClient(planId: string): Promise<void> {
+  if (!planId) {
+    throw new Error("Plan ID is invalid.");
+  }
+  // To-do: Check if any user is subscribed to this plan before deleting.
+  // For now, we will allow deletion.
+  const planRef = doc(db, 'subscriptionPlans', planId);
+  await deleteDoc(planRef);
+}
 
 
 export { app, auth, db, storage };

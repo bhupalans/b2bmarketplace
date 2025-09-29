@@ -117,6 +117,20 @@ export type VerificationTemplate = {
     fields: VerificationField[];
 }
 
+export type SubscriptionPlan = {
+  id: string;
+  name: string;
+  price: number;
+  currency: 'USD';
+  productLimit: number; // Use -1 for unlimited
+  sourcingResponseLimit: number; // Use -1 for unlimited
+  hasAnalytics: boolean;
+  isFeatured: boolean;
+  status: 'active' | 'archived';
+  createdAt?: Timestamp | string;
+  updatedAt?: Timestamp | string;
+};
+
 
 export type Product = {
   id: string;
