@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building, Home, PanelLeft, Loader2, LayoutDashboard, Package, Shield, FileText, FolderTree, MessageSquare, MessagesSquare, Gavel, CheckSquare, Settings, ShieldCheck, Database, Search, Handshake } from "lucide-react";
+import { Building, Home, PanelLeft, Loader2, LayoutDashboard, Package, Shield, FileText, FolderTree, MessageSquare, MessagesSquare, Gavel, CheckSquare, Settings, ShieldCheck, Database, Search, Handshake, Gem } from "lucide-react";
 import {
   SidebarProvider,
   Sidebar,
@@ -54,7 +54,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         '/sourcing/create': 'buyer',
         '/admin': 'admin',
         '/messages': 'any', // any authenticated user
-        '/profile': 'any'
+        '/profile': 'any',
+        '/notifications': 'any',
     };
 
     let requiredRole: 'seller' | 'buyer' | 'admin' | 'any' | null = null;
@@ -283,6 +284,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                 <SidebarMenuSubItem>
                                     <SidebarMenuSubButton asChild isActive={pathname === '/admin/categories'}>
                                         <Link href="/admin/categories">Categories</Link>
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={pathname === '/admin/subscriptions'}>
+                                        <Link href="/admin/subscriptions">Subscription Plans</Link>
                                     </SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
                                 <SidebarMenuSubItem>
