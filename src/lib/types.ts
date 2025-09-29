@@ -80,6 +80,10 @@ export type User = {
       };
   };
   verificationRejectionReason?: string;
+  
+  // Subscription Fields
+  subscriptionPlanId?: string;
+  subscriptionPlan?: SubscriptionPlan; // Denormalized plan data
 };
 
 export type Category = {

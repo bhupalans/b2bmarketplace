@@ -2,11 +2,11 @@
 'use server';
 
 import { adminDb, adminStorage, adminAuth } from '@/lib/firebase-admin';
-import { User, VerificationTemplate } from '@/lib/types';
+import { User, VerificationTemplate, SubscriptionPlan } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 import { v4 as uuidv4 } from 'uuid';
 
-type ProfileUpdateData = Omit<User, 'id' | 'uid' | 'email' | 'role' | 'avatar' | 'memberSince' | 'username'>;
+type ProfileUpdateData = Omit<User, 'id' | 'uid' | 'email' | 'role' | 'avatar' | 'memberSince' | 'username' | 'subscriptionPlanId' | 'subscriptionPlan'>;
 
 // Helper function to deep compare verification details
 const areDetailsEqual = (d1?: { [key: string]: string }, d2?: { [key: string]: string }): boolean => {
@@ -207,5 +207,47 @@ export async function submitVerificationDocuments(formData: FormData, token: str
   } catch(error: any) {
     console.error("Error submitting verification docs:", error);
     return { success: false, error: error.message || "Failed to submit documents." };
+  }
+}
+
+export async function updateUserSubscription(userId: string, planId: string): Promise<{ success: true; user: User } | { success: false; error: string }> {
+  if (!userId) {
+    return { success: false, error: 'User not authenticated.' };
+  }
+
+  try {
+    const userRef = adminDb.collection('users').doc(userId);
+    const planRef = adminDb.collection('subscriptionPlans').doc(planId);
+
+    const [userSnap, planSnap] = await Promise.all([userRef.get(), planRef.get()]);
+
+    if (!userSnap.exists()) {
+      return { success: false, error: 'User profile not found.' };
+    }
+    if (!planSnap.exists()) {
+      return { success: false, error: 'Selected subscription plan not found.' };
+    }
+    
+    const planData = { id: planSnap.id, ...planSnap.data() } as SubscriptionPlan;
+
+    // In a real app, you would process payment here before updating the user.
+    // For now, we just update the user's plan directly.
+
+    await userRef.update({
+      subscriptionPlanId: planId,
+      subscriptionPlan: planData, // Denormalize plan data for easier access
+    });
+
+    const updatedUserSnap = await userRef.get();
+    const updatedUser = { id: updatedUserSnap.id, ...updatedUserSnap.data() } as User;
+    
+    // Revalidate paths that might show subscription status
+    revalidatePath('/profile/subscription');
+    revalidatePath('/my-products');
+
+    return { success: true, user: updatedUser };
+  } catch (error: any) {
+    console.error('Error updating user subscription:', error);
+    return { success: false, error: 'Failed to update subscription on the server.' };
   }
 }
