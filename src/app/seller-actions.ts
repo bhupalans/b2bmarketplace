@@ -5,6 +5,7 @@ import { getSellerProducts } from '@/lib/database';
 import { adminDb } from '@/lib/firebase-admin';
 import { Offer, Lead, Conversation } from '@/lib/types';
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
+import { revalidatePath } from 'next/cache';
 
 export async function getSellerDashboardData(sellerId: string) {
   try {
