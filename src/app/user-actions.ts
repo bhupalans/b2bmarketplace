@@ -219,32 +219,26 @@ export async function updateUserSubscription(userId: string, planId: string): Pr
     const userRef = adminDb.collection('users').doc(userId);
     const planRef = adminDb.collection('subscriptionPlans').doc(planId);
 
-    const [userSnap, planSnap] = await Promise.all([userRef.get(), planRef.get()]);
+    const planSnap = await planRef.get();
 
-    if (!userSnap.exists()) {
-      return { success: false, error: 'User profile not found.' };
-    }
     if (!planSnap.exists()) {
       return { success: false, error: 'Selected subscription plan not found.' };
     }
     
     const planData = { id: planSnap.id, ...planSnap.data() } as SubscriptionPlan;
 
-    // In a real app, you would process payment here before updating the user.
-    // For now, we just update the user's plan directly.
-
     await userRef.update({
       subscriptionPlanId: planId,
-      // We no longer denormalize the full plan object.
-      // The client will fetch it dynamically.
-      subscriptionPlan: adminDb.FieldValue.delete(),
     });
 
-    // We fetch the updated user and then manually attach the plan for the client context update.
     const updatedUserSnap = await userRef.get();
-    const updatedUser = { id: updatedUserSnap.id, ...updatedUserSnap.data(), subscriptionPlan: planData } as User;
     
-    // Revalidate paths that might show subscription status
+    const updatedUser = { 
+        id: updatedUserSnap.id, 
+        ...updatedUserSnap.data(), 
+        subscriptionPlan: planData // Dynamically attach the plan details for the client
+    } as User;
+    
     revalidatePath('/profile/subscription');
     revalidatePath('/my-products');
 
