@@ -235,11 +235,14 @@ export async function updateUserSubscription(userId: string, planId: string): Pr
 
     await userRef.update({
       subscriptionPlanId: planId,
-      subscriptionPlan: planData, // Denormalize plan data for easier access
+      // We no longer denormalize the full plan object.
+      // The client will fetch it dynamically.
+      subscriptionPlan: adminDb.FieldValue.delete(),
     });
 
+    // We fetch the updated user and then manually attach the plan for the client context update.
     const updatedUserSnap = await userRef.get();
-    const updatedUser = { id: updatedUserSnap.id, ...updatedUserSnap.data() } as User;
+    const updatedUser = { id: updatedUserSnap.id, ...updatedUserSnap.data(), subscriptionPlan: planData } as User;
     
     // Revalidate paths that might show subscription status
     revalidatePath('/profile/subscription');

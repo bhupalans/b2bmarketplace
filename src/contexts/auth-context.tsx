@@ -5,7 +5,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
-import type { User } from '@/lib/types';
+import type { User, SubscriptionPlan } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 
 type AuthContextType = {
@@ -28,12 +28,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (fbUser) {
         const userDocRef = doc(db, 'users', fbUser.uid);
         const userDoc = await getDoc(userDocRef);
+        
+        let userProfile: User | null = null;
+        
         if (userDoc.exists()) {
-          setUser({ id: userDoc.id, uid: fbUser.uid, ...userDoc.data() } as User);
+          userProfile = { id: userDoc.id, uid: fbUser.uid, ...userDoc.data() } as User;
         } else {
             console.warn("No user profile found in Firestore for UID:", fbUser.uid, ". Creating one now.");
             const nameFromEmail = fbUser.email ? fbUser.email.split('@')[0] : 'New User';
-            const newUserProfile: Omit<User, 'id'> = {
+            const newUserProfileData: Omit<User, 'id'> = {
               uid: fbUser.uid,
               email: fbUser.email || 'no-email@provided.com',
               name: nameFromEmail,
@@ -45,13 +48,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             };
             
             try {
-              await setDoc(userDocRef, newUserProfile);
-              setUser({ id: fbUser.uid, ...newUserProfile });
+              await setDoc(userDocRef, newUserProfileData);
+              userProfile = { id: fbUser.uid, ...newUserProfileData };
             } catch(e) {
                 console.error("Failed to create new user profile in Firestore:", e);
-                setUser(null);
+                userProfile = null;
             }
         }
+        
+        // If the user has a subscription plan ID, fetch the plan details
+        if (userProfile && userProfile.subscriptionPlanId) {
+            const planRef = doc(db, 'subscriptionPlans', userProfile.subscriptionPlanId);
+            const planSnap = await getDoc(planRef);
+            if (planSnap.exists()) {
+                userProfile.subscriptionPlan = { id: planSnap.id, ...planSnap.data() } as SubscriptionPlan;
+            }
+        }
+        setUser(userProfile);
+
       } else {
         setUser(null);
       }

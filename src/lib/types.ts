@@ -83,7 +83,7 @@ export type User = {
   
   // Subscription Fields
   subscriptionPlanId?: string;
-  subscriptionPlan?: SubscriptionPlan; // Denormalized plan data
+  subscriptionPlan?: SubscriptionPlan; // Denormalized plan data for client-side use
 };
 
 export type Category = {
