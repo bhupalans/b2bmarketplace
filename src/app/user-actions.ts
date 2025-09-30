@@ -219,35 +219,39 @@ export async function updateUserSubscription(userId: string, planId: string): Pr
     const userRef = adminDb.collection('users').doc(userId);
     const planRef = adminDb.collection('subscriptionPlans').doc(planId);
 
-    const planSnap = await planRef.get();
+    // Use a transaction to ensure atomicity
+    const updatedUser = await adminDb.runTransaction(async (transaction) => {
+        const planSnap = await transaction.get(planRef);
+        if (!planSnap.exists) {
+            throw new Error('Selected subscription plan not found.');
+        }
 
-    if (!planSnap.exists()) {
-      return { success: false, error: 'Selected subscription plan not found.' };
-    }
-    
-    const planData = { id: planSnap.id, ...planSnap.data() } as SubscriptionPlan;
+        const planData = { id: planSnap.id, ...planSnap.data() } as SubscriptionPlan;
 
-    await userRef.update({
-      subscriptionPlanId: planId,
+        transaction.update(userRef, {
+            subscriptionPlanId: planId,
+        });
+
+        const userSnap = await transaction.get(userRef);
+        if (!userSnap.exists) {
+            throw new Error('Could not retrieve updated user profile during transaction.');
+        }
+
+        const userData = userSnap.data() as Omit<User, 'id' | 'subscriptionPlan'>;
+
+        // Manually assemble the final user object to be returned
+        return {
+            id: userSnap.id,
+            ...userData,
+            subscriptionPlan: planData, // Attach the fetched plan data
+        };
     });
 
-    const updatedUserSnap = await userRef.get();
-    if (!updatedUserSnap.exists()) {
-      throw new Error('Could not retrieve updated user profile.');
-    }
-    
-    const updatedUser = { 
-        id: updatedUserSnap.id, 
-        ...updatedUserSnap.data(),
-    } as User;
-    
-    // Manually attach plan data for the client response
-    updatedUser.subscriptionPlan = planData;
-    
     revalidatePath('/profile/subscription');
     revalidatePath('/my-products');
 
-    return { success: true, user: updatedUser };
+    return { success: true, user: updatedUser as User };
+
   } catch (error: any) {
     console.error('Error updating user subscription:', error);
     return { success: false, error: 'Failed to update subscription on the server.' };
