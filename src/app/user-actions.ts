@@ -5,6 +5,7 @@ import { adminDb, adminStorage, adminAuth } from '@/lib/firebase-admin';
 import { User, VerificationTemplate, SubscriptionPlan } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 import { v4 as uuidv4 } from 'uuid';
+import { firestore } from 'firebase-admin';
 
 type ProfileUpdateData = Omit<User, 'id' | 'uid' | 'email' | 'role' | 'avatar' | 'memberSince' | 'username' | 'subscriptionPlanId' | 'subscriptionPlan'>;
 
@@ -210,6 +211,24 @@ export async function submitVerificationDocuments(formData: FormData, token: str
   }
 }
 
+// Helper to convert Firestore Timestamps to serializable strings
+const convertTimestamps = (data: any) => {
+    if (!data) return data;
+    const newData: { [key: string]: any } = {};
+    for (const key in data) {
+        if (data[key] instanceof firestore.Timestamp) {
+            newData[key] = data[key].toDate().toISOString();
+        } else if (typeof data[key] === 'object' && data[key] !== null) {
+             // We don't need deep conversion here, only top-level timestamps.
+             newData[key] = data[key];
+        } else {
+            newData[key] = data[key];
+        }
+    }
+    return newData;
+};
+
+
 export async function updateUserSubscription(userId: string, planId: string): Promise<{ success: true; user: User } | { success: false; error: string }> {
   if (!userId) {
     return { success: false, error: 'User not authenticated.' };
@@ -219,35 +238,30 @@ export async function updateUserSubscription(userId: string, planId: string): Pr
     const userRef = adminDb.collection('users').doc(userId);
     const planRef = adminDb.collection('subscriptionPlans').doc(planId);
 
-    // Run the update in a transaction to ensure atomicity.
+    // Use a transaction to ensure atomicity
     await adminDb.runTransaction(async (transaction) => {
         const planSnap = await transaction.get(planRef);
         if (!planSnap.exists) {
             throw new Error('Selected subscription plan not found.');
         }
-        
-        transaction.update(userRef, {
-            subscriptionPlanId: planId,
-        });
+        transaction.update(userRef, { subscriptionPlanId: planId });
     });
 
-    // After the transaction is successful, fetch the updated user and plan data.
+    // After the transaction is successful, fetch the updated data
     const updatedUserSnap = await userRef.get();
-    if (!updatedUserSnap.exists) {
-        throw new Error('Failed to retrieve updated user profile.');
-    }
-    const userData = updatedUserSnap.data() as Omit<User, 'id' | 'subscriptionPlan'>;
+    const planSnap = await planRef.get();
 
-    const updatedPlanSnap = await planRef.get();
-    if (!updatedPlanSnap.exists) {
-        throw new Error('Failed to retrieve plan details after update.');
+    if (!updatedUserSnap.exists() || !planSnap.exists()) {
+        throw new Error('Failed to retrieve updated user or plan details.');
     }
-    const planData = { id: updatedPlanSnap.id, ...updatedPlanSnap.data() } as SubscriptionPlan;
     
+    const userData = updatedUserSnap.data() as Omit<User, 'id' | 'subscriptionPlan'>;
+    const planData = convertTimestamps(planSnap.data());
+
     const finalUserObject: User = {
         id: updatedUserSnap.id,
         ...userData,
-        subscriptionPlan: planData,
+        subscriptionPlan: { id: planSnap.id, ...planData } as SubscriptionPlan,
     };
 
     revalidatePath('/profile/subscription');
