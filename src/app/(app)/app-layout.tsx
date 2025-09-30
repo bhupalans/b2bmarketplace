@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building, Home, PanelLeft, Loader2, LayoutDashboard, Package, Shield, FileText, FolderTree, MessageSquare, MessagesSquare, Gavel, CheckSquare, Settings, ShieldCheck, Database, Search, Handshake, Gem } from "lucide-react";
+import { Building, Home, PanelLeft, Loader2, LayoutDashboard, Package, Shield, FileText, FolderTree, MessageSquare, MessagesSquare, Gavel, CheckSquare, Settings, ShieldCheck, Database, Search, Handshake, Gem, List } from "lucide-react";
 import {
   SidebarProvider,
   Sidebar,
@@ -103,6 +103,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       )
   }
 
+  const isFreeSeller = user?.role === 'seller' && (!user.subscriptionPlanId || user.subscriptionPlan?.price === 0);
 
   return (
     <SidebarProvider>
@@ -213,6 +214,20 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+                {isFreeSeller && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname.startsWith("/dashboard/leads")}
+                      tooltip="My Leads"
+                    >
+                      <Link href="/dashboard/leads">
+                        <List />
+                        <span className="sr-only">My Leads</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
@@ -325,5 +340,3 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   );
 }
-
-    

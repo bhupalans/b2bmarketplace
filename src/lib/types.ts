@@ -86,6 +86,20 @@ export type User = {
   subscriptionPlan?: SubscriptionPlan; // Denormalized plan data for client-side use
 };
 
+export type Lead = {
+  id: string;
+  sellerId: string;
+  buyerId: string;
+  buyerName: string;
+  buyerAvatar: string;
+  productId: string;
+  productTitle: string;
+  quantity: number;
+  requirements: string;
+  createdAt: Timestamp | string;
+  status: 'new' | 'viewed';
+};
+
 export type Category = {
   id: string;
   name:string;

@@ -48,34 +48,42 @@ export function RequestQuoteDialog({ product, seller }: RequestQuoteDialogProps)
   const form = useForm<QuoteFormData>({
     resolver: zodResolver(quoteSchema),
     defaultValues: {
-        quantity: 1,
+        quantity: product.moq || 1,
         requirements: "",
     }
   });
 
   const onSubmit = (values: QuoteFormData) => {
-    if (!firebaseUser) {
+    if (!firebaseUser || !user) {
       toast({ variant: "destructive", title: "Error", description: "You must be logged in." });
+      return;
+    }
+    
+    if (user.role !== 'buyer') {
+      toast({ variant: "destructive", title: "Action Not Allowed", description: "Only buyers can request a quote." });
       return;
     }
 
     startTransition(async () => {
       try {
-        const conversationId = await sendQuoteRequest({
-          buyerId: firebaseUser.uid,
-          sellerId: seller.uid,
+        const result = await sendQuoteRequest({
+          buyer: user,
+          seller: seller,
           productId: product.id,
           productTitle: product.title,
-          productImage: product.images[0] || '',
           quantity: values.quantity,
           requirements: values.requirements,
         });
 
         toast({
           title: "Quote Request Sent",
-          description: "Your request has been sent to the seller.",
+          description: result.isLead ? "The seller has been notified of your interest." : "Your request has been sent to the seller.",
         });
-        router.push(`/messages/${conversationId}`);
+
+        if (result.conversationId) {
+            router.push(`/messages/${result.conversationId}`);
+        }
+        
         setOpen(false);
       } catch (error: any) {
         console.error("Error sending quote request:", error);
@@ -97,10 +105,10 @@ export function RequestQuoteDialog({ product, seller }: RequestQuoteDialogProps)
     )
   }
 
-  if (!firebaseUser) {
+  if (!firebaseUser || user?.role !== 'buyer') {
     return (
       <Button asChild className="w-full">
-        <Link href="/login">Log in to Request a Quote</Link>
+        <Link href="/login">Log in as Buyer to Request Quote</Link>
       </Button>
     );
   }
@@ -131,9 +139,9 @@ export function RequestQuoteDialog({ product, seller }: RequestQuoteDialogProps)
                     name="quantity"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Quantity Needed</FormLabel>
+                            <FormLabel>Quantity Needed (Min: {product.moq} {product.moqUnit})</FormLabel>
                             <FormControl>
-                                <Input type="number" placeholder="e.g. 1000" {...field} />
+                                <Input type="number" placeholder={`e.g. ${product.moq}`} {...field} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
