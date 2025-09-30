@@ -125,15 +125,15 @@ function CheckoutPageContent() {
                             <CardDescription>All transactions are secure and encrypted.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-3">
-                            <Button variant="outline" className="w-full h-14 justify-start" onClick={() => handleGatewaySelect('stripe')}>
+                            <Button variant="outline" className="w-full h-14 justify-start items-center" onClick={() => handleGatewaySelect('stripe')}>
                                  <Image src="/stripe-logo.svg" alt="Stripe" width={60} height={24} className="mr-4"/>
                                  Pay with Stripe
                             </Button>
-                             <Button variant="outline" className="w-full h-14 justify-start" onClick={() => handleGatewaySelect('paypal')}>
+                             <Button variant="outline" className="w-full h-14 justify-start items-center" onClick={() => handleGatewaySelect('paypal')}>
                                  <Image src="/paypal-logo.svg" alt="PayPal" width={80} height={22} className="mr-4"/>
                                  Pay with PayPal
                             </Button>
-                             <Button variant="outline" className="w-full h-14 justify-start" onClick={() => handleGatewaySelect('razorpay')}>
+                             <Button variant="outline" className="w-full h-14 justify-start items-center" onClick={() => handleGatewaySelect('razorpay')}>
                                  <Image src="/razorpay-logo.svg" alt="Razorpay" width={90} height={20} className="mr-4"/>
                                  Pay with Razorpay
                             </Button>
