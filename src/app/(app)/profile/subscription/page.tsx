@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { updateUserSubscription } from '@/app/user-actions';
+import { useRouter } from 'next/navigation';
 
 const PlanFeature = ({ children }: { children: React.ReactNode }) => (
     <li className="flex items-center gap-2">
@@ -21,6 +22,7 @@ const PlanFeature = ({ children }: { children: React.ReactNode }) => (
 
 export default function SubscriptionPage() {
     const { user, firebaseUser, updateUserContext, loading: authLoading } = useAuth();
+    const router = useRouter();
     const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
     const [loading, setLoading] = useState(true);
     const [isSubmitting, startTransition] = useTransition();
@@ -44,11 +46,19 @@ export default function SubscriptionPage() {
         fetchData();
     }, [toast]);
     
-    const handleSelectPlan = (planId: string) => {
+    const handleSelectPlan = (plan: SubscriptionPlan) => {
         if (!firebaseUser) return;
-        setSelectedPlanId(planId);
+        
+        // If the plan is paid, redirect to checkout
+        if (plan.price > 0) {
+            router.push(`/profile/subscription/checkout?planId=${plan.id}`);
+            return;
+        }
+
+        // If the plan is free (downgrade)
+        setSelectedPlanId(plan.id);
         startTransition(async () => {
-            const result = await updateUserSubscription(firebaseUser.uid, planId);
+            const result = await updateUserSubscription(firebaseUser.uid, plan.id);
             if (result.success && result.user) {
                 updateUserContext(result.user);
                 toast({ title: 'Plan Updated', description: `You are now on the ${result.user.subscriptionPlan?.name} plan.`});
@@ -108,7 +118,7 @@ export default function SubscriptionPage() {
                             {isCurrentPlan ? (
                                 <Button disabled className="w-full">Current Plan</Button>
                             ) : (
-                                <Button onClick={() => handleSelectPlan(plan.id)} className="w-full" disabled={isSubmitting}>
+                                <Button onClick={() => handleSelectPlan(plan)} className="w-full" disabled={isSubmitting}>
                                     {isProcessingThisPlan ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Select Plan'}
                                 </Button>
                             )}
@@ -119,4 +129,3 @@ export default function SubscriptionPage() {
         </div>
     );
 }
-
