@@ -3,7 +3,8 @@
 
 import { getSellerProducts } from '@/lib/database';
 import { adminDb } from '@/lib/firebase-admin';
-import { Offer } from '@/lib/types';
+import { Offer, Lead, Conversation } from '@/lib/types';
+import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 
 export async function getSellerDashboardData(sellerId: string) {
   try {
@@ -46,5 +47,76 @@ export async function getSellerDashboardData(sellerId: string) {
   } catch (error: any) {
     console.error("Error fetching seller dashboard data:", error);
     return { success: false, error: error.message };
+  }
+}
+
+
+export async function convertLeadsToConversations(sellerId: string): Promise<{ success: boolean; error?: string }> {
+  if (!sellerId) {
+    return { success: false, error: 'Seller ID is required.' };
+  }
+
+  try {
+    const leadsRef = adminDb.collection('leads');
+    const q = leadsRef.where('sellerId', '==', sellerId);
+    const snapshot = await q.get();
+
+    if (snapshot.empty) {
+      return { success: true }; // No leads to convert
+    }
+
+    const batch = adminDb.batch();
+
+    for (const leadDoc of snapshot.docs) {
+      const lead = leadDoc.data() as Lead;
+      
+      const productSnap = await adminDb.collection("products").doc(lead.productId).get();
+      if (!productSnap.exists()) {
+          console.warn(`Skipping lead ${leadDoc.id} because product ${lead.productId} does not exist.`);
+          continue;
+      }
+      const productData = productSnap.data();
+
+      // --- Create Conversation ---
+      const conversationData: Omit<Conversation, 'id'> = {
+        participantIds: [lead.buyerId, sellerId],
+        productId: lead.productId,
+        productTitle: lead.productTitle,
+        productImage: productData?.images?.[0] || '',
+        productSellerId: sellerId,
+        createdAt: Timestamp.now(),
+        lastMessage: {
+            text: lead.requirements,
+            senderId: lead.buyerId,
+            timestamp: lead.createdAt as Timestamp,
+        },
+      };
+      const conversationRef = adminDb.collection('conversations').doc(); // Auto-generate ID
+      batch.set(conversationRef, conversationData);
+
+      // --- Create Message ---
+      const messageData = {
+          conversationId: conversationRef.id,
+          senderId: lead.buyerId,
+          text: `<b>New Quote Request</b><br/><b>Product:</b> ${lead.productTitle}<br/><b>Quantity:</b> ${lead.quantity}<br/><br/><b>Buyer's Message:</b><br/>${lead.requirements}`,
+          timestamp: lead.createdAt,
+          isQuoteRequest: true,
+      };
+      const messageRef = adminDb.collection('conversations').doc(conversationRef.id).collection('messages').doc();
+      batch.set(messageRef, messageData);
+      
+      // --- Delete Lead ---
+      batch.delete(leadDoc.ref);
+    }
+
+    await batch.commit();
+
+    revalidatePath('/messages');
+
+    return { success: true };
+
+  } catch (error: any) {
+    console.error(`Error converting leads for seller ${sellerId}:`, error);
+    return { success: false, error: 'Failed to convert leads to conversations.' };
   }
 }

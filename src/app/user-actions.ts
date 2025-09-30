@@ -6,6 +6,7 @@ import { User, VerificationTemplate, SubscriptionPlan } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 import { v4 as uuidv4 } from 'uuid';
 import { firestore } from 'firebase-admin';
+import { convertLeadsToConversations } from './seller-actions';
 
 type ProfileUpdateData = Omit<User, 'id' | 'uid' | 'email' | 'role' | 'avatar' | 'memberSince' | 'username' | 'subscriptionPlanId' | 'subscriptionPlan'>;
 
@@ -218,9 +219,8 @@ const convertTimestamps = (data: any) => {
     for (const key in data) {
         if (data[key] instanceof firestore.Timestamp) {
             newData[key] = data[key].toDate().toISOString();
-        } else if (typeof data[key] === 'object' && data[key] !== null) {
-             // We don't need deep conversion here, only top-level timestamps.
-             newData[key] = data[key];
+        } else if (typeof data[key] === 'object' && data[key] !== null && !Array.isArray(data[key])) {
+             newData[key] = convertTimestamps(data[key]);
         } else {
             newData[key] = data[key];
         }
@@ -238,33 +238,41 @@ export async function updateUserSubscription(userId: string, planId: string): Pr
     const userRef = adminDb.collection('users').doc(userId);
     const planRef = adminDb.collection('subscriptionPlans').doc(planId);
 
+    const planSnap = await planRef.get();
+    if (!planSnap.exists()) {
+      throw new Error('Selected subscription plan not found.');
+    }
+    const newPlan = planSnap.data() as SubscriptionPlan;
+
     // Use a transaction to ensure atomicity
     await adminDb.runTransaction(async (transaction) => {
-        const planSnap = await transaction.get(planRef);
-        if (!planSnap.exists) {
-            throw new Error('Selected subscription plan not found.');
-        }
-        transaction.update(userRef, { subscriptionPlanId: planId });
+      transaction.update(userRef, { subscriptionPlanId: planId });
     });
+    
+    // If the new plan is a paid plan, trigger lead conversion
+    if (newPlan.price > 0) {
+        const conversionResult = await convertLeadsToConversations(userId);
+        if (!conversionResult.success) {
+            console.warn(`Lead conversion for user ${userId} may have partially failed: ${conversionResult.error}`);
+        }
+    }
 
-    // After the transaction is successful, fetch the updated data
+    // After the transaction is successful, fetch the updated user data
     const updatedUserSnap = await userRef.get();
-    const planSnap = await planRef.get();
-
-    if (!updatedUserSnap.exists() || !planSnap.exists()) {
-        throw new Error('Failed to retrieve updated user or plan details.');
+    if (!updatedUserSnap.exists()) {
+        throw new Error('Failed to retrieve updated user details.');
     }
     
     const userData = updatedUserSnap.data() as Omit<User, 'id' | 'subscriptionPlan'>;
-    const planData = convertTimestamps(planSnap.data());
 
     const finalUserObject: User = {
         id: updatedUserSnap.id,
         ...userData,
-        subscriptionPlan: { id: planSnap.id, ...planData } as SubscriptionPlan,
+        subscriptionPlan: { id: planSnap.id, ...convertTimestamps(newPlan) } as SubscriptionPlan,
     };
 
     revalidatePath('/profile/subscription');
+    revalidatePath('/dashboard/leads'); // In case they are redirected from there
     revalidatePath('/my-products');
 
     return { success: true, user: finalUserObject };
