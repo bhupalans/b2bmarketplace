@@ -232,12 +232,17 @@ export async function updateUserSubscription(userId: string, planId: string): Pr
     });
 
     const updatedUserSnap = await userRef.get();
+    if (!updatedUserSnap.exists()) {
+      throw new Error('Could not retrieve updated user profile.');
+    }
     
     const updatedUser = { 
         id: updatedUserSnap.id, 
-        ...updatedUserSnap.data(), 
-        subscriptionPlan: planData // Dynamically attach the plan details for the client
+        ...updatedUserSnap.data(),
     } as User;
+    
+    // Manually attach plan data for the client response
+    updatedUser.subscriptionPlan = planData;
     
     revalidatePath('/profile/subscription');
     revalidatePath('/my-products');
