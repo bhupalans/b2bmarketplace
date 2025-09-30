@@ -4,7 +4,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc as getDocClient, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError, setDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate, VerificationTemplate, VerificationField, SourcingRequest, Question, Answer, AppNotification, SubscriptionPlan } from './types';
+import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate, VerificationTemplate, VerificationField, SourcingRequest, Question, Answer, AppNotification, SubscriptionPlan, Lead } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { moderateMessageContent } from '@/ai/flows/moderate-message-content';
 import { sendQuestionAnsweredEmail, sendProductApprovedEmail, sendProductRejectedEmail, sendUserVerifiedEmail, sendUserRejectedEmail } from '@/services/email';
@@ -972,37 +972,46 @@ export async function updateOfferStatusClient(
 
 
 export async function sendQuoteRequest(data: {
-    buyerId: string;
-    sellerId: string;
+    buyer: User;
+    seller: User;
     productId: string;
     productTitle: string;
-    productImage: string;
     quantity: number;
     requirements: string;
-}): Promise<string> {
-    const { conversationId } = await findOrCreateConversation({
-        buyerId: data.buyerId,
-        sellerId: data.sellerId,
-        productId: data.productId,
-        productTitle: data.productTitle,
-        productImage: data.productImage,
-    });
+}): Promise<{ conversationId: string | null; isLead: boolean }> {
 
-    let safeRequirements = data.requirements;
-    if (data.requirements.trim()) {
-        try {
-            const result = await moderateMessageContent({ message: data.requirements });
-            safeRequirements = result.modifiedMessage;
-        } catch (error) {
-            console.error("AI content moderation failed for quote request. Sending original message.", error);
-        }
-    }
-
-    const formattedMessage = `&lt;b&gt;New Quote Request&lt;/b&gt;&lt;br/&gt;&lt;b&gt;Product:&lt;/b&gt; ${data.productTitle}&lt;br/&gt;&lt;b&gt;Quantity:&lt;/b&gt; ${data.quantity}&lt;br/&gt;&lt;br/&gt;&lt;b&gt;Buyer's Message:&lt;/b&gt;&lt;br/&gt;${safeRequirements}`;
+    const sellerIsPaid = !!data.seller.subscriptionPlanId && data.seller.subscriptionPlan?.price > 0;
     
-    await sendMessage(conversationId, data.buyerId, formattedMessage, { isQuoteRequest: true });
+    if (sellerIsPaid) {
+        const { conversationId } = await findOrCreateConversation({
+            buyerId: data.buyer.uid,
+            sellerId: data.seller.uid,
+            productId: data.productId,
+            productTitle: data.productTitle,
+            productImage: (await getProductClient(data.productId))?.images[0] || '',
+        });
+        
+        const formattedMessage = `&lt;b&gt;New Quote Request&lt;/b&gt;&lt;br/&gt;&lt;b&gt;Product:&lt;/b&gt; ${data.productTitle}&lt;br/&gt;&lt;b&gt;Quantity:&lt;/b&gt; ${data.quantity}&lt;br/&gt;&lt;br/&gt;&lt;b&gt;Buyer's Message:&lt;/b&gt;&lt;br/&gt;${data.requirements}`;
+        await sendMessage(conversationId, data.buyer.uid, formattedMessage, { isQuoteRequest: true });
 
-    return conversationId;
+        return { conversationId, isLead: false };
+    } else {
+        // Create a lead for the free seller
+        const leadData: Omit<Lead, 'id'> = {
+            sellerId: data.seller.uid,
+            buyerId: data.buyer.uid,
+            buyerName: data.buyer.name,
+            buyerAvatar: data.buyer.avatar,
+            productId: data.productId,
+            productTitle: data.productTitle,
+            quantity: data.quantity,
+            requirements: data.requirements,
+            createdAt: serverTimestamp() as Timestamp,
+            status: 'new',
+        };
+        await addDoc(collection(db, 'leads'), leadData);
+        return { conversationId: null, isLead: true };
+    }
 }
 
 export async function sendQuoteForSourcingRequest(data: {
@@ -1335,6 +1344,14 @@ export async function deleteSubscriptionPlanClient(planId: string): Promise<void
   // For now, we will allow deletion.
   const planRef = doc(db, 'subscriptionPlans', planId);
   await deleteDoc(planRef);
+}
+
+// --- Lead Functions ---
+export async function getLeadsForSeller(sellerId: string): Promise<Lead[]> {
+    const leadsRef = collection(db, "leads");
+    const q = query(leadsRef, where("sellerId", "==", sellerId), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...convertTimestamps(docSnap.data()) } as Lead));
 }
 
 
