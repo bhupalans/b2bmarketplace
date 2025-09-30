@@ -70,20 +70,13 @@ export async function convertLeadsToConversations(sellerId: string): Promise<{ s
 
     for (const leadDoc of snapshot.docs) {
       const lead = leadDoc.data() as Lead;
-      
-      const productSnap = await adminDb.collection("products").doc(lead.productId).get();
-      if (!productSnap.exists()) {
-          console.warn(`Skipping lead ${leadDoc.id} because product ${lead.productId} does not exist.`);
-          continue;
-      }
-      const productData = productSnap.data();
 
       // --- Create Conversation ---
       const conversationData: Omit<Conversation, 'id'> = {
         participantIds: [lead.buyerId, sellerId],
         productId: lead.productId,
         productTitle: lead.productTitle,
-        productImage: productData?.images?.[0] || '',
+        productImage: lead.productImage || '',
         productSellerId: sellerId,
         createdAt: Timestamp.now(),
         lastMessage: {

@@ -997,6 +997,7 @@ export async function sendQuoteRequest(data: {
         return { conversationId, isLead: false };
     } else {
         // Create a lead for the free seller
+        const product = await getProductClient(data.productId);
         const leadData: Omit<Lead, 'id'> = {
             sellerId: data.seller.uid,
             buyerId: data.buyer.uid,
@@ -1004,6 +1005,7 @@ export async function sendQuoteRequest(data: {
             buyerAvatar: data.buyer.avatar,
             productId: data.productId,
             productTitle: data.productTitle,
+            productImage: product?.images?.[0] || '',
             quantity: data.quantity,
             requirements: data.requirements,
             createdAt: serverTimestamp() as Timestamp,

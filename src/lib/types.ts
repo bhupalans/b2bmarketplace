@@ -94,6 +94,7 @@ export type Lead = {
   buyerAvatar: string;
   productId: string;
   productTitle: string;
+  productImage: string;
   quantity: number;
   requirements: string;
   createdAt: Timestamp | string;
