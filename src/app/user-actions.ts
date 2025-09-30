@@ -219,38 +219,41 @@ export async function updateUserSubscription(userId: string, planId: string): Pr
     const userRef = adminDb.collection('users').doc(userId);
     const planRef = adminDb.collection('subscriptionPlans').doc(planId);
 
-    // Use a transaction to ensure atomicity
-    const updatedUser = await adminDb.runTransaction(async (transaction) => {
+    // Run the update in a transaction to ensure atomicity.
+    await adminDb.runTransaction(async (transaction) => {
         const planSnap = await transaction.get(planRef);
         if (!planSnap.exists) {
             throw new Error('Selected subscription plan not found.');
         }
-
-        const planData = { id: planSnap.id, ...planSnap.data() } as SubscriptionPlan;
-
+        
         transaction.update(userRef, {
             subscriptionPlanId: planId,
         });
-
-        const userSnap = await transaction.get(userRef);
-        if (!userSnap.exists) {
-            throw new Error('Could not retrieve updated user profile during transaction.');
-        }
-
-        const userData = userSnap.data() as Omit<User, 'id' | 'subscriptionPlan'>;
-
-        // Manually assemble the final user object to be returned
-        return {
-            id: userSnap.id,
-            ...userData,
-            subscriptionPlan: planData, // Attach the fetched plan data
-        };
     });
+
+    // After the transaction is successful, fetch the updated user and plan data.
+    const updatedUserSnap = await userRef.get();
+    if (!updatedUserSnap.exists) {
+        throw new Error('Failed to retrieve updated user profile.');
+    }
+    const userData = updatedUserSnap.data() as Omit<User, 'id' | 'subscriptionPlan'>;
+
+    const updatedPlanSnap = await planRef.get();
+    if (!updatedPlanSnap.exists) {
+        throw new Error('Failed to retrieve plan details after update.');
+    }
+    const planData = { id: updatedPlanSnap.id, ...updatedPlanSnap.data() } as SubscriptionPlan;
+    
+    const finalUserObject: User = {
+        id: updatedUserSnap.id,
+        ...userData,
+        subscriptionPlan: planData,
+    };
 
     revalidatePath('/profile/subscription');
     revalidatePath('/my-products');
 
-    return { success: true, user: updatedUser as User };
+    return { success: true, user: finalUserObject };
 
   } catch (error: any) {
     console.error('Error updating user subscription:', error);
