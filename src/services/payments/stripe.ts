@@ -32,7 +32,6 @@ export async function createStripePaymentIntent({ planId, userId }: { planId: st
     try {
         const { plan, user } = await getPlanAndUser(planId, userId);
         
-        // Stripe requires a full address for certain compliance reasons (e.g., India exports)
         if (!user.address || !user.address.street || !user.address.city || !user.address.state || !user.address.zip || !user.address.country) {
             throw new Error("User profile is missing a complete primary business address, which is required for payment processing. Please complete your profile.");
         }
@@ -71,7 +70,24 @@ export async function createStripePaymentIntent({ planId, userId }: { planId: st
                 firebaseUID: userId,
                 planId: planId,
                 description: descriptionForStripe,
-            }
+            },
+            // Explicitly pass billing details for compliance.
+            payment_method_options: {
+                card: {
+                    // @ts-ignore
+                    billing_details: {
+                        name: user.name,
+                        email: user.email,
+                        address: {
+                            line1: user.address.street,
+                            city: user.address.city,
+                            state: user.address.state,
+                            postal_code: user.address.zip,
+                            country: user.address.country,
+                        },
+                    },
+                },
+            },
         });
         
         if (!paymentIntent.client_secret) {
