@@ -260,6 +260,7 @@ export async function updateUserSubscription(userId: string, planId: string): Pr
     const finalUserObject: User = {
         id: updatedUserSnap.id,
         ...userData,
+        subscriptionPlanId: planId, // **This is the critical fix**
         subscriptionPlan: convertTimestamps(newPlan) as SubscriptionPlan,
     };
 
@@ -300,5 +301,3 @@ export async function verifyStripeSession({ paymentIntentId, userId, planId }: {
         return { success: false, error: error.message || 'Failed to verify payment session.' };
     }
 }
-
-    
