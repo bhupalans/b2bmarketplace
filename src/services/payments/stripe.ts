@@ -39,19 +39,26 @@ export async function createStripePaymentIntent({ planId, userId }: { planId: st
         const stripe = new Stripe(secretKey, { apiVersion: '2024-06-20' });
 
         let customerId = user.stripeCustomerId;
-        if (!customerId) {
-            const customer = await stripe.customers.create({
-                email: user.email,
-                name: user.name,
-                address: {
-                    line1: user.address.street,
-                    city: user.address.city,
-                    state: user.address.state,
-                    postal_code: user.address.zip,
-                    country: user.address.country,
-                },
-                metadata: { firebaseUID: userId },
-            });
+
+        const customerDetails = {
+            email: user.email,
+            name: user.name,
+            address: {
+                line1: user.address.street,
+                city: user.address.city,
+                state: user.address.state,
+                postal_code: user.address.zip,
+                country: user.address.country,
+            },
+            metadata: { firebaseUID: userId },
+        };
+        
+        if (customerId) {
+            // Update existing customer with latest details
+            await stripe.customers.update(customerId, customerDetails);
+        } else {
+            // Create a new customer
+            const customer = await stripe.customers.create(customerDetails);
             customerId = customer.id;
             await adminDb.collection('users').doc(userId).update({ stripeCustomerId: customerId });
         }
@@ -69,24 +76,6 @@ export async function createStripePaymentIntent({ planId, userId }: { planId: st
             metadata: {
                 firebaseUID: userId,
                 planId: planId,
-                description: descriptionForStripe,
-            },
-            // Explicitly pass billing details for compliance.
-            payment_method_options: {
-                card: {
-                    // @ts-ignore
-                    billing_details: {
-                        name: user.name,
-                        email: user.email,
-                        address: {
-                            line1: user.address.street,
-                            city: user.address.city,
-                            state: user.address.state,
-                            postal_code: user.address.zip,
-                            country: user.address.country,
-                        },
-                    },
-                },
             },
         });
         
