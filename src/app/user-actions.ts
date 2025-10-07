@@ -242,7 +242,7 @@ export async function updateUserSubscription(userId: string, planId: string): Pr
     if (!planSnap.exists()) {
       throw new Error('Selected subscription plan not found.');
     }
-    const newPlan = planSnap.data() as SubscriptionPlan;
+    const newPlan = { id: planSnap.id, ...planSnap.data() } as SubscriptionPlan;
 
     // Use a transaction to ensure atomicity
     await adminDb.runTransaction(async (transaction) => {
@@ -260,7 +260,7 @@ export async function updateUserSubscription(userId: string, planId: string): Pr
     const finalUserObject: User = {
         id: updatedUserSnap.id,
         ...userData,
-        subscriptionPlan: { id: planSnap.id, ...convertTimestamps(newPlan) } as SubscriptionPlan,
+        subscriptionPlan: convertTimestamps(newPlan) as SubscriptionPlan,
     };
 
     revalidatePath('/profile/subscription');
