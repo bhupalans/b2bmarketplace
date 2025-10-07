@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -102,8 +101,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       )
   }
-
-  const isFreeSeller = user?.role === 'seller' && (!user.subscriptionPlanId || user.subscriptionPlan?.price === 0);
 
   return (
     <SidebarProvider>
@@ -214,20 +211,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-                {isFreeSeller && (
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={pathname.startsWith("/dashboard/leads")}
-                      tooltip="My Leads"
-                    >
-                      <Link href="/dashboard/leads">
-                        <List />
-                        <span className="sr-only">My Leads</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )}
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild

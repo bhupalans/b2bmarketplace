@@ -1,4 +1,3 @@
-
 'use server';
 
 import Stripe from 'stripe';
@@ -99,12 +98,10 @@ export async function verifyStripeSession({ sessionId, userId, planId }: { sessi
         const session = await stripe.checkout.sessions.retrieve(sessionId);
 
         if (session.payment_status === 'paid') {
-            // If payment is confirmed, update the user subscription here directly.
             const subscriptionResult = await updateUserSubscription(userId, planId);
             if (subscriptionResult.success) {
                 return { success: true, paid: true, user: subscriptionResult.user };
             } else {
-                // This will be caught below and reported to the client
                 throw new Error(subscriptionResult.error);
             }
         } else {

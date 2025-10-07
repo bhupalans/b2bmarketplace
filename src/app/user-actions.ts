@@ -1,4 +1,3 @@
-
 'use server';
 
 import { adminDb, adminStorage, adminAuth } from '@/lib/firebase-admin';
@@ -6,7 +5,6 @@ import { User, VerificationTemplate, SubscriptionPlan } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 import { v4 as uuidv4 } from 'uuid';
 import { firestore } from 'firebase-admin';
-import { convertLeadsToConversations } from './seller-actions';
 
 type ProfileUpdateData = Omit<User, 'id' | 'uid' | 'email' | 'role' | 'avatar' | 'memberSince' | 'username' | 'subscriptionPlanId' | 'subscriptionPlan'>;
 
@@ -249,14 +247,6 @@ export async function updateUserSubscription(userId: string, planId: string): Pr
       transaction.update(userRef, { subscriptionPlanId: planId });
     });
     
-    // If the new plan is a paid plan, trigger lead conversion
-    if (newPlan.price > 0) {
-        const conversionResult = await convertLeadsToConversations(userId);
-        if (!conversionResult.success) {
-            console.warn(`Lead conversion for user ${userId} may have partially failed: ${conversionResult.error}`);
-        }
-    }
-
     // After the transaction is successful, fetch the updated user data
     const updatedUserSnap = await userRef.get();
     if (!updatedUserSnap.exists()) {
@@ -272,7 +262,6 @@ export async function updateUserSubscription(userId: string, planId: string): Pr
     };
 
     revalidatePath('/profile/subscription');
-    revalidatePath('/dashboard/leads'); // In case they are redirected from there
     revalidatePath('/my-products');
 
     return { success: true, user: finalUserObject };

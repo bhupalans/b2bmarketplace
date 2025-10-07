@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useTransition } from "react";
@@ -92,12 +91,10 @@ export function ContactBuyerDialog({ request, buyer }: ContactBuyerDialogProps) 
     )
   }
   
-  // If the user is not a seller, they shouldn't see this button
   if (seller?.role !== 'seller') {
       return null;
   }
 
-  // If the user is the one who posted the request, they can't contact themselves
   if (firebaseUser?.uid === buyer.uid) {
     return null;
   }
@@ -109,6 +106,16 @@ export function ContactBuyerDialog({ request, buyer }: ContactBuyerDialogProps) 
         </Button>
     )
   }
+  
+  const isPaidSeller = !!seller.subscriptionPlanId && seller.subscriptionPlan?.price > 0;
+  if (!isPaidSeller) {
+      return (
+          <Button asChild className="w-full">
+              <Link href="/profile/subscription">Upgrade to Contact Buyer</Link>
+          </Button>
+      )
+  }
+
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

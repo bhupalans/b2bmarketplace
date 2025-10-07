@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -54,8 +53,6 @@ export function UserNav() {
     return null; // Still loading user profile
   }
   
-  const isFreeSeller = user.role === 'seller' && (!user.subscriptionPlanId || user.subscriptionPlan?.price === 0);
-
   return (
     <div className="flex items-center gap-2">
       <Button variant="ghost" size="icon" className="relative h-9 w-9" asChild>
@@ -130,14 +127,6 @@ export function UserNav() {
                     <span>Dashboard</span>
                   </Link>
                 </DropdownMenuItem>
-                 {isFreeSeller && (
-                    <DropdownMenuItem asChild>
-                        <Link href="/dashboard/leads">
-                            <List className="mr-2 h-4 w-4" />
-                            <span>My Leads</span>
-                        </Link>
-                    </DropdownMenuItem>
-                 )}
                 <DropdownMenuItem asChild>
                   <Link href="/my-products">
                     <Package className="mr-2 h-4 w-4" />

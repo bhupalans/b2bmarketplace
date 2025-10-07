@@ -1,4 +1,3 @@
-
 import type { FieldValue, Timestamp } from "firebase/firestore";
 
 export type User = {
@@ -92,21 +91,6 @@ export type PaymentGateway = {
   name: string; // e.g., 'Stripe'
   logoUrl: string; // e.g., '/stripe-logo.svg'
   enabled: boolean;
-};
-
-export type Lead = {
-  id: string;
-  sellerId: string;
-  buyerId: string;
-  buyerName: string;
-  buyerAvatar: string;
-  productId: string;
-  productTitle: string;
-  productImage: string;
-  quantity: number;
-  requirements: string;
-  createdAt: Timestamp | string;
-  status: 'new' | 'viewed';
 };
 
 export type Category = {

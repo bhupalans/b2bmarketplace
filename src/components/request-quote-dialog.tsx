@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useTransition } from "react";
@@ -16,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Product, User } from "@/lib/types";
-import { sendQuoteRequest } from "@/lib/firebase";
+import { findOrCreateConversation, sendMessage } from "@/lib/firebase";
 import { Loader2, FileText } from "lucide-react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
@@ -66,24 +65,22 @@ export function RequestQuoteDialog({ product, seller }: RequestQuoteDialogProps)
 
     startTransition(async () => {
       try {
-        const result = await sendQuoteRequest({
-          buyer: user,
-          seller: seller,
-          productId: product.id,
-          productTitle: product.title,
-          quantity: values.quantity,
-          requirements: values.requirements,
+        const { conversationId } = await findOrCreateConversation({
+            buyerId: user.uid,
+            sellerId: seller.uid,
+            productId: product.id,
+            productTitle: product.title,
+            productImage: product.images[0] || '',
         });
+        
+        const formattedMessage = `<b>New Quote Request</b><br/><b>Product:</b> ${product.title}<br/><b>Quantity:</b> ${values.quantity}<br/><br/><b>Buyer's Message:</b><br/>${values.requirements}`;
+        await sendMessage(conversationId, user.uid, formattedMessage, { isQuoteRequest: true });
 
         toast({
           title: "Quote Request Sent",
-          description: result.isLead ? "The seller has been notified of your interest." : "Your request has been sent to the seller.",
+          description: "Your request has been sent to the seller.",
         });
-
-        if (result.conversationId) {
-            router.push(`/messages/${result.conversationId}`);
-        }
-        
+        router.push(`/messages/${conversationId}`);
         setOpen(false);
       } catch (error: any) {
         console.error("Error sending quote request:", error);
