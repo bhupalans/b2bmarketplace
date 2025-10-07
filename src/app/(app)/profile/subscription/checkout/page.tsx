@@ -15,6 +15,9 @@ import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { useAuth } from '@/contexts/auth-context';
 import { createRazorpayOrder, verifyRazorpayPayment } from '@/services/payments/razorpay';
+import { loadStripe } from '@stripe/stripe-js';
+import { createStripeCheckoutSession } from '@/services/payments/stripe';
+
 
 declare global {
     interface Window {
@@ -121,6 +124,13 @@ function CheckoutPageContent() {
                 };
                 
                 const rzp = new window.Razorpay(options);
+                rzp.on('payment.failed', function (response: any){
+                    toast({
+                        variant: 'destructive',
+                        title: 'Payment Failed',
+                        description: response.error.description || 'Your payment was not successful. Please try again.',
+                    });
+                });
                 rzp.open();
 
             } catch (error: any) {
@@ -130,6 +140,26 @@ function CheckoutPageContent() {
                 setProcessingGateway(null);
             }
 
+        } else if (gatewayId === 'stripe') {
+            try {
+                const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+                const stripe = await stripePromise;
+                if (!stripe) throw new Error('Stripe.js failed to load.');
+
+                const result = await createStripeCheckoutSession({ planId, userId: firebaseUser.uid });
+                if (!result.success) throw new Error(result.error);
+
+                const { error } = await stripe.redirectToCheckout({ sessionId: result.sessionId });
+                
+                if (error) {
+                    throw error;
+                }
+            } catch (error: any) {
+                 console.error("Stripe error:", error);
+                toast({ variant: 'destructive', title: 'Payment Error', description: error.message || 'Could not initiate payment with Stripe.' });
+            } finally {
+                 setProcessingGateway(null);
+            }
         } else {
              // Fallback for other gateways like Stripe, etc.
              router.push(`/profile/subscription/checkout/confirm?planId=${planId}&gateway=${gatewayId}`);

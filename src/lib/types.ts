@@ -84,6 +84,7 @@ export type User = {
   // Subscription Fields
   subscriptionPlanId?: string;
   subscriptionPlan?: SubscriptionPlan; // Denormalized plan data for client-side use
+  stripeCustomerId?: string;
 };
 
 export type PaymentGateway = {
