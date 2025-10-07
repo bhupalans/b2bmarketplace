@@ -36,7 +36,7 @@ export async function createRazorpayOrder({ planId, userId }: { planId: string, 
         
         const options = {
             amount: plan.price * 100, // amount in the smallest currency unit
-            currency: 'USD',
+            currency: plan.currency, // Use currency from the plan
             receipt: `receipt_plan_${planId}_${new Date().getTime()}`
         };
 
