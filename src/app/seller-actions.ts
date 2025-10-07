@@ -2,10 +2,49 @@
 'use server';
 
 import { adminDb } from '@/lib/firebase-admin';
-import { Offer, Lead, Conversation, Message } from '@/lib/types';
+import { Offer, Lead, Conversation, Message, Product } from '@/lib/types';
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { revalidatePath } from 'next/cache';
-import { findOrCreateConversation, sendMessage } from '@/lib/firebase';
+
+// Internal, server-side only function to send a message.
+// This avoids calling the client-side `sendMessage` from a server action.
+async function sendMessageAsAdmin(
+    conversationId: string,
+    senderId: string,
+    text: string,
+    options?: { offerId?: string; isQuoteRequest?: boolean }
+): Promise<void> {
+    const batch = adminDb.batch();
+    const conversationRef = adminDb.collection('conversations').doc(conversationId);
+    const messageRef = conversationRef.collection('messages').doc();
+
+    const newMessage: Omit<Message, 'id'> = {
+        conversationId,
+        senderId,
+        text,
+        timestamp: FieldValue.serverTimestamp() as Timestamp,
+    };
+
+    if (options?.offerId) {
+        newMessage.offerId = options.offerId;
+    }
+    if (options?.isQuoteRequest) {
+        newMessage.isQuoteRequest = true;
+    }
+
+    const lastMessageUpdate = {
+        lastMessage: {
+            text,
+            senderId,
+            timestamp: FieldValue.serverTimestamp(),
+        }
+    };
+
+    batch.set(messageRef, newMessage);
+    batch.update(conversationRef, lastMessageUpdate);
+
+    await batch.commit();
+}
 
 
 export async function getSellerDashboardData(sellerId: string) {
@@ -71,43 +110,24 @@ export async function convertLeadsToConversations(sellerId: string): Promise<{ s
     
     for (const leadDoc of snapshot.docs) {
       const lead = leadDoc.data() as Lead;
-
-      // 1. Create the conversation shell.
-      const conversationData: Omit<Conversation, 'id'> = {
+      
+      const conversationData: Omit<Conversation, 'id' | 'lastMessage'> = {
         participantIds: [lead.buyerId, sellerId],
         productId: lead.productId,
         productTitle: lead.productTitle,
         productImage: lead.productImage || '',
         productSellerId: sellerId,
         createdAt: FieldValue.serverTimestamp() as Timestamp,
-        lastMessage: null // IMPORTANT: Set to null initially
       };
       
       const conversationRef = adminDb.collection('conversations').doc();
       batch.set(conversationRef, conversationData);
 
-      // 2. Create the first message for this new conversation.
-      const messageData: Omit<Message, 'id'> = {
-          conversationId: conversationRef.id,
-          senderId: lead.buyerId,
-          text: `<b>New Quote Request</b><br/><b>Product:</b> ${lead.productTitle}<br/><b>Quantity:</b> ${lead.quantity}<br/><br/><b>Buyer's Message:</b><br/>${lead.requirements}`,
-          timestamp: FieldValue.serverTimestamp() as Timestamp,
-          isQuoteRequest: true,
-      };
-      const messageRef = adminDb.collection('conversations').doc(conversationRef.id).collection('messages').doc();
-      batch.set(messageRef, messageData);
-      
-      // 3. Update the conversation's lastMessage field.
-      const lastMessageUpdate = {
-        lastMessage: {
-            text: lead.requirements,
-            senderId: lead.buyerId,
-            timestamp: FieldValue.serverTimestamp() as Timestamp
-        }
-      };
-      batch.update(conversationRef, lastMessageUpdate);
+      // Now call the server-side message sender
+      const formattedMessage = `<b>New Quote Request</b><br/><b>Product:</b> ${lead.productTitle}<br/><b>Quantity:</b> ${lead.quantity}<br/><br/><b>Buyer's Message:</b><br/>${lead.requirements}`;
+      await sendMessageAsAdmin(conversationRef.id, lead.buyerId, formattedMessage, { isQuoteRequest: true });
 
-      // 4. Delete the lead
+      // Finally, delete the lead in the same batch
       batch.delete(leadDoc.ref);
     }
 
