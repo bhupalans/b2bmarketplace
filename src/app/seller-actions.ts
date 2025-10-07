@@ -105,33 +105,32 @@ export async function convertLeadsToConversations(sellerId: string): Promise<{ s
     if (snapshot.empty) {
       return { success: true }; // No leads to convert
     }
-
-    const batch = adminDb.batch();
     
     for (const leadDoc of snapshot.docs) {
       const lead = leadDoc.data() as Lead;
       
-      const conversationData: Omit<Conversation, 'id' | 'lastMessage'> = {
+      const conversationData: Partial<Conversation> = {
         participantIds: [lead.buyerId, sellerId],
         productId: lead.productId,
         productTitle: lead.productTitle,
         productImage: lead.productImage || '',
         productSellerId: sellerId,
         createdAt: FieldValue.serverTimestamp() as Timestamp,
+        // Remove lastMessage from initial creation to avoid timestamp conflict
       };
       
       const conversationRef = adminDb.collection('conversations').doc();
-      batch.set(conversationRef, conversationData);
+      
+      // Step 1: Create the conversation document first.
+      await conversationRef.set(conversationData);
 
-      // Now call the server-side message sender
+      // Step 2: Now send the message, which will update the `lastMessage` field.
       const formattedMessage = `<b>New Quote Request</b><br/><b>Product:</b> ${lead.productTitle}<br/><b>Quantity:</b> ${lead.quantity}<br/><br/><b>Buyer's Message:</b><br/>${lead.requirements}`;
       await sendMessageAsAdmin(conversationRef.id, lead.buyerId, formattedMessage, { isQuoteRequest: true });
 
-      // Finally, delete the lead in the same batch
-      batch.delete(leadDoc.ref);
+      // Step 3: Delete the lead document.
+      await leadDoc.ref.delete();
     }
-
-    await batch.commit();
 
     revalidatePath('/messages');
 
