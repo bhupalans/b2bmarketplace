@@ -1,67 +1,78 @@
 
 "use client";
 
-import React, { Suspense, useEffect, useState, useTransition } from 'react';
-import { useSearchParams, notFound, useRouter } from 'next/navigation';
+import React, { Suspense, useEffect, useState } from 'react';
+import { useSearchParams, notFound } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { updateUserSubscription } from '@/app/user-actions';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
 
 function ConfirmationPageContent() {
-    const router = useRouter();
     const searchParams = useSearchParams();
     const planId = searchParams.get('planId');
-    
-    const { firebaseUser, updateUserContext } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const { toast } = useToast();
 
     const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
     const [errorMessage, setErrorMessage] = useState('');
-    const [isPending, startTransition] = useTransition();
 
     useEffect(() => {
-        if (!planId || !firebaseUser) {
-            setStatus('error');
-            setErrorMessage('Missing plan details or user session.');
+        if (authLoading || !planId) {
+            return; // Wait until auth is resolved and we have a planId
+        }
+        
+        // If the user's plan is already the target plan, we can show success immediately.
+        if (user?.subscriptionPlanId === planId) {
+            setStatus('success');
             return;
         }
 
-        const timer = setTimeout(() => {
-            startTransition(async () => {
-                try {
-                    const result = await updateUserSubscription(firebaseUser.uid, planId);
-                    if (result.success && result.user) {
-                        updateUserContext(result.user);
-                        toast({
-                            title: 'Subscription Activated!',
-                            description: `You are now on the ${result.user.subscriptionPlan?.name} plan.`,
-                        });
-                        setStatus('success');
-                    } else {
-                        throw new Error(result.error || 'An unknown error occurred.');
-                    }
-                } catch (err: any) {
-                    console.error('Subscription update failed:', err);
-                    setErrorMessage(err.message || 'Failed to update subscription.');
-                    setStatus('error');
-                    toast({
-                        variant: 'destructive',
-                        title: 'Update Failed',
-                        description: err.message || 'An unknown error occurred during subscription update.',
-                    });
-                }
-            });
-        }, 2500); // Simulate processing delay
+        // Start polling to check for the subscription update from the webhook.
+        const interval = setInterval(() => {
+            // The useAuth hook re-fetches user data on auth state changes,
+            // but we poll here to catch the backend DB update from the webhook.
+            // In a real app, you might use a real-time listener (e.g., onSnapshot) for the user document.
+            // For simplicity, we check the existing context state which should update.
+            if (user?.subscriptionPlanId === planId) {
+                setStatus('success');
+                clearInterval(interval);
+            }
+        }, 2000); // Check every 2 seconds
 
-        return () => clearTimeout(timer);
-    }, [planId, firebaseUser, toast, updateUserContext]);
+        // Set a timeout to prevent infinite polling
+        const timeout = setTimeout(() => {
+            clearInterval(interval);
+            if (status !== 'success') {
+                setStatus('error');
+                setErrorMessage('The payment was successful, but we are still confirming your subscription. Please check your messages page or contact support if the issue persists.');
+                toast({
+                    variant: 'destructive',
+                    title: 'Confirmation Timed Out',
+                    description: 'Your payment was successful, but the subscription update is taking longer than expected.'
+                })
+            }
+        }, 45000); // 45 seconds timeout
+
+        return () => {
+            clearInterval(interval);
+            clearTimeout(timeout);
+        };
+    }, [planId, user, authLoading, status, toast]);
+
 
     if (!planId) {
         notFound();
+    }
+    
+    if (authLoading) {
+         return (
+             <div className="flex flex-col items-center justify-center min-h-[60vh]">
+                <Loader2 className="h-12 w-12 mx-auto text-primary animate-spin" />
+             </div>
+         );
     }
 
     return (
@@ -71,7 +82,7 @@ function ConfirmationPageContent() {
                     <CardTitle className="text-2xl">
                         {status === 'processing' && 'Finalizing Your Subscription...'}
                         {status === 'success' && 'Subscription Successful!'}
-                        {status === 'error' && 'Subscription Failed'}
+                        {status === 'error' && 'Confirmation Delayed'}
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -79,7 +90,7 @@ function ConfirmationPageContent() {
                         <>
                             <Loader2 className="h-12 w-12 mx-auto text-primary animate-spin" />
                             <p className="text-muted-foreground">
-                                Please wait while we securely process your subscription. Do not close this page.
+                                Your payment was successful. We are now confirming your subscription status. This page will update automatically.
                             </p>
                         </>
                     )}
@@ -103,7 +114,7 @@ function ConfirmationPageContent() {
                                 {errorMessage}
                             </p>
                              <p className="text-sm text-muted-foreground">
-                                Please try again or contact support if the problem persists.
+                                Please check your "Subscription" page in your profile to see your current plan.
                             </p>
                             <Button className="w-full" variant="secondary" asChild>
                                 <Link href="/profile/subscription">
