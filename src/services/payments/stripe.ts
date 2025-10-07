@@ -42,18 +42,27 @@ export async function createStripePaymentIntent({ planId, userId }: { planId: st
             customerId = customer.id;
             await adminDb.collection('users').doc(userId).update({ stripeCustomerId: customerId });
         }
+        
+        const descriptionForStripe = `Subscription to ${plan.name} plan on B2B Marketplace`;
 
         const paymentIntent = await stripe.paymentIntents.create({
             amount: plan.price * 100,
             currency: plan.currency.toLowerCase(),
             customer: customerId,
-            description: `Subscription to ${plan.name} plan on B2B Marketplace`, // Added for compliance
+            description: descriptionForStripe, // For compliance and dashboard clarity
             automatic_payment_methods: {
                 enabled: true,
+            },
+            payment_method_options: {
+                card: {
+                    // This is the specific field for Indian export compliance.
+                    statement_descriptor_suffix: `B2B Mktplace`, 
+                },
             },
             metadata: {
                 firebaseUID: userId,
                 planId: planId,
+                description: descriptionForStripe, // Add here for metadata as well
             }
         });
         
@@ -70,7 +79,7 @@ export async function createStripePaymentIntent({ planId, userId }: { planId: st
 }
 
 
-export async function verifyStripeSession({ sessionId, userId, planId }: { sessionId: string, userId: string, planId: string }): Promise<{ success: boolean; paid?: boolean; error?: string; user?: User }> {
+export async function verifyStripeSession({ paymentIntentId, userId, planId }: { paymentIntentId: string, userId: string, planId: string }): Promise<{ success: boolean; user?: User; error?: string }> {
     const secretKey = process.env.STRIPE_SECRET_KEY;
     if (!secretKey) {
         return { success: false, error: 'Stripe is not configured on the server.' };
@@ -78,25 +87,21 @@ export async function verifyStripeSession({ sessionId, userId, planId }: { sessi
 
     try {
         const stripe = new Stripe(secretKey, { apiVersion: '2024-06-20' });
-        const session = await stripe.checkout.sessions.retrieve(sessionId);
+        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
 
-        if (session.payment_status === 'paid') {
+        if (paymentIntent.status === 'succeeded') {
             const subscriptionResult = await updateUserSubscription(userId, planId);
             if (subscriptionResult.success) {
-                return { success: true, paid: true, user: subscriptionResult.user };
+                return { success: true, user: subscriptionResult.user };
             } else {
+                // This will be caught by the catch block
                 throw new Error(subscriptionResult.error);
             }
         } else {
-            return { success: true, paid: false, error: `Payment status is ${session.payment_status}` };
+            return { success: false, error: `Payment status is ${paymentIntent.status}` };
         }
     } catch (error: any) {
-        console.error('Error verifying Stripe session and updating subscription:', error);
+        console.error('Error verifying Stripe payment and updating subscription:', error);
         return { success: false, error: error.message || 'Failed to verify payment session.' };
     }
-}
-
-// This function is still needed for the webhook, even if we add client-side confirmation
-export async function createStripeCheckoutSession({ planId, userId }: { planId: string, userId: string }): Promise<{ success: true; sessionId: string; } | { success: false, error: string }> {
-    return { success: false, error: 'This function is deprecated. Use createStripePaymentIntent instead.' };
 }
