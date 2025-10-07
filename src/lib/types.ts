@@ -86,6 +86,13 @@ export type User = {
   subscriptionPlan?: SubscriptionPlan; // Denormalized plan data for client-side use
 };
 
+export type PaymentGateway = {
+  id: string; // e.g., 'stripe'
+  name: string; // e.g., 'Stripe'
+  logoUrl: string; // e.g., '/stripe-logo.svg'
+  enabled: boolean;
+};
+
 export type Lead = {
   id: string;
   sellerId: string;

@@ -4,7 +4,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc as getDocClient, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError, setDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate, VerificationTemplate, VerificationField, SourcingRequest, Question, Answer, AppNotification, SubscriptionPlan, Lead } from './types';
+import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate, VerificationTemplate, VerificationField, SourcingRequest, Question, Answer, AppNotification, SubscriptionPlan, Lead, PaymentGateway } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { moderateMessageContent } from '@/ai/flows/moderate-message-content';
 import { sendQuestionAnsweredEmail, sendProductApprovedEmail, sendProductRejectedEmail, sendUserVerifiedEmail, sendUserRejectedEmail } from '@/services/email';
@@ -1151,6 +1151,29 @@ export async function getProductUpdateRulesClient(): Promise<string[]> {
 export async function saveProductUpdateRulesClient(fields: string[]): Promise<void> {
     const docRef = doc(db, 'settings', 'productUpdateRules');
     await setDoc(docRef, { autoApproveFields: fields });
+}
+
+// --- Payment Gateway Functions ---
+
+export async function getPaymentGatewaysClient(): Promise<PaymentGateway[]> {
+    const snapshot = await getDocs(collection(db, "paymentGateways"));
+    return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as PaymentGateway));
+}
+
+export async function getActivePaymentGatewaysClient(): Promise<PaymentGateway[]> {
+    const q = query(collection(db, "paymentGateways"), where("enabled", "==", true));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as PaymentGateway));
+}
+
+export async function createOrUpdatePaymentGatewayClient(gateway: Omit<PaymentGateway, 'id'>, id: string): Promise<PaymentGateway> {
+    const docRef = doc(db, "paymentGateways", id);
+    await setDoc(docRef, gateway, { merge: true });
+    return { id, ...gateway };
+}
+
+export async function deletePaymentGatewayClient(id: string): Promise<void> {
+    await deleteDoc(doc(db, "paymentGateways", id));
 }
 
 // --- Sourcing Request Functions ---

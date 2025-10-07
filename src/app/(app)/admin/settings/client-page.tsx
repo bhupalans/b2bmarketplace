@@ -18,6 +18,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { saveProductUpdateRulesClient } from '@/lib/firebase';
 import { Loader2 } from 'lucide-react';
+import { PaymentGateway } from '@/lib/types';
+import { PaymentGatewaySettings } from './payment-gateway-settings';
 
 const productFields = [
     { id: 'priceUSD', label: 'Price (USD)' },
@@ -37,9 +39,10 @@ type SettingsFormData = z.infer<typeof settingsSchema>;
 
 interface SettingsClientPageProps {
   initialRules: string[];
+  initialPaymentGateways: PaymentGateway[];
 }
 
-export function SettingsClientPage({ initialRules }: SettingsClientPageProps) {
+export function SettingsClientPage({ initialRules, initialPaymentGateways }: SettingsClientPageProps) {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
 
@@ -145,6 +148,8 @@ export function SettingsClientPage({ initialRules }: SettingsClientPageProps) {
                 </Form>
             </CardContent>
         </Card>
+        
+        <PaymentGatewaySettings initialGateways={initialPaymentGateways} />
     </div>
   );
 }

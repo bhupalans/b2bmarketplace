@@ -3,9 +3,9 @@
 
 import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter, notFound } from 'next/navigation';
-import { getSubscriptionPlansClient } from '@/lib/firebase';
-import { SubscriptionPlan } from '@/lib/types';
-import { Loader2, CreditCard, Lock, CheckCircle } from 'lucide-react';
+import { getActivePaymentGatewaysClient, getSubscriptionPlansClient } from '@/lib/firebase';
+import { SubscriptionPlan, PaymentGateway } from '@/lib/types';
+import { CreditCard, Lock, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -28,6 +28,7 @@ function CheckoutPageContent() {
     const { toast } = useToast();
     
     const [plan, setPlan] = useState<SubscriptionPlan | null>(null);
+    const [gateways, setGateways] = useState<PaymentGateway[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -37,24 +38,29 @@ function CheckoutPageContent() {
             return;
         }
 
-        async function fetchPlan() {
+        async function fetchCheckoutData() {
             try {
-                // In a real app, you might fetch only the specific plan
-                const allPlans = await getSubscriptionPlansClient();
+                const [allPlans, activeGateways] = await Promise.all([
+                    getSubscriptionPlansClient(),
+                    getActivePaymentGatewaysClient()
+                ]);
+
                 const selectedPlan = allPlans.find(p => p.id === planId);
                 if (selectedPlan) {
                     setPlan(selectedPlan);
                 } else {
                     notFound();
                 }
+                setGateways(activeGateways);
+
             } catch (error) {
-                console.error("Failed to fetch plan:", error);
-                toast({ variant: 'destructive', title: 'Error', description: 'Could not load plan details.' });
+                console.error("Failed to fetch checkout data:", error);
+                toast({ variant: 'destructive', title: 'Error', description: 'Could not load checkout page.' });
             } finally {
                 setLoading(false);
             }
         }
-        fetchPlan();
+        fetchCheckoutData();
     }, [planId, router, toast]);
 
     const handleGatewaySelect = (gateway: string) => {
@@ -125,24 +131,14 @@ function CheckoutPageContent() {
                             <CardDescription>All transactions are secure and encrypted.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-3">
-                            <Button variant="outline" className="w-full h-14 justify-start items-center gap-4" onClick={() => handleGatewaySelect('stripe')}>
-                                 <div className="w-[100px] flex justify-center">
-                                     <Image src="/stripe-logo.svg" alt="Stripe" width={60} height={24}/>
-                                 </div>
-                                 Pay with Stripe
-                            </Button>
-                             <Button variant="outline" className="w-full h-14 justify-start items-center gap-4" onClick={() => handleGatewaySelect('paypal')}>
-                                <div className="w-[100px] flex justify-center">
-                                    <Image src="/paypal-logo.svg" alt="PayPal" width={80} height={22}/>
-                                 </div>
-                                 Pay with PayPal
-                            </Button>
-                             <Button variant="outline" className="w-full h-14 justify-start items-center gap-4" onClick={() => handleGatewaySelect('razorpay')}>
-                                <div className="w-[100px] flex justify-center">
-                                    <Image src="/razorpay-logo.svg" alt="Razorpay" width={90} height={20}/>
-                                 </div>
-                                 Pay with Razorpay
-                            </Button>
+                            {gateways.map(gateway => (
+                                <Button key={gateway.id} variant="outline" className="w-full h-14 justify-start items-center gap-4" onClick={() => handleGatewaySelect(gateway.id)}>
+                                     <div className="w-[100px] flex justify-center">
+                                         <Image src={gateway.logoUrl} alt={gateway.name} width={80} height={24} style={{ height: 'auto' }} />
+                                     </div>
+                                     Pay with {gateway.name}
+                                </Button>
+                            ))}
                         </CardContent>
                     </Card>
                 </div>
@@ -153,7 +149,7 @@ function CheckoutPageContent() {
 
 export default function CheckoutPage() {
     return (
-        <Suspense fallback={<div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+        <Suspense fallback={<div className="flex justify-center items-center h-full"><Skeleton className="h-96 w-full max-w-4xl"/></div>}>
             <CheckoutPageContent />
         </Suspense>
     )

@@ -4,12 +4,14 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { Loader2 } from 'lucide-react';
-import { getProductUpdateRulesClient } from '@/lib/firebase';
+import { getProductUpdateRulesClient, getPaymentGatewaysClient } from '@/lib/firebase';
 import { SettingsClientPage } from './client-page';
+import { PaymentGateway } from '@/lib/types';
 
 export default function AdminSettingsPage() {
   const { user } = useAuth();
   const [initialRules, setInitialRules] = useState<string[]>([]);
+  const [paymentGateways, setPaymentGateways] = useState<PaymentGateway[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -20,8 +22,12 @@ export default function AdminSettingsPage() {
       }
       try {
         setLoading(true);
-        const rules = await getProductUpdateRulesClient();
+        const [rules, gateways] = await Promise.all([
+            getProductUpdateRulesClient(),
+            getPaymentGatewaysClient()
+        ]);
         setInitialRules(rules);
+        setPaymentGateways(gateways);
       } catch (error) {
         console.error("Failed to fetch settings:", error);
       } finally {
@@ -50,5 +56,5 @@ export default function AdminSettingsPage() {
     );
   }
 
-  return <SettingsClientPage initialRules={initialRules} />;
+  return <SettingsClientPage initialRules={initialRules} initialPaymentGateways={paymentGateways} />;
 }
