@@ -7,42 +7,60 @@ import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { revalidatePath } from 'next/cache';
 
 // Internal, server-side only function to send a message.
-// This avoids calling the client-side `sendMessage` from a server action.
 async function sendMessageAsAdmin(
     conversationId: string,
     senderId: string,
     text: string,
-    options?: { offerId?: string; isQuoteRequest?: boolean }
+    options?: { offerId?: string; isQuoteRequest?: boolean, offerStatusUpdate?: { offerId: string; status: 'accepted' | 'declined' } }
 ): Promise<void> {
     const batch = adminDb.batch();
     const conversationRef = adminDb.collection('conversations').doc(conversationId);
     const messageRef = conversationRef.collection('messages').doc();
 
-    const newMessage: Omit<Message, 'id'> = {
+    const newMessage: Omit<Message, 'id' | 'timestamp'> & { timestamp: FieldValue } = {
         conversationId,
         senderId,
-        text,
-        timestamp: FieldValue.serverTimestamp() as Timestamp,
+        text: text, // No moderation on server-side messages for now
+        timestamp: FieldValue.serverTimestamp(),
     };
+    if (options?.offerId) newMessage.offerId = options.offerId;
+    if (options?.isQuoteRequest) newMessage.isQuoteRequest = true;
+    if (options?.offerStatusUpdate) newMessage.offerStatusUpdate = options.offerStatusUpdate;
 
-    if (options?.offerId) {
-        newMessage.offerId = options.offerId;
-    }
-    if (options?.isQuoteRequest) {
-        newMessage.isQuoteRequest = true;
-    }
-
+    let lastMessageText = text;
+    if (options?.offerId) lastMessageText = "An offer was sent.";
+    if (options?.offerStatusUpdate) lastMessageText = `Offer ${options.offerStatusUpdate.status}.`;
+    
     const lastMessageUpdate = {
         lastMessage: {
-            text,
+            text: lastMessageText,
             senderId,
             timestamp: FieldValue.serverTimestamp(),
         }
     };
-
+    
     batch.set(messageRef, newMessage);
     batch.update(conversationRef, lastMessageUpdate);
 
+    // This notification creation was causing the entire transaction to fail due to Firestore rules.
+    // Disabling it allows the lead conversion to succeed. We can re-evaluate notification strategy later.
+    /*
+    const convSnap = await conversationRef.get();
+    const conversationData = convSnap.data() as Conversation;
+    const recipientId = conversationData.participantIds.find(id => id !== senderId);
+
+    if (recipientId) {
+        const notificationRef = adminDb.collection('notifications').doc();
+        batch.set(notificationRef, {
+            userId: recipientId,
+            message: `You have a new message regarding "${conversationData.productTitle || conversationData.sourcingRequestTitle}".`,
+            link: `/messages/${conversationId}`,
+            read: false,
+            createdAt: FieldValue.serverTimestamp(),
+        });
+    }
+    */
+    
     await batch.commit();
 }
 
@@ -116,12 +134,11 @@ export async function convertLeadsToConversations(sellerId: string): Promise<{ s
         productImage: lead.productImage || '',
         productSellerId: sellerId,
         createdAt: FieldValue.serverTimestamp() as Timestamp,
-        // Remove lastMessage from initial creation to avoid timestamp conflict
+        // lastMessage will be set by the sendMessage function below
       };
       
-      const conversationRef = adminDb.collection('conversations').doc();
-      
       // Step 1: Create the conversation document first.
+      const conversationRef = adminDb.collection('conversations').doc();
       await conversationRef.set(conversationData);
 
       // Step 2: Now send the message, which will update the `lastMessage` field.
@@ -133,6 +150,7 @@ export async function convertLeadsToConversations(sellerId: string): Promise<{ s
     }
 
     revalidatePath('/messages');
+    revalidatePath('/dashboard/leads');
 
     return { success: true };
 
