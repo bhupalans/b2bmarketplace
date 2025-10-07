@@ -67,6 +67,7 @@ export async function convertLeadsToConversations(sellerId: string): Promise<{ s
     }
 
     const batch = adminDb.batch();
+    const serverTimestamp = FieldValue.serverTimestamp();
 
     for (const leadDoc of snapshot.docs) {
       const lead = leadDoc.data() as Lead;
@@ -78,11 +79,11 @@ export async function convertLeadsToConversations(sellerId: string): Promise<{ s
         productTitle: lead.productTitle,
         productImage: lead.productImage || '',
         productSellerId: sellerId,
-        createdAt: Timestamp.now(),
+        createdAt: serverTimestamp as Timestamp,
         lastMessage: {
             text: lead.requirements,
             senderId: lead.buyerId,
-            timestamp: lead.createdAt as Timestamp,
+            timestamp: serverTimestamp as Timestamp,
         },
       };
       const conversationRef = adminDb.collection('conversations').doc(); // Auto-generate ID
@@ -93,7 +94,7 @@ export async function convertLeadsToConversations(sellerId: string): Promise<{ s
           conversationId: conversationRef.id,
           senderId: lead.buyerId,
           text: `<b>New Quote Request</b><br/><b>Product:</b> ${lead.productTitle}<br/><b>Quantity:</b> ${lead.quantity}<br/><br/><b>Buyer's Message:</b><br/>${lead.requirements}`,
-          timestamp: lead.createdAt,
+          timestamp: serverTimestamp,
           isQuoteRequest: true,
       };
       const messageRef = adminDb.collection('conversations').doc(conversationRef.id).collection('messages').doc();
