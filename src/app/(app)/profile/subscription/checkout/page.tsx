@@ -4,8 +4,8 @@
 import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter, notFound } from 'next/navigation';
 import { getActivePaymentGatewaysClient, getSubscriptionPlansClient } from '@/lib/firebase';
-import { SubscriptionPlan, PaymentGateway } from '@/lib/types';
-import { CreditCard, Lock, CheckCircle } from 'lucide-react';
+import { SubscriptionPlan, PaymentGateway, User } from '@/lib/types';
+import { CreditCard, Lock, CheckCircle, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -13,6 +13,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
+import { useAuth } from '@/contexts/auth-context';
+import { createRazorpayOrder, verifyRazorpayPayment } from '@/app/payment-actions';
+
+declare global {
+    interface Window {
+        Razorpay: any;
+    }
+}
+
 
 const PlanFeature = ({ children }: { children: React.ReactNode }) => (
     <li className="flex items-start gap-3">
@@ -26,10 +35,12 @@ function CheckoutPageContent() {
     const searchParams = useSearchParams();
     const planId = searchParams.get('planId');
     const { toast } = useToast();
+    const { user, firebaseUser } = useAuth();
     
     const [plan, setPlan] = useState<SubscriptionPlan | null>(null);
     const [gateways, setGateways] = useState<PaymentGateway[]>([]);
     const [loading, setLoading] = useState(true);
+    const [processingGateway, setProcessingGateway] = useState<string | null>(null);
 
     useEffect(() => {
         if (!planId) {
@@ -63,8 +74,66 @@ function CheckoutPageContent() {
         fetchCheckoutData();
     }, [planId, router, toast]);
 
-    const handleGatewaySelect = (gateway: string) => {
-        router.push(`/profile/subscription/checkout/confirm?planId=${planId}&gateway=${gateway}`);
+    const handleGatewaySelect = async (gatewayId: string) => {
+        if (!planId || !firebaseUser || !plan) return;
+
+        setProcessingGateway(gatewayId);
+
+        if (gatewayId === 'razorpay') {
+            try {
+                const result = await createRazorpayOrder({ planId, userId: firebaseUser.uid });
+                if (!result.success) throw new Error(result.error);
+
+                const { order, user, plan: subscriptionPlan } = result;
+
+                const options = {
+                    key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+                    amount: order.amount,
+                    currency: order.currency,
+                    name: "B2B Marketplace",
+                    description: `Subscription to ${subscriptionPlan.name} Plan`,
+                    order_id: order.id,
+                    handler: async (response: any) => {
+                        const verificationResult = await verifyRazorpayPayment({
+                            ...response,
+                            userId: firebaseUser.uid,
+                            planId: planId,
+                        });
+                        
+                        if (verificationResult.success) {
+                            router.push(`/profile/subscription/checkout/confirm?planId=${planId}`);
+                        } else {
+                             toast({ variant: 'destructive', title: 'Payment Failed', description: verificationResult.error || 'Payment verification failed.' });
+                        }
+                    },
+                    prefill: {
+                        name: user.name,
+                        email: user.email,
+                        contact: user.phoneNumber
+                    },
+                    notes: {
+                        plan_id: planId,
+                        user_id: firebaseUser.uid,
+                    },
+                    theme: {
+                        color: "#3399cc"
+                    }
+                };
+                
+                const rzp = new window.Razorpay(options);
+                rzp.open();
+
+            } catch (error: any) {
+                console.error("Razorpay error:", error);
+                toast({ variant: 'destructive', title: 'Payment Error', description: error.message || 'Could not initiate payment.' });
+            } finally {
+                setProcessingGateway(null);
+            }
+
+        } else {
+             // Fallback for other gateways like Stripe, etc.
+             router.push(`/profile/subscription/checkout/confirm?planId=${planId}&gateway=${gatewayId}`);
+        }
     }
 
     if (loading) {
@@ -132,10 +201,18 @@ function CheckoutPageContent() {
                         </CardHeader>
                         <CardContent className="space-y-3">
                             {gateways.map(gateway => (
-                                <Button key={gateway.id} variant="outline" className="w-full h-14 justify-start items-center gap-4" onClick={() => handleGatewaySelect(gateway.id)}>
-                                     <div className="w-[100px] flex justify-center">
-                                         <Image src={gateway.logoUrl} alt={gateway.name} width={80} height={24} style={{ height: 'auto' }} />
-                                     </div>
+                                <Button 
+                                    key={gateway.id} 
+                                    variant="outline" 
+                                    className="w-full h-14 justify-start items-center gap-4" 
+                                    onClick={() => handleGatewaySelect(gateway.id)}
+                                    disabled={!!processingGateway}
+                                >
+                                    {processingGateway === gateway.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (
+                                        <div className="w-[100px] flex justify-center">
+                                            <Image src={gateway.logoUrl} alt={gateway.name} width={80} height={24} style={{ height: 'auto' }} />
+                                        </div>
+                                    )}
                                      Pay with {gateway.name}
                                 </Button>
                             ))}

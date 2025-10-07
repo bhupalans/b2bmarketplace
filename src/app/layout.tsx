@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
+import Script from "next/script";
 
 export const metadata: Metadata = {
   title: "B2B Marketplace",
@@ -24,6 +25,7 @@ export default async function RootLayout({
       </head>
       <body className="font-body antialiased">
         <Providers>{children}</Providers>
+        <Script src="https://checkout.razorpay.com/v1/checkout.js" />
       </body>
     </html>
   );
