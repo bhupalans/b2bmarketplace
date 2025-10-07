@@ -116,6 +116,9 @@ export function UserNav() {
                     <Link href="/profile/subscription">
                         <Gem className="mr-2 h-4 w-4" />
                         <span>Subscription</span>
+                        {user.subscriptionPlan?.name && (
+                            <span className="ml-auto text-xs tracking-widest opacity-60">{user.subscriptionPlan.name}</span>
+                        )}
                     </Link>
                 </DropdownMenuItem>
             )}

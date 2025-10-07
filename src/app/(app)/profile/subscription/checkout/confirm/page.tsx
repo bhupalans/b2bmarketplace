@@ -9,7 +9,6 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
-import { updateUserSubscription } from '@/app/user-actions';
 import { verifyStripeSession } from '@/services/payments/stripe';
 
 function ConfirmationPageContent() {
@@ -24,32 +23,33 @@ function ConfirmationPageContent() {
     const [errorMessage, setErrorMessage] = useState('');
 
     useEffect(() => {
-        if (authLoading || !planId) {
-            return; // Wait until auth is resolved and we have a planId
+        if (authLoading || !planId || !firebaseUser) {
+            return; // Wait until auth is resolved and we have necessary info
         }
         
+        // If the UI context already reflects the correct plan, we're done.
         if (user?.subscriptionPlanId === planId) {
             setStatus('success');
             return;
         }
 
-        // --- NEW STRIPE VERIFICATION FLOW ---
-        if (stripeSessionId && firebaseUser) {
+        if (stripeSessionId) {
+            // --- New Stripe Flow: Actively verify from the client ---
             const verifyAndUpgrade = async () => {
                 try {
-                    const verificationResult = await verifyStripeSession({ sessionId: stripeSessionId });
+                    const result = await verifyStripeSession({ 
+                        sessionId: stripeSessionId,
+                        userId: firebaseUser.uid,
+                        planId: planId
+                    });
                     
-                    if (verificationResult.success && verificationResult.paid) {
-                        // Payment is confirmed on Stripe's side, now update our database
-                        const subscriptionResult = await updateUserSubscription(firebaseUser.uid, planId);
-                        if (subscriptionResult.success && subscriptionResult.user) {
-                             updateUserContext(subscriptionResult.user);
-                             setStatus('success');
-                        } else {
-                            throw new Error(subscriptionResult.error || "Failed to update your subscription in our system.");
-                        }
+                    if (result.success && result.paid && result.user) {
+                        // The server action now returns the updated user
+                        updateUserContext(result.user);
+                        setStatus('success');
                     } else {
-                        throw new Error(verificationResult.error || "Could not confirm payment status with Stripe.");
+                        // The server action handled the error logging, just show it to the user.
+                        throw new Error(result.error || "Could not confirm your payment status with Stripe.");
                     }
                 } catch (err: any) {
                     console.error("Confirmation Error:", err);
@@ -63,9 +63,10 @@ function ConfirmationPageContent() {
                 }
             };
             verifyAndUpgrade();
-        } else if (!stripeSessionId) { // Fallback for other gateways like Razorpay
-            // This logic remains for non-Stripe flows
-             const interval = setInterval(() => {
+        } else {
+            // --- Fallback for non-Stripe or webhook-reliant flows ---
+            const interval = setInterval(() => {
+                // Check if the auth context has been updated in the background
                 if (user?.subscriptionPlanId === planId) {
                     setStatus('success');
                     clearInterval(interval);

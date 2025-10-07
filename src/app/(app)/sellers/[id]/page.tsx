@@ -18,6 +18,8 @@ import {
   Loader2,
   MapPin,
   Trophy,
+  CheckCircle,
+  Gem,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getSellerAndProductsClient } from "@/lib/firebase";
@@ -78,7 +80,7 @@ export default function SellerProfilePage() {
 
   const { seller, products } = data;
   const isOwnProfile = user?.id === seller.id;
-
+  const isFeaturedSeller = seller.subscriptionPlanId && seller.subscriptionPlan?.isFeatured;
 
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
@@ -90,9 +92,20 @@ export default function SellerProfilePage() {
               <AvatarFallback>{seller.name.charAt(0)}</AvatarFallback>
             </Avatar>
             <CardTitle className="text-2xl">{seller.name}</CardTitle>
-            <CardDescription>
-              A trusted B2B Marketplace seller.
-            </CardDescription>
+            <div className="flex items-center gap-2 flex-wrap justify-center">
+               {isFeaturedSeller && (
+                    <Badge variant="secondary" className="border-yellow-600/50 text-yellow-700">
+                        <Gem className="h-3 w-3 mr-1" />
+                        Featured Seller
+                    </Badge>
+                )}
+                {seller.verified && (
+                    <Badge variant="secondary" className="border-green-600/50 text-green-700">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Verified
+                    </Badge>
+                )}
+            </div>
           </CardHeader>
           <CardContent className="text-center">
             {isOwnProfile ? (
@@ -109,7 +122,7 @@ export default function SellerProfilePage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>About {seller.name}</CardTitle>
+            <CardTitle>About {seller.companyName || seller.name}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">

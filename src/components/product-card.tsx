@@ -18,7 +18,7 @@ import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Badge } from "./ui/badge";
-import { CheckCircle, FileText } from "lucide-react";
+import { CheckCircle, FileText, Gem } from "lucide-react";
 import { RequestQuoteDialog } from "./request-quote-dialog";
 
 interface ProductCardProps {
@@ -67,6 +67,8 @@ export function ProductCard({ product }: ProductCardProps) {
     style: "currency",
     currency: currency,
   }).format(getConvertedPrice());
+  
+  const isFeaturedSeller = seller?.subscriptionPlanId && seller.subscriptionPlan?.isFeatured;
 
   return (
     <Card className="flex h-full w-full flex-col overflow-hidden transition-all hover:shadow-lg">
@@ -100,6 +102,12 @@ export function ProductCard({ product }: ProductCardProps) {
              <Link href={`/sellers/${seller.id}`} className="hover:underline font-medium text-foreground">
                 {seller.name}
               </Link>
+            {isFeaturedSeller && (
+                 <Badge variant="secondary" className="ml-2 border-yellow-600/50 text-yellow-700">
+                    <Gem className="h-3 w-3 mr-1" />
+                    Featured
+                </Badge>
+            )}
             {seller.verified && (
                 <Badge variant="secondary" className="ml-2 border-green-600/50 text-green-700">
                     <CheckCircle className="h-3 w-3 mr-1" />
