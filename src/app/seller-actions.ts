@@ -1,11 +1,12 @@
 
 'use server';
 
-import { getSellerProducts } from '@/lib/database';
 import { adminDb } from '@/lib/firebase-admin';
-import { Offer, Lead, Conversation } from '@/lib/types';
+import { Offer, Lead, Conversation, Message } from '@/lib/types';
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { revalidatePath } from 'next/cache';
+import { findOrCreateConversation, sendMessage } from '@/lib/firebase';
+
 
 export async function getSellerDashboardData(sellerId: string) {
   try {
@@ -67,40 +68,46 @@ export async function convertLeadsToConversations(sellerId: string): Promise<{ s
     }
 
     const batch = adminDb.batch();
-    const serverTimestamp = FieldValue.serverTimestamp();
-
+    
     for (const leadDoc of snapshot.docs) {
       const lead = leadDoc.data() as Lead;
 
-      // --- Create Conversation ---
+      // 1. Create the conversation shell.
       const conversationData: Omit<Conversation, 'id'> = {
         participantIds: [lead.buyerId, sellerId],
         productId: lead.productId,
         productTitle: lead.productTitle,
         productImage: lead.productImage || '',
         productSellerId: sellerId,
-        createdAt: serverTimestamp as Timestamp,
-        lastMessage: {
-            text: lead.requirements,
-            senderId: lead.buyerId,
-            timestamp: serverTimestamp as Timestamp,
-        },
+        createdAt: FieldValue.serverTimestamp() as Timestamp,
+        lastMessage: null // IMPORTANT: Set to null initially
       };
-      const conversationRef = adminDb.collection('conversations').doc(); // Auto-generate ID
+      
+      const conversationRef = adminDb.collection('conversations').doc();
       batch.set(conversationRef, conversationData);
 
-      // --- Create Message ---
-      const messageData = {
+      // 2. Create the first message for this new conversation.
+      const messageData: Omit<Message, 'id'> = {
           conversationId: conversationRef.id,
           senderId: lead.buyerId,
           text: `<b>New Quote Request</b><br/><b>Product:</b> ${lead.productTitle}<br/><b>Quantity:</b> ${lead.quantity}<br/><br/><b>Buyer's Message:</b><br/>${lead.requirements}`,
-          timestamp: serverTimestamp,
+          timestamp: FieldValue.serverTimestamp() as Timestamp,
           isQuoteRequest: true,
       };
       const messageRef = adminDb.collection('conversations').doc(conversationRef.id).collection('messages').doc();
       batch.set(messageRef, messageData);
       
-      // --- Delete Lead ---
+      // 3. Update the conversation's lastMessage field.
+      const lastMessageUpdate = {
+        lastMessage: {
+            text: lead.requirements,
+            senderId: lead.buyerId,
+            timestamp: FieldValue.serverTimestamp() as Timestamp
+        }
+      };
+      batch.update(conversationRef, lastMessageUpdate);
+
+      // 4. Delete the lead
       batch.delete(leadDoc.ref);
     }
 
@@ -114,4 +121,18 @@ export async function convertLeadsToConversations(sellerId: string): Promise<{ s
     console.error(`Error converting leads for seller ${sellerId}:`, error);
     return { success: false, error: 'Failed to convert leads to conversations.' };
   }
+}
+
+// This function is defined in `database.ts` but needed for `getSellerDashboardData`
+async function getSellerProducts(sellerId: string): Promise<any[]> {
+    const querySnapshot = await adminDb.collection("products").where("sellerId", "==", sellerId).get();
+    return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        const serializableData = {
+            ...data,
+            createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
+            updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt,
+        };
+        return { id: doc.id, ...serializableData };
+    });
 }
