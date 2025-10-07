@@ -1,11 +1,12 @@
 
+
 "use client";
 
 import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter, notFound } from 'next/navigation';
 import { getSubscriptionPlansClient } from '@/lib/firebase';
 import { SubscriptionPlan, User } from '@/lib/types';
-import { CreditCard, Lock, CheckCircle, Loader2 } from 'lucide-react';
+import { CreditCard, Lock, CheckCircle, Loader2, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -17,6 +18,8 @@ import { loadStripe, StripeElementsOptions } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { createStripePaymentIntent } from '@/services/payments/stripe';
 import { verifyStripeSession } from '@/app/user-actions';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import Link from 'next/link';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -109,6 +112,7 @@ function CheckoutPageContent() {
     const [plan, setPlan] = useState<SubscriptionPlan | null>(null);
     const [clientSecret, setClientSecret] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (!planId) {
@@ -141,7 +145,8 @@ function CheckoutPageContent() {
 
             } catch (error: any) {
                 console.error("Failed to fetch checkout data:", error);
-                toast({ variant: 'destructive', title: 'Error', description: 'Could not load checkout page. ' + error.message });
+                setError(error.message || 'Could not load checkout page.');
+                toast({ variant: 'destructive', title: 'Error', description: error.message || 'Could not load checkout page.' });
             } finally {
                 setLoading(false);
             }
@@ -168,6 +173,25 @@ function CheckoutPageContent() {
                 </div>
             </div>
         );
+    }
+    
+    if (error) {
+        return (
+            <div className="max-w-4xl mx-auto">
+                 <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Checkout Error</AlertTitle>
+                    <AlertDescription>
+                        <p>{error}</p>
+                        {error.includes('address') && (
+                             <Button asChild className="mt-4">
+                                <Link href="/profile">Go to Profile</Link>
+                            </Button>
+                        )}
+                    </AlertDescription>
+                </Alert>
+            </div>
+        )
     }
     
     if (!plan || !user || !clientSecret) {
@@ -237,5 +261,3 @@ export default function CheckoutPage() {
         </Suspense>
     )
 }
-
-    

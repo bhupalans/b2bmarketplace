@@ -31,13 +31,16 @@ export async function createStripePaymentIntent({ planId, userId }: { planId: st
 
     try {
         const { plan, user } = await getPlanAndUser(planId, userId);
+        
+        // Stripe requires a full address for certain compliance reasons (e.g., India exports)
+        if (!user.address || !user.address.street || !user.address.city || !user.address.state || !user.address.zip || !user.address.country) {
+            throw new Error("User profile is missing a complete primary business address, which is required for payment processing. Please complete your profile.");
+        }
+
         const stripe = new Stripe(secretKey, { apiVersion: '2024-06-20' });
 
         let customerId = user.stripeCustomerId;
         if (!customerId) {
-            if (!user.address) {
-                throw new Error("User profile is missing address details, which are required for payment processing.");
-            }
             const customer = await stripe.customers.create({
                 email: user.email,
                 name: user.name,
@@ -54,7 +57,7 @@ export async function createStripePaymentIntent({ planId, userId }: { planId: st
             await adminDb.collection('users').doc(userId).update({ stripeCustomerId: customerId });
         }
         
-        const descriptionForStripe = `Subscription to ${plan.name} plan for ${user.email}`;
+        const descriptionForStripe = `Subscription to ${plan.name} plan on B2B Marketplace.`;
 
         const paymentIntent = await stripe.paymentIntents.create({
             amount: plan.price * 100,
