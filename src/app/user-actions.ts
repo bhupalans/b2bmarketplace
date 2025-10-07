@@ -1,3 +1,4 @@
+
 'use server';
 
 import { adminDb, adminStorage, adminAuth } from '@/lib/firebase-admin';
@@ -5,6 +6,7 @@ import { User, VerificationTemplate, SubscriptionPlan } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 import { v4 as uuidv4 } from 'uuid';
 import { firestore } from 'firebase-admin';
+import Stripe from 'stripe';
 
 type ProfileUpdateData = Omit<User, 'id' | 'uid' | 'email' | 'role' | 'avatar' | 'memberSince' | 'username' | 'subscriptionPlanId' | 'subscriptionPlan'>;
 
@@ -271,3 +273,32 @@ export async function updateUserSubscription(userId: string, planId: string): Pr
     return { success: false, error: 'Failed to update subscription on the server.' };
   }
 }
+
+export async function verifyStripeSession({ paymentIntentId, userId, planId }: { paymentIntentId: string, userId: string, planId: string }): Promise<{ success: boolean; user?: User; error?: string }> {
+    const secretKey = process.env.STRIPE_SECRET_KEY;
+    if (!secretKey) {
+        return { success: false, error: 'Stripe is not configured on the server.' };
+    }
+
+    try {
+        const stripe = new Stripe(secretKey, { apiVersion: '2024-06-20' });
+        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+        if (paymentIntent.status === 'succeeded') {
+            const subscriptionResult = await updateUserSubscription(userId, planId);
+            if (subscriptionResult.success) {
+                return { success: true, user: subscriptionResult.user };
+            } else {
+                // This will be caught by the catch block
+                throw new Error(subscriptionResult.error);
+            }
+        } else {
+            return { success: false, error: `Payment status is ${paymentIntent.status}` };
+        }
+    } catch (error: any) {
+        console.error('Error verifying Stripe payment and updating subscription:', error);
+        return { success: false, error: error.message || 'Failed to verify payment session.' };
+    }
+}
+
+    

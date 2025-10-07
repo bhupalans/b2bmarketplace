@@ -1,9 +1,10 @@
+
 "use client";
 
-import React, { useEffect, useState, Suspense, useMemo } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter, notFound } from 'next/navigation';
-import { getActivePaymentGatewaysClient, getSubscriptionPlansClient } from '@/lib/firebase';
-import { SubscriptionPlan, PaymentGateway, User } from '@/lib/types';
+import { getSubscriptionPlansClient } from '@/lib/firebase';
+import { SubscriptionPlan, User } from '@/lib/types';
 import { CreditCard, Lock, CheckCircle, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { loadStripe, StripeElementsOptions } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { createStripePaymentIntent } from '@/services/payments/stripe';
+import { verifyStripeSession } from '@/app/user-actions';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -26,37 +28,60 @@ const PlanFeature = ({ children }: { children: React.ReactNode }) => (
 );
 
 
-const CheckoutForm = ({ plan, user }: { plan: SubscriptionPlan, user: User }) => {
+const CheckoutForm = ({ plan, user, clientSecret }: { plan: SubscriptionPlan, user: User, clientSecret: string }) => {
     const stripe = useStripe();
     const elements = useElements();
     const router = useRouter();
     const { toast } = useToast();
+    const { updateUserContext } = useAuth();
     const [isProcessing, setIsProcessing] = useState(false);
 
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
         
         if (!stripe || !elements) {
-            // Stripe.js has not yet loaded.
             return;
         }
 
         setIsProcessing(true);
+        
+        const { error: submitError } = await elements.submit();
+        if (submitError) {
+            toast({ variant: 'destructive', title: 'Payment Failed', description: submitError.message });
+            setIsProcessing(false);
+            return;
+        }
 
-        const baseUrl = window.location.origin;
-        const confirmUrl = `${baseUrl}/profile/subscription/checkout/confirm?planId=${plan.id}`;
-
-        const { error } = await stripe.confirmPayment({
+        const { error, paymentIntent } = await stripe.confirmPayment({
             elements,
+            clientSecret,
             confirmParams: {
-                return_url: confirmUrl,
+                // Return URL is not needed for this flow. The success path is handled below.
             },
+            redirect: 'if_required' // This is crucial to prevent unnecessary redirects
         });
 
-        if (error.type === "card_error" || error.type === "validation_error") {
+        if (error) {
             toast({ variant: 'destructive', title: 'Payment Failed', description: error.message });
+        } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+            toast({ title: 'Payment Successful', description: 'Finalizing your subscription...' });
+
+            // Now that payment is confirmed on the client, verify on the server and update subscription.
+            const verificationResult = await verifyStripeSession({
+                paymentIntentId: paymentIntent.id,
+                userId: user.uid,
+                planId: plan.id,
+            });
+
+            if (verificationResult.success && verificationResult.user) {
+                updateUserContext(verificationResult.user);
+                // Redirect to the simple success page
+                router.push(`/profile/subscription/checkout/confirm?status=success`);
+            } else {
+                toast({ variant: 'destructive', title: 'Subscription Update Failed', description: verificationResult.error || 'Please contact support.' });
+            }
         } else {
-            toast({ variant: 'destructive', title: 'An unexpected error occurred.', description: 'Please try again.' });
+             toast({ variant: 'destructive', title: 'An unexpected error occurred.', description: 'Please try again.' });
         }
 
         setIsProcessing(false);
@@ -98,7 +123,7 @@ function CheckoutPageContent() {
             try {
                 const [allPlans, paymentIntentResult] = await Promise.all([
                     getSubscriptionPlansClient(),
-                    createStripePaymentIntent({ planId, userId: firebaseUser!.uid })
+                    createStripePaymentIntent({ planId: planId!, userId: firebaseUser!.uid })
                 ]);
 
                 const selectedPlan = allPlans.find(p => p.id === planId);
@@ -145,7 +170,7 @@ function CheckoutPageContent() {
         );
     }
     
-    if (!plan || !user) {
+    if (!plan || !user || !clientSecret) {
         return null;
     }
 
@@ -194,7 +219,7 @@ function CheckoutPageContent() {
                         <CardContent>
                             {options && (
                                 <Elements options={options} stripe={stripePromise}>
-                                    <CheckoutForm plan={plan} user={user} />
+                                    <CheckoutForm plan={plan} user={user} clientSecret={clientSecret} />
                                 </Elements>
                             )}
                         </CardContent>
@@ -212,3 +237,5 @@ export default function CheckoutPage() {
         </Suspense>
     )
 }
+
+    
