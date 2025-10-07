@@ -21,7 +21,7 @@ const PlanFeature = ({ children }: { children: React.ReactNode }) => (
 );
 
 export default function SubscriptionPage() {
-    const { user, firebaseUser, updateUserContext, loading: authLoading } = useAuth();
+    const { user, firebaseUser, loading: authLoading } = useAuth();
     const router = useRouter();
     const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
     const [loading, setLoading] = useState(true);
@@ -49,7 +49,7 @@ export default function SubscriptionPage() {
     const handleSelectPlan = (plan: SubscriptionPlan) => {
         if (!firebaseUser) return;
         
-        // If the plan is paid, redirect to checkout
+        // If the plan is paid, redirect to the new generic checkout page
         if (plan.price > 0) {
             router.push(`/profile/subscription/checkout?planId=${plan.id}`);
             return;

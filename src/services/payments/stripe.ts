@@ -1,12 +1,9 @@
 
-
 'use server';
 
 import Stripe from 'stripe';
-import { headers } from 'next/headers';
 import { adminDb } from '@/lib/firebase-admin';
 import { SubscriptionPlan, User } from '@/lib/types';
-import { updateUserSubscription } from '@/app/user-actions';
 
 async function getPlanAndUser(planId: string, userId: string): Promise<{ plan: SubscriptionPlan, user: User }> {
     const [planSnap, userSnap] = await Promise.all([
@@ -54,16 +51,14 @@ export async function createStripePaymentIntent({ planId, userId }: { planId: st
         };
         
         if (customerId) {
-            // Update existing customer with latest details
             await stripe.customers.update(customerId, customerDetails);
         } else {
-            // Create a new customer
             const customer = await stripe.customers.create(customerDetails);
             customerId = customer.id;
             await adminDb.collection('users').doc(userId).update({ stripeCustomerId: customerId });
         }
         
-        const descriptionForStripe = `Subscription to ${plan.name} plan on B2B Marketplace.`;
+        const descriptionForStripe = `Subscription to ${plan.name} plan on B2B Marketplace for user ${user.email}.`;
 
         const paymentIntent = await stripe.paymentIntents.create({
             amount: plan.price * 100,
@@ -76,6 +71,8 @@ export async function createStripePaymentIntent({ planId, userId }: { planId: st
             metadata: {
                 firebaseUID: userId,
                 planId: planId,
+                planName: plan.name,
+                customerEmail: user.email
             },
         });
         
@@ -88,33 +85,5 @@ export async function createStripePaymentIntent({ planId, userId }: { planId: st
     } catch (error: any) {
         console.error('Error creating Stripe Payment Intent:', error);
         return { success: false, error: error.message || 'Failed to create payment session.' };
-    }
-}
-
-
-export async function verifyStripeSession({ paymentIntentId, userId, planId }: { paymentIntentId: string, userId: string, planId: string }): Promise<{ success: boolean; user?: User; error?: string }> {
-    const secretKey = process.env.STRIPE_SECRET_KEY;
-    if (!secretKey) {
-        return { success: false, error: 'Stripe is not configured on the server.' };
-    }
-
-    try {
-        const stripe = new Stripe(secretKey, { apiVersion: '2024-06-20' });
-        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-
-        if (paymentIntent.status === 'succeeded') {
-            const subscriptionResult = await updateUserSubscription(userId, planId);
-            if (subscriptionResult.success) {
-                return { success: true, user: subscriptionResult.user };
-            } else {
-                // This will be caught by the catch block
-                throw new Error(subscriptionResult.error);
-            }
-        } else {
-            return { success: false, error: `Payment status is ${paymentIntent.status}` };
-        }
-    } catch (error: any) {
-        console.error('Error verifying Stripe payment and updating subscription:', error);
-        return { success: false, error: error.message || 'Failed to verify payment session.' };
     }
 }

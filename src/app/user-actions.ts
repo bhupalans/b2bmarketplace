@@ -271,12 +271,10 @@ export async function verifyStripeSession({ paymentIntentId, userId, planId }: {
         const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
 
         if (paymentIntent.status === 'succeeded') {
-            // This function now returns a simple success/error object
             const subscriptionResult = await updateUserSubscription(userId, planId);
             if (subscriptionResult.success) {
                 return { success: true };
             } else {
-                // Propagate the error from the subscription update
                 throw new Error(subscriptionResult.error);
             }
         } else {
