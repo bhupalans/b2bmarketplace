@@ -1,16 +1,32 @@
-
 'use server';
 
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import { adminDb } from '@/lib/firebase-admin';
 import { SubscriptionPlan, User } from '@/lib/types';
-import { updateUserSubscription } from './user-actions';
+import { updateUserSubscription } from '@/app/user-actions';
 
-const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID!,
-    key_secret: process.env.RAZORPAY_KEY_SECRET!,
-});
+// This function is defined here because it's only used by this payment action.
+// In a larger app, it might be in a shared lib/database file.
+async function getPlanAndUser(planId: string, userId: string): Promise<{ plan: SubscriptionPlan, user: User }> {
+    const [planSnap, userSnap] = await Promise.all([
+        adminDb.collection('subscriptionPlans').doc(planId).get(),
+        adminDb.collection('users').doc(userId).get()
+    ]);
+    
+    if (!planSnap.exists) {
+        throw new Error('Subscription plan not found.');
+    }
+    if (!userSnap.exists) {
+        throw new Error('User not found.');
+    }
+
+    return {
+        plan: planSnap.data() as SubscriptionPlan,
+        user: userSnap.data() as User
+    }
+}
+
 
 export async function createRazorpayOrder({ planId, userId }: { planId: string, userId: string }): Promise<{ success: true; order: any, user: User, plan: SubscriptionPlan } | { success: false, error: string }> {
 
@@ -19,24 +35,16 @@ export async function createRazorpayOrder({ planId, userId }: { planId: string, 
     }
     
     try {
-        const [planSnap, userSnap] = await Promise.all([
-            adminDb.collection('subscriptionPlans').doc(planId).get(),
-            adminDb.collection('users').doc(userId).get()
-        ]);
+        const { plan, user } = await getPlanAndUser(planId, userId);
         
-        if (!planSnap.exists) {
-            return { success: false, error: 'Subscription plan not found.' };
-        }
-        if (!userSnap.exists) {
-            return { success: false, error: 'User not found.' };
-        }
-        
-        const plan = planSnap.data() as SubscriptionPlan;
-        const user = userSnap.data() as User;
+        const razorpay = new Razorpay({
+            key_id: process.env.RAZORPAY_KEY_ID!,
+            key_secret: process.env.RAZORPAY_KEY_SECRET!,
+        });
         
         const options = {
             amount: plan.price * 100, // amount in the smallest currency unit
-            currency: plan.currency, // Use currency from the plan
+            currency: plan.currency,
             receipt: `receipt_plan_${planId}_${new Date().getTime()}`
         };
 
@@ -46,7 +54,7 @@ export async function createRazorpayOrder({ planId, userId }: { planId: string, 
 
     } catch(error: any) {
         console.error('Error creating Razorpay order:', error);
-        return { success: false, error: 'Failed to create payment order.' };
+        return { success: false, error: error.message || 'Failed to create payment order.' };
     }
 }
 
@@ -65,10 +73,14 @@ export async function verifyRazorpayPayment({
 }): Promise<{ success: boolean; error?: string }> {
 
     try {
+        if (!process.env.RAZORPAY_KEY_SECRET) {
+            throw new Error("Razorpay secret key is not configured.");
+        }
+
         const body = razorpay_order_id + "|" + razorpay_payment_id;
 
         const expectedSignature = crypto
-            .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
+            .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
             .update(body.toString())
             .digest('hex');
             
@@ -88,6 +100,6 @@ export async function verifyRazorpayPayment({
 
     } catch(error: any) {
         console.error('Error verifying Razorpay payment:', error);
-        return { success: false, error: 'Payment verification failed on the server.' };
+        return { success: false, error: error.message || 'Payment verification failed on the server.' };
     }
 }

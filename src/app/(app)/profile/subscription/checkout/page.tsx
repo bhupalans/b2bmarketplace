@@ -14,7 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { useAuth } from '@/contexts/auth-context';
-import { createRazorpayOrder, verifyRazorpayPayment } from '@/app/payment-actions';
+import { createRazorpayOrder, verifyRazorpayPayment } from '@/services/payments/razorpay';
 
 declare global {
     interface Window {
