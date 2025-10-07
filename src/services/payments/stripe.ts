@@ -86,3 +86,24 @@ export async function createStripeCheckoutSession({ planId, userId }: { planId: 
         return { success: false, error: error.message || 'Failed to create payment session.' };
     }
 }
+
+export async function verifyStripeSession({ sessionId }: { sessionId: string }): Promise<{ success: boolean; paid: boolean; error?: string }> {
+    const secretKey = process.env.STRIPE_SECRET_KEY;
+    if (!secretKey) {
+        return { success: false, paid: false, error: 'Stripe is not configured on the server.' };
+    }
+
+    try {
+        const stripe = new Stripe(secretKey, { apiVersion: '2024-06-20' });
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+        if (session.payment_status === 'paid') {
+            return { success: true, paid: true };
+        } else {
+            return { success: true, paid: false, error: `Payment status is ${session.payment_status}` };
+        }
+    } catch (error: any) {
+        console.error('Error verifying Stripe session:', error);
+        return { success: false, paid: false, error: error.message || 'Failed to verify payment session.' };
+    }
+}

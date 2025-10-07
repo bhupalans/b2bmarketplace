@@ -9,11 +9,15 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
+import { updateUserSubscription } from '@/app/user-actions';
+import { verifyStripeSession } from '@/services/payments/stripe';
 
 function ConfirmationPageContent() {
     const searchParams = useSearchParams();
     const planId = searchParams.get('planId');
-    const { user, loading: authLoading } = useAuth();
+    const stripeSessionId = searchParams.get('stripe_session_id');
+
+    const { user, firebaseUser, updateUserContext, loading: authLoading } = useAuth();
     const { toast } = useToast();
 
     const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
@@ -24,43 +28,70 @@ function ConfirmationPageContent() {
             return; // Wait until auth is resolved and we have a planId
         }
         
-        // If the user's plan is already the target plan, we can show success immediately.
         if (user?.subscriptionPlanId === planId) {
             setStatus('success');
             return;
         }
 
-        // Start polling to check for the subscription update from the webhook.
-        const interval = setInterval(() => {
-            // The useAuth hook re-fetches user data on auth state changes,
-            // but we poll here to catch the backend DB update from the webhook.
-            // In a real app, you might use a real-time listener (e.g., onSnapshot) for the user document.
-            // For simplicity, we check the existing context state which should update.
-            if (user?.subscriptionPlanId === planId) {
-                setStatus('success');
+        // --- NEW STRIPE VERIFICATION FLOW ---
+        if (stripeSessionId && firebaseUser) {
+            const verifyAndUpgrade = async () => {
+                try {
+                    const verificationResult = await verifyStripeSession({ sessionId: stripeSessionId });
+                    
+                    if (verificationResult.success && verificationResult.paid) {
+                        // Payment is confirmed on Stripe's side, now update our database
+                        const subscriptionResult = await updateUserSubscription(firebaseUser.uid, planId);
+                        if (subscriptionResult.success && subscriptionResult.user) {
+                             updateUserContext(subscriptionResult.user);
+                             setStatus('success');
+                        } else {
+                            throw new Error(subscriptionResult.error || "Failed to update your subscription in our system.");
+                        }
+                    } else {
+                        throw new Error(verificationResult.error || "Could not confirm payment status with Stripe.");
+                    }
+                } catch (err: any) {
+                    console.error("Confirmation Error:", err);
+                    setErrorMessage(err.message || 'An unknown error occurred during confirmation.');
+                    setStatus('error');
+                    toast({
+                        variant: 'destructive',
+                        title: 'Subscription Update Failed',
+                        description: err.message || 'Please contact support.'
+                    });
+                }
+            };
+            verifyAndUpgrade();
+        } else if (!stripeSessionId) { // Fallback for other gateways like Razorpay
+            // This logic remains for non-Stripe flows
+             const interval = setInterval(() => {
+                if (user?.subscriptionPlanId === planId) {
+                    setStatus('success');
+                    clearInterval(interval);
+                }
+            }, 2000); 
+
+            const timeout = setTimeout(() => {
                 clearInterval(interval);
-            }
-        }, 2000); // Check every 2 seconds
+                if (status !== 'success') {
+                    setStatus('error');
+                    setErrorMessage('The payment was successful, but we are still confirming your subscription. Please check your messages page or contact support if the issue persists.');
+                    toast({
+                        variant: 'destructive',
+                        title: 'Confirmation Timed Out',
+                        description: 'Your payment was successful, but the subscription update is taking longer than expected.'
+                    })
+                }
+            }, 45000); // 45 seconds timeout
 
-        // Set a timeout to prevent infinite polling
-        const timeout = setTimeout(() => {
-            clearInterval(interval);
-            if (status !== 'success') {
-                setStatus('error');
-                setErrorMessage('The payment was successful, but we are still confirming your subscription. Please check your messages page or contact support if the issue persists.');
-                toast({
-                    variant: 'destructive',
-                    title: 'Confirmation Timed Out',
-                    description: 'Your payment was successful, but the subscription update is taking longer than expected.'
-                })
-            }
-        }, 45000); // 45 seconds timeout
+            return () => {
+                clearInterval(interval);
+                clearTimeout(timeout);
+            };
+        }
 
-        return () => {
-            clearInterval(interval);
-            clearTimeout(timeout);
-        };
-    }, [planId, user, authLoading, status, toast]);
+    }, [planId, stripeSessionId, user, firebaseUser, authLoading, updateUserContext, toast, status]);
 
 
     if (!planId) {
@@ -82,7 +113,7 @@ function ConfirmationPageContent() {
                     <CardTitle className="text-2xl">
                         {status === 'processing' && 'Finalizing Your Subscription...'}
                         {status === 'success' && 'Subscription Successful!'}
-                        {status === 'error' && 'Confirmation Delayed'}
+                        {status === 'error' && 'An Error Occurred'}
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -114,7 +145,7 @@ function ConfirmationPageContent() {
                                 {errorMessage}
                             </p>
                              <p className="text-sm text-muted-foreground">
-                                Please check your "Subscription" page in your profile to see your current plan.
+                                Please check your "Subscription" page in your profile to see your current plan, or contact support if the problem persists.
                             </p>
                             <Button className="w-full" variant="secondary" asChild>
                                 <Link href="/profile/subscription">
