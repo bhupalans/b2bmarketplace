@@ -21,8 +21,7 @@ async function getPlanAndUser(planId: string, userId: string): Promise<{ plan: S
     };
 }
 
-export async function createStripeCheckoutSession({ planId, userId }: { planId: string, userId: string }): Promise<{ success: true; sessionId: string; } | { success: false, error: string }> {
-    
+export async function createStripePaymentIntent({ planId, userId }: { planId: string, userId: string }): Promise<{ success: true; clientSecret: string; } | { success: false, error: string }> {
     const secretKey = process.env.STRIPE_SECRET_KEY;
     if (!secretKey) {
         return { success: false, error: 'Stripe is not configured on the server.' };
@@ -30,62 +29,44 @@ export async function createStripeCheckoutSession({ planId, userId }: { planId: 
 
     try {
         const { plan, user } = await getPlanAndUser(planId, userId);
-        
         const stripe = new Stripe(secretKey, { apiVersion: '2024-06-20' });
 
-        // Check if user already exists in Stripe, if not create them
         let customerId = user.stripeCustomerId;
         if (!customerId) {
             const customer = await stripe.customers.create({
                 email: user.email,
                 name: user.name,
-                metadata: {
-                    firebaseUID: userId,
-                },
+                metadata: { firebaseUID: userId },
             });
             customerId = customer.id;
-            // Save the new customer ID to the user's profile in Firestore
             await adminDb.collection('users').doc(userId).update({ stripeCustomerId: customerId });
         }
-        
-        const baseUrl = headers().get('origin') || `https://${headers().get('host')}`;
-        
-        const session = await stripe.checkout.sessions.create({
-            payment_method_types: ['card'],
+
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: plan.price * 100,
+            currency: plan.currency.toLowerCase(),
             customer: customerId,
-            line_items: [
-                {
-                    price_data: {
-                        currency: plan.currency.toLowerCase(),
-                        product_data: {
-                            name: `${plan.name} Plan`,
-                            description: `Subscription to the ${plan.name} plan on B2B Marketplace`,
-                        },
-                        unit_amount: plan.price * 100, // Amount in cents
-                    },
-                    quantity: 1,
-                },
-            ],
-            mode: 'payment', // Use 'subscription' mode for recurring payments
-            success_url: `${baseUrl}/profile/subscription/checkout/confirm?planId=${planId}&stripe_session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${baseUrl}/profile/subscription/checkout?planId=${planId}`,
+            automatic_payment_methods: {
+                enabled: true,
+            },
             metadata: {
                 firebaseUID: userId,
                 planId: planId,
             }
         });
-
-        if (!session.id) {
-            throw new Error('Failed to create Stripe session.');
+        
+        if (!paymentIntent.client_secret) {
+            throw new Error('Failed to create PaymentIntent.');
         }
 
-        return { success: true, sessionId: session.id };
+        return { success: true, clientSecret: paymentIntent.client_secret };
 
     } catch (error: any) {
-        console.error('Error creating Stripe checkout session:', error);
+        console.error('Error creating Stripe Payment Intent:', error);
         return { success: false, error: error.message || 'Failed to create payment session.' };
     }
 }
+
 
 export async function verifyStripeSession({ sessionId, userId, planId }: { sessionId: string, userId: string, planId: string }): Promise<{ success: boolean; paid?: boolean; error?: string; user?: User }> {
     const secretKey = process.env.STRIPE_SECRET_KEY;
@@ -111,4 +92,9 @@ export async function verifyStripeSession({ sessionId, userId, planId }: { sessi
         console.error('Error verifying Stripe session and updating subscription:', error);
         return { success: false, error: error.message || 'Failed to verify payment session.' };
     }
+}
+
+// This function is still needed for the webhook, even if we add client-side confirmation
+export async function createStripeCheckoutSession({ planId, userId }: { planId: string, userId: string }): Promise<{ success: true; sessionId: string; } | { success: false, error: string }> {
+    return { success: false, error: 'This function is deprecated. Use createStripePaymentIntent instead.' };
 }

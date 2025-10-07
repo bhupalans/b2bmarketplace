@@ -3,7 +3,6 @@ import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import { updateUserSubscription } from '@/app/user-actions';
 
-// This is your Stripe CLI webhook secret for testing your endpoint locally.
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
 export async function POST(req: NextRequest) {
@@ -25,26 +24,28 @@ export async function POST(req: NextRequest) {
     
     // Handle the event
     switch (event.type) {
-        case 'checkout.session.completed':
-            const session = event.data.object as Stripe.Checkout.Session;
-            
-            const userId = session.metadata?.firebaseUID;
-            const planId = session.metadata?.planId;
+        case 'payment_intent.succeeded':
+            const paymentIntent = event.data.object;
+            const userId = paymentIntent.metadata?.firebaseUID;
+            const planId = paymentIntent.metadata?.planId;
 
-            if (session.payment_status === 'paid' && userId && planId) {
-                console.log(`??  Payment for session ${session.id} was successful. Updating subscription for user ${userId} to plan ${planId}.`);
-                
+            if (userId && planId) {
+                console.log(`??  Payment Intent for ${paymentIntent.id} was successful. Updating subscription for user ${userId} to plan ${planId}.`);
                 try {
                     const result = await updateUserSubscription(userId, planId);
                     if (!result.success) {
                          console.error(`??  Failed to update subscription in webhook:`, result.error);
-                         // We can't easily retry from here, but logging is crucial.
-                         // For a production app, you'd queue this for a retry.
                     }
                 } catch(error) {
                     console.error('Error in updateUserSubscription from webhook:', error);
                 }
             }
+            break;
+        case 'checkout.session.completed':
+            // This case can still be useful for other checkout modes in the future,
+            // but for embedded forms, payment_intent.succeeded is more reliable.
+            const session = event.data.object as Stripe.Checkout.Session;
+            console.log(`??  Checkout session ${session.id} completed.`);
             break;
         default:
             console.log(`??  Unhandled Stripe event type: ${event.type}`);
@@ -53,8 +54,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true });
 }
 
-// Note: You must disable the body parser for this route
-// as Stripe requires the raw body to verify the signature.
 export const config = {
     api: {
         bodyParser: false,

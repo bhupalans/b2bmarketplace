@@ -1,7 +1,6 @@
-
 "use client";
 
-import React, { useEffect, useState, Suspense } from 'react';
+import React, { useEffect, useState, Suspense, useMemo } from 'react';
 import { useSearchParams, useRouter, notFound } from 'next/navigation';
 import { getActivePaymentGatewaysClient, getSubscriptionPlansClient } from '@/lib/firebase';
 import { SubscriptionPlan, PaymentGateway, User } from '@/lib/types';
@@ -12,19 +11,12 @@ import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import Image from 'next/image';
 import { useAuth } from '@/contexts/auth-context';
-import { createRazorpayOrder, verifyRazorpayPayment } from '@/services/payments/razorpay';
-import { loadStripe } from '@stripe/stripe-js';
-import { createStripeCheckoutSession } from '@/services/payments/stripe';
+import { loadStripe, StripeElementsOptions } from '@stripe/stripe-js';
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { createStripePaymentIntent } from '@/services/payments/stripe';
 
-
-declare global {
-    interface Window {
-        Razorpay: any;
-    }
-}
-
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 const PlanFeature = ({ children }: { children: React.ReactNode }) => (
     <li className="flex items-start gap-3">
@@ -32,6 +24,55 @@ const PlanFeature = ({ children }: { children: React.ReactNode }) => (
         <span className="text-muted-foreground">{children}</span>
     </li>
 );
+
+
+const CheckoutForm = ({ plan, user }: { plan: SubscriptionPlan, user: User }) => {
+    const stripe = useStripe();
+    const elements = useElements();
+    const router = useRouter();
+    const { toast } = useToast();
+    const [isProcessing, setIsProcessing] = useState(false);
+
+    const handleSubmit = async (event: React.FormEvent) => {
+        event.preventDefault();
+        
+        if (!stripe || !elements) {
+            // Stripe.js has not yet loaded.
+            return;
+        }
+
+        setIsProcessing(true);
+
+        const baseUrl = window.location.origin;
+        const confirmUrl = `${baseUrl}/profile/subscription/checkout/confirm?planId=${plan.id}`;
+
+        const { error } = await stripe.confirmPayment({
+            elements,
+            confirmParams: {
+                return_url: confirmUrl,
+            },
+        });
+
+        if (error.type === "card_error" || error.type === "validation_error") {
+            toast({ variant: 'destructive', title: 'Payment Failed', description: error.message });
+        } else {
+            toast({ variant: 'destructive', title: 'An unexpected error occurred.', description: 'Please try again.' });
+        }
+
+        setIsProcessing(false);
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-4">
+            <PaymentElement />
+            <Button disabled={isProcessing || !stripe || !elements} className="w-full" type="submit">
+                {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Pay ${plan.price.toFixed(2)}
+            </Button>
+        </form>
+    );
+};
+
 
 function CheckoutPageContent() {
     const router = useRouter();
@@ -41,9 +82,8 @@ function CheckoutPageContent() {
     const { user, firebaseUser } = useAuth();
     
     const [plan, setPlan] = useState<SubscriptionPlan | null>(null);
-    const [gateways, setGateways] = useState<PaymentGateway[]>([]);
+    const [clientSecret, setClientSecret] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
-    const [processingGateway, setProcessingGateway] = useState<string | null>(null);
 
     useEffect(() => {
         if (!planId) {
@@ -51,12 +91,14 @@ function CheckoutPageContent() {
             router.push('/profile/subscription');
             return;
         }
+        
+        if (!firebaseUser) return;
 
         async function fetchCheckoutData() {
             try {
-                const [allPlans, activeGateways] = await Promise.all([
+                const [allPlans, paymentIntentResult] = await Promise.all([
                     getSubscriptionPlansClient(),
-                    getActivePaymentGatewaysClient()
+                    createStripePaymentIntent({ planId, userId: firebaseUser!.uid })
                 ]);
 
                 const selectedPlan = allPlans.find(p => p.id === planId);
@@ -65,106 +107,30 @@ function CheckoutPageContent() {
                 } else {
                     notFound();
                 }
-                setGateways(activeGateways);
 
-            } catch (error) {
+                if (paymentIntentResult.success) {
+                    setClientSecret(paymentIntentResult.clientSecret);
+                } else {
+                    throw new Error(paymentIntentResult.error);
+                }
+
+            } catch (error: any) {
                 console.error("Failed to fetch checkout data:", error);
-                toast({ variant: 'destructive', title: 'Error', description: 'Could not load checkout page.' });
+                toast({ variant: 'destructive', title: 'Error', description: 'Could not load checkout page. ' + error.message });
             } finally {
                 setLoading(false);
             }
         }
         fetchCheckoutData();
-    }, [planId, router, toast]);
-
-    const handleGatewaySelect = async (gatewayId: string) => {
-        if (!planId || !firebaseUser || !plan) return;
-
-        setProcessingGateway(gatewayId);
-
-        if (gatewayId === 'razorpay') {
-            try {
-                const result = await createRazorpayOrder({ planId, userId: firebaseUser.uid });
-                if (!result.success) throw new Error(result.error);
-
-                const { order, user, plan: subscriptionPlan } = result;
-
-                const options = {
-                    key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-                    amount: order.amount,
-                    currency: order.currency,
-                    name: "B2B Marketplace",
-                    description: `Subscription to ${subscriptionPlan.name} Plan`,
-                    order_id: order.id,
-                    handler: async (response: any) => {
-                        const verificationResult = await verifyRazorpayPayment({
-                            ...response,
-                            userId: firebaseUser.uid,
-                            planId: planId,
-                        });
-                        
-                        if (verificationResult.success) {
-                            router.push(`/profile/subscription/checkout/confirm?planId=${planId}`);
-                        } else {
-                             toast({ variant: 'destructive', title: 'Payment Failed', description: verificationResult.error || 'Payment verification failed.' });
-                        }
-                    },
-                    prefill: {
-                        name: user.name,
-                        email: user.email,
-                        contact: user.phoneNumber
-                    },
-                    notes: {
-                        plan_id: planId,
-                        user_id: firebaseUser.uid,
-                    },
-                    theme: {
-                        color: "#3399cc"
-                    }
-                };
-                
-                const rzp = new window.Razorpay(options);
-                rzp.on('payment.failed', function (response: any){
-                    toast({
-                        variant: 'destructive',
-                        title: 'Payment Failed',
-                        description: response.error.description || 'Your payment was not successful. Please try again.',
-                    });
-                });
-                rzp.open();
-
-            } catch (error: any) {
-                console.error("Razorpay error:", error);
-                toast({ variant: 'destructive', title: 'Payment Error', description: error.message || 'Could not initiate payment.' });
-            } finally {
-                setProcessingGateway(null);
-            }
-
-        } else if (gatewayId === 'stripe') {
-            try {
-                const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
-                const stripe = await stripePromise;
-                if (!stripe) throw new Error('Stripe.js failed to load.');
-
-                const result = await createStripeCheckoutSession({ planId, userId: firebaseUser.uid });
-                if (!result.success) throw new Error(result.error);
-
-                const { error } = await stripe.redirectToCheckout({ sessionId: result.sessionId });
-                
-                if (error) {
-                    throw error;
-                }
-            } catch (error: any) {
-                 console.error("Stripe error:", error);
-                toast({ variant: 'destructive', title: 'Payment Error', description: error.message || 'Could not initiate payment with Stripe.' });
-            } finally {
-                 setProcessingGateway(null);
-            }
-        } else {
-             // Fallback for other gateways like Stripe, etc.
-             router.push(`/profile/subscription/checkout/confirm?planId=${planId}&gateway=${gatewayId}`);
-        }
-    }
+    }, [planId, router, toast, firebaseUser]);
+    
+    const appearance = {
+        theme: 'stripe',
+    };
+    const options: StripeElementsOptions | undefined = clientSecret ? {
+        clientSecret,
+        appearance,
+    } : undefined;
 
     if (loading) {
         return (
@@ -172,18 +138,14 @@ function CheckoutPageContent() {
                 <Skeleton className="h-8 w-1/2" />
                 <Skeleton className="h-4 w-3/4" />
                 <div className="grid md:grid-cols-2 gap-8 pt-6">
-                    <div className="space-y-4">
-                        <Skeleton className="h-12 w-full" />
-                        <Skeleton className="h-12 w-full" />
-                        <Skeleton className="h-12 w-full" />
-                    </div>
                      <Skeleton className="h-96 w-full" />
+                     <Skeleton className="h-64 w-full" />
                 </div>
             </div>
         );
     }
     
-    if (!plan) {
+    if (!plan || !user) {
         return null;
     }
 
@@ -197,7 +159,7 @@ function CheckoutPageContent() {
             </div>
 
             <div className="grid md:grid-cols-2 gap-8 items-start">
-                <div className="space-y-4">
+                <div className="space-y-4 md:order-2">
                      <Card>
                         <CardHeader>
                             <CardTitle>Order Summary</CardTitle>
@@ -223,29 +185,18 @@ function CheckoutPageContent() {
                     </Card>
 
                 </div>
-                <div>
+                <div className="md:order-1">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Select Payment Method</CardTitle>
-                            <CardDescription>All transactions are secure and encrypted.</CardDescription>
+                            <CardTitle>Payment Details</CardTitle>
+                            <CardDescription>All transactions are secure and processed by Stripe.</CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-3">
-                            {gateways.map(gateway => (
-                                <Button 
-                                    key={gateway.id} 
-                                    variant="outline" 
-                                    className="w-full h-14 justify-start items-center gap-4" 
-                                    onClick={() => handleGatewaySelect(gateway.id)}
-                                    disabled={!!processingGateway}
-                                >
-                                    {processingGateway === gateway.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (
-                                        <div className="w-[100px] flex justify-center">
-                                            <Image src={gateway.logoUrl} alt={gateway.name} width={80} height={24} style={{ height: 'auto' }} />
-                                        </div>
-                                    )}
-                                     Pay with {gateway.name}
-                                </Button>
-                            ))}
+                        <CardContent>
+                            {options && (
+                                <Elements options={options} stripe={stripePromise}>
+                                    <CheckoutForm plan={plan} user={user} />
+                                </Elements>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
