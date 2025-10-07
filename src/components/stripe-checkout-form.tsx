@@ -36,21 +36,27 @@ const CheckoutForm = ({ plan, user, clientSecret }: { plan: SubscriptionPlan, us
             return;
         }
 
-        const { error } = await stripe.confirmPayment({
+        const { error, paymentIntent } = await stripe.confirmPayment({
             elements,
             clientSecret,
-            confirmParams: {
-                // Redirect to a confirmation page. The webhook will handle the subscription update.
-                return_url: `${window.location.origin}/profile/subscription/checkout/confirm?status=success`,
-            },
+            // We handle the redirect manually below, so Stripe should only redirect for authentication flows.
+            redirect: 'if_required', 
         });
 
-        // This point will only be reached if there is an immediate error during payment confirmation.
         if (error) {
+            // This point will only be reached if there is an immediate error during payment confirmation.
             toast({ variant: 'destructive', title: 'Payment Failed', description: error.message });
+            setIsProcessing(false);
+        } else if (paymentIntent?.status === 'succeeded') {
+            // The payment was successful. Manually redirect to the confirmation page.
+            toast({ title: 'Payment Successful', description: 'Finalizing your subscription...' });
+            router.push('/profile/subscription/checkout/confirm?status=success');
+        } else if (paymentIntent) {
+            toast({ variant: 'destructive', title: 'Payment Incomplete', description: `Payment status: ${paymentIntent.status}. Please try again.` });
+            setIsProcessing(false);
+        } else {
+             setIsProcessing(false);
         }
-
-        setIsProcessing(false);
     };
 
     return (
