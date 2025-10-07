@@ -10,7 +10,6 @@ import { useToast } from '@/hooks/use-toast';
 import { loadStripe, StripeElementsOptions } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { createStripePaymentIntent } from '@/services/payments/stripe';
-import { verifyStripeSession } from '@/app/user-actions';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -32,36 +31,23 @@ const CheckoutForm = ({ plan, user, clientSecret }: { plan: SubscriptionPlan, us
         
         const { error: submitError } = await elements.submit();
         if (submitError) {
-            toast({ variant: 'destructive', title: 'Payment Failed', description: submitError.message });
+            toast({ variant: 'destructive', title: 'Payment Error', description: submitError.message });
             setIsProcessing(false);
             return;
         }
 
-        const { error, paymentIntent } = await stripe.confirmPayment({
+        const { error } = await stripe.confirmPayment({
             elements,
             clientSecret,
-            confirmParams: {},
-            redirect: 'if_required'
+            confirmParams: {
+                // Redirect to a confirmation page. The webhook will handle the subscription update.
+                return_url: `${window.location.origin}/profile/subscription/checkout/confirm?status=success`,
+            },
         });
 
+        // This point will only be reached if there is an immediate error during payment confirmation.
         if (error) {
             toast({ variant: 'destructive', title: 'Payment Failed', description: error.message });
-        } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-            toast({ title: 'Payment Successful', description: 'Finalizing your subscription...' });
-
-            const verificationResult = await verifyStripeSession({
-                paymentIntentId: paymentIntent.id,
-                userId: user.uid,
-                planId: plan.id,
-            });
-
-            if (verificationResult.success) {
-                router.push(`/profile/subscription/checkout/confirm?status=success`);
-            } else {
-                 toast({ variant: 'destructive', title: 'Subscription Update Failed', description: verificationResult.error || 'Please contact support.' });
-            }
-        } else {
-             toast({ variant: 'destructive', title: 'An unexpected error occurred.', description: 'Please try again.' });
         }
 
         setIsProcessing(false);

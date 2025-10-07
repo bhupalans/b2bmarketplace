@@ -212,23 +212,6 @@ export async function submitVerificationDocuments(formData: FormData, token: str
   }
 }
 
-// Helper to convert Firestore Timestamps to serializable strings
-const convertTimestamps = (data: any) => {
-    if (!data) return data;
-    const newData: { [key: string]: any } = {};
-    for (const key in data) {
-        if (data[key] instanceof firestore.Timestamp) {
-            newData[key] = data[key].toDate().toISOString();
-        } else if (typeof data[key] === 'object' && data[key] !== null && !Array.isArray(data[key])) {
-             newData[key] = convertTimestamps(data[key]);
-        } else {
-            newData[key] = data[key];
-        }
-    }
-    return newData;
-};
-
-
 export async function updateUserSubscription(userId: string, planId: string): Promise<{ success: true } | { success: false; error: string }> {
   if (!userId) {
     return { success: false, error: 'User not authenticated.' };
@@ -249,6 +232,7 @@ export async function updateUserSubscription(userId: string, planId: string): Pr
     
     await userRef.update({ subscriptionPlanId: planId });
     
+    // Revalidate paths for server components
     revalidatePath('/profile/subscription');
     revalidatePath('/my-products');
 
@@ -258,30 +242,4 @@ export async function updateUserSubscription(userId: string, planId: string): Pr
     console.error('Error updating user subscription:', error);
     return { success: false, error: 'Failed to update subscription on the server.' };
   }
-}
-
-export async function verifyStripeSession({ paymentIntentId, userId, planId }: { paymentIntentId: string, userId: string, planId: string }): Promise<{ success: boolean; error?: string }> {
-    const secretKey = process.env.STRIPE_SECRET_KEY;
-    if (!secretKey) {
-        return { success: false, error: 'Stripe is not configured on the server.' };
-    }
-
-    try {
-        const stripe = new Stripe(secretKey, { apiVersion: '2024-06-20' });
-        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-
-        if (paymentIntent.status === 'succeeded') {
-            const subscriptionResult = await updateUserSubscription(userId, planId);
-            if (subscriptionResult.success) {
-                return { success: true };
-            } else {
-                throw new Error(subscriptionResult.error);
-            }
-        } else {
-            return { success: false, error: `Payment status is ${paymentIntent.status}` };
-        }
-    } catch (error: any) {
-        console.error('Error verifying Stripe payment and updating subscription:', error);
-        return { success: false, error: error.message || 'Failed to verify payment session.' };
-    }
 }

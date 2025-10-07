@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
     try {
         event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
     } catch (err: any) {
-        console.error(`??  Webhook signature verification failed.`, err.message);
+        console.error(`?? Webhook signature verification failed.`, err.message);
         return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
     }
     
@@ -30,11 +31,11 @@ export async function POST(req: NextRequest) {
             const planId = paymentIntent.metadata?.planId;
 
             if (userId && planId) {
-                console.log(`??  Payment Intent for ${paymentIntent.id} was successful. Updating subscription for user ${userId} to plan ${planId}.`);
+                console.log(`?? Payment Intent for ${paymentIntent.id} was successful. Updating subscription for user ${userId} to plan ${planId}.`);
                 try {
                     const result = await updateUserSubscription(userId, planId);
                     if (!result.success) {
-                         console.error(`??  Failed to update subscription in webhook:`, result.error);
+                         console.error(`?? Failed to update subscription in webhook:`, result.error);
                     }
                 } catch(error) {
                     console.error('Error in updateUserSubscription from webhook:', error);
@@ -45,17 +46,11 @@ export async function POST(req: NextRequest) {
             // This case can still be useful for other checkout modes in the future,
             // but for embedded forms, payment_intent.succeeded is more reliable.
             const session = event.data.object as Stripe.Checkout.Session;
-            console.log(`??  Checkout session ${session.id} completed.`);
+            console.log(`?? Checkout session ${session.id} completed.`);
             break;
         default:
-            console.log(`??  Unhandled Stripe event type: ${event.type}`);
+            console.log(`?? Unhandled Stripe event type: ${event.type}`);
     }
 
     return NextResponse.json({ received: true });
 }
-
-export const config = {
-    api: {
-        bodyParser: false,
-    },
-};
