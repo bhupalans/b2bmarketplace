@@ -44,20 +44,19 @@ export async function createStripePaymentIntent({ planId, userId }: { planId: st
             await adminDb.collection('users').doc(userId).update({ stripeCustomerId: customerId });
         }
         
-        const descriptionForStripe = `Subscription to ${plan.name} plan on B2B Marketplace`;
+        const descriptionForStripe = `Subscription to ${plan.name} plan for ${user.email}`;
 
         const paymentIntent = await stripe.paymentIntents.create({
             amount: plan.price * 100,
             currency: plan.currency.toLowerCase(),
             customer: customerId,
-            description: descriptionForStripe, // For compliance and dashboard clarity
+            description: descriptionForStripe, // Required for Indian export transactions
             automatic_payment_methods: {
                 enabled: true,
             },
             metadata: {
                 firebaseUID: userId,
                 planId: planId,
-                description: descriptionForStripe, // Add here for metadata as well
             }
         });
         
@@ -100,4 +99,3 @@ export async function verifyStripeSession({ paymentIntentId, userId, planId }: {
         return { success: false, error: error.message || 'Failed to verify payment session.' };
     }
 }
-
