@@ -229,7 +229,7 @@ const convertTimestamps = (data: any) => {
 };
 
 
-export async function updateUserSubscription(userId: string, planId: string): Promise<{ success: true; user: User } | { success: false; error: string }> {
+export async function updateUserSubscription(userId: string, planId: string): Promise<{ success: true } | { success: false; error: string }> {
   if (!userId) {
     return { success: false, error: 'User not authenticated.' };
   }
@@ -247,26 +247,12 @@ export async function updateUserSubscription(userId: string, planId: string): Pr
       throw new Error('Selected subscription plan not found.');
     }
     
-    const userData = userSnap.data() as Omit<User, 'id'>;
-    const newPlan = { id: planSnap.id, ...planSnap.data() } as SubscriptionPlan;
-
-    // Use a transaction to ensure atomicity
-    await adminDb.runTransaction(async (transaction) => {
-      transaction.update(userRef, { subscriptionPlanId: planId });
-    });
-    
-    // Construct the final user object manually for return
-    const finalUserObject: User = {
-        ...userData, // Spread existing user data
-        id: userId, // Ensure id is present
-        subscriptionPlanId: planId, // Explicitly set the new plan ID
-        subscriptionPlan: convertTimestamps(newPlan) as SubscriptionPlan, // Attach the new full plan object
-    };
+    await userRef.update({ subscriptionPlanId: planId });
     
     revalidatePath('/profile/subscription');
     revalidatePath('/my-products');
 
-    return { success: true, user: finalUserObject };
+    return { success: true };
 
   } catch (error: any) {
     console.error('Error updating user subscription:', error);
@@ -274,7 +260,7 @@ export async function updateUserSubscription(userId: string, planId: string): Pr
   }
 }
 
-export async function verifyStripeSession({ paymentIntentId, userId, planId }: { paymentIntentId: string, userId: string, planId: string }): Promise<{ success: boolean; user?: User; error?: string }> {
+export async function verifyStripeSession({ paymentIntentId, userId, planId }: { paymentIntentId: string, userId: string, planId: string }): Promise<{ success: boolean; error?: string }> {
     const secretKey = process.env.STRIPE_SECRET_KEY;
     if (!secretKey) {
         return { success: false, error: 'Stripe is not configured on the server.' };
@@ -285,11 +271,12 @@ export async function verifyStripeSession({ paymentIntentId, userId, planId }: {
         const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
 
         if (paymentIntent.status === 'succeeded') {
+            // This function now returns a simple success/error object
             const subscriptionResult = await updateUserSubscription(userId, planId);
             if (subscriptionResult.success) {
-                return { success: true, user: subscriptionResult.user };
+                return { success: true };
             } else {
-                // This will be caught by the catch block
+                // Propagate the error from the subscription update
                 throw new Error(subscriptionResult.error);
             }
         } else {

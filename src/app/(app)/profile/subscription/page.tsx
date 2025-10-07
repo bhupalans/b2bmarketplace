@@ -59,9 +59,10 @@ export default function SubscriptionPage() {
         setSelectedPlanId(plan.id);
         startTransition(async () => {
             const result = await updateUserSubscription(firebaseUser.uid, plan.id);
-            if (result.success && result.user) {
-                updateUserContext(result.user);
-                toast({ title: 'Plan Updated', description: `You are now on the ${result.user.subscriptionPlan?.name} plan.`});
+            if (result.success) {
+                // The AuthProvider will automatically refetch the user data on next navigation,
+                // so we don't need to call updateUserContext here.
+                toast({ title: 'Plan Updated', description: `You have been moved to the ${plan.name} plan.`});
             } else {
                 toast({ variant: 'destructive', title: 'Update Failed', description: result.error || 'An unknown error occurred.' });
             }

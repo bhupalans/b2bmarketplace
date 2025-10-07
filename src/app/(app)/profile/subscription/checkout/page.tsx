@@ -36,7 +36,6 @@ const CheckoutForm = ({ plan, user, clientSecret }: { plan: SubscriptionPlan, us
     const elements = useElements();
     const router = useRouter();
     const { toast } = useToast();
-    const { updateUserContext } = useAuth();
     const [isProcessing, setIsProcessing] = useState(false);
 
     const handleSubmit = async (event: React.FormEvent) => {
@@ -70,15 +69,15 @@ const CheckoutForm = ({ plan, user, clientSecret }: { plan: SubscriptionPlan, us
             toast({ title: 'Payment Successful', description: 'Finalizing your subscription...' });
 
             // Now that payment is confirmed on the client, verify on the server and update subscription.
+            // This action now returns a simple success/error object.
             const verificationResult = await verifyStripeSession({
                 paymentIntentId: paymentIntent.id,
                 userId: user.uid,
                 planId: plan.id,
             });
 
-            if (verificationResult.success && verificationResult.user) {
-                updateUserContext(verificationResult.user);
-                // Redirect to the simple success page
+            if (verificationResult.success) {
+                // On success, redirect. The AuthProvider will handle refreshing user state.
                 router.push(`/profile/subscription/checkout/confirm?status=success`);
             } else {
                 toast({ variant: 'destructive', title: 'Subscription Update Failed', description: verificationResult.error || 'Please contact support.' });
