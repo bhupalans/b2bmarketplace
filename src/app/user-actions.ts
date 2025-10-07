@@ -238,10 +238,16 @@ export async function updateUserSubscription(userId: string, planId: string): Pr
     const userRef = adminDb.collection('users').doc(userId);
     const planRef = adminDb.collection('subscriptionPlans').doc(planId);
 
-    const planSnap = await planRef.get();
+    const [userSnap, planSnap] = await Promise.all([userRef.get(), planRef.get()]);
+
+    if (!userSnap.exists()) {
+        throw new Error('User not found.');
+    }
     if (!planSnap.exists()) {
       throw new Error('Selected subscription plan not found.');
     }
+    
+    const userData = userSnap.data() as Omit<User, 'id'>;
     const newPlan = { id: planSnap.id, ...planSnap.data() } as SubscriptionPlan;
 
     // Use a transaction to ensure atomicity
@@ -249,21 +255,14 @@ export async function updateUserSubscription(userId: string, planId: string): Pr
       transaction.update(userRef, { subscriptionPlanId: planId });
     });
     
-    // After the transaction is successful, fetch the updated user data
-    const updatedUserSnap = await userRef.get();
-    if (!updatedUserSnap.exists()) {
-        throw new Error('Failed to retrieve updated user details.');
-    }
-    
-    const userData = updatedUserSnap.data() as Omit<User, 'id' | 'subscriptionPlan'>;
-
+    // Construct the final user object manually for return
     const finalUserObject: User = {
-        id: updatedUserSnap.id,
-        ...userData,
-        subscriptionPlanId: planId, // **This is the critical fix**
-        subscriptionPlan: convertTimestamps(newPlan) as SubscriptionPlan,
+        ...userData, // Spread existing user data
+        id: userId, // Ensure id is present
+        subscriptionPlanId: planId, // Explicitly set the new plan ID
+        subscriptionPlan: convertTimestamps(newPlan) as SubscriptionPlan, // Attach the new full plan object
     };
-
+    
     revalidatePath('/profile/subscription');
     revalidatePath('/my-products');
 
