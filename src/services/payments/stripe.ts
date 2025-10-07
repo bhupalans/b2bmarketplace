@@ -35,9 +35,19 @@ export async function createStripePaymentIntent({ planId, userId }: { planId: st
 
         let customerId = user.stripeCustomerId;
         if (!customerId) {
+            if (!user.address) {
+                throw new Error("User profile is missing address details, which are required for payment processing.");
+            }
             const customer = await stripe.customers.create({
                 email: user.email,
                 name: user.name,
+                address: {
+                    line1: user.address.street,
+                    city: user.address.city,
+                    state: user.address.state,
+                    postal_code: user.address.zip,
+                    country: user.address.country,
+                },
                 metadata: { firebaseUID: userId },
             });
             customerId = customer.id;
@@ -50,13 +60,14 @@ export async function createStripePaymentIntent({ planId, userId }: { planId: st
             amount: plan.price * 100,
             currency: plan.currency.toLowerCase(),
             customer: customerId,
-            description: descriptionForStripe, // Required for Indian export transactions
+            description: descriptionForStripe,
             automatic_payment_methods: {
                 enabled: true,
             },
             metadata: {
                 firebaseUID: userId,
                 planId: planId,
+                description: descriptionForStripe,
             }
         });
         
