@@ -1,3 +1,4 @@
+
 'use server';
 
 import Stripe from 'stripe';
@@ -46,6 +47,7 @@ export async function createStripePaymentIntent({ planId, userId }: { planId: st
             amount: plan.price * 100,
             currency: plan.currency.toLowerCase(),
             customer: customerId,
+            description: `Subscription to ${plan.name} plan on B2B Marketplace`, // Added for compliance
             automatic_payment_methods: {
                 enabled: true,
             },
