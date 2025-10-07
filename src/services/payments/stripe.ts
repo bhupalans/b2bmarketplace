@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import Stripe from 'stripe';
@@ -53,12 +54,6 @@ export async function createStripePaymentIntent({ planId, userId }: { planId: st
             automatic_payment_methods: {
                 enabled: true,
             },
-            payment_method_options: {
-                card: {
-                    // This is the specific field for Indian export compliance.
-                    statement_descriptor_suffix: `B2B Mktplace`, 
-                },
-            },
             metadata: {
                 firebaseUID: userId,
                 planId: planId,
@@ -105,3 +100,4 @@ export async function verifyStripeSession({ paymentIntentId, userId, planId }: {
         return { success: false, error: error.message || 'Failed to verify payment session.' };
     }
 }
+
