@@ -15,7 +15,7 @@ const areDetailsEqual = (d1?: { [key: string]: string }, d2?: { [key: string]: s
     const details1 = d1 || {};
     const details2 = d2 || {};
     const keys1 = Object.keys(details1);
-    const keys2 = Object.keys(details2);
+    const keys2 = Object.keys(keys2);
 
     if (keys1.length !== keys2.length) return false;
 
@@ -209,37 +209,5 @@ export async function submitVerificationDocuments(formData: FormData, token: str
   } catch(error: any) {
     console.error("Error submitting verification docs:", error);
     return { success: false, error: error.message || "Failed to submit documents." };
-  }
-}
-
-export async function updateUserSubscription(userId: string, planId: string): Promise<{ success: true } | { success: false; error: string }> {
-  if (!userId) {
-    return { success: false, error: 'User not authenticated.' };
-  }
-
-  try {
-    const userRef = adminDb.collection('users').doc(userId);
-    const planRef = adminDb.collection('subscriptionPlans').doc(planId);
-
-    const [userSnap, planSnap] = await Promise.all([userRef.get(), planRef.get()]);
-
-    if (!userSnap.exists()) {
-        throw new Error('User not found.');
-    }
-    if (!planSnap.exists()) {
-      throw new Error('Selected subscription plan not found.');
-    }
-    
-    await userRef.update({ subscriptionPlanId: planId });
-    
-    // Revalidate paths for server components
-    revalidatePath('/profile/subscription');
-    revalidatePath('/my-products');
-
-    return { success: true };
-
-  } catch (error: any) {
-    console.error('Error updating user subscription:', error);
-    return { success: false, error: 'Failed to update subscription on the server.' };
   }
 }

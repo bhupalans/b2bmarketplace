@@ -4,14 +4,16 @@
 import React, { useState, useEffect, useTransition } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { getSubscriptionPlansClient } from '@/lib/firebase';
-import { SubscriptionPlan } from '@/lib/types';
+import { SubscriptionPlan, User } from '@/lib/types';
 import { Loader2, CheckCircle, Star } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { updateUserSubscription } from '@/app/user-actions';
 import { useRouter } from 'next/navigation';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+
 
 const PlanFeature = ({ children }: { children: React.ReactNode }) => (
     <li className="flex items-center gap-2">
@@ -21,7 +23,7 @@ const PlanFeature = ({ children }: { children: React.ReactNode }) => (
 );
 
 export default function SubscriptionPage() {
-    const { user, firebaseUser, loading: authLoading } = useAuth();
+    const { user, firebaseUser, loading: authLoading, revalidateUser } = useAuth();
     const router = useRouter();
     const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
     const [loading, setLoading] = useState(true);
@@ -58,13 +60,13 @@ export default function SubscriptionPage() {
         // If the plan is free (downgrade)
         setSelectedPlanId(plan.id);
         startTransition(async () => {
-            const result = await updateUserSubscription(firebaseUser.uid, plan.id);
-            if (result.success) {
-                // The AuthProvider will automatically refetch the user data on next navigation,
-                // so we don't need to call updateUserContext here.
+            try {
+                const userRef = doc(db, 'users', firebaseUser.uid);
+                await updateDoc(userRef, { subscriptionPlanId: plan.id });
+                await revalidateUser();
                 toast({ title: 'Plan Updated', description: `You have been moved to the ${plan.name} plan.`});
-            } else {
-                toast({ variant: 'destructive', title: 'Update Failed', description: result.error || 'An unknown error occurred.' });
+            } catch (error: any) {
+                toast({ variant: 'destructive', title: 'Update Failed', description: error.message || 'An unknown error occurred.' });
             }
             setSelectedPlanId(null);
         });

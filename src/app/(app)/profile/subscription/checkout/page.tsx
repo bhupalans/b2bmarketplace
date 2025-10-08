@@ -51,6 +51,10 @@ function CheckoutPageContent() {
 
         async function fetchCheckoutData() {
             try {
+                if (!user?.address?.street || !user?.address?.city || !user?.address?.zip || !user?.address?.country) {
+                    throw new Error("Please complete your primary business address in your profile before proceeding to checkout.");
+                }
+
                 const [allPlans, activeGateways] = await Promise.all([
                     getSubscriptionPlansClient(),
                     getActivePaymentGatewaysClient()
@@ -73,13 +77,12 @@ function CheckoutPageContent() {
             } catch (error: any) {
                 console.error("Failed to fetch checkout data:", error);
                 setError(error.message || 'Could not load checkout page.');
-                toast({ variant: 'destructive', title: 'Error', description: error.message || 'Could not load checkout page.' });
             } finally {
                 setLoading(false);
             }
         }
         fetchCheckoutData();
-    }, [planId, router, toast, firebaseUser]);
+    }, [planId, router, toast, firebaseUser, user]);
     
 
     if (loading) {

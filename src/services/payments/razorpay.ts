@@ -1,10 +1,10 @@
+
 'use server';
 
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import { adminDb } from '@/lib/firebase-admin';
 import { SubscriptionPlan, User } from '@/lib/types';
-import { updateUserSubscription } from '@/app/user-actions';
 
 // This function is defined here because it's only used by this payment action.
 // In a larger app, it might be in a shared lib/database file.
@@ -86,11 +86,9 @@ export async function verifyRazorpayPayment({
             
         if (expectedSignature === razorpay_signature) {
             // Signature is valid, now update the user's subscription
-            const subscriptionResult = await updateUserSubscription(userId, planId);
-            
-            if (!subscriptionResult.success) {
-                throw new Error(subscriptionResult.error);
-            }
+            const userRef = adminDb.collection('users').doc(userId);
+            await userRef.update({ subscriptionPlanId: planId });
+            console.log(`Razorpay: Successfully updated subscription for user ${userId} to plan ${planId}.`);
             
             return { success: true };
             

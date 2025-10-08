@@ -2,8 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
-import { updateUserSubscription } from '@/app/user-actions';
-import { revalidateTag } from 'next/cache';
+import { adminDb } from '@/lib/firebase-admin';
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
@@ -34,13 +33,28 @@ export async function POST(req: NextRequest) {
             if (userId && planId) {
                 console.log(`?? Payment Intent for ${paymentIntent.id} was successful. Updating subscription for user ${userId} to plan ${planId}.`);
                 try {
-                    const result = await updateUserSubscription(userId, planId);
-                    if (!result.success) {
-                         console.error(`?? Failed to update subscription in webhook:`, result.error);
+                    const userRef = adminDb.collection('users').doc(userId);
+                    const planRef = adminDb.collection('subscriptionPlans').doc(planId);
+
+                    const [userSnap, planSnap] = await Promise.all([userRef.get(), planRef.get()]);
+
+                    if (!userSnap.exists()) {
+                        throw new Error(`User with ID ${userId} not found in webhook.`);
                     }
-                } catch(error) {
-                    console.error('Error in updateUserSubscription from webhook:', error);
+                    if (!planSnap.exists()) {
+                        throw new Error(`Plan with ID ${planId} not found in webhook.`);
+                    }
+                    
+                    await userRef.update({ subscriptionPlanId: planId });
+                    console.log(`Successfully updated subscription for user ${userId} to plan ${planId}.`);
+
+                } catch(error: any) {
+                    console.error('Error updating user subscription from webhook:', error);
+                    // Return a 500 so Stripe knows to retry if configured.
+                    return NextResponse.json({ error: `Webhook handler failed: ${error.message}` }, { status: 500 });
                 }
+            } else {
+                 console.error('Webhook received payment_intent.succeeded event without userId or planId in metadata.');
             }
             break;
         case 'checkout.session.completed':
@@ -50,7 +64,7 @@ export async function POST(req: NextRequest) {
             console.log(`?? Checkout session ${session.id} completed.`);
             break;
         default:
-            console.log(`?? Unhandled Stripe event type: ${event.type}`);
+            // console.log(`?? Unhandled Stripe event type: ${event.type}`);
     }
 
     return NextResponse.json({ received: true });
