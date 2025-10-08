@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
@@ -13,6 +13,7 @@ type AuthContextType = {
   firebaseUser: FirebaseUser | null;
   loading: boolean;
   updateUserContext: (newUser: User) => void;
+  revalidateUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,10 +23,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
-      setFirebaseUser(fbUser);
-      if (fbUser) {
+  const fetchAndSetUser = useCallback(async (fbUser: FirebaseUser | null) => {
+    if (fbUser) {
         const userDocRef = doc(db, 'users', fbUser.uid);
         const userDoc = await getDoc(userDocRef);
         
@@ -65,22 +64,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }
         }
         setUser(userProfile);
-
-      } else {
+    } else {
         setUser(null);
-      }
+    }
+  }, []);
+
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      setFirebaseUser(fbUser);
+      await fetchAndSetUser(fbUser);
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [fetchAndSetUser]);
 
   const updateUserContext = (newUser: User) => {
     setUser(newUser);
   };
+  
+  const revalidateUser = useCallback(async () => {
+    const fbUser = auth.currentUser;
+    if (fbUser) {
+        await fetchAndSetUser(fbUser);
+    }
+  }, [fetchAndSetUser]);
 
   return (
-    <AuthContext.Provider value={{ user, firebaseUser, loading, updateUserContext }}>
+    <AuthContext.Provider value={{ user, firebaseUser, loading, updateUserContext, revalidateUser }}>
         {children}
     </AuthContext.Provider>
   );

@@ -7,10 +7,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/auth-context';
 
 function ConfirmationPageContent() {
     const searchParams = useSearchParams();
     const status = searchParams.get('status');
+    const { revalidateUser } = useAuth();
+
+    useEffect(() => {
+        if (status === 'success') {
+            // Trigger a re-fetch of the user data to get the new subscription plan
+            revalidateUser();
+        }
+    }, [status, revalidateUser]);
 
     if (status === 'success') {
          return (
@@ -68,5 +77,3 @@ export default function ConfirmationPage() {
         </Suspense>
     )
 }
-
-    
