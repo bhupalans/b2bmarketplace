@@ -211,3 +211,43 @@ export async function submitVerificationDocuments(formData: FormData, token: str
     return { success: false, error: error.message || "Failed to submit documents." };
   }
 }
+
+
+export async function confirmStripePayment(
+  paymentIntentId: string
+): Promise<{ success: true } | { success: false, error: string }> {
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  if (!secretKey) {
+    return { success: false, error: 'Stripe is not configured on the server.' };
+  }
+
+  try {
+    const stripe = new Stripe(secretKey, { apiVersion: '2024-06-20' });
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    if (paymentIntent.status !== 'succeeded') {
+      return { success: false, error: 'Payment was not successful.' };
+    }
+    
+    const userId = paymentIntent.metadata?.firebaseUID;
+    const planId = paymentIntent.metadata?.planId;
+
+    if (!userId || !planId) {
+      throw new Error('Payment metadata is missing user or plan ID.');
+    }
+
+    const userRef = adminDb.collection('users').doc(userId);
+    await userRef.update({ subscriptionPlanId: planId });
+    
+    console.log(`Direct Confirm: Successfully updated subscription for user ${userId} to plan ${planId}.`);
+
+    revalidatePath('/profile/subscription');
+    revalidatePath('/(app)/layout'); // Revalidate layout to update user nav
+
+    return { success: true };
+
+  } catch (error: any) {
+    console.error('Error confirming Stripe payment:', error);
+    return { success: false, error: error.message || 'Failed to confirm payment on server.' };
+  }
+}
