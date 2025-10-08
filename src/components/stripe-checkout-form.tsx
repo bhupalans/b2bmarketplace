@@ -36,44 +36,24 @@ const CheckoutForm = ({ plan, user }: { plan: SubscriptionPlan, user: User }) =>
             return;
         }
 
-        const clientSecret = new URLSearchParams(window.location.search).get(
-            'payment_intent_client_secret'
-        );
-        
-        if (!clientSecret) {
-             toast({ variant: 'destructive', title: 'Payment Error', description: 'Could not find payment details. Please try again.' });
-             setIsProcessing(false);
-             return;
-        }
-
-        // Use confirmPayment instead of confirmSetup
         const { error, paymentIntent } = await stripe.confirmPayment({
             elements,
-            clientSecret,
             confirmParams: {
-                // Return URL is not strictly needed here since we redirect manually on success,
-                // but it's good practice for other payment methods.
-                return_url: `${window.location.origin}/profile/subscription/checkout/confirm`,
+                return_url: `${window.location.origin}/profile/subscription/checkout/confirm?planId=${plan.id}`,
             },
-            // We handle the redirect manually, so Stripe will only redirect if required for authentication (e.g., 3D Secure)
             redirect: 'if_required', 
         });
 
         if (error) {
-            // This point will only be reached if there is an immediate error during payment confirmation.
             toast({ variant: 'destructive', title: 'Payment Failed', description: error.message });
             setIsProcessing(false);
         } else if (paymentIntent?.status === 'succeeded') {
-            // The payment was successful. Manually redirect to the confirmation page.
             toast({ title: 'Payment Successful', description: 'Redirecting to confirmation...' });
             router.push(`/profile/subscription/checkout/confirm?status=success&planId=${plan.id}&payment_intent=${paymentIntent.id}`);
         } else if (paymentIntent) {
-            // In other cases, like 'requires_action', Stripe.js has already handled the redirect.
-            // This block is for handling unexpected statuses.
             toast({ variant: 'destructive', title: 'Payment Incomplete', description: `Payment status: ${paymentIntent.status}. Please try again.` });
             setIsProcessing(false);
         } else {
-             // Fallback if paymentIntent is somehow undefined
              toast({ variant: 'destructive', title: 'Payment Error', description: 'An unknown error occurred. Please try again.'});
              setIsProcessing(false);
         }
