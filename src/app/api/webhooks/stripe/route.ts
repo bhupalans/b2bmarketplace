@@ -4,10 +4,19 @@ import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import { adminDb } from '@/lib/firebase-admin';
 
+// Disable the default body parser for this route to get the raw body
+export const config = {
+    api: {
+        bodyParser: false,
+    },
+};
+
+
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
 export async function POST(req: NextRequest) {
     const sig = headers().get('stripe-signature')!;
+    // Read the raw text from the request, not the parsed JSON
     const body = await req.text();
 
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -17,6 +26,7 @@ export async function POST(req: NextRequest) {
     let event: Stripe.Event;
 
     try {
+        // Use the raw body for event construction
         event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
     } catch (err: any) {
         console.error(`?? Webhook signature verification failed.`, err.message);
