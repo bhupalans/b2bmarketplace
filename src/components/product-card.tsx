@@ -16,7 +16,7 @@ import { Product, User } from "@/lib/types";
 import { Skeleton } from "./ui/skeleton";
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { db, getUserClient } from "@/lib/firebase";
 import { Badge } from "./ui/badge";
 import { CheckCircle, FileText, Gem } from "lucide-react";
 import { RequestQuoteDialog } from "./request-quote-dialog";
@@ -38,11 +38,8 @@ export function ProductCard({ product }: ProductCardProps) {
       }
       try {
         setLoadingSeller(true);
-        const userRef = doc(db, 'users', product.sellerId);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists()) {
-          setSeller({ id: userSnap.id, uid: userSnap.id, ...userSnap.data() } as User);
-        }
+        const user = await getUserClient(product.sellerId);
+        setSeller(user);
       } catch (error) {
         console.error("Failed to fetch seller for product card:", error);
         setSeller(null);
@@ -68,7 +65,7 @@ export function ProductCard({ product }: ProductCardProps) {
     currency: currency,
   }).format(getConvertedPrice());
   
-  const isFeaturedSeller = seller?.subscriptionPlanId && seller.subscriptionPlan?.isFeatured;
+  const isFeaturedSeller = seller?.subscriptionPlan?.isFeatured;
 
   return (
     <Card className="flex h-full w-full flex-col overflow-hidden transition-all hover:shadow-lg">

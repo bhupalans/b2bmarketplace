@@ -3,7 +3,7 @@
 'use server';
 
 import { adminDb } from "./firebase-admin";
-import { Product, Category, User, Message, Conversation, Offer } from "./types";
+import { Product, Category, User, Message, Conversation, Offer, SubscriptionPlan } from "./types";
 import { mockCategories, mockProducts } from "./mock-data";
 import { firestore, firestore as adminFirestore } from "firebase-admin";
 
@@ -20,7 +20,19 @@ export async function getUser(userId: string): Promise<User | null> {
     const userRef = adminDb.collection("users").doc(userId);
     const userSnap = await userRef.get();
     if (!userSnap.exists) return null;
-    return { id: userSnap.id, uid: userSnap.id, ...userSnap.data() } as User;
+    
+    const userData = userSnap.data() as User;
+
+    // If the user has a subscription, fetch the plan details
+    if (userData.subscriptionPlanId) {
+        const planRef = adminDb.collection('subscriptionPlans').doc(userData.subscriptionPlanId);
+        const planSnap = await planRef.get();
+        if (planSnap.exists()) {
+            userData.subscriptionPlan = { id: planSnap.id, ...planSnap.data() } as SubscriptionPlan;
+        }
+    }
+
+    return { id: userSnap.id, uid: userSnap.id, ...userData };
 }
 
 export async function getUsersByIds(userIds: string[]): Promise<Map<string, User>> {

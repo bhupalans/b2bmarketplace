@@ -40,7 +40,7 @@ import { Product, User, Category, Question } from "@/lib/types";
 import { getCategoryPathClient } from "@/lib/firebase";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrency } from "@/contexts/currency-context";
-import { CheckCircle, Loader2, Globe, Package, Clock, Tag } from "lucide-react";
+import { CheckCircle, Loader2, Globe, Package, Clock, Tag, Gem } from "lucide-react";
 import { RequestQuoteDialog } from "@/components/request-quote-dialog";
 import { Separator } from "@/components/ui/separator";
 import { ProductCard } from "@/components/product-card";
@@ -147,6 +147,8 @@ export default function ProductDetailPage() {
     style: "currency",
     currency: currency,
   }).format(getConvertedPrice(product.priceUSD));
+  
+  const isFeaturedSeller = seller?.subscriptionPlan?.isFeatured;
 
 
   return (
@@ -303,6 +305,12 @@ export default function ProductDetailPage() {
                     <Link href={`/sellers/${seller.id}`} className="text-lg font-semibold text-foreground hover:underline">
                       {seller.name}
                     </Link>
+                     {isFeaturedSeller && (
+                        <Badge variant="secondary" className="ml-2 border-yellow-600/50 text-yellow-700">
+                            <Gem className="h-3 w-3 mr-1" />
+                            Featured
+                        </Badge>
+                    )}
                      {seller.verified && (
                         <Badge variant="secondary" className="ml-2 border-green-600/50 text-green-700">
                             <CheckCircle className="h-3 w-3 mr-1" />

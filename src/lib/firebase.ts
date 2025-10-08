@@ -68,11 +68,7 @@ export async function getProductAndSellerClient(productId: string): Promise<{ pr
   let seller: User | null = null;
   if (product.sellerId) {
     try {
-        const userRef = doc(db, 'users', product.sellerId);
-        const userSnap = await getDocClient(userRef);
-        if (userSnap.exists()) {
-            seller = { id: userSnap.id, uid: userSnap.id, ...userSnap.data() } as User;
-        }
+        seller = await getUserClient(product.sellerId);
     } catch (error) {
         console.error(`Failed to fetch seller data for product ${productId}.`, error);
         seller = null;
@@ -112,14 +108,11 @@ export async function getProductAndSellerClient(productId: string): Promise<{ pr
 }
 
 export async function getSellerAndProductsClient(sellerId: string): Promise<{ seller: User; products: Product[] } | null> {
-  const userRef = doc(db, 'users', sellerId);
-  const userSnap = await getDocClient(userRef);
+  const seller = await getUserClient(sellerId);
   
-  if (!userSnap.exists()) {
+  if (!seller) {
     return null;
   }
-
-  const seller = { id: userSnap.id, uid: userSnap.id, ...userSnap.data() } as User;
 
   const productsRef = collection(db, "products");
   const q = query(productsRef, where("sellerId", "==", sellerId), where("status", "==", "approved"));
@@ -196,8 +189,19 @@ export async function getUserClient(userId: string): Promise<User | null> {
     if (!userSnap.exists()) {
         return null;
     }
-    const userData = convertTimestamps(userSnap.data());
-    return { id: userSnap.id, uid: userSnap.id, ...userData } as User;
+    const userData = userSnap.data();
+
+    // If the user has a subscription plan ID, fetch the plan details
+    if (userData.subscriptionPlanId) {
+        const planRef = doc(db, 'subscriptionPlans', userData.subscriptionPlanId);
+        const planSnap = await getDocClient(planRef);
+        if (planSnap.exists()) {
+            userData.subscriptionPlan = { id: planSnap.id, ...planSnap.data() } as SubscriptionPlan;
+        }
+    }
+
+    const serializableUserData = convertTimestamps(userData);
+    return { id: userSnap.id, uid: userSnap.id, ...serializableUserData } as User;
 }
 
 export async function getUsersByIdsClient(userIds: string[]): Promise<Map<string, User>> {
