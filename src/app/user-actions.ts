@@ -7,23 +7,9 @@ import { revalidatePath } from 'next/cache';
 import { v4 as uuidv4 } from 'uuid';
 import { firestore } from 'firebase-admin';
 import Stripe from 'stripe';
+import { areDetailsEqual } from '@/lib/utils';
 
 type ProfileUpdateData = Omit<User, 'id' | 'uid' | 'email' | 'role' | 'avatar' | 'memberSince' | 'username' | 'subscriptionPlanId' | 'subscriptionPlan'>;
-
-// Helper function to deep compare verification details
-const areDetailsEqual = (d1?: { [key: string]: string }, d2?: { [key: string]: string }): boolean => {
-    const details1 = d1 || {};
-    const details2 = d2 || {};
-    const keys1 = Object.keys(details1);
-    const keys2 = Object.keys(keys2);
-
-    if (keys1.length !== keys2.length) return false;
-
-    for (const key of keys1) {
-        if (details1[key] !== details2[key]) return false;
-    }
-    return true;
-};
 
 export async function updateUserProfile(userId: string, data: ProfileUpdateData): Promise<{ success: true; user: User } | { success: false; error: string }> {
   if (!userId) {
