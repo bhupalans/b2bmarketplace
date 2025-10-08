@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     // Handle the event
     switch (event.type) {
         case 'payment_intent.succeeded':
-            const paymentIntent = event.data.object;
+            const paymentIntent = event.data.object as Stripe.PaymentIntent;
             const userId = paymentIntent.metadata?.firebaseUID;
             const planId = paymentIntent.metadata?.planId;
 
@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
                     const userRef = adminDb.collection('users').doc(userId);
                     const planRef = adminDb.collection('subscriptionPlans').doc(planId);
 
+                    // We can do this in parallel, but for robustness, let's ensure they exist first.
                     const [userSnap, planSnap] = await Promise.all([userRef.get(), planRef.get()]);
 
                     if (!userSnap.exists()) {
