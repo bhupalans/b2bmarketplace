@@ -3,8 +3,8 @@
 
 import React, { useState, useEffect, useTransition } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { getSubscriptionPlansClient, getSourcingRequestsClient } from '@/lib/firebase';
-import { SubscriptionPlan, User, SourcingRequest } from '@/lib/types';
+import { getSubscriptionPlansClient, getSourcingRequestsClient, getSellerProductsClient } from '@/lib/firebase';
+import { SubscriptionPlan, User, SourcingRequest, Product } from '@/lib/types';
 import { Loader2, CheckCircle, Star } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,7 @@ export default function SubscriptionPage() {
     const router = useRouter();
     const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
     const [sourcingRequests, setSourcingRequests] = useState<SourcingRequest[]>([]);
+    const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [isSubmitting, startTransition] = useTransition();
     const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
@@ -41,18 +42,22 @@ export default function SubscriptionPage() {
         async function fetchData() {
             try {
                 setLoading(true);
-                const [fetchedPlans, fetchedSourcingRequests] = await Promise.all([
+                const [fetchedPlans] = await Promise.all([
                     getSubscriptionPlansClient(),
-                    user.role === 'buyer' ? getSourcingRequestsClient({ buyerId: user.uid }) : Promise.resolve([]),
                 ]);
 
                 const relevantPlans = fetchedPlans
-                    .filter(p => p.status === 'active' && p.type === user.role)
+                    .filter(p => p.status === 'active' && (p.type === user.role || (!p.type && user.role === 'seller')))
                     .sort((a,b) => a.price - b.price);
-
+                
                 setPlans(relevantPlans);
+                
                 if (user.role === 'buyer') {
+                    const fetchedSourcingRequests = await getSourcingRequestsClient({ buyerId: user.uid });
                     setSourcingRequests(fetchedSourcingRequests);
+                } else if (user.role === 'seller') {
+                    const fetchedProducts = await getSellerProductsClient(user.uid);
+                    setProducts(fetchedProducts);
                 }
 
             } catch (error) {
@@ -96,7 +101,7 @@ export default function SubscriptionPage() {
     }
 
     const formatLimit = (limit: number | undefined) => {
-        if (limit === undefined || limit === null) return 'Not included';
+        if (limit === undefined || limit === null) return 'N/A';
         return limit === -1 ? 'Unlimited' : limit;
     }
     
@@ -115,10 +120,10 @@ export default function SubscriptionPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Your Current Plan: {currentPlan.name}</CardTitle>
-                        <CardDescription>
+                         <CardDescription>
                             {user.role === 'buyer'
                                 ? `You have posted ${sourcingRequests.length} of ${formatLimit(currentPlan.sourcingRequestLimit)} sourcing requests.`
-                                : `You are on the ${currentPlan.name} plan.`
+                                : `You have listed ${products.length} of ${formatLimit(currentPlan.productLimit)} products.`
                             }
                         </CardDescription>
                     </CardHeader>
