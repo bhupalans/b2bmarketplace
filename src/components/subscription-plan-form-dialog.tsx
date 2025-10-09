@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { SubscriptionPlan } from '@/lib/types';
@@ -53,25 +53,49 @@ export function SubscriptionPlanFormDialog({ open, onOpenChange, planId, onSucce
   const planSchema = z.object({
     name: z.string().min(3, 'Plan name must be at least 3 characters.').refine(name => !planNameExists(name), 'A plan with this name already exists.'),
     price: z.coerce.number().min(0, 'Price must be a non-negative number.'),
-    productLimit: z.coerce.number().int('Limit must be a whole number.').min(-1, 'Limit must be -1 or greater.'),
-    sourcingResponseLimit: z.coerce.number().int('Limit must be a whole number.').min(-1, 'Limit must be -1 or greater.'),
+    type: z.enum(['seller', 'buyer']),
+    productLimit: z.coerce.number().int('Limit must be a whole number.').min(-1, 'Limit must be -1 or greater.').optional(),
+    sourcingRequestLimit: z.coerce.number().int('Limit must be a whole number.').min(-1, 'Limit must be -1 or greater.').optional(),
     hasAnalytics: z.boolean(),
     isFeatured: z.boolean(),
     status: z.enum(['active', 'archived']),
-  });
+  }).refine(data => {
+      if (data.type === 'seller' && (data.productLimit === null || data.productLimit === undefined)) {
+          return false;
+      }
+      return true;
+  }, {
+      message: 'Product limit is required for seller plans.',
+      path: ['productLimit'],
+  }).refine(data => {
+    if (data.type === 'buyer' && (data.sourcingRequestLimit === null || data.sourcingRequestLimit === undefined)) {
+        return false;
+    }
+    return true;
+}, {
+    message: 'Sourcing request limit is required for buyer plans.',
+    path: ['sourcingRequestLimit'],
+});
 
   const form = useForm<z.infer<typeof planSchema>>({
     resolver: zodResolver(planSchema),
     defaultValues: {
       name: '',
       price: 0,
+      type: 'seller',
       productLimit: 0,
-      sourcingResponseLimit: 0,
+      sourcingRequestLimit: 0,
       hasAnalytics: false,
       isFeatured: false,
       status: 'active',
     },
   });
+
+  const watchedPlanType = useWatch({
+    control: form.control,
+    name: 'type',
+  });
+
 
   useEffect(() => {
     const fetchPlan = () => {
@@ -79,15 +103,19 @@ export function SubscriptionPlanFormDialog({ open, onOpenChange, planId, onSucce
         setIsLoading(true);
         const plan = allPlans.find(p => p.id === planId);
         if (plan) {
-          form.reset(plan);
+          form.reset({
+              ...plan,
+              type: plan.type || 'seller', // Default old plans to 'seller'
+          });
         }
         setIsLoading(false);
       } else {
         form.reset({
           name: '',
           price: 0,
+          type: 'seller',
           productLimit: 0,
-          sourcingResponseLimit: 0,
+          sourcingRequestLimit: 0,
           hasAnalytics: false,
           isFeatured: false,
           status: 'active',
@@ -138,68 +166,97 @@ export function SubscriptionPlanFormDialog({ open, onOpenChange, planId, onSucce
         ) : (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Plan Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., Premium" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                    control={form.control}
+                    name="type"
+                    render={({ field }) => (
+                        <FormItem className="space-y-3">
+                        <FormLabel>Plan Type</FormLabel>
+                        <FormControl>
+                            <RadioGroup
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                            className="flex space-x-4"
+                            >
+                            <FormItem className="flex items-center space-x-2">
+                                <FormControl><RadioGroupItem value="seller" id="type-seller" /></FormControl>
+                                <FormLabel htmlFor="type-seller" className="font-normal">Seller Plan</FormLabel>
+                            </FormItem>
+                            <FormItem className="flex items-center space-x-2">
+                                <FormControl><RadioGroupItem value="buyer" id="type-buyer" /></FormControl>
+                                <FormLabel htmlFor="type-buyer" className="font-normal">Buyer Plan</FormLabel>
+                            </FormItem>
+                            </RadioGroup>
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
                 />
-                <FormField
-                  control={form.control}
-                  name="price"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Price (USD per month)</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.01" placeholder="e.g., 49.99" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Plan Name</FormLabel>
+                        <FormControl>
+                            <Input placeholder="e.g., Premium" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                    <FormField
+                    control={form.control}
+                    name="price"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Price (USD per month)</FormLabel>
+                        <FormControl>
+                            <Input type="number" step="0.01" placeholder="e.g., 49.99" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
               </div>
 
               <Separator />
               <h3 className="text-md font-medium">Feature Limits</h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 <FormField
-                  control={form.control}
-                  name="productLimit"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Product Listing Limit</FormLabel>
-                      <FormControl>
-                        <Input type="number" {...field} />
-                      </FormControl>
-                      <FormDescription>Enter -1 for unlimited products.</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={form.control}
-                  name="sourcingResponseLimit"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Sourcing Response Limit</FormLabel>
-                      <FormControl>
-                        <Input type="number" {...field} />
-                      </FormControl>
-                      <FormDescription>Enter -1 for unlimited responses.</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+                {watchedPlanType === 'seller' ? (
+                     <FormField
+                        control={form.control}
+                        name="productLimit"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Product Listing Limit</FormLabel>
+                            <FormControl>
+                                <Input type="number" {...field} value={field.value ?? ''} />
+                            </FormControl>
+                            <FormDescription>Enter -1 for unlimited products.</FormDescription>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                        />
+                ) : (
+                    <FormField
+                        control={form.control}
+                        name="sourcingRequestLimit"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Sourcing Request Limit</FormLabel>
+                            <FormControl>
+                                <Input type="number" {...field} value={field.value ?? ''} />
+                            </FormControl>
+                            <FormDescription>Enter -1 for unlimited requests.</FormDescription>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                )}
+             
 
               <Separator />
               <h3 className="text-md font-medium">Feature Flags</h3>
@@ -213,7 +270,7 @@ export function SubscriptionPlanFormDialog({ open, onOpenChange, planId, onSucce
                             <div className="space-y-0.5">
                                 <FormLabel>Enable Analytics</FormLabel>
                                 <FormDescription>
-                                    Allow access to the seller dashboard.
+                                    Allow access to the seller/buyer dashboard.
                                 </FormDescription>
                             </div>
                             <FormControl>
@@ -233,7 +290,7 @@ export function SubscriptionPlanFormDialog({ open, onOpenChange, planId, onSucce
                             <div className="space-y-0.5">
                                 <FormLabel>Featured Plan</FormLabel>
                                 <FormDescription>
-                                    Grants a "Premium" badge on seller profiles.
+                                    Grants a "Premium" badge on profiles.
                                 </FormDescription>
                             </div>
                             <FormControl>

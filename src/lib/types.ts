@@ -1,3 +1,4 @@
+
 import type { FieldValue, Timestamp } from "firebase/firestore";
 
 export type User = {
@@ -133,8 +134,9 @@ export type SubscriptionPlan = {
   name: string;
   price: number;
   currency: 'USD';
-  productLimit: number; // Use -1 for unlimited
-  sourcingResponseLimit: number; // Use -1 for unlimited
+  type: 'seller' | 'buyer'; // Differentiates plan type
+  productLimit?: number; // For sellers. Use -1 for unlimited.
+  sourcingRequestLimit?: number; // For buyers. Use -1 for unlimited.
   hasAnalytics: boolean;
   isFeatured: boolean;
   status: 'active' | 'archived';
