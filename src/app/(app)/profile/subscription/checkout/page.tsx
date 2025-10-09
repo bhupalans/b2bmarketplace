@@ -121,7 +121,7 @@ function CheckoutPageContent() {
         return null;
     }
 
-    const formatLimit = (limit: number) => limit === -1 ? 'Unlimited' : limit;
+    const formatLimit = (limit: number | undefined) => limit === -1 ? 'Unlimited' : limit;
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">
@@ -143,10 +143,18 @@ function CheckoutPageContent() {
                             </div>
                             <Separator />
                             <ul className="space-y-2 text-sm">
-                                <PlanFeature>{formatLimit(plan.productLimit)} Product Listings</PlanFeature>
-                                <PlanFeature>{formatLimit(plan.sourcingResponseLimit)} Sourcing Responses</PlanFeature>
-                                <PlanFeature>{plan.hasAnalytics ? 'Seller Analytics Dashboard' : 'Basic Analytics'}</PlanFeature>
-                                {plan.isFeatured && <PlanFeature>Featured Seller Badge</PlanFeature>}
+                                {plan.type === 'seller' ? (
+                                    <>
+                                        <PlanFeature>{formatLimit(plan.productLimit)} Product Listings</PlanFeature>
+                                        <PlanFeature>{plan.hasAnalytics ? 'Seller Analytics Dashboard' : 'Basic Analytics'}</PlanFeature>
+                                    </>
+                                ) : (
+                                    <>
+                                        <PlanFeature>{formatLimit(plan.sourcingRequestLimit)} Sourcing Requests</PlanFeature>
+                                        <PlanFeature>{plan.hasAnalytics ? 'Buyer Analytics Dashboard' : 'Basic Analytics'}</PlanFeature>
+                                    </>
+                                )}
+                                {plan.isFeatured && <PlanFeature>Featured Badge on Profile</PlanFeature>}
                             </ul>
                             <Separator />
                             <div className="flex justify-between font-bold text-lg">
