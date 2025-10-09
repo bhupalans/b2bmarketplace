@@ -4,6 +4,7 @@
 import Stripe from 'stripe';
 import { adminDb } from '@/lib/firebase-admin';
 import { SubscriptionPlan, User } from '@/lib/types';
+import { statesProvinces } from '@/lib/geography-data';
 
 async function getPlanAndUser(planId: string, userId: string): Promise<{ plan: SubscriptionPlan, user: User }> {
     const [planSnap, userSnap] = await Promise.all([
@@ -29,23 +30,31 @@ export async function createStripePaymentIntent({ planId, userId }: { planId: st
     try {
         const { plan, user } = await getPlanAndUser(planId, userId);
         
-        if (!user.address || !user.address.street || !user.address.city || !user.address.state || !user.address.zip || !user.address.country) {
+        // --- Corrected Address Validation Logic ---
+        const address = user.address;
+        if (!address || !address.street || !address.city || !address.zip || !address.country) {
             throw new Error("User profile is missing a complete primary business address, which is required for payment processing. Please complete your profile.");
         }
+        
+        const countryHasStates = statesProvinces[address.country] && statesProvinces[address.country].length > 0;
+        if (countryHasStates && !address.state) {
+            throw new Error("Your primary business address is missing a state/province, which is required for payment processing in your country.");
+        }
+        // --- End of Corrected Logic ---
 
         const stripe = new Stripe(secretKey, { apiVersion: '2024-06-20' });
 
         let customerId = user.stripeCustomerId;
 
-        const customerDetails = {
+        const customerDetails: Stripe.CustomerUpdateParams = {
             email: user.email,
             name: user.name,
             address: {
-                line1: user.address.street,
-                city: user.address.city,
-                state: user.address.state,
-                postal_code: user.address.zip,
-                country: user.address.country,
+                line1: address.street,
+                city: address.city,
+                state: address.state || null, // Pass null if state is not present
+                postal_code: address.zip,
+                country: address.country,
             },
             metadata: { firebaseUID: userId },
         };
@@ -53,7 +62,7 @@ export async function createStripePaymentIntent({ planId, userId }: { planId: st
         if (customerId) {
             await stripe.customers.update(customerId, customerDetails);
         } else {
-            const customer = await stripe.customers.create(customerDetails);
+            const customer = await stripe.customers.create(customerDetails as Stripe.CustomerCreateParams);
             customerId = customer.id;
             await adminDb.collection('users').doc(userId).update({ stripeCustomerId: customerId });
         }
