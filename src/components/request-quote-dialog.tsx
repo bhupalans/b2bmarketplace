@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useTransition } from "react";
@@ -16,7 +17,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Product, User } from "@/lib/types";
 import { findOrCreateConversation, sendMessage } from "@/lib/firebase";
-import { Loader2, FileText } from "lucide-react";
+import { Loader2, FileText, Gem } from "lucide-react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -102,6 +103,10 @@ export function RequestQuoteDialog({ product, seller }: RequestQuoteDialogProps)
     )
   }
 
+  if (firebaseUser?.uid === seller.uid) {
+    return null; // Don't show button if the user is the seller
+  }
+
   if (!firebaseUser || user?.role !== 'buyer') {
     return (
       <Button asChild className="w-full">
@@ -109,10 +114,20 @@ export function RequestQuoteDialog({ product, seller }: RequestQuoteDialogProps)
       </Button>
     );
   }
-
-  if (firebaseUser.uid === seller.uid) {
-    return null; // Don't show button if the user is the seller
+  
+  const isPaidBuyer = user.subscriptionPlan && user.subscriptionPlan.price > 0;
+  
+  if (!isPaidBuyer) {
+      return (
+          <Button asChild className="w-full" variant="secondary">
+              <Link href="/profile/subscription">
+                  <Gem className="mr-2 h-4 w-4" />
+                  Upgrade to Request a Quote
+              </Link>
+          </Button>
+      )
   }
+
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
