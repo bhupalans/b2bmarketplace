@@ -1,12 +1,12 @@
 
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState, useTransition, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useAuth } from "@/contexts/auth-context";
-import { createSourcingRequestClient, getActiveCategoriesClient } from "@/lib/firebase";
+import { createSourcingRequestClient, getActiveCategoriesClient, getSourcingRequestsClient } from "@/lib/firebase";
 import { Category, SourcingRequest } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,10 +34,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle, Gem } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { add } from "date-fns";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import Link from "next/link";
 
 const requestSchema = z.object({
   title: z.string().min(10, "Title must be at least 10 characters.").max(100, "Title is too long."),
@@ -57,10 +59,28 @@ export default function CreateSourcingRequestPage() {
   const router = useRouter();
   const [isSubmitting, startTransition] = useTransition();
   const [categories, setCategories] = useState<Category[]>([]);
+  const [sourcingRequests, setSourcingRequests] = useState<SourcingRequest[]>([]);
+  const [loadingInitialData, setLoadingInitialData] = useState(true);
 
-  React.useEffect(() => {
-    getActiveCategoriesClient().then(setCategories);
-  }, []);
+  useEffect(() => {
+    if (!user) return;
+    async function fetchData() {
+        try {
+            const [cats, reqs] = await Promise.all([
+                getActiveCategoriesClient(),
+                getSourcingRequestsClient({ buyerId: user.uid }),
+            ]);
+            setCategories(cats);
+            setSourcingRequests(reqs);
+        } catch (error) {
+            console.error("Error fetching create request data:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not load necessary data.' });
+        } finally {
+            setLoadingInitialData(false);
+        }
+    }
+    fetchData();
+  }, [user, toast]);
 
   const form = useForm<SourcingRequestFormData>({
     resolver: zodResolver(requestSchema),
@@ -104,13 +124,17 @@ export default function CreateSourcingRequestPage() {
     });
   };
 
-  if (authLoading || categories.length === 0) {
+  if (authLoading || loadingInitialData) {
     return (
       <div className="flex justify-center items-center h-full">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
   }
+  
+  const limit = user?.subscriptionPlan?.sourcingRequestLimit ?? 0;
+  const count = sourcingRequests.length;
+  const canPost = limit === -1 || count < limit;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -121,155 +145,170 @@ export default function CreateSourcingRequestPage() {
         </p>
       </div>
 
+       {!canPost && (
+          <Alert>
+            <Gem className="h-4 w-4" />
+            <AlertTitle>Sourcing Request Limit Reached</AlertTitle>
+            <AlertDescription>
+                You have posted {count} of {limit} sourcing requests allowed by your current plan.
+                <Link href="/profile/subscription" className="font-semibold text-primary hover:underline ml-2">
+                Upgrade your plan
+                </Link> to post more.
+            </AlertDescription>
+        </Alert>
+       )}
+
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Request Details</CardTitle>
-              <CardDescription>
-                Provide a clear and concise description of the product you're looking for.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="title"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Request Title</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Bulk order of N95 face masks" {...field} />
-                    </FormControl>
-                    <FormDescription>A short, descriptive headline for your request.</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="categoryId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Category</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select the most relevant product category" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {categories.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Detailed Description</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        rows={5}
-                        placeholder="Include specifications, required certifications (e.g., CE, FDA), material preferences, and any other important details."
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Quantity & Price</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="grid grid-cols-3 gap-2">
-                    <FormField
-                      control={form.control}
-                      name="quantity"
-                      render={({ field }) => (
-                        <FormItem className="col-span-2">
-                          <FormLabel>Required Quantity</FormLabel>
-                          <FormControl>
-                            <Input type="number" placeholder="e.g., 10000" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="quantityUnit"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Unit</FormLabel>
-                          <FormControl>
-                            <Input placeholder="e.g., units" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                </div>
+          <fieldset disabled={!canPost || isSubmitting}>
+            <Card>
+                <CardHeader>
+                <CardTitle>Request Details</CardTitle>
+                <CardDescription>
+                    Provide a clear and concise description of the product you're looking for.
+                </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
                 <FormField
                     control={form.control}
-                    name="targetPriceUSD"
+                    name="title"
                     render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Target Price per Unit (USD)</FormLabel>
+                    <FormItem>
+                        <FormLabel>Request Title</FormLabel>
                         <FormControl>
-                            <Input type="number" step="0.01" placeholder="Optional" {...field} />
+                        <Input placeholder="e.g., Bulk order of N95 face masks" {...field} />
                         </FormControl>
-                        <FormDescription>Your ideal price, if you have one.</FormDescription>
+                        <FormDescription>A short, descriptive headline for your request.</FormDescription>
                         <FormMessage />
-                        </FormItem>
+                    </FormItem>
                     )}
                 />
-                 <FormField
-                    control={form.control}
-                    name="expiresInDays"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Request Active For</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={String(field.value)}>
-                                <FormControl>
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    <SelectItem value="7">7 Days</SelectItem>
-                                    <SelectItem value="15">15 Days</SelectItem>
-                                    <SelectItem value="30">30 Days</SelectItem>
-                                    <SelectItem value="60">60 Days</SelectItem>
-                                    <SelectItem value="90">90 Days</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        <FormDescription>How long sellers can respond to your request.</FormDescription>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
-            </CardContent>
-          </Card>
 
-          <div className="flex justify-end">
-            <Button type="submit" size="lg" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Post Sourcing Request
-            </Button>
-          </div>
+                <FormField
+                    control={form.control}
+                    name="categoryId"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Category</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                            <SelectTrigger>
+                            <SelectValue placeholder="Select the most relevant product category" />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            {categories.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+
+                <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Detailed Description</FormLabel>
+                        <FormControl>
+                        <Textarea
+                            rows={5}
+                            placeholder="Include specifications, required certifications (e.g., CE, FDA), material preferences, and any other important details."
+                            {...field}
+                        />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                <CardTitle>Quantity & Price</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-3 gap-2">
+                        <FormField
+                        control={form.control}
+                        name="quantity"
+                        render={({ field }) => (
+                            <FormItem className="col-span-2">
+                            <FormLabel>Required Quantity</FormLabel>
+                            <FormControl>
+                                <Input type="number" placeholder="e.g., 10000" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                        />
+                        <FormField
+                        control={form.control}
+                        name="quantityUnit"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Unit</FormLabel>
+                            <FormControl>
+                                <Input placeholder="e.g., units" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                        />
+                    </div>
+                    <FormField
+                        control={form.control}
+                        name="targetPriceUSD"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Target Price per Unit (USD)</FormLabel>
+                            <FormControl>
+                                <Input type="number" step="0.01" placeholder="Optional" {...field} />
+                            </FormControl>
+                            <FormDescription>Your ideal price, if you have one.</FormDescription>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="expiresInDays"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Request Active For</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={String(field.value)}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="7">7 Days</SelectItem>
+                                        <SelectItem value="15">15 Days</SelectItem>
+                                        <SelectItem value="30">30 Days</SelectItem>
+                                        <SelectItem value="60">60 Days</SelectItem>
+                                        <SelectItem value="90">90 Days</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            <FormDescription>How long sellers can respond to your request.</FormDescription>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </CardContent>
+            </Card>
+
+            <div className="flex justify-end">
+                <Button type="submit" size="lg" disabled={!canPost || isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Post Sourcing Request
+                </Button>
+            </div>
+          </fieldset>
         </form>
       </Form>
     </div>

@@ -1,3 +1,4 @@
+
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc as getDocClient, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError, setDoc } from 'firebase/firestore';
@@ -1157,12 +1158,22 @@ export async function createSourcingRequestClient(
     return { id: docRef.id, ...newData } as SourcingRequest;
 }
 
-export async function getSourcingRequestsClient(): Promise<SourcingRequest[]> {
+export async function getSourcingRequestsClient(filters?: { buyerId?: string }): Promise<SourcingRequest[]> {
     const requestsRef = collection(db, "sourcingRequests");
-    const q = query(requestsRef, where("status", "==", "active"), where("expiresAt", ">", new Date()), orderBy("expiresAt", "asc"));
+    let q;
+
+    if (filters?.buyerId) {
+        // This query fetches all requests for a specific buyer, regardless of status/expiry, for their dashboard.
+        q = query(requestsRef, where("buyerId", "==", filters.buyerId), orderBy("createdAt", "desc"));
+    } else {
+        // This is the public query for browsing active sourcing requests.
+        q = query(requestsRef, where("status", "==", "active"), where("expiresAt", ">", new Date()), orderBy("expiresAt", "asc"));
+    }
+
     const snapshot = await getDocs(q);
     return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...convertTimestamps(docSnap.data()) } as SourcingRequest));
 }
+
 
 export async function getSourcingRequestClient(id: string): Promise<SourcingRequest | null> {
     const requestRef = doc(db, 'sourcingRequests', id);

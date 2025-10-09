@@ -3,8 +3,8 @@
 
 import React, { useState, useEffect, useTransition } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { getSubscriptionPlansClient } from '@/lib/firebase';
-import { SubscriptionPlan, User } from '@/lib/types';
+import { getSubscriptionPlansClient, getSourcingRequestsClient } from '@/lib/firebase';
+import { SubscriptionPlan, User, SourcingRequest } from '@/lib/types';
 import { Loader2, CheckCircle, Star } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,38 +26,53 @@ export default function SubscriptionPage() {
     const { user, firebaseUser, loading: authLoading, revalidateUser } = useAuth();
     const router = useRouter();
     const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+    const [sourcingRequests, setSourcingRequests] = useState<SourcingRequest[]>([]);
     const [loading, setLoading] = useState(true);
     const [isSubmitting, startTransition] = useTransition();
     const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
     const { toast } = useToast();
     
     useEffect(() => {
+        if (!user) {
+            if (!authLoading) setLoading(false);
+            return;
+        };
+
         async function fetchData() {
             try {
                 setLoading(true);
-                const fetchedPlans = await getSubscriptionPlansClient();
-                const activePlans = fetchedPlans.filter(p => p.status === 'active').sort((a,b) => a.price - b.price);
-                setPlans(activePlans);
+                const [fetchedPlans, fetchedSourcingRequests] = await Promise.all([
+                    getSubscriptionPlansClient(),
+                    user.role === 'buyer' ? getSourcingRequestsClient({ buyerId: user.uid }) : Promise.resolve([]),
+                ]);
+
+                const relevantPlans = fetchedPlans
+                    .filter(p => p.status === 'active' && p.type === user.role)
+                    .sort((a,b) => a.price - b.price);
+
+                setPlans(relevantPlans);
+                if (user.role === 'buyer') {
+                    setSourcingRequests(fetchedSourcingRequests);
+                }
+
             } catch (error) {
-                console.error("Failed to fetch subscription plans:", error);
+                console.error("Failed to fetch subscription data:", error);
                 toast({ variant: 'destructive', title: 'Error', description: 'Could not load subscription plans.' });
             } finally {
                 setLoading(false);
             }
         }
         fetchData();
-    }, [toast]);
+    }, [user, authLoading, toast]);
     
     const handleSelectPlan = (plan: SubscriptionPlan) => {
         if (!firebaseUser) return;
         
-        // If the plan is paid, redirect to the new generic checkout page
         if (plan.price > 0) {
             router.push(`/profile/subscription/checkout?planId=${plan.id}`);
             return;
         }
 
-        // If the plan is free (downgrade)
         setSelectedPlanId(plan.id);
         startTransition(async () => {
             try {
@@ -76,12 +91,17 @@ export default function SubscriptionPage() {
         return <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     }
     
-    if (user?.role !== 'seller') {
-        return <div className="text-center py-10">This page is for sellers only.</div>;
+    if (!user || (user.role !== 'seller' && user.role !== 'buyer')) {
+        return <div className="text-center py-10">This page is for buyers and sellers only.</div>;
     }
 
-    const formatLimit = (limit: number) => limit === -1 ? 'Unlimited' : limit;
-
+    const formatLimit = (limit: number | undefined) => {
+        if (limit === undefined || limit === null) return 'Not included';
+        return limit === -1 ? 'Unlimited' : limit;
+    }
+    
+    const currentPlan = user?.subscriptionPlan;
+    
     return (
         <div className="max-w-5xl mx-auto space-y-8">
             <div>
@@ -91,6 +111,20 @@ export default function SubscriptionPage() {
                 </p>
             </div>
             
+            {currentPlan && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Your Current Plan: {currentPlan.name}</CardTitle>
+                        <CardDescription>
+                            {user.role === 'buyer'
+                                ? `You have posted ${sourcingRequests.length} of ${formatLimit(currentPlan.sourcingRequestLimit)} sourcing requests.`
+                                : `You are on the ${currentPlan.name} plan.`
+                            }
+                        </CardDescription>
+                    </CardHeader>
+                </Card>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {plans.map(plan => {
                     const isCurrentPlan = user?.subscriptionPlanId === plan.id;
@@ -111,10 +145,13 @@ export default function SubscriptionPage() {
                         </CardHeader>
                         <CardContent className="flex-grow space-y-3">
                             <ul className="space-y-2">
-                                <PlanFeature>{formatLimit(plan.productLimit)} Product Listings</PlanFeature>
-                                <PlanFeature>{formatLimit(plan.sourcingResponseLimit)} Sourcing Responses</PlanFeature>
-                                <PlanFeature>{plan.hasAnalytics ? 'Seller Analytics Dashboard' : 'Basic Analytics'}</PlanFeature>
-                                {plan.isFeatured && <PlanFeature>Featured Seller Badge</PlanFeature>}
+                                {user.role === 'seller' ? (
+                                    <PlanFeature>{formatLimit(plan.productLimit)} Product Listings</PlanFeature>
+                                ) : (
+                                    <PlanFeature>{formatLimit(plan.sourcingRequestLimit)} Sourcing Requests</PlanFeature>
+                                )}
+                                <PlanFeature>{plan.hasAnalytics ? 'Advanced Analytics' : 'Basic Analytics'}</PlanFeature>
+                                {plan.isFeatured && <PlanFeature>Featured Badge</PlanFeature>}
                             </ul>
                         </CardContent>
                         <CardFooter>

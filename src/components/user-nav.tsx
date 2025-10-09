@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -108,17 +109,15 @@ export function UserNav() {
                 <span>Verification</span>
               </Link>
             </DropdownMenuItem>
-             {user.role === 'seller' && (
-                <DropdownMenuItem asChild>
-                    <Link href="/profile/subscription">
-                        <Gem className="mr-2 h-4 w-4" />
-                        <span>Subscription</span>
-                        {user.subscriptionPlan?.name && (
-                            <span className="ml-auto text-xs tracking-widest opacity-60">{user.subscriptionPlan.name}</span>
-                        )}
-                    </Link>
-                </DropdownMenuItem>
-            )}
+            <DropdownMenuItem asChild>
+                <Link href="/profile/subscription">
+                    <Gem className="mr-2 h-4 w-4" />
+                    <span>Subscription</span>
+                    {user.subscriptionPlan?.name && (
+                        <span className="ml-auto text-xs tracking-widest opacity-60">{user.subscriptionPlan.name}</span>
+                    )}
+                </Link>
+            </DropdownMenuItem>
             {user.role === 'seller' && (
               <>
                 <DropdownMenuItem asChild>
