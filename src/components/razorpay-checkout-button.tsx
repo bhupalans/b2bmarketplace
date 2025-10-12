@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { createRazorpayOrder, verifyRazorpayPayment } from '@/services/payments/razorpay';
-import { useAuth } from '@/contexts/auth-context';
+import { useAuth } from '@/hooks/use-auth';
+import getConfig from 'next/config';
 
 declare const Razorpay: any;
 
@@ -28,8 +29,15 @@ export function RazorpayCheckoutButton({ plan, user }: { plan: SubscriptionPlan,
                     throw new Error(orderResult.error);
                 }
 
+                const { publicRuntimeConfig } = getConfig();
+                const razorpayKeyId = publicRuntimeConfig.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+
+                if (!razorpayKeyId) {
+                    throw new Error("Razorpay Key ID is not configured. Please check server environment variables.");
+                }
+
                 const options = {
-                    key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+                    key: razorpayKeyId,
                     amount: orderResult.order.amount,
                     currency: orderResult.order.currency,
                     name: "B2B Marketplace",
@@ -45,7 +53,6 @@ export function RazorpayCheckoutButton({ plan, user }: { plan: SubscriptionPlan,
                         });
 
                         if (verificationResult.success) {
-                            // Don't revalidate here, the confirmation page will poll.
                             router.push(`/profile/subscription/checkout/confirm?status=success&planId=${plan.id}&razorpay_payment_id=${response.razorpay_payment_id}`);
                         } else {
                             router.push('/profile/subscription/checkout/confirm?status=failure');
