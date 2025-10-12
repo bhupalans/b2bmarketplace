@@ -12,10 +12,15 @@ serviceAccount:
     - firebase.serviceAccountUser
     - iam.serviceAccountTokenCreator
 
+# Build-time environment variables. These are available during the `next build` step.
+# Essential for NEXT_PUBLIC_ variables that need to be baked into the client-side bundle.
+buildConfig:
+  environmentVariables:
+    NEXT_PUBLIC_RAZORPAY_KEY_ID:
+      secret: razorpay-key-id
+
+# Runtime environment variables. These are available when the server is running.
 runConfig:
-  # Increase this value if you'd like to automatically spin up
-  # more instances in response to increased traffic.
-  maxInstances: 1
   environmentVariables:
     STRIPE_SECRET_KEY:
       secret: stripe-secret-key
