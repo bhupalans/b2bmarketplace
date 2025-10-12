@@ -231,7 +231,7 @@ export function SubscriptionPlanFormDialog({ open, onOpenChange, planId, onSucce
                         <FormItem>
                         <FormLabel>Currency</FormLabel>
                         <FormControl>
-                            <Input placeholder="e.g., USD or INR" {...field} />
+                            <Input placeholder="e.g., USD" {...field} />
                         </FormControl>
                         <FormMessage />
                         </FormItem>

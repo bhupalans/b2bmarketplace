@@ -169,7 +169,12 @@ function CheckoutPageContent() {
                             <Separator />
                             <div className="flex justify-between font-bold text-lg">
                                 <span>Total Due Today</span>
-                                <span>${plan.price.toFixed(2)}</span>
+                                <span>
+                                    {new Intl.NumberFormat('en-US', {
+                                        style: 'currency',
+                                        currency: plan.currency || 'USD',
+                                    }).format(plan.price)}
+                                </span>
                             </div>
                         </CardContent>
                     </Card>

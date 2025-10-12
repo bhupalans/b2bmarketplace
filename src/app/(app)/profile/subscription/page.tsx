@@ -144,7 +144,12 @@ export default function SubscriptionPage() {
                         <CardHeader className="text-center">
                             <CardTitle className="text-2xl">{plan.name}</CardTitle>
                             <CardDescription>
-                                <span className="text-4xl font-bold text-foreground">${plan.price}</span>
+                                <span className="text-4xl font-bold text-foreground">
+                                    {new Intl.NumberFormat('en-US', {
+                                        style: 'currency',
+                                        currency: plan.currency || 'USD',
+                                    }).format(plan.price)}
+                                </span>
                                 <span className="text-muted-foreground"> / month</span>
                             </CardDescription>
                         </CardHeader>
