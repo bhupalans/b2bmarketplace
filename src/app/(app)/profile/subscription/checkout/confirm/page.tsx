@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 
 function ConfirmationPageContent() {
     const searchParams = useSearchParams();
-    const { revalidateUser } = useAuth();
+    const { user, revalidateUser } = useAuth();
     const { toast } = useToast();
 
     const status = searchParams.get('status');
@@ -23,7 +23,9 @@ function ConfirmationPageContent() {
 
     const [confirmationStatus, setConfirmationStatus] = useState<'processing' | 'success' | 'failure' | 'error'>('processing');
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+    // Effect for one-time actions like Stripe confirmation
     useEffect(() => {
         if (status !== 'success') {
             setConfirmationStatus('failure');
@@ -33,8 +35,9 @@ function ConfirmationPageContent() {
         if (paymentIntentId) { // Stripe flow
             confirmStripePayment(paymentIntentId).then(result => {
                 if (result.success) {
-                    revalidateUser(); // Refresh user data in context
-                    setConfirmationStatus('success');
+                    revalidateUser().then(() => {
+                         setConfirmationStatus('success');
+                    });
                 } else {
                     setErrorMessage(result.error);
                     setConfirmationStatus('error');
@@ -43,25 +46,48 @@ function ConfirmationPageContent() {
                 setErrorMessage(err.message || 'An unexpected error occurred.');
                 setConfirmationStatus('error');
             });
-        } else if (razorpayPaymentId) { // Razorpay flow (currently relies on polling)
-            revalidateUser(); // Start polling
+        } else if (!razorpayPaymentId) {
+             setConfirmationStatus('error');
+             setErrorMessage('No valid payment identifier found in the URL.');
+        }
+    }, [status, paymentIntentId, razorpayPaymentId, revalidateUser]);
+
+    // Effect for polling-based flows like Razorpay
+     useEffect(() => {
+        // Start polling only for Razorpay payments and if we are still processing
+        if (razorpayPaymentId && confirmationStatus === 'processing') {
+            const initialPlanId = user?.subscriptionPlanId;
+
+            pollingIntervalRef.current = setInterval(async () => {
+                await revalidateUser();
+            }, 3000); // Poll every 3 seconds
+
             const timeout = setTimeout(() => {
-                // If not confirmed by then, assume an issue.
-                // In a real app, you might check one last time.
-                setConfirmationStatus('error');
-                setErrorMessage('Could not confirm subscription update in time. Please check your profile or contact support.');
+                if (pollingIntervalRef.current) {
+                    clearInterval(pollingIntervalRef.current);
+                    if (confirmationStatus === 'processing') {
+                        setConfirmationStatus('error');
+                        setErrorMessage('Could not confirm subscription update in time. Please check your profile or contact support.');
+                    }
+                }
             }, 30000); // 30-second timeout
 
-            // This effect will re-run when user context is updated via revalidateUser polling
-            // so we will check for success inside the main component body.
-            // But we need to clean up the timeout if we succeed or unmount.
-            return () => clearTimeout(timeout);
-        } else {
-            setConfirmationStatus('error');
-            setErrorMessage('No valid payment identifier found in the URL.');
+            return () => {
+                if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+                clearTimeout(timeout);
+            };
         }
+    }, [razorpayPaymentId, confirmationStatus, revalidateUser, user]);
 
-    }, [status, paymentIntentId, razorpayPaymentId, revalidateUser]);
+    // Effect to check for subscription change after revalidation
+    useEffect(() => {
+        if (user && user.subscriptionPlanId === planId) {
+            if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+            }
+            setConfirmationStatus('success');
+        }
+    }, [user, planId]);
     
 
     if (confirmationStatus === 'processing') {

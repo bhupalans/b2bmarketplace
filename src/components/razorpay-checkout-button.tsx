@@ -45,7 +45,7 @@ export function RazorpayCheckoutButton({ plan, user }: { plan: SubscriptionPlan,
                         });
 
                         if (verificationResult.success) {
-                            await revalidateUser(); // Force user data to refresh
+                            // Don't revalidate here, the confirmation page will poll.
                             router.push(`/profile/subscription/checkout/confirm?status=success&planId=${plan.id}&razorpay_payment_id=${response.razorpay_payment_id}`);
                         } else {
                             router.push('/profile/subscription/checkout/confirm?status=failure');
