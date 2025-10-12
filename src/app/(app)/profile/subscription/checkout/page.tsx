@@ -4,7 +4,7 @@
 import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter, notFound } from 'next/navigation';
 import { getSubscriptionPlansClient, getActivePaymentGatewaysClient } from '@/lib/firebase';
-import { SubscriptionPlan, PaymentGateway } from '@/lib/types';
+import { SubscriptionPlan, PaymentGateway, User } from '@/lib/types';
 import { CheckCircle, Loader2, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -123,6 +123,26 @@ function CheckoutPageContent() {
 
     const formatLimit = (limit: number | undefined) => limit === -1 ? 'Unlimited' : limit;
 
+    const PlanFeaturesList = ({ plan, user }: { plan: SubscriptionPlan, user: User }) => {
+        if (user.role === 'seller') {
+            return (
+                <>
+                    <PlanFeature>{formatLimit(plan.productLimit)} Product Listings</PlanFeature>
+                    <PlanFeature>{plan.hasAnalytics ? 'Seller Analytics Dashboard' : 'Basic Analytics'}</PlanFeature>
+                </>
+            );
+        }
+        if (user.role === 'buyer') {
+             return (
+                <>
+                    <PlanFeature>{formatLimit(plan.sourcingRequestLimit)} Sourcing Requests</PlanFeature>
+                    <PlanFeature>{plan.hasAnalytics ? 'Buyer Analytics Dashboard' : 'Basic Analytics'}</PlanFeature>
+                </>
+            );
+        }
+        return null;
+    }
+
     return (
         <div className="max-w-4xl mx-auto space-y-6">
             <div>
@@ -143,17 +163,7 @@ function CheckoutPageContent() {
                             </div>
                             <Separator />
                             <ul className="space-y-2 text-sm">
-                                {plan.type === 'seller' ? (
-                                    <>
-                                        <PlanFeature>{formatLimit(plan.productLimit)} Product Listings</PlanFeature>
-                                        <PlanFeature>{plan.hasAnalytics ? 'Seller Analytics Dashboard' : 'Basic Analytics'}</PlanFeature>
-                                    </>
-                                ) : (
-                                    <>
-                                        <PlanFeature>{formatLimit(plan.sourcingRequestLimit)} Sourcing Requests</PlanFeature>
-                                        <PlanFeature>{plan.hasAnalytics ? 'Buyer Analytics Dashboard' : 'Basic Analytics'}</PlanFeature>
-                                    </>
-                                )}
+                                <PlanFeaturesList plan={plan} user={user} />
                                 {plan.isFeatured && <PlanFeature>Featured Badge on Profile</PlanFeature>}
                             </ul>
                             <Separator />

@@ -47,7 +47,7 @@ export default function SubscriptionPage() {
                 ]);
 
                 const relevantPlans = fetchedPlans
-                    .filter(p => p.status === 'active' && (p.type === user.role || (!p.type && user.role === 'seller')))
+                    .filter(p => p.status === 'active' && p.type === user.role)
                     .sort((a,b) => a.price - b.price);
                 
                 setPlans(relevantPlans);
