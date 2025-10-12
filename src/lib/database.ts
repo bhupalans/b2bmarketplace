@@ -6,6 +6,33 @@ import { adminDb } from "./firebase-admin";
 import { Product, Category, User, Message, Conversation, Offer, SubscriptionPlan } from "./types";
 import { mockCategories, mockProducts } from "./mock-data";
 import { firestore, firestore as adminFirestore } from "firebase-admin";
+import { Timestamp } from "firebase-admin/firestore";
+
+// Helper function to recursively convert Timestamps in any data structure
+function serializeTimestamps(data: any): any {
+  if (data === null || data === undefined) {
+    return data;
+  }
+
+  if (data instanceof Timestamp) {
+    return data.toDate().toISOString();
+  }
+
+  if (Array.isArray(data)) {
+    return data.map(serializeTimestamps);
+  }
+
+  if (typeof data === 'object') {
+    const res: { [key: string]: any } = {};
+    for (const key in data) {
+      res[key] = serializeTimestamps(data[key]);
+    }
+    return res;
+  }
+
+  return data;
+}
+
 
 // --- Read Operations ---
 
@@ -13,7 +40,8 @@ export async function getProduct(productId: string): Promise<Product | null> {
     const productRef = adminDb.collection("products").doc(productId);
     const productSnap = await productRef.get();
     if (!productSnap.exists) return null;
-    return { id: productSnap.id, ...productSnap.data() } as Product;
+    const product = { id: productSnap.id, ...productSnap.data() } as Product;
+    return serializeTimestamps(product);
 }
 
 export async function getUser(userId: string): Promise<User | null> {
@@ -32,7 +60,8 @@ export async function getUser(userId: string): Promise<User | null> {
         }
     }
 
-    return { id: userSnap.id, uid: userSnap.id, ...userData };
+    const user = { id: userSnap.id, uid: userSnap.id, ...userData };
+    return serializeTimestamps(user);
 }
 
 export async function getUsersByIds(userIds: string[]): Promise<Map<string, User>> {
@@ -55,7 +84,8 @@ export async function getUsersByIds(userIds: string[]): Promise<Map<string, User
         const snapshot = await usersRef.where(firestore.FieldPath.documentId(), 'in', chunk).get();
 
         snapshot.forEach(doc => {
-            userMap.set(doc.id, { id: doc.id, uid: doc.id, ...doc.data() } as User);
+            const user = { id: doc.id, uid: doc.id, ...doc.data() } as User;
+            userMap.set(doc.id, serializeTimestamps(user));
         });
     }
 
@@ -70,7 +100,8 @@ export async function findUserByUsername(username: string): Promise<User | null>
         return null;
     }
     const userDoc = snapshot.docs[0];
-    return { id: userDoc.id, uid: userDoc.id, ...userDoc.data() } as User;
+    const user = { id: userDoc.id, uid: userDoc.id, ...userDoc.data() } as User;
+    return serializeTimestamps(user);
 }
 
 export async function getProductAndSeller(productId: string): Promise<{ product: Product; seller: User | null } | null> {
@@ -90,6 +121,7 @@ export async function getProductAndSeller(productId: string): Promise<{ product:
     }
   }
 
+  // No need to serialize here, as getProduct and getUser already do it.
   return { product, seller };
 }
 
@@ -108,15 +140,11 @@ export async function getSellerAndProducts(sellerId: string): Promise<{ seller: 
 
   const products = productsSnapshot.docs.map(doc => {
       const data = doc.data();
-      // Serialize Timestamps before sending to client components
-      const serializableData = {
-          ...data,
-          createdAt: data.createdAt instanceof adminFirestore.Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
-          updatedAt: data.updatedAt instanceof adminFirestore.Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt,
-      };
-      return { id: doc.id, ...serializableData } as Product;
+      const product = { id: doc.id, ...data } as Product;
+      return serializeTimestamps(product);
   });
 
+  // No need to serialize seller, as getUser already does it.
   return { seller, products };
 }
 
@@ -124,12 +152,8 @@ export async function getSellerProducts(sellerId: string): Promise<Product[]> {
     const querySnapshot = await adminDb.collection("products").where("sellerId", "==", sellerId).get();
     return querySnapshot.docs.map(doc => {
         const data = doc.data();
-        const serializableData = {
-            ...data,
-            createdAt: data.createdAt instanceof adminFirestore.Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
-            updatedAt: data.updatedAt instanceof adminFirestore.Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt,
-        };
-        return { id: doc.id, ...serializableData } as Product;
+        const product = { id: doc.id, ...data } as Product;
+        return serializeTimestamps(product);
     });
 }
 
@@ -149,6 +173,7 @@ export async function getCategoryPath(categoryId: string): Promise<Category[]> {
       }
     }
     
+    // Categories do not have timestamps, so no serialization needed.
     return path;
 }
 
@@ -157,7 +182,10 @@ export async function getAllConversationsForAdmin(): Promise<Conversation[]> {
     if (snapshot.empty) {
         return [];
     }
-    return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Conversation));
+    return snapshot.docs.map(docSnap => {
+      const conversation = { id: docSnap.id, ...docSnap.data() } as Conversation;
+      return serializeTimestamps(conversation);
+    });
 }
 
 export async function getConversationForAdmin(conversationId: string): Promise<Conversation | null> {
@@ -166,5 +194,6 @@ export async function getConversationForAdmin(conversationId: string): Promise<C
     if (!convSnap.exists) {
         return null;
     }
-    return { id: convSnap.id, ...convSnap.data() } as Conversation;
+    const conversation = { id: convSnap.id, ...convSnap.data() } as Conversation;
+    return serializeTimestamps(conversation);
 }
