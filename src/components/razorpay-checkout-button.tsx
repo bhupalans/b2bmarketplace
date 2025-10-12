@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { createRazorpayOrder, verifyRazorpayPayment } from '@/services/payments/razorpay';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/contexts/auth-context';
 import getConfig from 'next/config';
 
 declare const Razorpay: any;
