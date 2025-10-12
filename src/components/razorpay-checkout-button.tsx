@@ -16,7 +16,7 @@ export function RazorpayCheckoutButton({ plan, user }: { plan: SubscriptionPlan,
     const [isProcessing, startTransition] = useTransition();
     const router = useRouter();
     const { toast } = useToast();
-    const { firebaseUser } = useAuth();
+    const { firebaseUser, revalidateUser } = useAuth();
 
     const handlePayment = async () => {
         if (!firebaseUser) return;
@@ -45,6 +45,7 @@ export function RazorpayCheckoutButton({ plan, user }: { plan: SubscriptionPlan,
                         });
 
                         if (verificationResult.success) {
+                            await revalidateUser(); // Force user data to refresh
                             router.push(`/profile/subscription/checkout/confirm?status=success&planId=${plan.id}&razorpay_payment_id=${response.razorpay_payment_id}`);
                         } else {
                             router.push('/profile/subscription/checkout/confirm?status=failure');
