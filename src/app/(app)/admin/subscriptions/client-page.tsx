@@ -73,7 +73,7 @@ const PlanTable = ({
           plans.map((plan) => (
             <TableRow key={plan.id}>
               <TableCell className="font-medium">{plan.name}</TableCell>
-              <TableCell>${plan.price.toFixed(2)} / month</TableCell>
+              <TableCell>{(plan.price || 0).toLocaleString(undefined, { style: 'currency', currency: plan.currency || 'USD' })} / month</TableCell>
               <TableCell>
                 {planType === 'seller' ? formatLimit(plan.productLimit) : formatLimit(plan.sourcingRequestLimit)}
               </TableCell>
