@@ -5,28 +5,7 @@ import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import { adminDb } from '@/lib/firebase-admin';
 import { SubscriptionPlan, User } from '@/lib/types';
-
-// This function is defined here because it's only used by this payment action.
-// In a larger app, it might be in a shared lib/database file.
-async function getPlanAndUser(planId: string, userId: string): Promise<{ plan: SubscriptionPlan, user: User }> {
-    const [planSnap, userSnap] = await Promise.all([
-        adminDb.collection('subscriptionPlans').doc(planId).get(),
-        adminDb.collection('users').doc(userId).get()
-    ]);
-    
-    if (!planSnap.exists) {
-        throw new Error('Subscription plan not found.');
-    }
-    if (!userSnap.exists) {
-        throw new Error('User not found.');
-    }
-
-    return {
-        plan: {id: planSnap.id, ...planSnap.data()} as SubscriptionPlan,
-        user: {uid: userSnap.id, id: userSnap.id, ...userSnap.data()} as User,
-    }
-}
-
+import { getPlanAndUser } from '@/lib/database';
 
 export async function createRazorpayOrder({ planId, userId }: { planId: string, userId: string }): Promise<{ success: true; order: any, user: User, plan: SubscriptionPlan } | { success: false, error: string }> {
 
@@ -44,13 +23,9 @@ export async function createRazorpayOrder({ planId, userId }: { planId: string, 
         
         const options = {
             amount: plan.price * 100, // amount in the smallest currency unit
-            currency: 'INR', // Temporarily hardcoded to INR for debugging
-            receipt: `rcpt_${userId.substring(0, 4)}_${Date.now()}`
+            currency: plan.currency.toLowerCase(),
+            receipt: `rcpt_${userId.substring(0, 4)}_${Date.now()}`.substring(0, 40)
         };
-
-        // Detailed logging for debugging
-        console.log("Attempting to create Razorpay order with options:", JSON.stringify(options, null, 2));
-
 
         const order = await razorpay.orders.create(options);
         

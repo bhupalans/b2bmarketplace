@@ -5,21 +5,7 @@ import Stripe from 'stripe';
 import { adminDb } from '@/lib/firebase-admin';
 import { SubscriptionPlan, User } from '@/lib/types';
 import { statesProvinces } from '@/lib/geography-data';
-
-async function getPlanAndUser(planId: string, userId: string): Promise<{ plan: SubscriptionPlan, user: User }> {
-    const [planSnap, userSnap] = await Promise.all([
-        adminDb.collection('subscriptionPlans').doc(planId).get(),
-        adminDb.collection('users').doc(userId).get()
-    ]);
-    
-    if (!planSnap.exists) throw new Error('Subscription plan not found.');
-    if (!userSnap.exists) throw new Error('User not found.');
-
-    return {
-        plan: { id: planSnap.id, ...planSnap.data() } as SubscriptionPlan,
-        user: { uid: userSnap.id, id: userSnap.id, ...userSnap.data() } as User
-    };
-}
+import { getPlanAndUser } from '@/lib/database';
 
 export async function createStripePaymentIntent({ planId, userId }: { planId: string, userId: string }): Promise<{ success: true; clientSecret: string; } | { success: false, error: string }> {
     const secretKey = process.env.STRIPE_SECRET_KEY;

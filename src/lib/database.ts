@@ -197,3 +197,26 @@ export async function getConversationForAdmin(conversationId: string): Promise<C
     const conversation = { id: convSnap.id, ...convSnap.data() } as Conversation;
     return serializeTimestamps(conversation);
 }
+
+
+export async function getPlanAndUser(planId: string, userId: string): Promise<{ plan: SubscriptionPlan, user: User }> {
+    const [planSnap, userSnap] = await Promise.all([
+        adminDb.collection('subscriptionPlans').doc(planId).get(),
+        adminDb.collection('users').doc(userId).get()
+    ]);
+    
+    if (!planSnap.exists) {
+        throw new Error('Subscription plan not found.');
+    }
+    if (!userSnap.exists) {
+        throw new Error('User not found.');
+    }
+
+    const plan = {id: planSnap.id, ...planSnap.data()} as SubscriptionPlan;
+    const user = {uid: userSnap.id, id: userSnap.id, ...userSnap.data()} as User;
+
+    return {
+        plan: serializeTimestamps(plan),
+        user: serializeTimestamps(user),
+    }
+}
