@@ -21,6 +21,10 @@ runConfig:
       secret: stripe-secret-key
     STRIPE_WEBHOOK_SECRET:
       secret: stripe-webhook-secret
+    NEXT_PUBLIC_RAZORPAY_KEY_ID:
+      secret: razorpay-key-id
+    RAZORPAY_KEY_SECRET:
+      secret: razorpay-key-secret
 
 # Add required API services to be enabled for the backend.
 requiredAPIs:
