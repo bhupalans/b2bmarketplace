@@ -22,8 +22,8 @@ async function getPlanAndUser(planId: string, userId: string): Promise<{ plan: S
     }
 
     return {
-        plan: planSnap.data() as SubscriptionPlan,
-        user: userSnap.data() as User
+        plan: {id: planSnap.id, ...planSnap.data()} as SubscriptionPlan,
+        user: {uid: userSnap.id, id: userSnap.id, ...userSnap.data()} as User,
     }
 }
 
@@ -44,9 +44,13 @@ export async function createRazorpayOrder({ planId, userId }: { planId: string, 
         
         const options = {
             amount: plan.price * 100, // amount in the smallest currency unit
-            currency: plan.currency.toLowerCase(),
-            receipt: `rcpt_${userId.substring(0, 4)}_${Date.now()}` // Shortened receipt ID
+            currency: 'INR', // Temporarily hardcoded to INR for debugging
+            receipt: `rcpt_${userId.substring(0, 4)}_${Date.now()}`
         };
+
+        // Detailed logging for debugging
+        console.log("Attempting to create Razorpay order with options:", JSON.stringify(options, null, 2));
+
 
         const order = await razorpay.orders.create(options);
         
