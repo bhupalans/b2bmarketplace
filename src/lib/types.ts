@@ -133,7 +133,7 @@ export type SubscriptionPlan = {
   id: string;
   name: string;
   price: number;
-  currency: 'USD';
+  currency: string;
   type: 'seller' | 'buyer'; // Differentiates plan type
   productLimit?: number; // For sellers. Use -1 for unlimited.
   sourcingRequestLimit?: number; // For buyers. Use -1 for unlimited.

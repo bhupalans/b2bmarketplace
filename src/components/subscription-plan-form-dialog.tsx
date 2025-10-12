@@ -53,6 +53,7 @@ export function SubscriptionPlanFormDialog({ open, onOpenChange, planId, onSucce
   const planSchema = z.object({
     name: z.string().min(3, 'Plan name must be at least 3 characters.').refine(name => !planNameExists(name), 'A plan with this name already exists.'),
     price: z.coerce.number().min(0, 'Price must be a non-negative number.'),
+    currency: z.string().min(3, 'Currency code is required (e.g., USD, INR).').max(3, 'Currency code must be 3 letters.'),
     type: z.enum(['seller', 'buyer']),
     productLimit: z.coerce.number().int('Limit must be a whole number.').min(-1, 'Limit must be -1 or greater.').optional(),
     sourcingRequestLimit: z.coerce.number().int('Limit must be a whole number.').min(-1, 'Limit must be -1 or greater.').optional(),
@@ -82,6 +83,7 @@ export function SubscriptionPlanFormDialog({ open, onOpenChange, planId, onSucce
     defaultValues: {
       name: '',
       price: 0,
+      currency: 'USD',
       type: 'seller',
       productLimit: 0,
       sourcingRequestLimit: 0,
@@ -106,6 +108,7 @@ export function SubscriptionPlanFormDialog({ open, onOpenChange, planId, onSucce
           form.reset({
               ...plan,
               type: plan.type || 'seller', // Default old plans to 'seller'
+              currency: plan.currency || 'USD',
           });
         }
         setIsLoading(false);
@@ -113,6 +116,7 @@ export function SubscriptionPlanFormDialog({ open, onOpenChange, planId, onSucce
         form.reset({
           name: '',
           price: 0,
+          currency: 'USD',
           type: 'seller',
           productLimit: 0,
           sourcingRequestLimit: 0,
@@ -131,7 +135,7 @@ export function SubscriptionPlanFormDialog({ open, onOpenChange, planId, onSucce
   const onSubmit = async (values: z.infer<typeof planSchema>) => {
     setIsSaving(true);
     try {
-      const savedPlan = await createOrUpdateSubscriptionPlanClient({ ...values, currency: 'USD' }, planId);
+      const savedPlan = await createOrUpdateSubscriptionPlanClient({ ...values, currency: values.currency.toUpperCase() }, planId);
       toast({
         title: planId ? 'Plan Updated' : 'Plan Created',
         description: `The plan "${savedPlan.name}" has been saved.`,
@@ -193,8 +197,7 @@ export function SubscriptionPlanFormDialog({ open, onOpenChange, planId, onSucce
                     )}
                 />
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
+                <FormField
                     control={form.control}
                     name="name"
                     render={({ field }) => (
@@ -206,15 +209,29 @@ export function SubscriptionPlanFormDialog({ open, onOpenChange, planId, onSucce
                         <FormMessage />
                         </FormItem>
                     )}
-                    />
+                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                     control={form.control}
                     name="price"
                     render={({ field }) => (
                         <FormItem>
-                        <FormLabel>Price (USD per month)</FormLabel>
+                        <FormLabel>Price</FormLabel>
                         <FormControl>
                             <Input type="number" step="0.01" placeholder="e.g., 49.99" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                    <FormField
+                    control={form.control}
+                    name="currency"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Currency</FormLabel>
+                        <FormControl>
+                            <Input placeholder="e.g., USD" {...field} />
                         </FormControl>
                         <FormMessage />
                         </FormItem>
