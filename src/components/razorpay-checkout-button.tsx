@@ -9,7 +9,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { createRazorpayOrder, verifyRazorpayPayment } from '@/services/payments/razorpay';
 import { useAuth } from '@/contexts/auth-context';
-import getConfig from 'next/config';
 
 declare const Razorpay: any;
 
@@ -29,8 +28,7 @@ export function RazorpayCheckoutButton({ plan, user }: { plan: SubscriptionPlan,
                     throw new Error(orderResult.error);
                 }
 
-                const { publicRuntimeConfig } = getConfig();
-                const razorpayKeyId = publicRuntimeConfig.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+                const razorpayKeyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
 
                 if (!razorpayKeyId) {
                     throw new Error("Razorpay Key ID is not configured. Please check server environment variables.");

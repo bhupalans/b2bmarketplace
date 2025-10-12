@@ -54,10 +54,6 @@ const nextConfig: NextConfig = {
       }
     ],
   },
-  publicRuntimeConfig: {
-    // Make the Razorpay Key ID available at runtime
-    NEXT_PUBLIC_RAZORPAY_KEY_ID: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-  },
 };
 
 export default nextConfig;
