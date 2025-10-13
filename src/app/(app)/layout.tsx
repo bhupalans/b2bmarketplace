@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building, Home, PanelLeft, Loader2, LayoutDashboard, Package, Shield, FileText, FolderTree, MessageSquare, MessagesSquare, Gavel, CheckSquare, Settings, ShieldCheck, Database, Search, Handshake, Gem } from "lucide-react";
+import { Building, Home, PanelLeft, Loader2, LayoutDashboard, Package, Shield, FileText, FolderTree, MessageSquare, Handshake, Gem, List } from "lucide-react";
 import {
   SidebarProvider,
   Sidebar,
@@ -15,8 +15,6 @@ import {
   SidebarFooter,
   SidebarInset,
   SidebarTrigger,
-  SidebarGroup,
-  SidebarGroupLabel,
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
@@ -311,20 +309,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>
-          <UserNav />
+          {/* This is intentionally empty to remove the redundant UserNav from the bottom */}
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
          <div className="flex flex-col min-h-screen">
-            <header className={cn("sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6", isMessagesPage && "hidden", pathname !== '/' && 'sm:hidden')}>
-              <SidebarTrigger className="sm:hidden" />
+            <header className={cn("sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-6", isMessagesPage && "hidden")}>
+              <SidebarTrigger />
               <div className="flex-1" />
-              <div className="hidden sm:flex items-center gap-4">
+              <div className="flex items-center gap-4">
                 <CurrencySwitcher />
                 <UserNav />
               </div>
             </header>
-            <main className={cn("flex-1", isMessagesPage ? 'p-0' : "p-4 sm:px-6 sm:py-0", pathname === '/' && 'p-0 sm:p-0')}>{children}</main>
+            <main className={cn("flex-1", isMessagesPage ? 'p-0' : "p-4 sm:p-6")}>{children}</main>
             <AppFooter />
         </div>
       </SidebarInset>

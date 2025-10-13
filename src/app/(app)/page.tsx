@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import homePageImages from "@/lib/placeholder-images.json";
 import { formatDistanceToNow } from "date-fns";
 import { useCurrency } from "@/contexts/currency-context";
+import { cn } from "@/lib/utils";
 
 const iconMap: { [key: string]: React.ElementType } = {
     "Industrial Supplies": Building,
@@ -95,7 +96,7 @@ export default function HomePage() {
   return (
     <div className="space-y-12 md:space-y-20">
       {/* Hero Section */}
-      <section className="relative -mx-4 sm:-mx-6 mt-[-1rem] sm:mt-[-1.5rem] flex h-[60vh] max-h-[600px] min-h-[400px] items-center justify-center text-center">
+      <section className="relative -mx-4 sm:-mx-6 flex h-[60vh] max-h-[600px] min-h-[400px] items-center justify-center text-center">
         <div className="absolute inset-0 bg-black/50 z-10" />
         <Image
           src={homePageImages.hero.src}
