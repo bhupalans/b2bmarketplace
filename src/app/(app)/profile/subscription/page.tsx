@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useCurrency } from '@/contexts/currency-context';
 
 
 const PlanFeature = ({ children }: { children: React.ReactNode }) => (
@@ -25,6 +26,7 @@ const PlanFeature = ({ children }: { children: React.ReactNode }) => (
 export default function SubscriptionPage() {
     const { user, firebaseUser, loading: authLoading, revalidateUser } = useAuth();
     const router = useRouter();
+    const { currency, rates } = useCurrency();
     const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
     const [sourcingRequests, setSourcingRequests] = useState<SourcingRequest[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
@@ -106,6 +108,17 @@ export default function SubscriptionPage() {
     }
     
     const currentPlan = user?.subscriptionPlan;
+
+    const getConvertedPrice = (price: number, planCurrency: string) => {
+        if (currency === planCurrency) {
+            return price;
+        }
+        // Step 1: Convert plan price to USD
+        const priceInUSD = price / (rates[planCurrency] || 1);
+        // Step 2: Convert from USD to selected currency
+        const rate = rates[currency] || 1;
+        return priceInUSD * rate;
+    }
     
     return (
         <div className="max-w-5xl mx-auto space-y-8">
@@ -134,6 +147,12 @@ export default function SubscriptionPage() {
                 {plans.map(plan => {
                     const isCurrentPlan = user?.subscriptionPlanId === plan.id;
                     const isProcessingThisPlan = isSubmitting && selectedPlanId === plan.id;
+                    const displayPrice = getConvertedPrice(plan.price, plan.currency);
+                    const formattedDisplayPrice = new Intl.NumberFormat(undefined, {
+                        style: 'currency',
+                        currency: currency,
+                    }).format(displayPrice);
+
                     return (
                     <Card key={plan.id} className={cn("flex flex-col", plan.isFeatured && "border-primary shadow-lg", isCurrentPlan && "ring-2 ring-primary")}>
                         {plan.isFeatured && (
@@ -145,12 +164,10 @@ export default function SubscriptionPage() {
                             <CardTitle className="text-2xl">{plan.name}</CardTitle>
                             <CardDescription>
                                 <span className="text-4xl font-bold text-foreground">
-                                    {new Intl.NumberFormat('en-US', {
-                                        style: 'currency',
-                                        currency: plan.currency || 'USD',
-                                    }).format(plan.price)}
+                                    {formattedDisplayPrice}
                                 </span>
                                 <span className="text-muted-foreground"> / month</span>
+                                {currency !== plan.currency && <p className="text-xs text-muted-foreground">(Billed as {plan.price} {plan.currency})</p>}
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="flex-grow space-y-3">

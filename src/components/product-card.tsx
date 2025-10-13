@@ -53,7 +53,7 @@ export function ProductCard({ product }: ProductCardProps) {
 
 
   const getConvertedPrice = () => {
-    if (currency === "USD") {
+    if (currency === "USD" || !rates[currency]) {
       return product.priceUSD;
     }
     const rate = rates[currency] || 1;

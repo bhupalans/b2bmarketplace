@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import homePageImages from "@/lib/placeholder-images.json";
 import { formatDistanceToNow } from "date-fns";
+import { useCurrency } from "@/contexts/currency-context";
 
 const iconMap: { [key: string]: React.ElementType } = {
     "Industrial Supplies": Building,
@@ -24,8 +25,25 @@ const iconMap: { [key: string]: React.ElementType } = {
 };
 
 const SourcingRequestCard = ({ request }: { request: SourcingRequest }) => {
+    const { currency, rates } = useCurrency();
     const expiresAtDate = typeof request.expiresAt === 'string' ? new Date(request.expiresAt) : request.expiresAt.toDate();
     
+    const getConvertedTargetPrice = () => {
+        if (!request.targetPriceUSD) return null;
+        if (currency === "USD" || !rates[currency]) {
+          return request.targetPriceUSD;
+        }
+        return request.targetPriceUSD * rates[currency];
+    };
+    
+    const convertedPrice = getConvertedTargetPrice();
+    const formattedPrice = convertedPrice ? new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: currency,
+        notation: "compact"
+    }).format(convertedPrice) : null;
+
+
     return (
         <Card className="flex flex-col h-full">
             <CardHeader>
@@ -35,9 +53,10 @@ const SourcingRequestCard = ({ request }: { request: SourcingRequest }) => {
                      </Link>
                 </CardTitle>
             </CardHeader>
-            <CardContent className="flex-grow text-sm">
+            <CardContent className="flex-grow text-sm space-y-1">
                 <p>Quantity: <span className="font-semibold">{request.quantity.toLocaleString()} {request.quantityUnit}</span></p>
                 <p>Country: <span className="font-semibold">{request.buyerCountry}</span></p>
+                {formattedPrice && <p>Target Price: <span className="font-semibold">~{formattedPrice} / {request.quantityUnit.slice(0, -1)}</span></p>}
             </CardContent>
             <CardContent className="text-xs text-muted-foreground">
                 Expires in {formatDistanceToNow(expiresAtDate)}
