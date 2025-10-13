@@ -3,7 +3,6 @@
 
 import React, { useState, useMemo } from "react";
 import { ProductCard } from "@/components/product-card";
-import { CurrencySwitcher } from "@/components/currency-switcher";
 import { CategorySidebar } from "@/components/category-sidebar";
 import { Category, Product } from "@/lib/types";
 import { Input } from "@/components/ui/input";
@@ -90,7 +89,6 @@ export default function ProductsPage() {
               </p>
             )}
           </div>
-          <CurrencySwitcher />
         </div>
         
         <div className="relative">

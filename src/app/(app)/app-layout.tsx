@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -31,6 +32,7 @@ import {
   CollapsibleTrigger,
 } from "./ui/collapsible";
 import { cn } from "@/lib/utils";
+import { CurrencySwitcher } from "@/components/currency-switcher";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -314,7 +316,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <header className={cn("sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6", isMessagesPage && "hidden", pathname !== '/' && 'sm:hidden')}>
           <SidebarTrigger className="sm:hidden" />
           <div className="flex-1" />
-          <div className="hidden sm:block">
+          <div className="hidden sm:flex items-center gap-4">
+            <CurrencySwitcher />
             <UserNav />
           </div>
         </header>
