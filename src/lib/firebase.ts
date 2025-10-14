@@ -25,7 +25,7 @@ const db = getFirestore(app);
 const storage = getStorage(app);
 
 // Helper function to convert Timestamps in an object to strings
-const convertTimestamps = (data: any): any => {
+export const convertTimestamps = (data: any): any => {
     if (!data) return data;
     const newData: { [key: string]: any } = { ...data };
     for (const key in newData) {
@@ -1311,38 +1311,39 @@ export async function getSubscriptionPlansClient(): Promise<SubscriptionPlan[]> 
 }
 
 export async function createOrUpdateSubscriptionPlanClient(
-  planData: Partial<Omit<SubscriptionPlan, 'id'>>,
+  planData: Partial<Omit<SubscriptionPlan, 'id' | 'price' | 'currency'>>,
   planId?: string | null
 ): Promise<SubscriptionPlan> {
-  const dataToSave: any = {
-    name: planData.name,
-    pricing: (planData.pricing || []).filter((p, index) => index > 0 ? !!p.country : true),
-    type: planData.type,
-    hasAnalytics: planData.hasAnalytics,
-    isFeatured: planData.isFeatured,
-    status: planData.status,
-    updatedAt: Timestamp.now(),
-  };
+    const dataToSave: any = {
+        name: planData.name,
+        pricing: (planData.pricing || []).filter(p => p.country || (p.price !== undefined && p.currency)),
+        type: planData.type,
+        hasAnalytics: planData.hasAnalytics,
+        isFeatured: planData.isFeatured,
+        status: planData.status,
+        updatedAt: Timestamp.now(),
+    };
 
-  if (planData.type === 'seller') {
-      dataToSave.productLimit = planData.productLimit ?? 0;
-      dataToSave.sourcingRequestLimit = null;
-  } else {
-      dataToSave.sourcingRequestLimit = planData.sourcingRequestLimit ?? 0;
-      dataToSave.productLimit = null;
-  }
+    if (planData.type === 'seller') {
+        dataToSave.productLimit = planData.productLimit ?? 0;
+        dataToSave.sourcingRequestLimit = null;
+    } else if (planData.type === 'buyer') {
+        dataToSave.sourcingRequestLimit = planData.sourcingRequestLimit ?? 0;
+        dataToSave.productLimit = null;
+    }
 
-  if (planId) {
-    const planRef = doc(db, 'subscriptionPlans', planId);
-    await updateDoc(planRef, dataToSave);
-    const updatedDoc = await getDocClient(planRef);
-    return { id: planId, ...updatedDoc.data() } as SubscriptionPlan;
-  } else {
-    dataToSave.createdAt = Timestamp.now();
-    const docRef = await addDoc(collection(db, 'subscriptionPlans'), dataToSave);
-    const newDoc = await getDocClient(docRef);
-    return { id: docRef.id, ...newDoc.data() } as SubscriptionPlan;
-  }
+
+    if (planId) {
+        const planRef = doc(db, 'subscriptionPlans', planId);
+        await updateDoc(planRef, dataToSave);
+        const updatedDoc = await getDocClient(planRef);
+        return { id: planId, ...updatedDoc.data() } as SubscriptionPlan;
+    } else {
+        dataToSave.createdAt = Timestamp.now();
+        const docRef = await addDoc(collection(db, 'subscriptionPlans'), dataToSave);
+        const newDoc = await getDocClient(docRef);
+        return { id: docRef.id, ...newDoc.data() } as SubscriptionPlan;
+    }
 }
 
 

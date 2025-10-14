@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { Loader2 } from 'lucide-react';
 import { SourcingRequest, User, Category } from '@/lib/types';
-import { getUsersClient, getCategoriesClient } from '@/lib/firebase';
+import { getUsersClient, getCategoriesClient, convertTimestamps } from '@/lib/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { SourcingApprovalsClientPage } from './client-page';
@@ -40,7 +40,10 @@ export default function AdminSourcingApprovalsPage() {
 
     const q = query(collection(db, "sourcingRequests"), where("status", "==", "pending"));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const pendingRequests = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SourcingRequest));
+        const pendingRequests = querySnapshot.docs.map(doc => {
+            const data = convertTimestamps(doc.data());
+            return { id: doc.id, ...data } as SourcingRequest;
+        });
         setRequests(pendingRequests);
         setLoading(false);
     }, (error) => {

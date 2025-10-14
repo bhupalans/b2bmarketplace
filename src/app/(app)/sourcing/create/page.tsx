@@ -110,10 +110,10 @@ export default function CreateSourcingRequestPage() {
         }
         const newRequest = await createSourcingRequestClient(requestData, user);
         toast({
-          title: "Request Posted",
-          description: "Your sourcing request is now live for sellers to view.",
+          title: "Request Submitted",
+          description: "Your sourcing request is pending admin review.",
         });
-        router.push(`/sourcing/${newRequest.id}`);
+        router.push(`/sourcing/my-requests`);
       } catch (error: any) {
         toast({
           variant: "destructive",
