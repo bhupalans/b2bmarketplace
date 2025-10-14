@@ -21,6 +21,7 @@ interface DeleteConfirmationDialogProps {
   onConfirm: () => void;
   itemName?: string | null;
   itemType: string;
+  isDeleting?: boolean;
 }
 
 export function DeleteConfirmationDialog({
@@ -29,26 +30,8 @@ export function DeleteConfirmationDialog({
   onConfirm,
   itemName,
   itemType,
+  isDeleting = false,
 }: DeleteConfirmationDialogProps) {
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  useEffect(() => {
-    if (!open) {
-      setIsDeleting(false);
-    }
-  }, [open]);
-
-  const handleConfirm = async () => {
-    setIsDeleting(true);
-    try {
-      await onConfirm();
-    } finally {
-      // The parent component should handle closing the dialog on success
-      // so we don't prematurely hide the loading state.
-      // We'll reset our internal state regardless.
-      setIsDeleting(false);
-    }
-  };
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -66,7 +49,7 @@ export function DeleteConfirmationDialog({
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction
-            onClick={handleConfirm}
+            onClick={onConfirm}
             disabled={isDeleting}
             className="bg-destructive hover:bg-destructive/90"
           >

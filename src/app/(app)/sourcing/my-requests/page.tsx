@@ -30,7 +30,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, PlusCircle, MoreHorizontal, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
 import { DeleteConfirmationDialog } from '@/components/delete-confirmation-dialog';
 import Link from 'next/link';
 
@@ -154,7 +154,7 @@ export default function MySourcingRequestsPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem
-                              disabled={request.status !== 'pending'}
+                              disabled={request.status === 'active'}
                               onClick={() => handleDeleteInitiate(request)}
                               className="text-red-500 focus:text-red-600"
                             >
@@ -184,6 +184,7 @@ export default function MySourcingRequestsPage() {
         onConfirm={handleDeleteConfirm}
         itemType="sourcing request"
         itemName={requestToDelete?.title}
+        isDeleting={isDeleting}
       />
     </>
   );
