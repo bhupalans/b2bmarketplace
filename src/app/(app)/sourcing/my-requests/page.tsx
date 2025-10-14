@@ -1,10 +1,10 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useTransition } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { SourcingRequest } from '@/lib/types';
-import { getSourcingRequestsClient, deleteSourcingRequestClient } from '@/lib/firebase';
+import { getSourcingRequestsClient, deleteSourcingRequestClient, closeSourcingRequestClient } from '@/lib/firebase';
 import {
   Card,
   CardContent,
@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, PlusCircle, MoreHorizontal, Trash2, Edit } from 'lucide-react';
+import { Loader2, PlusCircle, MoreHorizontal, Trash2, Edit, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { DeleteConfirmationDialog } from '@/components/delete-confirmation-dialog';
@@ -40,7 +40,8 @@ export default function MySourcingRequestsPage() {
   const [requests, setRequests] = useState<SourcingRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [requestToDelete, setRequestToDelete] = useState<SourcingRequest | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleting, startDeleteTransition] = useTransition();
+  const [isClosing, startCloseTransition] = useTransition();
 
   const fetchRequests = useCallback(async (buyerId: string) => {
     try {
@@ -67,18 +68,30 @@ export default function MySourcingRequestsPage() {
 
   const handleDeleteConfirm = async () => {
     if (!requestToDelete) return;
-    setIsDeleting(true);
-    try {
-      await deleteSourcingRequestClient(requestToDelete.id);
-      setRequests(prev => prev.filter(r => r.id !== requestToDelete.id));
-      toast({ title: 'Request Deleted', description: 'Your sourcing request has been removed.' });
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Error Deleting Request', description: error.message });
-    } finally {
-      setIsDeleting(false);
-      setRequestToDelete(null);
-    }
+    startDeleteTransition(async () => {
+        try {
+            await deleteSourcingRequestClient(requestToDelete.id);
+            setRequests(prev => prev.filter(r => r.id !== requestToDelete.id));
+            toast({ title: 'Request Deleted', description: 'Your sourcing request has been removed.' });
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Error Deleting Request', description: error.message });
+        } finally {
+            setRequestToDelete(null);
+        }
+    });
   };
+
+  const handleCloseRequest = (request: SourcingRequest) => {
+      startCloseTransition(async () => {
+          try {
+              await closeSourcingRequestClient(request.id);
+              setRequests(prev => prev.map(r => r.id === request.id ? { ...r, status: 'closed'} : r));
+              toast({ title: 'Request Closed', description: 'Your request is no longer visible to sellers.' });
+          } catch (error: any) {
+              toast({ variant: 'destructive', title: 'Error Closing Request', description: error.message });
+          }
+      });
+  }
 
   const getStatusVariant = (status: SourcingRequest['status']) => {
     switch (status) {
@@ -147,7 +160,7 @@ export default function MySourcingRequestsPage() {
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
+                            <Button variant="ghost" className="h-8 w-8 p-0" disabled={isClosing || isDeleting}>
                               <span className="sr-only">Open menu</span>
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
@@ -159,6 +172,12 @@ export default function MySourcingRequestsPage() {
                                      <Edit className="mr-2 h-4 w-4" />
                                      <span>Edit</span>
                                    </Link>
+                                </DropdownMenuItem>
+                            )}
+                            {request.status === 'active' && (
+                                <DropdownMenuItem onClick={() => handleCloseRequest(request)}>
+                                    <XCircle className="mr-2 h-4 w-4" />
+                                    <span>Close Request</span>
                                 </DropdownMenuItem>
                             )}
                             {request.status !== 'active' && (

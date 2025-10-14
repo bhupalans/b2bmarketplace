@@ -1202,6 +1202,11 @@ export async function updateSourcingRequestClient(
     return { id: updatedDoc.id, ...convertTimestamps(updatedDoc.data()) } as SourcingRequest;
 }
 
+export async function closeSourcingRequestClient(requestId: string): Promise<void> {
+  const requestRef = doc(db, 'sourcingRequests', requestId);
+  await updateDoc(requestRef, { status: 'closed' });
+}
+
 
 export async function deleteSourcingRequestClient(requestId: string): Promise<void> {
   const requestRef = doc(db, 'sourcingRequests', requestId);
