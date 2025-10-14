@@ -1,12 +1,12 @@
 
 "use client";
 
-import React, { useState, useTransition, useEffect } from "react";
+import React, { useState, useTransition, useEffect, Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useAuth } from "@/contexts/auth-context";
-import { createSourcingRequestClient, getActiveCategoriesClient, getSourcingRequestsClient } from "@/lib/firebase";
+import { createSourcingRequestClient, getActiveCategoriesClient, getSourcingRequestsClient, getSourcingRequestClient, updateSourcingRequestClient } from "@/lib/firebase";
 import { Category, SourcingRequest } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,8 +36,8 @@ import {
 } from "@/components/ui/select";
 import { Loader2, AlertTriangle, Gem } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useRouter } from "next/navigation";
-import { add } from "date-fns";
+import { useRouter, useSearchParams } from "next/navigation";
+import { add, differenceInDays } from "date-fns";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from "next/link";
 
@@ -53,34 +53,19 @@ const requestSchema = z.object({
 
 type SourcingRequestFormData = z.infer<typeof requestSchema>;
 
-export default function CreateSourcingRequestPage() {
+function CreateSourcingRequestForm() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestId = searchParams.get('id');
+
   const [isSubmitting, startTransition] = useTransition();
   const [categories, setCategories] = useState<Category[]>([]);
   const [sourcingRequests, setSourcingRequests] = useState<SourcingRequest[]>([]);
   const [loadingInitialData, setLoadingInitialData] = useState(true);
 
-  useEffect(() => {
-    if (!user) return;
-    async function fetchData() {
-        try {
-            const [cats, reqs] = await Promise.all([
-                getActiveCategoriesClient(),
-                getSourcingRequestsClient({ buyerId: user.uid }),
-            ]);
-            setCategories(cats);
-            setSourcingRequests(reqs);
-        } catch (error) {
-            console.error("Error fetching create request data:", error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not load necessary data.' });
-        } finally {
-            setLoadingInitialData(false);
-        }
-    }
-    fetchData();
-  }, [user, toast]);
+  const isEditMode = !!requestId;
 
   const form = useForm<SourcingRequestFormData>({
     resolver: zodResolver(requestSchema),
@@ -95,9 +80,49 @@ export default function CreateSourcingRequestPage() {
     },
   });
 
+  useEffect(() => {
+    if (!user) return;
+
+    async function fetchData() {
+        try {
+            const [cats, reqs] = await Promise.all([
+                getActiveCategoriesClient(),
+                getSourcingRequestsClient({ buyerId: user.uid }),
+            ]);
+            setCategories(cats);
+            setSourcingRequests(reqs);
+
+            if (isEditMode) {
+                const requestToEdit = await getSourcingRequestClient(requestId);
+                if (requestToEdit && requestToEdit.buyerId === user.uid) {
+                    const expiresAt = new Date(requestToEdit.expiresAt as string);
+                    const createdAt = new Date(requestToEdit.createdAt as string);
+                    const expiresInDays = differenceInDays(expiresAt, createdAt);
+
+                    form.reset({
+                        ...requestToEdit,
+                        targetPriceUSD: requestToEdit.targetPriceUSD || undefined,
+                        expiresInDays: expiresInDays > 0 ? expiresInDays : 1,
+                    });
+                } else {
+                    toast({ variant: 'destructive', title: 'Error', description: 'Could not find the request to edit.' });
+                    router.push('/sourcing/my-requests');
+                }
+            }
+
+        } catch (error) {
+            console.error("Error fetching create request data:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not load necessary data.' });
+        } finally {
+            setLoadingInitialData(false);
+        }
+    }
+    fetchData();
+  }, [user, requestId, isEditMode, toast, router, form]);
+
   const onSubmit = (values: SourcingRequestFormData) => {
     if (!user || user.role !== 'buyer') {
-      toast({ variant: 'destructive', title: 'Unauthorized', description: 'Only buyers can post sourcing requests.' });
+      toast({ variant: 'destructive', title: 'Unauthorized', description: 'Only buyers can perform this action.' });
       return;
     }
 
@@ -108,11 +133,21 @@ export default function CreateSourcingRequestPage() {
             ...values,
             expiresAt,
         }
-        const newRequest = await createSourcingRequestClient(requestData, user);
-        toast({
-          title: "Request Submitted",
-          description: "Your sourcing request is pending admin review.",
-        });
+        
+        if (isEditMode) {
+            await updateSourcingRequestClient(requestId, requestData);
+            toast({
+              title: "Request Updated",
+              description: "Your sourcing request has been updated and is pending review.",
+            });
+        } else {
+            await createSourcingRequestClient(requestData, user);
+            toast({
+              title: "Request Submitted",
+              description: "Your sourcing request is pending admin review.",
+            });
+        }
+        
         router.push(`/sourcing/my-requests`);
       } catch (error: any) {
         toast({
@@ -134,14 +169,14 @@ export default function CreateSourcingRequestPage() {
   
   const limit = user?.subscriptionPlan?.sourcingRequestLimit ?? 0;
   const count = sourcingRequests.length;
-  const canPost = limit === -1 || count < limit;
+  const canPost = isEditMode || limit === -1 || count < limit;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Post a Sourcing Request</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{isEditMode ? 'Edit Sourcing Request' : 'Post a Sourcing Request'}</h1>
         <p className="text-muted-foreground">
-          Let suppliers find you. Describe what you need, and get quotes directly.
+          {isEditMode ? 'Update the details of your request below.' : 'Let suppliers find you. Describe what you need, and get quotes directly.'}
         </p>
       </div>
 
@@ -267,7 +302,7 @@ export default function CreateSourcingRequestPage() {
                             <FormItem>
                             <FormLabel>Target Price per Unit (USD)</FormLabel>
                             <FormControl>
-                                <Input type="number" step="0.01" placeholder="Optional" {...field} />
+                                <Input type="number" step="0.01" placeholder="Optional" {...field} value={field.value || ''} />
                             </FormControl>
                             <FormDescription>Your ideal price, if you have one.</FormDescription>
                             <FormMessage />
@@ -280,7 +315,7 @@ export default function CreateSourcingRequestPage() {
                         render={({ field }) => (
                             <FormItem>
                             <FormLabel>Request Active For</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={String(field.value)}>
+                                <Select onValueChange={field.onChange} value={String(field.value)}>
                                     <FormControl>
                                         <SelectTrigger>
                                             <SelectValue />
@@ -305,7 +340,7 @@ export default function CreateSourcingRequestPage() {
             <div className="flex justify-end">
                 <Button type="submit" size="lg" disabled={!canPost || isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Post Sourcing Request
+                {isEditMode ? 'Update Request' : 'Post Sourcing Request'}
                 </Button>
             </div>
           </fieldset>
@@ -313,4 +348,12 @@ export default function CreateSourcingRequestPage() {
       </Form>
     </div>
   );
+}
+
+export default function CreateSourcingRequestPage() {
+    return (
+        <Suspense fallback={<div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+            <CreateSourcingRequestForm />
+        </Suspense>
+    )
 }

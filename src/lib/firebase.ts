@@ -1184,6 +1184,25 @@ export async function getSourcingRequestClient(id: string): Promise<SourcingRequ
     return { id: docSnap.id, ...convertTimestamps(docSnap.data()) } as SourcingRequest;
 }
 
+export async function updateSourcingRequestClient(
+    requestId: string, 
+    requestData: Partial<Omit<SourcingRequest, 'id' | 'buyerId' | 'buyerName' | 'buyerCountry' | 'createdAt'>>
+): Promise<SourcingRequest> {
+    const requestRef = doc(db, 'sourcingRequests', requestId);
+    
+    const dataToUpdate: any = {
+        ...requestData,
+        status: 'pending', // Re-submit for review on edit
+        updatedAt: serverTimestamp(),
+    };
+    
+    await updateDoc(requestRef, dataToUpdate);
+
+    const updatedDoc = await getDocClient(requestRef);
+    return { id: updatedDoc.id, ...convertTimestamps(updatedDoc.data()) } as SourcingRequest;
+}
+
+
 export async function deleteSourcingRequestClient(requestId: string): Promise<void> {
   const requestRef = doc(db, 'sourcingRequests', requestId);
   await deleteDoc(requestRef);

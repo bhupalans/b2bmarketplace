@@ -155,7 +155,7 @@ export default function MySourcingRequestsPage() {
                           <DropdownMenuContent align="end">
                             {request.status === 'pending' && (
                                 <DropdownMenuItem asChild>
-                                   <Link href="/sourcing/create">
+                                   <Link href={`/sourcing/create?id=${request.id}`}>
                                      <Edit className="mr-2 h-4 w-4" />
                                      <span>Edit</span>
                                    </Link>
