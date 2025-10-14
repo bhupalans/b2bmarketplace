@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useTransition } from 'react';
+import React, { useState, useTransition, useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -19,7 +19,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Check, X, Loader2, FileSearch } from "lucide-react";
-import { SourcingRequest, User, Category } from '@/lib/types';
+import { SourcingRequest, User, Category, AppNotification } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 import {
@@ -33,8 +33,9 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { format, parseISO } from 'date-fns';
 import { RejectionReasonDialog } from '@/components/rejection-reason-dialog';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { collection } from 'firebase/firestore';
 
 interface AdminSourcingApprovalsClientPageProps {
     initialRequests: SourcingRequest[];
@@ -45,7 +46,8 @@ interface AdminSourcingApprovalsClientPageProps {
 export function SourcingApprovalsClientPage({ initialRequests, initialUsers, initialCategories }: AdminSourcingApprovalsClientPageProps) {
   const [pendingRequests, setPendingRequests] = useState<SourcingRequest[]>(initialRequests);
   const [users] = useState<User[]>(initialUsers);
-  const [categories] = useState<Category[]>(initialCategories);
+  const categoryMap = useMemo(() => new Map(initialCategories.map(c => [c.id, c])), [initialCategories]);
+
   const [processingState, setProcessingState] = useState<'approving' | 'rejecting' | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -53,7 +55,7 @@ export function SourcingApprovalsClientPage({ initialRequests, initialUsers, ini
   const [isPending, startTransition] = useTransition();
   const [rejectingRequest, setRejectingRequest] = useState<SourcingRequest | null>(null);
 
-  const handleAction = async (action: 'approve' | 'reject', requestId: string, reason?: string) => {
+  const handleAction = async (action: 'approve' | 'reject', request: SourcingRequest, reason?: string) => {
     setProcessingState(action === 'approve' ? 'approving' : 'rejecting');
     startTransition(async () => {
         if (!user || user.role !== 'admin') {
@@ -63,22 +65,32 @@ export function SourcingApprovalsClientPage({ initialRequests, initialUsers, ini
         }
 
         try {
-            const requestRef = doc(db, 'sourcingRequests', requestId);
-            
-            let updateData: { status: 'active' | 'closed', rejectionReason?: string } = {
-              status: action === 'approve' ? 'active' : 'closed',
+            const batch = writeBatch(db);
+            const requestRef = doc(db, 'sourcingRequests', request.id);
+
+            const updateData: { status: 'active' | 'closed'; rejectionReason?: string } = {
+                status: action === 'approve' ? 'active' : 'closed',
             };
-            
+
             if (action === 'reject' && reason) {
                 updateData.rejectionReason = reason;
-            } else {
-                // To comply with strict hasOnly rules, ensure the key doesn't exist if not rejecting.
-                delete updateData.rejectionReason;
-            }
 
-            await updateDoc(requestRef, updateData);
+                // Create a notification for the buyer
+                const notificationRef = doc(collection(db, 'notifications'));
+                const notificationData: Omit<AppNotification, 'id'> = {
+                    userId: request.buyerId,
+                    message: `Your sourcing request "${request.title}" was rejected. Reason: ${reason}`,
+                    link: `/sourcing/my-requests`,
+                    read: false,
+                    createdAt: new Date().toISOString(),
+                };
+                batch.set(notificationRef, notificationData);
+            }
             
-            setPendingRequests(prev => prev.filter(r => r.id !== requestId));
+            batch.update(requestRef, updateData);
+            await batch.commit();
+            
+            setPendingRequests(prev => prev.filter(r => r.id !== request.id));
             toast({
                 title: `Request ${action}d`,
                 description: `The sourcing request has been successfully ${action}d.`,
@@ -102,9 +114,10 @@ export function SourcingApprovalsClientPage({ initialRequests, initialUsers, ini
   };
   
   const getCategoryPath = (categoryId: string): string => {
+    if (!categoryMap || categoryMap.size === 0) return 'N/A';
+    
     const path: string[] = [];
     let currentId: string | null = categoryId;
-    const categoryMap = new Map(categories.map(c => [c.id, c]));
 
     while (currentId) {
         const category = categoryMap.get(currentId);
@@ -134,7 +147,7 @@ export function SourcingApprovalsClientPage({ initialRequests, initialUsers, ini
 
   const handleConfirmRejection = (reason: string) => {
     if (rejectingRequest) {
-        handleAction('reject', rejectingRequest.id, reason);
+        handleAction('reject', rejectingRequest, reason);
     }
     setRejectingRequest(null);
   };
@@ -248,7 +261,7 @@ export function SourcingApprovalsClientPage({ initialRequests, initialUsers, ini
                 </Button>
                 <Button 
                     className="bg-green-600 hover:bg-green-700"
-                    onClick={() => handleAction('approve', reviewingRequest.id)}
+                    onClick={() => handleAction('approve', reviewingRequest)}
                     disabled={!!processingState}
                 >
                     {processingState === 'approving' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
@@ -269,3 +282,5 @@ export function SourcingApprovalsClientPage({ initialRequests, initialUsers, ini
     </div>
   );
 }
+
+    
