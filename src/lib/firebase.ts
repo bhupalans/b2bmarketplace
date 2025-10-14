@@ -1148,7 +1148,7 @@ export async function createSourcingRequestClient(
         buyerId: buyer.uid,
         buyerName: buyer.companyName || buyer.name,
         buyerCountry: buyer.address.country,
-        status: 'active',
+        status: 'pending',
         createdAt: serverTimestamp() as Timestamp,
     };
     
@@ -1163,7 +1163,7 @@ export async function getSourcingRequestsClient(filters?: { buyerId?: string }):
     let q;
 
     if (filters?.buyerId) {
-        // This query fetches all requests for a specific buyer, regardless of status/expiry, for their dashboard.
+        // This query fetches all requests for a specific buyer, regardless of status/expiry.
         q = query(requestsRef, where("buyerId", "==", filters.buyerId), orderBy("createdAt", "desc"));
     } else {
         // This is the public query for browsing active sourcing requests.
@@ -1305,13 +1305,28 @@ export async function getSubscriptionPlansClient(): Promise<SubscriptionPlan[]> 
 }
 
 export async function createOrUpdateSubscriptionPlanClient(
-  planData: Omit<SubscriptionPlan, 'id'>,
+  planData: Partial<Omit<SubscriptionPlan, 'id'>>,
   planId?: string | null
 ): Promise<SubscriptionPlan> {
-  const dataToSave = {
-    ...planData,
+
+  // This is the robust way to build the data object to prevent 'undefined' values
+  const dataToSave: any = {
+    name: planData.name,
+    type: planData.type,
+    pricing: (planData.pricing || []).filter(p => p.country || (p.price !== undefined && p.currency)),
+    hasAnalytics: planData.hasAnalytics,
+    isFeatured: planData.isFeatured,
+    status: planData.status,
     updatedAt: Timestamp.now(),
   };
+
+  if (planData.type === 'seller') {
+    dataToSave.productLimit = planData.productLimit ?? 0;
+    dataToSave.sourcingRequestLimit = null;
+  } else { // buyer
+    dataToSave.sourcingRequestLimit = planData.sourcingRequestLimit ?? 0;
+    dataToSave.productLimit = null;
+  }
 
   if (planId) {
     const planRef = doc(db, 'subscriptionPlans', planId);
@@ -1319,14 +1334,13 @@ export async function createOrUpdateSubscriptionPlanClient(
     const updatedDoc = await getDocClient(planRef);
     return { id: planId, ...updatedDoc.data() } as SubscriptionPlan;
   } else {
-    const docRef = await addDoc(collection(db, 'subscriptionPlans'), {
-      ...dataToSave,
-      createdAt: Timestamp.now(),
-    });
+    dataToSave.createdAt = Timestamp.now();
+    const docRef = await addDoc(collection(db, 'subscriptionPlans'), dataToSave);
     const newDoc = await getDocClient(docRef);
     return { id: docRef.id, ...newDoc.data() } as SubscriptionPlan;
   }
 }
+
 
 export async function deleteSubscriptionPlanClient(planId: string): Promise<void> {
   if (!planId) {

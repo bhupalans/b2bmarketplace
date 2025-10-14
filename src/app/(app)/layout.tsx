@@ -258,7 +258,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                             <SidebarMenuSub>
                                 <SidebarMenuSubItem>
                                     <SidebarMenuSubButton asChild isActive={pathname === '/admin/approvals'}>
-                                        <Link href="/admin/approvals">Approvals</Link>
+                                        <Link href="/admin/approvals">Product Approvals</Link>
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                                 <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={pathname === '/admin/sourcing-approvals'}>
+                                        <Link href="/admin/sourcing-approvals">Sourcing Approvals</Link>
                                     </SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
                                 <SidebarMenuSubItem>

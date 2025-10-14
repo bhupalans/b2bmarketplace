@@ -132,17 +132,22 @@ export type VerificationTemplate = {
 export type SubscriptionPlan = {
   id: string;
   name: string;
-  price: number;
-  currency: string;
-  type: 'seller' | 'buyer'; // Differentiates plan type
-  productLimit?: number; // For sellers. Use -1 for unlimited.
-  sourcingRequestLimit?: number; // For buyers. Use -1 for unlimited.
+  pricing: RegionalPrice[]; 
+  type: 'seller' | 'buyer';
+  productLimit?: number; 
+  sourcingRequestLimit?: number; 
   hasAnalytics: boolean;
   isFeatured: boolean;
   status: 'active' | 'archived';
   createdAt?: Timestamp | string;
   updatedAt?: Timestamp | string;
 };
+
+export type RegionalPrice = {
+    country?: string; // ISO 2-letter code, empty for default
+    price: number;
+    currency: string; // ISO 3-letter code
+}
 
 
 export type Product = {
@@ -179,9 +184,10 @@ export type SourcingRequest = {
   quantity: number;
   quantityUnit: string;
   targetPriceUSD?: number;
-  status: 'active' | 'closed';
+  status: 'pending' | 'active' | 'closed' | 'expired';
   createdAt: Timestamp | string;
   expiresAt: Timestamp | string;
+  rejectionReason?: string;
 };
 
 export type Offer = {
