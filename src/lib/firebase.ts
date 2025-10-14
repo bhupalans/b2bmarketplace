@@ -1184,6 +1184,12 @@ export async function getSourcingRequestClient(id: string): Promise<SourcingRequ
     return { id: docSnap.id, ...convertTimestamps(docSnap.data()) } as SourcingRequest;
 }
 
+export async function deleteSourcingRequestClient(requestId: string): Promise<void> {
+  const requestRef = doc(db, 'sourcingRequests', requestId);
+  await deleteDoc(requestRef);
+}
+
+
 // --- Q&A Functions ---
 
 export async function getQuestionsForProductClient(productId: string): Promise<Question[]> {
@@ -1308,12 +1314,10 @@ export async function createOrUpdateSubscriptionPlanClient(
   planData: Partial<Omit<SubscriptionPlan, 'id'>>,
   planId?: string | null
 ): Promise<SubscriptionPlan> {
-
-  // This is the robust way to build the data object to prevent 'undefined' values
   const dataToSave: any = {
     name: planData.name,
+    pricing: (planData.pricing || []).filter((p, index) => index > 0 ? !!p.country : true),
     type: planData.type,
-    pricing: (planData.pricing || []).filter(p => p.country || (p.price !== undefined && p.currency)),
     hasAnalytics: planData.hasAnalytics,
     isFeatured: planData.isFeatured,
     status: planData.status,
@@ -1321,11 +1325,11 @@ export async function createOrUpdateSubscriptionPlanClient(
   };
 
   if (planData.type === 'seller') {
-    dataToSave.productLimit = planData.productLimit ?? 0;
-    dataToSave.sourcingRequestLimit = null;
-  } else { // buyer
-    dataToSave.sourcingRequestLimit = planData.sourcingRequestLimit ?? 0;
-    dataToSave.productLimit = null;
+      dataToSave.productLimit = planData.productLimit ?? 0;
+      dataToSave.sourcingRequestLimit = null;
+  } else {
+      dataToSave.sourcingRequestLimit = planData.sourcingRequestLimit ?? 0;
+      dataToSave.productLimit = null;
   }
 
   if (planId) {

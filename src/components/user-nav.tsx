@@ -141,12 +141,20 @@ export function UserNav() {
               </>
             )}
             {user.role === 'buyer' && (
-              <DropdownMenuItem asChild>
-                <Link href="/sourcing/create">
-                  <FileText className="mr-2 h-4 w-4" />
-                  <span>Post Sourcing Request</span>
-                </Link>
-              </DropdownMenuItem>
+              <>
+                <DropdownMenuItem asChild>
+                  <Link href="/sourcing/create">
+                    <FileText className="mr-2 h-4 w-4" />
+                    <span>Post Sourcing Request</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/sourcing/my-requests">
+                    <List className="mr-2 h-4 w-4" />
+                    <span>My Sourcing Requests</span>
+                  </Link>
+                </DropdownMenuItem>
+              </>
             )}
             <DropdownMenuItem asChild>
               <Link href="/messages">

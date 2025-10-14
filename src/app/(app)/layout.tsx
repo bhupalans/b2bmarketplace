@@ -52,6 +52,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         '/dashboard': 'seller',
         '/my-products': 'seller',
         '/sourcing/create': 'buyer',
+        '/sourcing/my-requests': 'buyer',
         '/admin': 'admin',
         '/messages': 'any', // any authenticated user
         '/profile': 'any',
@@ -228,18 +229,34 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </>
             )}
             {user?.role === 'buyer' && (
-              <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname.startsWith("/sourcing/create")}
-                    tooltip="Post a Sourcing Request"
-                  >
-                    <Link href="/sourcing/create">
-                      <FileText />
-                      <span className="sr-only">Post a Request</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+              <Collapsible asChild defaultOpen={pathname.startsWith('/sourcing/create') || pathname.startsWith('/sourcing/my-requests')}>
+                  <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                          <SidebarMenuButton
+                              className="w-full justify-start"
+                              variant="ghost"
+                              tooltip="Sourcing Tools"
+                          >
+                              <FileText />
+                              <span className="sr-only">Sourcing Tools</span>
+                          </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent asChild>
+                          <SidebarMenuSub>
+                              <SidebarMenuSubItem>
+                                  <SidebarMenuSubButton asChild isActive={pathname === '/sourcing/create'}>
+                                      <Link href="/sourcing/create">Post a Request</Link>
+                                  </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                              <SidebarMenuSubItem>
+                                  <SidebarMenuSubButton asChild isActive={pathname === '/sourcing/my-requests'}>
+                                      <Link href="/sourcing/my-requests">My Requests</Link>
+                                  </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                          </SidebarMenuSub>
+                      </CollapsibleContent>
+                  </SidebarMenuItem>
+              </Collapsible>
             )}
              {user?.role === 'admin' && (
                 <Collapsible asChild defaultOpen={pathname.startsWith('/admin')}>
