@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, PlusCircle, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Loader2, PlusCircle, MoreHorizontal, Trash2, Edit } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { DeleteConfirmationDialog } from '@/components/delete-confirmation-dialog';
@@ -153,14 +153,23 @@ export default function MySourcingRequestsPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              disabled={request.status === 'active'}
-                              onClick={() => handleDeleteInitiate(request)}
-                              className="text-red-500 focus:text-red-600"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              <span>Delete</span>
-                            </DropdownMenuItem>
+                            {request.status === 'pending' && (
+                                <DropdownMenuItem asChild>
+                                   <Link href="/sourcing/create">
+                                     <Edit className="mr-2 h-4 w-4" />
+                                     <span>Edit</span>
+                                   </Link>
+                                </DropdownMenuItem>
+                            )}
+                            {request.status !== 'active' && (
+                                <DropdownMenuItem
+                                  onClick={() => handleDeleteInitiate(request)}
+                                  className="text-red-500 focus:text-red-600"
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  <span>Delete</span>
+                                </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
