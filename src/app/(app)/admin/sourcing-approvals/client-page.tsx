@@ -110,7 +110,7 @@ export function SourcingApprovalsClientPage({ initialRequests, initialUsers, ini
   };
   
   const getBuyerName = (buyerId: string) => {
-    return users.find(u => u.id === buyerId)?.name || 'Unknown Buyer';
+    return users.find(u => u.id === buyerId || u.uid === buyerId)?.name || 'Unknown Buyer';
   };
   
   const getCategoryPath = (categoryId: string): string => {
@@ -282,5 +282,3 @@ export function SourcingApprovalsClientPage({ initialRequests, initialUsers, ini
     </div>
   );
 }
-
-    
