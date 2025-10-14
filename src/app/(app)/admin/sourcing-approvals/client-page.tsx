@@ -64,11 +64,18 @@ export function SourcingApprovalsClientPage({ initialRequests, initialUsers, ini
 
         try {
             const requestRef = doc(db, 'sourcingRequests', requestId);
-            const status = action === 'approve' ? 'active' : 'closed';
-            const updateData: any = { status };
-            if (status === 'closed' && reason) {
+            
+            let updateData: { status: 'active' | 'closed', rejectionReason?: string } = {
+              status: action === 'approve' ? 'active' : 'closed',
+            };
+            
+            if (action === 'reject' && reason) {
                 updateData.rejectionReason = reason;
+            } else {
+                // To comply with strict hasOnly rules, ensure the key doesn't exist if not rejecting.
+                delete updateData.rejectionReason;
             }
+
             await updateDoc(requestRef, updateData);
             
             setPendingRequests(prev => prev.filter(r => r.id !== requestId));
