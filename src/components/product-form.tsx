@@ -102,6 +102,9 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
 
   // State for the new cascading dropdowns
   const [selectedParentCategory, setSelectedParentCategory] = useState<string | null>(null);
+  const [parentCategories, setParentCategories] = useState<Category[]>([]);
+  const [subCategories, setSubCategories] = useState<Category[]>([]);
+
 
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
@@ -130,6 +133,23 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
   const watchedNewImageFiles = useWatch({ control: form.control, name: 'newImageFiles' });
   const watchedExistingImages = useWatch({ control: form.control, name: 'existingImages' }) || [];
   const watchedCategoryId = useWatch({ control: form.control, name: 'categoryId' });
+
+  // This effect correctly populates the category dropdowns when data arrives.
+  useEffect(() => {
+    if (categories && categories.length > 0) {
+      setParentCategories(categories.filter(c => c.parentId === null));
+    }
+  }, [categories]);
+  
+  // This effect updates sub-categories when a parent is selected.
+  useEffect(() => {
+    if (selectedParentCategory) {
+        setSubCategories(categories.filter(c => c.parentId === selectedParentCategory));
+    } else {
+        setSubCategories([]);
+    }
+  }, [selectedParentCategory, categories]);
+
 
   useEffect(() => {
     if (watchedCategoryId) {
@@ -296,10 +316,10 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
     form.setValue("existingImages", currentImages.filter((img) => img !== imageUrlToRemove), { shouldValidate: true, shouldDirty: true });
   };
   
-  const parentCategories = categories.filter(c => !c.parentId);
-  const subCategories = selectedParentCategory
-    ? categories.filter(c => c.parentId === selectedParentCategory)
-    : [];
+  const handleParentCategoryChange = (value: string) => {
+    setSelectedParentCategory(value);
+    form.setValue('categoryId', ''); // Reset sub-category when parent changes
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -368,17 +388,14 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormItem>
                     <FormLabel>Category</FormLabel>
-                     <Select onValueChange={(value) => {
-                        setSelectedParentCategory(value);
-                        form.setValue('categoryId', ''); // Reset sub-category
-                     }} value={selectedParentCategory ?? ''}>
+                     <Select onValueChange={handleParentCategoryChange} value={selectedParentCategory ?? ''}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a category" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {parentCategories.filter(c => c.status === 'active').map((c) => (
+                          {parentCategories.map((c) => (
                             <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                           ))}
                         </SelectContent>
@@ -397,7 +414,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {subCategories.filter(c => c.status === 'active').map((c) => (
+                            {subCategories.map((c) => (
                               <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                             ))}
                           </SelectContent>
@@ -747,5 +764,3 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
 }
 
 export const ProductFormDialog = memo(ProductFormDialogComponent);
-
-    
