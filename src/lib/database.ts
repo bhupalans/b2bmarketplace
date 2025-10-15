@@ -44,6 +44,14 @@ export async function getProduct(productId: string): Promise<Product | null> {
     return serializeTimestamps(product);
 }
 
+export async function getCategories(): Promise<Category[]> {
+    const snapshot = await adminDb.collection("categories").get();
+    if (snapshot.empty) {
+        return [];
+    }
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
+}
+
 export async function getUser(userId: string): Promise<User | null> {
     const userRef = adminDb.collection("users").doc(userId);
     const userSnap = await userRef.get();
@@ -63,6 +71,15 @@ export async function getUser(userId: string): Promise<User | null> {
     const user = { id: userSnap.id, uid: userSnap.id, ...userData };
     return serializeTimestamps(user);
 }
+
+export async function getUsers(): Promise<User[]> {
+    const snapshot = await adminDb.collection("users").get();
+    if (snapshot.empty) {
+        return [];
+    }
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+}
+
 
 export async function getUsersByIds(userIds: string[]): Promise<Map<string, User>> {
     if (userIds.length === 0) {
@@ -212,7 +229,15 @@ export async function getPlanAndUser(planId: string, userId: string): Promise<{ 
         throw new Error('User not found.');
     }
 
-    const plan = {id: planSnap.id, ...planSnap.data()} as SubscriptionPlan;
+    const planData = planSnap.data() as Omit<SubscriptionPlan, 'price' | 'currency'> & { pricing: { price: number; currency: string }[] };
+
+    const plan = {
+      id: planSnap.id,
+      ...planData,
+      price: planData.pricing?.[0]?.price || 0,
+      currency: planData.pricing?.[0]?.currency || 'USD',
+    } as SubscriptionPlan;
+
     const user = {uid: userSnap.id, id: userSnap.id, ...userSnap.data()} as User;
 
     return {
