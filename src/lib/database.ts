@@ -49,7 +49,10 @@ export async function getCategories(): Promise<Category[]> {
     if (snapshot.empty) {
         return [];
     }
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
+    return snapshot.docs.map(doc => {
+      const category = { id: doc.id, ...doc.data() } as Category;
+      return serializeTimestamps(category);
+    });
 }
 
 export async function getUser(userId: string): Promise<User | null> {
