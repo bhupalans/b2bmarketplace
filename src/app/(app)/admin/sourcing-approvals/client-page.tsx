@@ -31,9 +31,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Separator } from '@/components/ui/separator';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { RejectionReasonDialog } from '@/components/rejection-reason-dialog';
-import { doc, updateDoc, writeBatch } from 'firebase/firestore';
+import { doc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { collection } from 'firebase/firestore';
 
@@ -234,10 +234,10 @@ export function SourcingApprovalsClientPage({ initialRequests, initialUsers, ini
                     <div>{reviewingRequest.buyerCountry}</div>
 
                     <div className="font-medium">Submitted</div>
-                    <div>{reviewingRequest.createdAt ? format(parseISO(reviewingRequest.createdAt as string), 'PPP p') : 'N/A'}</div>
+                    <div>{reviewingRequest.createdAt ? format(new Date(reviewingRequest.createdAt as string), 'PPP p') : 'N/A'}</div>
 
                     <div className="font-medium">Expires</div>
-                    <div>{reviewingRequest.expiresAt ? format(parseISO(reviewingRequest.expiresAt as string), 'PPP p') : 'N/A'}</div>
+                    <div>{reviewingRequest.expiresAt ? format(new Date(reviewingRequest.expiresAt as string), 'PPP p') : 'N/A'}</div>
                 </div>
               </div>
 
