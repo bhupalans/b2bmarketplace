@@ -297,7 +297,9 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
   };
   
   const parentCategories = categories.filter(c => !c.parentId);
-  const subCategories = selectedParentCategory ? categories.filter(c => c.parentId === selectedParentCategory) : [];
+  const subCategories = selectedParentCategory
+    ? categories.filter(c => c.parentId === selectedParentCategory)
+    : [];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -745,5 +747,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
 }
 
 export const ProductFormDialog = memo(ProductFormDialogComponent);
+
+    
 
     
