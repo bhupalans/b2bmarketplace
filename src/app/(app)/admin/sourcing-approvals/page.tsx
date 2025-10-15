@@ -3,7 +3,7 @@ import { getUsers, getCategories } from "@/lib/database";
 import { SourcingApprovalsClientPage } from './client-page';
 import { adminDb } from "@/lib/firebase-admin";
 import { SourcingRequest } from "@/lib/types";
-import { convertTimestamps } from "@/lib/firebase";
+import { Timestamp } from "firebase-admin/firestore";
 
 async function getPendingSourcingRequests() {
     const snapshot = await adminDb.collection("sourcingRequests")
@@ -16,8 +16,14 @@ async function getPendingSourcingRequests() {
     }
     
     return snapshot.docs.map(doc => {
-        const data = convertTimestamps(doc.data());
-        return { id: doc.id, ...data } as SourcingRequest;
+        const data = doc.data();
+        const request: SourcingRequest = {
+            id: doc.id,
+            ...data,
+            createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
+            expiresAt: data.expiresAt instanceof Timestamp ? data.expiresAt.toDate().toISOString() : data.expiresAt,
+        } as SourcingRequest;
+        return request;
     });
 }
 
