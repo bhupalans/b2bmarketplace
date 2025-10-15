@@ -234,10 +234,10 @@ export function SourcingApprovalsClientPage({ initialRequests, initialUsers, ini
                     <div>{reviewingRequest.buyerCountry}</div>
 
                     <div className="font-medium">Submitted</div>
-                    <div>{reviewingRequest.createdAt ? format(new Date(reviewingRequest.createdAt as string), 'PPP p') : 'N/A'}</div>
+                    <div>{typeof reviewingRequest.createdAt === 'string' ? format(new Date(reviewingRequest.createdAt), 'PPP p') : 'N/A'}</div>
 
                     <div className="font-medium">Expires</div>
-                    <div>{reviewingRequest.expiresAt ? format(new Date(reviewingRequest.expiresAt as string), 'PPP p') : 'N/A'}</div>
+                    <div>{typeof reviewingRequest.expiresAt === 'string' ? format(new Date(reviewingRequest.expiresAt), 'PPP p') : 'N/A'}</div>
                 </div>
               </div>
 
