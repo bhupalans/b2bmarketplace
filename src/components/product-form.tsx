@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { memo, useEffect, useState, useTransition, useCallback } from "react";
@@ -52,7 +51,7 @@ const productSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
   description: z.string().min(10, { message: "Description must be at least 10 characters." }),
   priceUSD: z.coerce.number().positive({ message: "Price must be a positive number." }),
-  categoryId: z.string().min(1, { message: "Please select a category." }),
+  categoryId: z.string().min(1, { message: "Please select a sub-category." }),
   countryOfOrigin: z.string().min(1, { message: "Please select a country of origin." }),
   stockAvailability: z.enum(['in_stock', 'out_of_stock', 'made_to_order'], { required_error: 'Please select stock availability.'}),
   moq: z.coerce.number().int().min(1, { message: "Minimum order quantity must be at least 1." }),
@@ -100,6 +99,9 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
   const [isLoadingProduct, setIsLoadingProduct] = useState(false);
   const [newImagePreviews, setNewImagePreviews] = useState<string[]>([]);
   const [activeTemplate, setActiveTemplate] = useState<SpecTemplate | null>(null);
+
+  // State for the new cascading dropdowns
+  const [selectedParentCategory, setSelectedParentCategory] = useState<string | null>(null);
 
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
@@ -174,6 +176,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
     });
     setNewImagePreviews([]);
     setActiveTemplate(null);
+    setSelectedParentCategory(null);
   }, [form]);
 
   useEffect(() => {
@@ -198,6 +201,11 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                 existingImages: fetchedProduct.images || [],
                 newImageFiles: undefined,
             });
+            // --- Logic to pre-fill parent category dropdown ---
+            const productCategory = categories.find(c => c.id === fetchedProduct.categoryId);
+            if (productCategory && productCategory.parentId) {
+                setSelectedParentCategory(productCategory.parentId);
+            }
           }
         } catch (error) {
           console.error("Failed to fetch product", error);
@@ -216,7 +224,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
     } else {
       resetForm();
     }
-  }, [productId, open, form, toast, resetForm, onOpenChange]);
+  }, [productId, open, form, toast, resetForm, onOpenChange, categories]);
   
   useEffect(() => {
     if (watchedNewImageFiles && watchedNewImageFiles.length > 0) {
@@ -288,6 +296,9 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
     form.setValue("existingImages", currentImages.filter((img) => img !== imageUrlToRemove), { shouldValidate: true, shouldDirty: true });
   };
   
+  const parentCategories = categories.filter(c => !c.parentId);
+  const subCategories = selectedParentCategory ? categories.filter(c => c.parentId === selectedParentCategory) : [];
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -352,28 +363,48 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="categoryId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Category</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormItem>
+                    <FormLabel>Category</FormLabel>
+                     <Select onValueChange={(value) => {
+                        setSelectedParentCategory(value);
+                        form.setValue('categoryId', ''); // Reset sub-category
+                     }} value={selectedParentCategory ?? ''}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a category" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {categories.filter(c => c.status === 'active').map((c) => (
+                          {parentCategories.filter(c => c.status === 'active').map((c) => (
                             <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  </FormItem>
+                  <FormField
+                    control={form.control}
+                    name="categoryId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Sub-category</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value ?? ''} disabled={!selectedParentCategory}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a sub-category" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {subCategories.filter(c => c.status === 'active').map((c) => (
+                              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
             </div>
 
@@ -714,3 +745,5 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
 }
 
 export const ProductFormDialog = memo(ProductFormDialogComponent);
+
+    
