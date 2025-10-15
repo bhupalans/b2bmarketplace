@@ -222,7 +222,7 @@ export async function getPlanAndUser(planId: string, userId: string): Promise<{ 
         adminDb.collection('users').doc(userId).get()
     ]);
     
-    if (!planSnap.exists) {
+    if (!planSnap.exists()) {
         throw new Error('Subscription plan not found.');
     }
     if (!userSnap.exists) {
