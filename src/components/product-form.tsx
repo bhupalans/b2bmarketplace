@@ -100,7 +100,6 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
   const [newImagePreviews, setNewImagePreviews] = useState<string[]>([]);
   const [activeTemplate, setActiveTemplate] = useState<SpecTemplate | null>(null);
 
-  // State for the new cascading dropdowns
   const [selectedParentCategory, setSelectedParentCategory] = useState<string | null>(null);
   const [parentCategories, setParentCategories] = useState<Category[]>([]);
   const [subCategories, setSubCategories] = useState<Category[]>([]);
@@ -134,14 +133,12 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
   const watchedExistingImages = useWatch({ control: form.control, name: 'existingImages' }) || [];
   const watchedCategoryId = useWatch({ control: form.control, name: 'categoryId' });
 
-  // This effect correctly populates the category dropdowns when data arrives.
   useEffect(() => {
     if (categories && categories.length > 0) {
       setParentCategories(categories.filter(c => c.parentId === null));
     }
   }, [categories]);
   
-  // This effect updates sub-categories when a parent is selected.
   useEffect(() => {
     if (selectedParentCategory) {
         setSubCategories(categories.filter(c => c.parentId === selectedParentCategory));
@@ -221,7 +218,6 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                 existingImages: fetchedProduct.images || [],
                 newImageFiles: undefined,
             });
-            // --- Logic to pre-fill parent category dropdown ---
             const productCategory = categories.find(c => c.id === fetchedProduct.categoryId);
             if (productCategory && productCategory.parentId) {
                 setSelectedParentCategory(productCategory.parentId);
@@ -318,7 +314,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
   
   const handleParentCategoryChange = (value: string) => {
     setSelectedParentCategory(value);
-    form.setValue('categoryId', ''); // Reset sub-category when parent changes
+    form.setValue('categoryId', '');
   };
 
   return (
@@ -371,7 +367,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                   </FormItem>
                 )}
               />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
                   name="priceUSD"
@@ -385,13 +381,12 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                     </FormItem>
                   )}
                 />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormItem>
+                 <FormItem>
                     <FormLabel>Category</FormLabel>
                      <Select onValueChange={handleParentCategoryChange} value={selectedParentCategory ?? ''}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select a category" />
+                            <SelectValue placeholder="Select..." />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -410,7 +405,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                         <Select onValueChange={field.onChange} value={field.value ?? ''} disabled={!selectedParentCategory}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select a sub-category" />
+                              <SelectValue placeholder="Select..." />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -423,7 +418,6 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                       </FormItem>
                     )}
                   />
-                </div>
               </div>
             </div>
 
