@@ -26,15 +26,31 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
 
     const user = userSnap.data() as User;
     const countryCode = data.address?.country;
-    
-    // Explicitly exclude subscriptionPlan from the update payload
-    const { subscriptionPlan, ...dataToUpdate } = data;
 
+    // --- Property Mapping ---
+    // Explicitly construct the update object with only allowed fields.
     const updateData: { [key: string]: any } = {
-        ...dataToUpdate,
         updatedAt: new Date().toISOString(),
         scopedVerificationIds: {} 
     };
+
+    const directProperties: (keyof ProfileUpdateData)[] = [
+      'name', 'companyName', 'phoneNumber', 'companyDescription',
+      'taxId', 'businessType', 'exportScope', 'verificationDetails',
+      'jobTitle', 'companyWebsite', 'billingSameAsShipping'
+    ];
+
+    directProperties.forEach(prop => {
+      // Check if property exists in incoming data to avoid overwriting with undefined
+      if (data[prop] !== undefined) {
+        updateData[prop] = data[prop];
+      }
+    });
+    
+    if (data.address) updateData.address = data.address;
+    if (data.shippingAddress) updateData.shippingAddress = data.shippingAddress;
+    if (data.billingAddress) updateData.billingAddress = data.billingAddress;
+
 
     if (countryCode && data.verificationDetails) {
         const templatesSnap = await adminDb.collection('verificationTemplates').doc(countryCode).get();
@@ -76,25 +92,6 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
       updateData.verificationDocuments = {};
     }
     // --- End: Re-verification Logic ---
-
-
-    // --- Property Mapping ---
-    const directProperties: (keyof ProfileUpdateData)[] = [
-      'name', 'companyName', 'phoneNumber', 'companyDescription',
-      'taxId', 'businessType', 'exportScope', 'verificationDetails',
-      'jobTitle', 'companyWebsite', 'billingSameAsShipping'
-    ];
-
-    directProperties.forEach(prop => {
-      if (data[prop] !== undefined) {
-        updateData[prop] = data[prop];
-      }
-    });
-    
-    if (data.address) updateData.address = data.address;
-    if (data.shippingAddress) updateData.shippingAddress = data.shippingAddress;
-    if (data.billingAddress) updateData.billingAddress = data.billingAddress;
-    
     
     await userRef.update(updateData);
     const updatedUserSnap = await userRef.get();
