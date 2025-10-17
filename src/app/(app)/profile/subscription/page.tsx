@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useTransition } from 'react';
+import React, { useState, useEffect, useTransition, useMemo } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { getSubscriptionPlansClient, getSourcingRequestsClient, getSellerProductsClient } from '@/lib/firebase';
 import { SubscriptionPlan, User, SourcingRequest, Product } from '@/lib/types';
@@ -108,17 +108,6 @@ export default function SubscriptionPage() {
     }
     
     const currentPlan = user?.subscriptionPlan;
-
-    const getConvertedPrice = (price: number, planCurrency: string) => {
-        if (currency === planCurrency) {
-            return price;
-        }
-        // Step 1: Convert plan price to USD
-        const priceInUSD = price / (rates[planCurrency] || 1);
-        // Step 2: Convert from USD to selected currency
-        const rate = rates[currency] || 1;
-        return priceInUSD * rate;
-    }
     
     return (
         <div className="max-w-5xl mx-auto space-y-8">
@@ -147,10 +136,15 @@ export default function SubscriptionPage() {
                 {plans.map(plan => {
                     const isCurrentPlan = user?.subscriptionPlanId === plan.id;
                     const isProcessingThisPlan = isSubmitting && selectedPlanId === plan.id;
-                    const displayPrice = getConvertedPrice(plan.price, plan.currency);
+
+                    const regionalPrice = user.address?.country ? plan.pricing?.find(p => p.country === user.address?.country) : undefined;
+                    
+                    const displayPrice = regionalPrice ? regionalPrice.price : plan.price;
+                    const displayCurrency = regionalPrice ? regionalPrice.currency : plan.currency;
+
                     const formattedDisplayPrice = new Intl.NumberFormat(undefined, {
                         style: 'currency',
-                        currency: currency,
+                        currency: displayCurrency,
                     }).format(displayPrice);
 
                     return (
@@ -167,7 +161,6 @@ export default function SubscriptionPage() {
                                     {formattedDisplayPrice}
                                 </span>
                                 <span className="text-muted-foreground"> / month</span>
-                                {currency !== plan.currency && <p className="text-xs text-muted-foreground">(Billed as {plan.price} {plan.currency})</p>}
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="flex-grow space-y-3">
