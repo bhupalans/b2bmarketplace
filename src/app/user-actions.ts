@@ -36,7 +36,7 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
 
     const directProperties: (keyof ProfileUpdateData)[] = [
       'name', 'companyName', 'phoneNumber', 'companyDescription',
-      'taxId', 'businessType', 'exportScope', 'verificationDetails',
+      'taxId', 'businessType', 'exportScope', 
       'jobTitle', 'companyWebsite', 'billingSameAsShipping'
     ];
 
@@ -50,6 +50,12 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
     if (data.address) updateData.address = data.address;
     if (data.shippingAddress) updateData.shippingAddress = data.shippingAddress;
     if (data.billingAddress) updateData.billingAddress = data.billingAddress;
+    
+    // This is the key change: Only save verificationDetails if they exist.
+    // The main logic for handling them is in the scoped ID check below.
+    if (data.verificationDetails) {
+        updateData.verificationDetails = data.verificationDetails;
+    }
 
 
     if (countryCode && data.verificationDetails) {
