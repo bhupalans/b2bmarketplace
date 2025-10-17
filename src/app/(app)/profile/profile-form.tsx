@@ -5,7 +5,7 @@ import React, { useTransition, useEffect, useState, useMemo } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { User, VerificationTemplate } from "@/lib/types";
+import { User, VerificationTemplate, SubscriptionPlan } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -73,6 +73,8 @@ const baseProfileSchema = z.object({
   businessType: z.enum(["Manufacturer", "Distributor", "Trading Company", "Agent"]).optional(),
   exportScope: z.array(z.string()).optional(),
   verificationDetails: z.record(z.string()).optional(),
+  // This is added to represent the full user object but will be stripped out before submission
+  subscriptionPlan: z.custom<SubscriptionPlan>().optional(),
 });
 
 
@@ -277,6 +279,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
       }, [user.role, activeTemplate])
     ),
     defaultValues: {
+      ...user, // This will spread all properties from the user object
       name: user.name || "",
       companyName: user.companyName || "",
       phoneNumber: user.phoneNumber || "",
@@ -312,6 +315,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
 
   const resetFormToInitialState = () => {
     form.reset({
+      ...user,
       name: user.name || "",
       companyName: user.companyName || "",
       phoneNumber: user.phoneNumber || "",
@@ -368,13 +372,18 @@ export function ProfileForm({ user }: ProfileFormProps) {
         return;
     }
     
-    const finalValues = {...values};
-    if (values.billingSameAsShipping) {
-      finalValues.billingAddress = values.shippingAddress;
+    // Create a clean copy of the data to send to the server
+    const dataToSubmit: any = {...values};
+
+    if (dataToSubmit.billingSameAsShipping) {
+      dataToSubmit.billingAddress = dataToSubmit.shippingAddress;
     }
 
+    // CRITICAL FIX: Remove the complex subscriptionPlan object before sending
+    delete dataToSubmit.subscriptionPlan;
+
     startTransition(async () => {
-      const result = await updateUserProfile(firebaseUser.uid, finalValues);
+      const result = await updateUserProfile(firebaseUser.uid, dataToSubmit);
 
       if (result.success && result.user) {
          toast({

@@ -9,34 +9,30 @@ import { firestore } from 'firebase-admin';
 import Stripe from 'stripe';
 import { areDetailsEqual } from '@/lib/utils';
 
-type ProfileUpdateData = Omit<User, 'id' | 'uid' | 'email' | 'role' | 'avatar' | 'memberSince' | 'username'>;
+type ProfileUpdateData = Omit<User, 'id' | 'uid' | 'email' | 'role' | 'avatar' | 'memberSince' | 'username' | 'subscriptionPlan'>;
 
 export async function updateUserProfile(userId: string, data: ProfileUpdateData): Promise<{ success: true; user: User } | { success: false; error: string }> {
-  console.log("--- DEBUG: Starting updateUserProfile ---");
   if (!userId) {
-    console.error("--- DEBUG: updateUserProfile failed - No userId provided.");
     return { success: false, error: 'User not authenticated.' };
   }
-  console.log(`--- DEBUG: Received userId: ${userId}`);
-  console.log("--- DEBUG: Received data object:", JSON.stringify(data, null, 2));
-
 
   try {
     const userRef = adminDb.collection('users').doc(userId);
     const userSnap = await userRef.get();
 
     if (!userSnap.exists) {
-      console.error(`--- DEBUG: updateUserProfile failed - User document not found for userId: ${userId}`);
       return { success: false, error: 'User profile not found.' };
     }
 
     const user = userSnap.data() as User;
     const countryCode = data.address?.country;
 
+    // Start with a clean slate for the update data
     const updateData: { [key: string]: any } = {
         updatedAt: new Date().toISOString(),
     };
 
+    // Explicitly copy only the allowed, simple properties
     const directProperties: (keyof ProfileUpdateData)[] = [
       'name', 'companyName', 'phoneNumber', 'companyDescription',
       'taxId', 'businessType', 'exportScope', 
@@ -49,17 +45,17 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
       }
     });
     
+    // Handle nested address objects separately
     if (data.address) updateData.address = data.address;
     if (data.shippingAddress) updateData.shippingAddress = data.shippingAddress;
     if (data.billingAddress) updateData.billingAddress = data.billingAddress;
     
-    // This is the key change: Only save verificationDetails if they exist.
-    // The main logic for handling them is in the scoped ID check below.
+    // Handle verificationDetails and scopedVerificationIds
     if (data.verificationDetails) {
         updateData.verificationDetails = data.verificationDetails;
     }
-
-
+    
+    // Only process scoped IDs if both country code and verification details are present
     if (countryCode && data.verificationDetails) {
         const templatesSnap = await adminDb.collection('verificationTemplates').doc(countryCode).get();
         if (templatesSnap.exists) {
@@ -103,10 +99,8 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
       updateData.verificationDocuments = {};
     }
     // --- End: Re-verification Logic ---
-    
-    console.log("--- DEBUG: Attempting to update Firestore with this data:", JSON.stringify(updateData, null, 2));
+
     await userRef.update(updateData);
-    console.log("--- DEBUG: Firestore update successful! ---");
     
     const updatedUserSnap = await userRef.get();
     const updatedUser = { id: updatedUserSnap.id, ...updatedUserSnap.data() } as User;
