@@ -143,6 +143,14 @@ function CheckoutPageContent() {
         return null;
     }
 
+    const regionalPrice = user.address?.country ? plan.pricing?.find(p => p.country === user.address?.country) : undefined;
+    const displayPrice = regionalPrice ? regionalPrice.price : plan.price;
+    const displayCurrency = regionalPrice ? regionalPrice.currency : plan.currency;
+    const formattedTotalPrice = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: displayCurrency,
+    }).format(displayPrice);
+
     return (
         <div className="max-w-4xl mx-auto space-y-6">
             <div>
@@ -169,12 +177,7 @@ function CheckoutPageContent() {
                             <Separator />
                             <div className="flex justify-between font-bold text-lg">
                                 <span>Total Due Today</span>
-                                <span>
-                                    {new Intl.NumberFormat('en-US', {
-                                        style: 'currency',
-                                        currency: plan.currency || 'USD',
-                                    }).format(plan.price)}
-                                </span>
+                                <span>{formattedTotalPrice}</span>
                             </div>
                         </CardContent>
                     </Card>
