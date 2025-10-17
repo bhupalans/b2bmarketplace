@@ -9,7 +9,7 @@ import { firestore } from 'firebase-admin';
 import Stripe from 'stripe';
 import { areDetailsEqual } from '@/lib/utils';
 
-type ProfileUpdateData = Omit<User, 'id' | 'uid' | 'email' | 'role' | 'avatar' | 'memberSince' | 'username' | 'subscriptionPlanId' | 'subscriptionPlan'>;
+type ProfileUpdateData = Omit<User, 'id' | 'uid' | 'email' | 'role' | 'avatar' | 'memberSince' | 'username'>;
 
 export async function updateUserProfile(userId: string, data: ProfileUpdateData): Promise<{ success: true; user: User } | { success: false; error: string }> {
   if (!userId) {
@@ -27,7 +27,11 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
     const user = userSnap.data() as User;
     const countryCode = data.address?.country;
     
+    // Explicitly exclude subscriptionPlan from the update payload
+    const { subscriptionPlan, ...dataToUpdate } = data;
+
     const updateData: { [key: string]: any } = {
+        ...dataToUpdate,
         updatedAt: new Date().toISOString(),
         scopedVerificationIds: {} 
     };
