@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building, Home, PanelLeft, Loader2, LayoutDashboard, Package, Shield, FileText, FolderTree, MessageSquare, Handshake, Gem, List, ShieldCheck } from "lucide-react";
+import { Building, Home, PanelLeft, Loader2, LayoutDashboard, Package, Shield, FileText, FolderTree, MessageSquare, Handshake, Gem, List, ShieldCheck, Bug } from "lucide-react";
 import {
   SidebarProvider,
   Sidebar,
@@ -321,6 +321,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                 <SidebarMenuSubItem>
                                     <SidebarMenuSubButton asChild isActive={pathname === '/admin/data-tools'}>
                                         <Link href="/admin/data-tools">Data Tools</Link>
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={pathname === '/admin/debug-profile'}>
+                                        <Link href="/admin/debug-profile">Debug Profile</Link>
                                     </SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
                             </SidebarMenuSub>
