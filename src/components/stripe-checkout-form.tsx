@@ -20,6 +20,16 @@ const CheckoutForm = ({ plan, user }: { plan: SubscriptionPlan, user: User }) =>
     const { toast } = useToast();
     const [isProcessing, setIsProcessing] = useState(false);
 
+    const regionalPrice = user.address?.country ? plan.pricing?.find(p => p.country === user.address.country) : undefined;
+    const displayPrice = regionalPrice ? regionalPrice.price : plan.price;
+    const displayCurrency = regionalPrice ? regionalPrice.currency : plan.currency;
+
+    const formattedDisplayPrice = new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: displayCurrency,
+    }).format(displayPrice);
+
+
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
         
@@ -64,7 +74,7 @@ const CheckoutForm = ({ plan, user }: { plan: SubscriptionPlan, user: User }) =>
             <PaymentElement />
             <Button disabled={isProcessing || !stripe || !elements} className="w-full" type="submit">
                 {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Pay ${plan.price.toFixed(2)}
+                Pay {formattedDisplayPrice}
             </Button>
         </form>
     );
