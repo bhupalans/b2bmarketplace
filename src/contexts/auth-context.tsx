@@ -7,6 +7,7 @@ import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import type { User, SubscriptionPlan } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
+import { convertTimestamps } from '@/lib/firebase';
 
 type AuthContextType = {
   user: User | null;
@@ -60,10 +61,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const planRef = doc(db, 'subscriptionPlans', userProfile.subscriptionPlanId);
             const planSnap = await getDoc(planRef);
             if (planSnap.exists()) {
-                userProfile.subscriptionPlan = { id: planSnap.id, ...planSnap.data() } as SubscriptionPlan;
+                // Correctly serialize the subscription plan, including its timestamps
+                const planData = convertTimestamps(planSnap.data());
+                userProfile.subscriptionPlan = { id: planSnap.id, ...planData } as SubscriptionPlan;
             }
         }
-        setUser(userProfile);
+        // convertTimestamps is no longer needed here as the recursive nature of it would be redundant
+        // if we correctly serialize the subscriptionPlan above.
+        setUser(convertTimestamps(userProfile));
     } else {
         setUser(null);
     }
