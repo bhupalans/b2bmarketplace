@@ -12,8 +12,10 @@ import { areDetailsEqual } from '@/lib/utils';
 type ProfileUpdateData = Omit<User, 'id' | 'uid' | 'email' | 'role' | 'avatar' | 'memberSince' | 'username' | 'subscriptionPlan'>;
 
 export async function updateUserProfile(userId: string, data: ProfileUpdateData): Promise<{ success: true; user: User } | { success: false; error: string }> {
-  if (!userId) {
-    return { success: false, error: 'User not authenticated.' };
+  // AGGRESSIVE VALIDATION (Part 1 of our debugging strategy)
+  if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+    console.error('--- DEBUG: updateUserProfile received invalid userId:', userId);
+    return { success: false, error: `Critical Error: User ID is missing or invalid. Cannot update profile.` };
   }
 
   try {
@@ -21,93 +23,27 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
     const userSnap = await userRef.get();
 
     if (!userSnap.exists) {
-      return { success: false, error: 'User profile not found.' };
+      console.error('--- DEBUG: Firestore document not found for userId:', userId);
+      return { success: false, error: 'User profile not found in the database.' };
     }
 
-    const user = userSnap.data() as User;
-    const countryCode = data.address?.country;
-
-    // Start with a clean slate for the update data
+    // TEMPORARY SIMPLIFICATION (Part 2 of our debugging strategy)
     const updateData: { [key: string]: any } = {
+        name: data.name, // Save only the name for now
         updatedAt: new Date().toISOString(),
     };
-
-    // Explicitly copy only the allowed, simple properties
-    const directProperties: (keyof ProfileUpdateData)[] = [
-      'name', 'companyName', 'phoneNumber', 'companyDescription',
-      'taxId', 'businessType', 'exportScope', 
-      'jobTitle', 'companyWebsite', 'billingSameAsShipping'
-    ];
-
-    directProperties.forEach(prop => {
-      if (data[prop] !== undefined) {
-        updateData[prop] = data[prop];
-      }
-    });
     
-    // Handle nested address objects separately
-    if (data.address) updateData.address = data.address;
-    if (data.shippingAddress) updateData.shippingAddress = data.shippingAddress;
-    if (data.billingAddress) updateData.billingAddress = data.billingAddress;
-    
-    // Handle verificationDetails and scopedVerificationIds
-    if (data.verificationDetails) {
-        updateData.verificationDetails = data.verificationDetails;
-    }
-    
-    // Only process scoped IDs if both country code and verification details are present
-    if (countryCode && data.verificationDetails) {
-        const templatesSnap = await adminDb.collection('verificationTemplates').doc(countryCode).get();
-        if (templatesSnap.exists) {
-            const template = templatesSnap.data() as VerificationTemplate;
-            const scopedVerificationIds: { [key: string]: string } = {};
-            
-            for (const field of template.fields) {
-                const value = data.verificationDetails[field.name];
-                if (value) {
-                    const scopedKey = `${field.name}-${countryCode}`;
-                    const query = adminDb.collection('users')
-                        .where(`scopedVerificationIds.${scopedKey}`, '==', value)
-                        .limit(2);
-                    
-                    const snapshot = await query.get();
-                    const isDuplicate = snapshot.docs.some(doc => doc.id !== userId);
-
-                    if (isDuplicate) {
-                        return { 
-                            success: false, 
-                            error: `This ${field.label} is already registered to another user in this country.` 
-                        };
-                    }
-                    scopedVerificationIds[scopedKey] = value;
-                }
-            }
-             updateData.scopedVerificationIds = scopedVerificationIds;
-        }
-    }
-    
-    // --- Start: Re-verification Logic ---
-    const previousCountry = user.address?.country;
-    const newCountry = data.address?.country;
-    const verificationDetailsChanged = !areDetailsEqual(user.verificationDetails, data.verificationDetails);
-    const companyNameChanged = user.companyName !== data.companyName;
-
-    if (user.verificationStatus === 'verified' && ( (newCountry && newCountry !== previousCountry) || verificationDetailsChanged || companyNameChanged) ) {
-      updateData.verificationStatus = 'pending';
-    } else if (newCountry && newCountry !== previousCountry) { 
-      updateData.verificationStatus = 'unverified';
-      updateData.verificationDocuments = {};
-    }
-    // --- End: Re-verification Logic ---
+    console.log(`--- DEBUG: Attempting to update user ${userId} with simplified data:`, JSON.stringify(updateData));
 
     await userRef.update(updateData);
     
     const updatedUserSnap = await userRef.get();
     const updatedUser = { id: updatedUserSnap.id, ...updatedUserSnap.data() } as User;
 
-
     revalidatePath('/profile');
     revalidatePath(`/sellers/${userId}`);
+
+    console.log(`--- DEBUG: Successfully updated user ${userId}`);
 
     return { success: true, user: updatedUser };
   } catch (error: any) {
