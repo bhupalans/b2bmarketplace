@@ -225,15 +225,18 @@ export async function getPlanAndUser(planId: string, userId: string): Promise<{ 
         adminDb.collection('users').doc(userId).get()
     ]);
     
-    if (!planSnap.exists()) {
+    if (!planSnap.exists) {
         throw new Error('Subscription plan not found.');
     }
-    if (!userSnap.exists()) {
+    if (!userSnap.exists) {
         throw new Error('User not found.');
     }
 
-    const plan = { id: planSnap.id, ...planSnap.data() } as SubscriptionPlan;
-    const user = {uid: userSnap.id, id: userSnap.id, ...userSnap.data()} as User;
+    const planData = planSnap.data();
+    const userData = userSnap.data();
+
+    const plan = { id: planSnap.id, ...planData } as SubscriptionPlan;
+    const user = {uid: userSnap.id, id: userSnap.id, ...userData} as User;
 
     return {
         plan: serializeTimestamps(plan),
