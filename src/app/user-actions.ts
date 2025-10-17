@@ -12,26 +12,29 @@ import { areDetailsEqual } from '@/lib/utils';
 type ProfileUpdateData = Omit<User, 'id' | 'uid' | 'email' | 'role' | 'avatar' | 'memberSince' | 'username'>;
 
 export async function updateUserProfile(userId: string, data: ProfileUpdateData): Promise<{ success: true; user: User } | { success: false; error: string }> {
+  console.log("--- DEBUG: Starting updateUserProfile ---");
   if (!userId) {
+    console.error("--- DEBUG: updateUserProfile failed - No userId provided.");
     return { success: false, error: 'User not authenticated.' };
   }
+  console.log(`--- DEBUG: Received userId: ${userId}`);
+  console.log("--- DEBUG: Received data object:", JSON.stringify(data, null, 2));
+
 
   try {
     const userRef = adminDb.collection('users').doc(userId);
     const userSnap = await userRef.get();
 
     if (!userSnap.exists) {
+      console.error(`--- DEBUG: updateUserProfile failed - User document not found for userId: ${userId}`);
       return { success: false, error: 'User profile not found.' };
     }
 
     const user = userSnap.data() as User;
     const countryCode = data.address?.country;
 
-    // --- Property Mapping ---
-    // Explicitly construct the update object with only allowed fields.
     const updateData: { [key: string]: any } = {
         updatedAt: new Date().toISOString(),
-        scopedVerificationIds: {} 
     };
 
     const directProperties: (keyof ProfileUpdateData)[] = [
@@ -41,7 +44,6 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
     ];
 
     directProperties.forEach(prop => {
-      // Check if property exists in incoming data to avoid overwriting with undefined
       if (data[prop] !== undefined) {
         updateData[prop] = data[prop];
       }
@@ -62,6 +64,8 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
         const templatesSnap = await adminDb.collection('verificationTemplates').doc(countryCode).get();
         if (templatesSnap.exists) {
             const template = templatesSnap.data() as VerificationTemplate;
+            const scopedVerificationIds: { [key: string]: string } = {};
+            
             for (const field of template.fields) {
                 const value = data.verificationDetails[field.name];
                 if (value) {
@@ -79,9 +83,10 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
                             error: `This ${field.label} is already registered to another user in this country.` 
                         };
                     }
-                    updateData.scopedVerificationIds[scopedKey] = value;
+                    scopedVerificationIds[scopedKey] = value;
                 }
             }
+             updateData.scopedVerificationIds = scopedVerificationIds;
         }
     }
     
@@ -99,7 +104,10 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
     }
     // --- End: Re-verification Logic ---
     
+    console.log("--- DEBUG: Attempting to update Firestore with this data:", JSON.stringify(updateData, null, 2));
     await userRef.update(updateData);
+    console.log("--- DEBUG: Firestore update successful! ---");
+    
     const updatedUserSnap = await userRef.get();
     const updatedUser = { id: updatedUserSnap.id, ...updatedUserSnap.data() } as User;
 
@@ -109,7 +117,11 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
 
     return { success: true, user: updatedUser };
   } catch (error: any) {
-    console.error('Error updating user profile:', error);
+    console.error('--- DEBUG: updateUserProfile CRASHED ---');
+    console.error('--- DEBUG: Error Code:', error.code);
+    console.error('--- DEBUG: Error Message:', error.message);
+    console.error('--- DEBUG: Full Error Object:', JSON.stringify(error, null, 2));
+
     const errorMessage = error.message || 'Failed to update profile on the server. Please check the server logs.';
     return { success: false, error: errorMessage };
   }
