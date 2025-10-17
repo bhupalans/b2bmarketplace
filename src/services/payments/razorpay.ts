@@ -16,14 +16,23 @@ export async function createRazorpayOrder({ planId, userId }: { planId: string, 
     try {
         const { plan, user } = await getPlanAndUser(planId, userId);
         
+        let amount = plan.price;
+        let currency = plan.currency;
+
+        const regionalPricing = plan.pricing?.find(p => p.country === user.address?.country);
+        if (regionalPricing) {
+            amount = regionalPricing.price;
+            currency = regionalPricing.currency;
+        }
+
         const razorpay = new Razorpay({
             key_id: process.env.RAZORPAY_KEY_ID!,
             key_secret: process.env.RAZORPAY_KEY_SECRET!,
         });
         
         const options = {
-            amount: plan.price * 100, // amount in the smallest currency unit
-            currency: plan.currency,
+            amount: amount * 100, // amount in the smallest currency unit
+            currency: currency,
             receipt: `rcpt_${userId.substring(0, 4)}_${Date.now()}`.substring(0, 40)
         };
 

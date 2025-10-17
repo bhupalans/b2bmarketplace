@@ -1335,12 +1335,14 @@ export async function getSubscriptionPlansClient(): Promise<SubscriptionPlan[]> 
 }
 
 export async function createOrUpdateSubscriptionPlanClient(
-  planData: Partial<Omit<SubscriptionPlan, 'id' | 'price' | 'currency'>>,
+  planData: Partial<Omit<SubscriptionPlan, 'id'>>,
   planId?: string | null
 ): Promise<SubscriptionPlan> {
     const dataToSave: any = {
         name: planData.name,
-        pricing: (planData.pricing || []).filter(p => p.country || (p.price !== undefined && p.currency)),
+        price: planData.price,
+        currency: planData.currency,
+        pricing: planData.pricing || [],
         type: planData.type,
         hasAnalytics: planData.hasAnalytics,
         isFeatured: planData.isFeatured,

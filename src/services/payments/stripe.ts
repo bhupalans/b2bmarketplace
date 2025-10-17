@@ -16,7 +16,6 @@ export async function createStripePaymentIntent({ planId, userId }: { planId: st
     try {
         const { plan, user } = await getPlanAndUser(planId, userId);
         
-        // --- Corrected Address Validation Logic ---
         const address = user.address;
         if (!address || !address.street || !address.city || !address.zip || !address.country) {
             throw new Error("User profile is missing a complete primary business address, which is required for payment processing. Please complete your profile.");
@@ -26,7 +25,6 @@ export async function createStripePaymentIntent({ planId, userId }: { planId: st
         if (countryHasStates && !address.state) {
             throw new Error("Your primary business address is missing a state/province, which is required for payment processing in your country.");
         }
-        // --- End of Corrected Logic ---
 
         const stripe = new Stripe(secretKey, { apiVersion: '2024-06-20' });
 
@@ -38,7 +36,7 @@ export async function createStripePaymentIntent({ planId, userId }: { planId: st
             address: {
                 line1: address.street,
                 city: address.city,
-                state: address.state || null, // Pass null if state is not present
+                state: address.state || null,
                 postal_code: address.zip,
                 country: address.country,
             },
@@ -53,11 +51,21 @@ export async function createStripePaymentIntent({ planId, userId }: { planId: st
             await adminDb.collection('users').doc(userId).update({ stripeCustomerId: customerId });
         }
         
+        // Determine correct price
+        let amount = plan.price;
+        let currency = plan.currency;
+
+        const regionalPricing = plan.pricing?.find(p => p.country === user.address?.country);
+        if (regionalPricing) {
+            amount = regionalPricing.price;
+            currency = regionalPricing.currency;
+        }
+        
         const descriptionForStripe = `Subscription to ${plan.name} plan on B2B Marketplace for user ${user.email}.`;
 
         const paymentIntent = await stripe.paymentIntents.create({
-            amount: plan.price * 100,
-            currency: plan.currency.toLowerCase(),
+            amount: amount * 100, // Price in cents
+            currency: currency.toLowerCase(),
             customer: customerId,
             description: descriptionForStripe,
             automatic_payment_methods: {

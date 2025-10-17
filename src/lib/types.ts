@@ -132,7 +132,9 @@ export type VerificationTemplate = {
 export type SubscriptionPlan = {
   id: string;
   name: string;
-  pricing: RegionalPrice[]; 
+  price: number; // Default price in smallest unit (e.g., cents)
+  currency: string; // Default currency (e.g., USD)
+  pricing?: RegionalPrice[]; // Optional regional overrides
   type: 'seller' | 'buyer';
   productLimit?: number; 
   sourcingRequestLimit?: number; 
@@ -144,7 +146,7 @@ export type SubscriptionPlan = {
 };
 
 export type RegionalPrice = {
-    country?: string; // ISO 2-letter code, empty for default
+    country: string; // ISO 2-letter code
     price: number;
     currency: string; // ISO 3-letter code
 }

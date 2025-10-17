@@ -228,19 +228,11 @@ export async function getPlanAndUser(planId: string, userId: string): Promise<{ 
     if (!planSnap.exists()) {
         throw new Error('Subscription plan not found.');
     }
-    if (!userSnap.exists) {
+    if (!userSnap.exists()) {
         throw new Error('User not found.');
     }
 
-    const planData = planSnap.data() as Omit<SubscriptionPlan, 'price' | 'currency'> & { pricing: { price: number; currency: string }[] };
-
-    const plan = {
-      id: planSnap.id,
-      ...planData,
-      price: planData.pricing?.[0]?.price || 0,
-      currency: planData.pricing?.[0]?.currency || 'USD',
-    } as SubscriptionPlan;
-
+    const plan = { id: planSnap.id, ...planSnap.data() } as SubscriptionPlan;
     const user = {uid: userSnap.id, id: userSnap.id, ...userSnap.data()} as User;
 
     return {

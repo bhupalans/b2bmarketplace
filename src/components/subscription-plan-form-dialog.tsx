@@ -2,10 +2,10 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useForm, useWatch } from 'react-hook-form';
+import { useForm, useWatch, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { SubscriptionPlan } from '@/lib/types';
+import { SubscriptionPlan, RegionalPrice } from '@/lib/types';
 import { createOrUpdateSubscriptionPlanClient } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -27,11 +27,13 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { Skeleton } from './ui/skeleton';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Switch } from './ui/switch';
 import { Separator } from './ui/separator';
+import { countries } from '@/lib/geography-data';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 interface SubscriptionPlanFormDialogProps {
   open: boolean;
@@ -50,10 +52,17 @@ export function SubscriptionPlanFormDialog({ open, onOpenChange, planId, onSucce
     return allPlans.some(p => p.name.toLowerCase() === name.toLowerCase() && p.id !== planId);
   };
 
+  const regionalPriceSchema = z.object({
+      country: z.string().min(2, 'Country code is required.'),
+      price: z.coerce.number().min(0, 'Price must be non-negative.'),
+      currency: z.string().min(3, 'Currency code is required.').max(3, 'Currency must be 3 letters.'),
+  });
+
   const planSchema = z.object({
     name: z.string().min(3, 'Plan name must be at least 3 characters.').refine(name => !planNameExists(name), 'A plan with this name already exists.'),
     price: z.coerce.number().min(0, 'Price must be a non-negative number.'),
-    currency: z.string().min(3, 'Currency code is required (e.g., USD, INR).').max(3, 'Currency code must be 3 letters.'),
+    currency: z.string().min(3, 'Currency code is required (e.g., USD).').max(3, 'Currency code must be 3 letters.'),
+    pricing: z.array(regionalPriceSchema).optional(),
     type: z.enum(['seller', 'buyer']),
     productLimit: z.coerce.number().int('Limit must be a whole number.').min(-1, 'Limit must be -1 or greater.').optional(),
     sourcingRequestLimit: z.coerce.number().int('Limit must be a whole number.').min(-1, 'Limit must be -1 or greater.').optional(),
@@ -84,6 +93,7 @@ export function SubscriptionPlanFormDialog({ open, onOpenChange, planId, onSucce
       name: '',
       price: 0,
       currency: 'USD',
+      pricing: [],
       type: 'seller',
       productLimit: 0,
       sourcingRequestLimit: 0,
@@ -91,6 +101,11 @@ export function SubscriptionPlanFormDialog({ open, onOpenChange, planId, onSucce
       isFeatured: false,
       status: 'active',
     },
+  });
+  
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "pricing"
   });
 
   const watchedPlanType = useWatch({
@@ -107,8 +122,9 @@ export function SubscriptionPlanFormDialog({ open, onOpenChange, planId, onSucce
         if (plan) {
           form.reset({
               ...plan,
-              type: plan.type || 'seller', // Default old plans to 'seller'
+              type: plan.type || 'seller',
               currency: plan.currency || 'USD',
+              pricing: plan.pricing || [],
           });
         }
         setIsLoading(false);
@@ -117,6 +133,7 @@ export function SubscriptionPlanFormDialog({ open, onOpenChange, planId, onSucce
           name: '',
           price: 0,
           currency: 'USD',
+          pricing: [],
           type: 'seller',
           productLimit: 0,
           sourcingRequestLimit: 0,
@@ -154,7 +171,7 @@ export function SubscriptionPlanFormDialog({ open, onOpenChange, planId, onSucce
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{planId ? 'Edit Plan' : 'Create New Plan'}</DialogTitle>
           <DialogDescription>
@@ -210,13 +227,16 @@ export function SubscriptionPlanFormDialog({ open, onOpenChange, planId, onSucce
                         </FormItem>
                     )}
                 />
+                
+                <Separator />
+                <h3 className="text-md font-medium">Default Pricing</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                     control={form.control}
                     name="price"
                     render={({ field }) => (
                         <FormItem>
-                        <FormLabel>Price</FormLabel>
+                        <FormLabel>Default Price</FormLabel>
                         <FormControl>
                             <Input type="number" step="0.01" placeholder="e.g., 49.99" {...field} />
                         </FormControl>
@@ -229,7 +249,7 @@ export function SubscriptionPlanFormDialog({ open, onOpenChange, planId, onSucce
                     name="currency"
                     render={({ field }) => (
                         <FormItem>
-                        <FormLabel>Currency</FormLabel>
+                        <FormLabel>Default Currency</FormLabel>
                         <FormControl>
                             <Input placeholder="e.g., USD" {...field} />
                         </FormControl>
@@ -238,6 +258,62 @@ export function SubscriptionPlanFormDialog({ open, onOpenChange, planId, onSucce
                     )}
                     />
               </div>
+
+              <Separator />
+              <h3 className="text-md font-medium">Regional Pricing (Optional)</h3>
+              <div className="space-y-4">
+                  {fields.map((field, index) => (
+                      <div key={field.id} className="flex items-end gap-2 p-3 border rounded-md">
+                          <FormField
+                              control={form.control}
+                              name={`pricing.${index}.country`}
+                              render={({ field }) => (
+                                  <FormItem className="flex-1">
+                                      <FormLabel>Country</FormLabel>
+                                       <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                          <FormControl>
+                                              <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                                          </FormControl>
+                                          <SelectContent>
+                                              {countries.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                                          </SelectContent>
+                                      </Select>
+                                      <FormMessage />
+                                  </FormItem>
+                              )}
+                          />
+                          <FormField
+                              control={form.control}
+                              name={`pricing.${index}.price`}
+                              render={({ field }) => (
+                                  <FormItem className="flex-1">
+                                      <FormLabel>Price</FormLabel>
+                                      <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                                      <FormMessage />
+                                  </FormItem>
+                              )}
+                          />
+                           <FormField
+                              control={form.control}
+                              name={`pricing.${index}.currency`}
+                              render={({ field }) => (
+                                  <FormItem className="flex-1">
+                                      <FormLabel>Currency</FormLabel>
+                                      <FormControl><Input placeholder="INR" {...field} /></FormControl>
+                                      <FormMessage />
+                                  </FormItem>
+                              )}
+                          />
+                           <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)}>
+                              <Trash2 className="h-4 w-4" />
+                          </Button>
+                      </div>
+                  ))}
+                  <Button type="button" variant="outline" onClick={() => append({ country: '', price: 0, currency: ''})}>
+                      <Plus className="mr-2 h-4 w-4" /> Add Regional Price
+                  </Button>
+              </div>
+
 
               <Separator />
               <h3 className="text-md font-medium">Feature Limits</h3>
