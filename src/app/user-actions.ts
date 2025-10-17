@@ -12,10 +12,11 @@ import { areDetailsEqual } from '@/lib/utils';
 type ProfileUpdateData = Omit<User, 'id' | 'uid' | 'email' | 'role' | 'avatar' | 'memberSince' | 'username' | 'subscriptionPlan'>;
 
 export async function updateUserProfile(userId: string, data: ProfileUpdateData): Promise<{ success: true; user: User } | { success: false; error: string }> {
-  // AGGRESSIVE VALIDATION (Part 1 of our debugging strategy)
+  // AGGRESSIVE VALIDATION
   if (!userId || typeof userId !== 'string' || userId.trim() === '') {
-    console.error('--- DEBUG: updateUserProfile received invalid userId:', userId);
-    return { success: false, error: `Critical Error: User ID is missing or invalid. Cannot update profile.` };
+    const errorMsg = `Critical Error: User ID is missing or invalid. Cannot update profile. Received: '${userId}'`;
+    console.error(errorMsg);
+    return { success: false, error: errorMsg };
   }
 
   try {
@@ -23,19 +24,48 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
     const userSnap = await userRef.get();
 
     if (!userSnap.exists) {
-      console.error('--- DEBUG: Firestore document not found for userId:', userId);
-      return { success: false, error: 'User profile not found in the database.' };
+      const errorMsg = `User profile not found in the database for ID: ${userId}.`;
+      console.error(errorMsg);
+      return { success: false, error: errorMsg };
     }
 
-    // TEMPORARY SIMPLIFICATION (Part 2 of our debugging strategy)
-    const updateData: { [key: string]: any } = {
-        name: data.name, // Save only the name for now
+    const originalUser = userSnap.data() as User;
+    
+    // Explicitly construct the object with only the fields we want to update.
+    const dataToUpdate: { [key: string]: any } = {
+        name: data.name,
+        companyName: data.companyName || null,
+        phoneNumber: data.phoneNumber || null,
+        jobTitle: data.jobTitle || null,
+        companyWebsite: data.companyWebsite || null,
+        companyDescription: data.companyDescription || null,
+        taxId: data.taxId || null,
+        businessType: data.businessType || null,
+        exportScope: data.exportScope || [],
+        address: data.address || null,
+        shippingAddress: data.shippingAddress || null,
+        billingAddress: data.billingAddress || null,
+        billingSameAsShipping: data.billingSameAsShipping || false,
         updatedAt: new Date().toISOString(),
     };
-    
-    console.log(`--- DEBUG: Attempting to update user ${userId} with simplified data:`, JSON.stringify(updateData));
 
-    await userRef.update(updateData);
+    // --- Verification Logic ---
+    // This logic determines if a re-verification is needed.
+    const requiresReverification = (
+        originalUser.address?.country !== data.address?.country ||
+        originalUser.companyName !== data.companyName ||
+        !areDetailsEqual(originalUser.verificationDetails, data.verificationDetails)
+    );
+
+    if (requiresReverification) {
+        dataToUpdate.verificationStatus = 'pending';
+        dataToUpdate.verified = false;
+    }
+    
+    // Always update verificationDetails, as they are part of the form.
+    dataToUpdate.verificationDetails = data.verificationDetails || {};
+
+    await userRef.update(dataToUpdate);
     
     const updatedUserSnap = await userRef.get();
     const updatedUser = { id: updatedUserSnap.id, ...updatedUserSnap.data() } as User;
@@ -43,15 +73,13 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
     revalidatePath('/profile');
     revalidatePath(`/sellers/${userId}`);
 
-    console.log(`--- DEBUG: Successfully updated user ${userId}`);
-
     return { success: true, user: updatedUser };
+    
   } catch (error: any) {
-    console.error('--- DEBUG: updateUserProfile CRASHED ---');
+    console.error(`--- DEBUG: updateUserProfile CRASHED for user ${userId} ---`);
     console.error('--- DEBUG: Error Code:', error.code);
     console.error('--- DEBUG: Error Message:', error.message);
-    console.error('--- DEBUG: Full Error Object:', JSON.stringify(error, null, 2));
-
+    
     const errorMessage = error.message || 'Failed to update profile on the server. Please check the server logs.';
     return { success: false, error: errorMessage };
   }
