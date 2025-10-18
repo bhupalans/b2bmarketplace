@@ -22,11 +22,17 @@ async function getPendingSourcingRequests() {
             ...data,
             createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
             expiresAt: data.expiresAt instanceof Timestamp ? data.expiresAt.toDate().toISOString() : data.expiresAt,
+            // Ensure all potential timestamps are serialized
+            updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt,
         } as SourcingRequest;
         return request;
     });
 
-    return requests.sort((a, b) => new Date(a.createdAt as string).getTime() - new Date(b.createdAt as string).getTime());
+    return requests.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt as string).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt as string).getTime() : 0;
+        return dateA - dateB;
+    });
 }
 
 
