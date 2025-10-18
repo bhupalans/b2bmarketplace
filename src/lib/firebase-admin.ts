@@ -15,11 +15,11 @@ function getAdminApp() {
 
   // If not initialized, create a new app instance.
   // Explicitly setting the project ID and storage bucket makes initialization more robust,
-  // especially in serverless environments.
+  // especially in serverless environments where environment variable inference can fail.
   return admin.initializeApp(
     {
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      projectId: "b2b-marketplace-udg1v",
+      storageBucket: "b2b-marketplace-udg1v.appspot.com",
     },
     appName
   );
