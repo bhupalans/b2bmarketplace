@@ -8,14 +8,14 @@ import { Timestamp } from "firebase-admin/firestore";
 async function getPendingSourcingRequests() {
     const snapshot = await adminDb.collection("sourcingRequests")
         .where("status", "==", "pending")
-        .orderBy("createdAt", "asc")
         .get();
 
     if (snapshot.empty) {
         return [];
     }
     
-    return snapshot.docs.map(doc => {
+    // Sort in-memory after fetching
+    const requests = snapshot.docs.map(doc => {
         const data = doc.data();
         const request: SourcingRequest = {
             id: doc.id,
@@ -25,6 +25,8 @@ async function getPendingSourcingRequests() {
         } as SourcingRequest;
         return request;
     });
+
+    return requests.sort((a, b) => new Date(a.createdAt as string).getTime() - new Date(b.createdAt as string).getTime());
 }
 
 
