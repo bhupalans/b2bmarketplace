@@ -19,7 +19,7 @@ function getAdminApp() {
   return admin.initializeApp(
     {
       projectId: "b2b-marketplace-udg1v",
-      storageBucket: "b2b-marketplace-udg1v.appspot.com",
+      storageBucket: "b2b-marketplace-udg1v.firebasestorage.app",
     },
     appName
   );
