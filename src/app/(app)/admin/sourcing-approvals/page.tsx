@@ -1,48 +1,70 @@
 
-import { getUsers, getCategories } from "@/lib/database";
+"use client";
+
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/contexts/auth-context';
+import { Loader2 } from 'lucide-react';
+import { SourcingRequest, User, Category } from '@/lib/types';
+import { getPendingSourcingRequestsClient, getUsersClient, getCategoriesClient } from '@/lib/firebase';
 import { SourcingApprovalsClientPage } from './client-page';
-import { adminDb } from "@/lib/firebase-admin";
-import { SourcingRequest } from "@/lib/types";
-import { Timestamp } from "firebase-admin/firestore";
+import { useToast } from '@/hooks/use-toast';
 
-async function getPendingSourcingRequests() {
-    const snapshot = await adminDb.collection("sourcingRequests")
-        .where("status", "==", "pending")
-        .get();
+export default function AdminSourcingApprovalsPage() {
+  const { user } = useAuth();
+  const [requests, setRequests] = useState<SourcingRequest[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-    if (snapshot.empty) {
-        return [];
+  useEffect(() => {
+    async function fetchData() {
+      if (user?.role !== 'admin') {
+        setLoading(false);
+        return;
+      }
+      try {
+        setLoading(true);
+        const [pendingRequests, userList, categoryList] = await Promise.all([
+            getPendingSourcingRequestsClient(),
+            getUsersClient(),
+            getCategoriesClient()
+        ]);
+        setRequests(pendingRequests);
+        setUsers(userList);
+        setCategories(categoryList);
+      } catch (error) {
+        console.error("Failed to fetch admin data for sourcing approvals:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Could not load pending sourcing requests.'
+        });
+      } finally {
+        setLoading(false);
+      }
     }
-    
-    // Sort in-memory after fetching
-    const requests = snapshot.docs.map(doc => {
-        const data = doc.data();
-        const request: SourcingRequest = {
-            id: doc.id,
-            ...data,
-            createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
-            expiresAt: data.expiresAt instanceof Timestamp ? data.expiresAt.toDate().toISOString() : data.expiresAt,
-            // Ensure all potential timestamps are serialized
-            updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt,
-        } as SourcingRequest;
-        return request;
-    });
 
-    return requests.sort((a, b) => {
-        const dateA = a.createdAt ? new Date(a.createdAt as string).getTime() : 0;
-        const dateB = b.createdAt ? new Date(b.createdAt as string).getTime() : 0;
-        return dateA - dateB;
-    });
-}
+    if (user) {
+      fetchData();
+    }
+  }, [user, toast]);
 
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-full">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
-export default async function AdminSourcingApprovalsPage() {
-
-  const [requests, users, categories] = await Promise.all([
-    getPendingSourcingRequests(),
-    getUsers(),
-    getCategories()
-  ]);
+  if (user?.role !== 'admin') {
+    return (
+      <div className="flex justify-center items-center h-full">
+        <p>You do not have permission to view this page.</p>
+      </div>
+    );
+  }
 
   return <SourcingApprovalsClientPage initialRequests={requests} initialUsers={users} initialCategories={categories} />;
 }

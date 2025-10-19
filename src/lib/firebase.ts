@@ -1135,6 +1135,14 @@ export async function deletePaymentGatewayClient(id: string): Promise<void> {
 
 // --- Sourcing Request Functions ---
 
+export async function getPendingSourcingRequestsClient(): Promise<SourcingRequest[]> {
+    const requestsRef = collection(db, "sourcingRequests");
+    const q = query(requestsRef, where("status", "==", "pending"), orderBy("createdAt", "asc"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...convertTimestamps(docSnap.data()) } as SourcingRequest));
+}
+
+
 export async function createSourcingRequestClient(
     requestData: Omit<SourcingRequest, 'id' | 'buyerId' | 'buyerName' | 'buyerCountry' | 'status' | 'createdAt'>,
     buyer: User
