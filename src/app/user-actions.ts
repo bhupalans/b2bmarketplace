@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { firestore } from 'firebase-admin';
 import Stripe from 'stripe';
 import { areDetailsEqual } from '@/lib/utils';
+import { add } from 'date-fns';
 
 type ProfileUpdateData = Omit<User, 'id' | 'uid' | 'email' | 'role' | 'avatar' | 'memberSince' | 'username' | 'subscriptionPlan'>;
 
@@ -200,9 +201,15 @@ export async function confirmStripePayment(
     }
 
     const userRef = adminDb.collection('users').doc(userId);
-    await userRef.update({ subscriptionPlanId: planId });
+    const expiryDate = add(new Date(), { years: 1 });
+
+    await userRef.update({
+      subscriptionPlanId: planId,
+      subscriptionExpiryDate: expiryDate.toISOString(),
+      renewalCancelled: false, // Ensure renewal is active on new purchase
+    });
     
-    console.log(`Direct Confirm: Successfully updated subscription for user ${userId} to plan ${planId}.`);
+    console.log(`Stripe Yearly: Successfully updated subscription for user ${userId} to plan ${planId}, expiring on ${expiryDate.toISOString()}.`);
 
     revalidatePath('/profile/subscription');
     revalidatePath('/(app)/layout'); // Revalidate layout to update user nav
@@ -212,5 +219,29 @@ export async function confirmStripePayment(
   } catch (error: any) {
     console.error('Error confirming Stripe payment:', error);
     return { success: false, error: error.message || 'Failed to confirm payment on server.' };
+  }
+}
+
+
+export async function manageSubscriptionRenewal(
+  userId: string,
+  action: 'cancel' | 'reactivate'
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userRef = adminDb.collection('users').doc(userId);
+    const userSnap = await userRef.get();
+    if (!userSnap.exists) {
+      return { success: false, error: 'User not found.' };
+    }
+
+    const renewalCancelled = action === 'cancel';
+    await userRef.update({ renewalCancelled });
+
+    revalidatePath('/profile/subscription');
+
+    return { success: true };
+  } catch (error: any) {
+    console.error(`Error trying to ${action} subscription for user ${userId}:`, error);
+    return { success: false, error: `Could not ${action} subscription.` };
   }
 }

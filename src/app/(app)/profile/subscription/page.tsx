@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
+import { manageSubscriptionRenewal } from '@/app/user-actions';
 
 const PlanFeature = ({ children }: { children: React.ReactNode }) => (
     <li className="flex items-center gap-2">
@@ -21,12 +22,13 @@ const PlanFeature = ({ children }: { children: React.ReactNode }) => (
 );
 
 export default function SubscriptionPage() {
-    const { user, firebaseUser, loading: authLoading } = useAuth();
+    const { user, firebaseUser, loading: authLoading, revalidateUser } = useAuth();
     const router = useRouter();
     const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
     const [sourcingRequests, setSourcingRequests] = useState<SourcingRequest[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isCancelling, startCancelTransition] = useTransition();
     const { toast } = useToast();
     
     useEffect(() => {
@@ -66,7 +68,38 @@ export default function SubscriptionPage() {
     
     const handleSelectPlan = (plan: SubscriptionPlan) => {
         if (!firebaseUser) return;
-        router.push(`/profile/subscription/checkout?planId=${plan.id}`);
+        
+        if (plan.price === 0) {
+            handleCancelSubscription();
+        } else {
+             router.push(`/profile/subscription/checkout?planId=${plan.id}`);
+        }
+    }
+    
+    const handleCancelSubscription = () => {
+        if (!user || !user.subscriptionPlanId || user.renewalCancelled) return;
+        startCancelTransition(async () => {
+            const result = await manageSubscriptionRenewal(user.uid, 'cancel');
+            if (result.success) {
+                toast({ title: "Subscription Cancelled", description: "Your plan will not renew. You will have access until your current term ends." });
+                await revalidateUser();
+            } else {
+                toast({ variant: 'destructive', title: "Cancellation Failed", description: result.error });
+            }
+        });
+    }
+
+     const handleReactivateSubscription = () => {
+        if (!user || !user.subscriptionPlanId || !user.renewalCancelled) return;
+        startCancelTransition(async () => {
+            const result = await manageSubscriptionRenewal(user.uid, 'reactivate');
+            if (result.success) {
+                toast({ title: "Subscription Reactivated", description: "Your plan will now renew at the end of its term." });
+                await revalidateUser();
+            } else {
+                toast({ variant: 'destructive', title: "Reactivation Failed", description: result.error });
+            }
+        });
     }
 
     if (loading || authLoading) {
@@ -83,6 +116,7 @@ export default function SubscriptionPage() {
     }
     
     const hasActiveSubscription = user.subscriptionExpiryDate && new Date(user.subscriptionExpiryDate) > new Date();
+    const isCancelled = hasActiveSubscription && user.renewalCancelled;
     const currentPlan = hasActiveSubscription ? user.subscriptionPlan : plans.find(p => p.price === 0);
     
     return (
@@ -99,7 +133,9 @@ export default function SubscriptionPage() {
                     <CardHeader>
                         <CardTitle>Your Current Plan: {currentPlan.name}</CardTitle>
                          <CardDescription>
-                            {hasActiveSubscription ? (
+                            {isCancelled ? (
+                                `Your plan was cancelled and is set to expire on ${format(new Date(user.subscriptionExpiryDate!), 'PPP')}.`
+                            ) : hasActiveSubscription ? (
                                 `Your access to premium features is active until ${format(new Date(user.subscriptionExpiryDate!), 'PPP')}.`
                             ) : (
                                 "You are currently on the Free plan."
@@ -119,9 +155,9 @@ export default function SubscriptionPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {plans.map(plan => {
-                    const isCurrentPlan = hasActiveSubscription && plan.price > 0;
+                    const isCurrentPaidPlan = hasActiveSubscription && plan.id === currentPlan?.id;
                     const isCurrentFreePlan = !hasActiveSubscription && plan.price === 0;
-
+                    
                     const regionalPrice = user.address?.country ? plan.pricing?.find(p => p.country === user.address.country) : undefined;
                     
                     const displayPrice = regionalPrice ? regionalPrice.price : plan.price;
@@ -133,7 +169,7 @@ export default function SubscriptionPage() {
                     }).format(displayPrice);
 
                     return (
-                    <Card key={plan.id} className={cn("flex flex-col", (isCurrentPlan || isCurrentFreePlan) && "ring-2 ring-primary")}>
+                    <Card key={plan.id} className={cn("flex flex-col", (isCurrentPaidPlan || isCurrentFreePlan) && !isCancelled && "ring-2 ring-primary")}>
                         {plan.isFeatured && (
                             <div className="bg-primary text-primary-foreground text-xs font-bold text-center py-1 rounded-t-lg flex items-center justify-center gap-1">
                                <Star className="h-3 w-3" /> Most Popular
@@ -160,10 +196,18 @@ export default function SubscriptionPage() {
                             </ul>
                         </CardContent>
                         <CardFooter>
-                            {(isCurrentPlan || isCurrentFreePlan) ? (
+                            {isCurrentFreePlan ? (
                                 <Button disabled className="w-full">Current Plan</Button>
+                            ) : isCurrentPaidPlan && !isCancelled ? (
+                                <Button disabled className="w-full">Current Plan</Button>
+                            ) : isCurrentPaidPlan && isCancelled ? (
+                                <Button onClick={handleReactivateSubscription} className="w-full" disabled={isCancelling}>
+                                    {isCancelling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Reactivate
+                                </Button>
                             ) : (
-                                <Button onClick={() => handleSelectPlan(plan)} className="w-full">
+                                <Button onClick={() => handleSelectPlan(plan)} className="w-full" disabled={isCancelling || (plan.price > 0 && isCancelled)}>
+                                     {isCancelling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     {plan.price > 0 ? 'Upgrade Plan' : 'Switch to Free'}
                                 </Button>
                             )}

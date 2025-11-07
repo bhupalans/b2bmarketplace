@@ -85,7 +85,8 @@ export async function verifyRazorpayPayment({
             // Update user with the new plan and expiry date
             await userRef.update({ 
                 subscriptionPlanId: planId,
-                subscriptionExpiryDate: expiryDate.toISOString()
+                subscriptionExpiryDate: expiryDate.toISOString(),
+                renewalCancelled: false, // Ensure renewal is active on new purchase
             });
 
             console.log(`Razorpay Yearly: Successfully updated subscription for user ${userId} to plan ${planId}, expiring on ${expiryDate.toISOString()}.`);
