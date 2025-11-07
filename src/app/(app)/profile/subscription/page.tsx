@@ -29,6 +29,7 @@ export default function SubscriptionPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [isCancelling, startCancelTransition] = useTransition();
+    const [isReactivating, startReactivateTransition] = useTransition();
     const { toast } = useToast();
     
     useEffect(() => {
@@ -91,7 +92,7 @@ export default function SubscriptionPage() {
 
      const handleReactivateSubscription = () => {
         if (!user || !user.subscriptionPlanId || !user.renewalCancelled) return;
-        startCancelTransition(async () => {
+        startReactivateTransition(async () => {
             const result = await manageSubscriptionRenewal(user.uid, 'reactivate');
             if (result.success) {
                 toast({ title: "Subscription Reactivated", description: "Your plan will now renew at the end of its term." });
@@ -136,7 +137,7 @@ export default function SubscriptionPage() {
                             {isCancelled ? (
                                 `Your plan was cancelled and is set to expire on ${format(new Date(user.subscriptionExpiryDate!), 'PPP')}.`
                             ) : hasActiveSubscription ? (
-                                `Your access to premium features is active until ${format(new Date(user.subscriptionExpiryDate!), 'PPP')}.`
+                                `Your plan is active and will renew on ${format(new Date(user.subscriptionExpiryDate!), 'PPP')}.`
                             ) : (
                                 "You are currently on the Free plan."
                             )}
@@ -201,12 +202,12 @@ export default function SubscriptionPage() {
                             ) : isCurrentPaidPlan && !isCancelled ? (
                                 <Button disabled className="w-full">Current Plan</Button>
                             ) : isCurrentPaidPlan && isCancelled ? (
-                                <Button onClick={handleReactivateSubscription} className="w-full" disabled={isCancelling}>
-                                    {isCancelling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                <Button onClick={handleReactivateSubscription} className="w-full" disabled={isReactivating}>
+                                    {isReactivating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     Reactivate
                                 </Button>
                             ) : (
-                                <Button onClick={() => handleSelectPlan(plan)} className="w-full" disabled={isCancelling || (plan.price > 0 && isCancelled)}>
+                                <Button onClick={() => handleSelectPlan(plan)} className="w-full" disabled={isCancelling || isReactivating || (plan.price > 0 && isCancelled)}>
                                      {isCancelling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     {plan.price > 0 ? 'Upgrade Plan' : 'Switch to Free'}
                                 </Button>
