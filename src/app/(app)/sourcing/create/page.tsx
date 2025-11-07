@@ -166,8 +166,9 @@ function CreateSourcingRequestForm() {
       </div>
     );
   }
-  
-  const limit = user?.subscriptionPlan?.sourcingRequestLimit ?? 0;
+
+  const hasActiveSubscription = user?.subscriptionExpiryDate && new Date(user.subscriptionExpiryDate) > new Date();
+  const limit = hasActiveSubscription ? user?.subscriptionPlan?.sourcingRequestLimit ?? -1 : 0;
   const count = sourcingRequests.length;
   const canPost = isEditMode || limit === -1 || count < limit;
 

@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import { adminDb } from '@/lib/firebase-admin';
 import { SubscriptionPlan, User } from '@/lib/types';
 import { getPlanAndUser } from '@/lib/database';
+import { add } from 'date-fns';
 
 export async function createRazorpayOrder({ planId, userId }: { planId: string, userId: string }): Promise<{ success: true; order: any, user: User, plan: SubscriptionPlan } | { success: false, error: string }> {
 
@@ -77,8 +78,17 @@ export async function verifyRazorpayPayment({
         if (expectedSignature === razorpay_signature) {
             // Signature is valid, now update the user's subscription
             const userRef = adminDb.collection('users').doc(userId);
-            await userRef.update({ subscriptionPlanId: planId });
-            console.log(`Razorpay: Successfully updated subscription for user ${userId} to plan ${planId}.`);
+            
+            // Calculate expiry date: one year from now
+            const expiryDate = add(new Date(), { years: 1 });
+
+            // Update user with the new plan and expiry date
+            await userRef.update({ 
+                subscriptionPlanId: planId,
+                subscriptionExpiryDate: expiryDate.toISOString()
+            });
+
+            console.log(`Razorpay Yearly: Successfully updated subscription for user ${userId} to plan ${planId}, expiring on ${expiryDate.toISOString()}.`);
             
             return { success: true };
             

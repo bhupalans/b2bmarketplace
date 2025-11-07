@@ -115,9 +115,9 @@ export function RequestQuoteDialog({ product, seller }: RequestQuoteDialogProps)
     );
   }
   
-  const isPaidBuyer = user.subscriptionPlan && user.subscriptionPlan.price > 0;
+  const hasActiveSubscription = user.subscriptionExpiryDate && new Date(user.subscriptionExpiryDate) > new Date();
   
-  if (!isPaidBuyer) {
+  if (!hasActiveSubscription) {
       return (
           <Button asChild className="w-full" variant="secondary">
               <Link href="/profile/subscription">

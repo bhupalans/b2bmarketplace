@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useTransition } from "react";
@@ -107,8 +108,8 @@ export function ContactBuyerDialog({ request, buyer }: ContactBuyerDialogProps) 
     )
   }
   
-  const isPaidSeller = !!seller.subscriptionPlanId && seller.subscriptionPlan?.price > 0;
-  if (!isPaidSeller) {
+  const hasActiveSubscription = seller?.subscriptionExpiryDate && new Date(seller.subscriptionExpiryDate) > new Date();
+  if (!hasActiveSubscription) {
       return (
           <Button asChild className="w-full">
               <Link href="/profile/subscription">Upgrade to Contact Buyer</Link>

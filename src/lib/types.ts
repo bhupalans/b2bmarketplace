@@ -85,6 +85,7 @@ export type User = {
   subscriptionPlanId?: string;
   subscriptionPlan?: SubscriptionPlan; // Denormalized plan data for client-side use
   stripeCustomerId?: string;
+  subscriptionExpiryDate?: string;
 };
 
 export type PaymentGateway = {
@@ -143,6 +144,7 @@ export type SubscriptionPlan = {
   status: 'active' | 'archived';
   createdAt?: Timestamp | string;
   updatedAt?: Timestamp | string;
+  razorpayPlanId?: string;
 };
 
 export type RegionalPrice = {

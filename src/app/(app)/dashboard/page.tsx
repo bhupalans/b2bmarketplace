@@ -12,7 +12,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { DollarSign, Package, CheckCircle } from "lucide-react";
+import { DollarSign, Package, CheckCircle, Gem, AlertTriangle } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -25,6 +25,9 @@ import {
 } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 type DashboardData = {
   totalRevenue: number;
@@ -39,8 +42,11 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  const hasActiveSubscription = user?.subscriptionExpiryDate && new Date(user.subscriptionExpiryDate) > new Date();
+
+
   useEffect(() => {
-    if (user?.role === "seller") {
+    if (user?.role === "seller" && hasActiveSubscription) {
       getSellerDashboardData(user.id)
         .then((result) => {
           if (result.success && result.data) {
@@ -63,10 +69,29 @@ export default function DashboardPage() {
         })
         .finally(() => setLoading(false));
     } else if (user) {
-        // If the user is not a seller, stop loading.
+        // If the user is not a seller or has no active plan, stop loading.
         setLoading(false);
     }
-  }, [user, toast]);
+  }, [user, hasActiveSubscription, toast]);
+
+  if (!hasActiveSubscription) {
+    return (
+        <div className="flex justify-center items-center h-full">
+            <Alert className="max-w-md text-center">
+                <Gem className="h-4 w-4" />
+                <AlertTitle>Upgrade to View Dashboard</AlertTitle>
+                <AlertDescription>
+                    The seller dashboard with revenue and product analytics is a premium feature.
+                    <Button asChild variant="link">
+                        <Link href="/profile/subscription">Upgrade your plan</Link>
+                    </Button>
+                    to unlock this page.
+                </AlertDescription>
+            </Alert>
+        </div>
+    )
+  }
+
 
   const formattedRevenue = new Intl.NumberFormat("en-US", {
     style: "currency",

@@ -56,18 +56,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }
         }
         
-        // If the user has a subscription plan ID, fetch the plan details
+        // If the user has a subscription, fetch the plan details
         if (userProfile && userProfile.subscriptionPlanId) {
             const planRef = doc(db, 'subscriptionPlans', userProfile.subscriptionPlanId);
             const planSnap = await getDoc(planRef);
             if (planSnap.exists()) {
-                // Correctly serialize the subscription plan, including its timestamps
                 const planData = convertTimestamps(planSnap.data());
                 userProfile.subscriptionPlan = { id: planSnap.id, ...planData } as SubscriptionPlan;
             }
         }
-        // convertTimestamps is no longer needed here as the recursive nature of it would be redundant
-        // if we correctly serialize the subscriptionPlan above.
         setUser(convertTimestamps(userProfile));
     } else {
         setUser(null);
