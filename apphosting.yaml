@@ -1,3 +1,4 @@
+
 # Settings to manage and configure a Firebase App Hosting backend.
 # https://firebase.google.com/docs/app-hosting/configure
 
@@ -33,6 +34,8 @@ runConfig:
       secret: razorpay-key-id
     RAZORPAY_KEY_SECRET:
       secret: razorpay-key-secret
+    RESEND_API_KEY:
+      secret: resend-api-key
 
 # Add required API services to be enabled for the backend.
 requiredAPIs:

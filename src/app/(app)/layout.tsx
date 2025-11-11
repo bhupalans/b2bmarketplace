@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building, Home, PanelLeft, Loader2, LayoutDashboard, Package, Shield, FileText, FolderTree, MessageSquare, Handshake, Gem, List, ShieldCheck, Bug } from "lucide-react";
+import { Building, Home, PanelLeft, Loader2, LayoutDashboard, Package, Shield, FileText, FolderTree, MessageSquare, Handshake, Gem, List, ShieldCheck, Bug, Receipt } from "lucide-react";
 import {
   SidebarProvider,
   Sidebar,
@@ -195,6 +195,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                             <Link href="/profile/verification">
                             <ShieldCheck />
                             <span className="sr-only">Verification</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton
+                            asChild
+                            isActive={pathname.startsWith("/profile/invoices")}
+                            tooltip="Invoices"
+                        >
+                            <Link href="/profile/invoices">
+                            <Receipt />
+                            <span className="sr-only">Invoices</span>
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
