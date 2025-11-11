@@ -89,6 +89,32 @@ export type User = {
   renewalCancelled?: boolean;
 };
 
+export type SubscriptionInvoice = {
+  id: string;
+  userId: string;
+  invoiceNumber: string;
+  invoiceDate: string; // ISO string date
+  planName: string;
+  amount: number; // Stored in the smallest currency unit (e.g., cents)
+  currency: string; // e.g., 'usd', 'inr'
+  status: 'paid' | 'void';
+  paymentId: string;
+  provider: 'stripe' | 'razorpay';
+  // Denormalized user details for the invoice
+  billedTo: {
+    name: string;
+    email: string;
+    address: {
+      line1: string;
+      city: string;
+      state: string | null;
+      postal_code: string;
+      country: string;
+    }
+  };
+  pdfUrl?: string; // URL to the generated PDF invoice in storage
+};
+
 export type PaymentGateway = {
   id: string; // e.g., 'stripe'
   name: string; // e.g., 'Stripe'

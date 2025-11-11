@@ -16,7 +16,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { auth, getNotificationsClient } from "@/lib/firebase";
 import { AppNotification } from "@/lib/types";
 import { signOut } from "firebase/auth";
-import { CreditCard, LogOut, Settings, User, LayoutDashboard, Package, MessageSquare, ShieldCheck, FileText, Handshake, Bell, Gem, List } from "lucide-react";
+import { CreditCard, LogOut, Settings, User, LayoutDashboard, Package, MessageSquare, ShieldCheck, FileText, Handshake, Bell, Gem, List, Receipt } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
@@ -101,6 +101,12 @@ export function UserNav() {
               <Link href="/profile">
                 <Settings className="mr-2 h-4 w-4" />
                 <span>My Profile</span>
+              </Link>
+            </DropdownMenuItem>
+             <DropdownMenuItem asChild>
+              <Link href="/profile/invoices">
+                <Receipt className="mr-2 h-4 w-4" />
+                <span>Invoices</span>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
