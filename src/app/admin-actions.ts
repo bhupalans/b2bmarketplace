@@ -2,10 +2,11 @@
 'use server';
 
 import { adminDb } from "@/lib/firebase-admin";
-import { User, Message } from "@/lib/types";
+import { User, Message, BrandingSettings } from "@/lib/types";
 import { format } from 'date-fns';
 import { Timestamp } from "firebase-admin/firestore";
 import { getUsersByIds } from "@/lib/database";
+import { revalidatePath } from 'next/cache';
 
 export async function downloadConversationAction(conversationId: string) {
     if (!conversationId) {
@@ -49,4 +50,21 @@ export async function downloadConversationAction(conversationId: string) {
         console.error('Error downloading conversation:', error);
         return { success: false, error: 'Failed to generate conversation file. Check server logs.' };
     }
+}
+
+export async function updateBrandingSettings(settings: BrandingSettings): Promise<{ success: boolean; error?: string }> {
+  try {
+    const docRef = adminDb.collection('settings').doc('branding');
+    await docRef.set(settings, { merge: true });
+
+    // Revalidate paths that use this branding information
+    revalidatePath('/'); // Homepage
+    revalidatePath('/(app)/layout'); // Main layout for footer/header
+    revalidatePath('/layout'); // Root layout for metadata
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error updating branding settings:', error);
+    return { success: false, error: 'Failed to save settings on the server.' };
+  }
 }

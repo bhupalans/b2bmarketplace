@@ -16,9 +16,9 @@ import { Button } from "@/components/ui/button";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { saveBrandingSettingsClient } from '@/lib/firebase';
 import { Loader2 } from 'lucide-react';
 import { BrandingSettings } from '@/lib/types';
+import { updateBrandingSettings } from '@/app/admin-actions';
 
 const brandingSettingsSchema = z.object({
   companyName: z.string().min(1, "Company name is required."),
@@ -48,11 +48,15 @@ export function BrandingSettingsForm({ initialBranding }: BrandingSettingsProps)
   const onSubmit = (data: BrandingSettingsFormData) => {
     startTransition(async () => {
       try {
-        await saveBrandingSettingsClient(data);
-        toast({
-          title: 'Branding Settings Saved',
-          description: 'Your new branding has been applied across the site.',
-        });
+        const result = await updateBrandingSettings(data);
+        if (result.success) {
+            toast({
+              title: 'Branding Settings Saved',
+              description: 'Your new branding has been applied across the site.',
+            });
+        } else {
+            throw new Error(result.error);
+        }
       } catch (error: any) {
         toast({
           variant: 'destructive',
