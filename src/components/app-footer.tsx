@@ -1,12 +1,8 @@
 
 import Link from 'next/link';
 import { Building } from 'lucide-react';
-import { getBrandingSettings } from '@/lib/database';
 
-export async function AppFooter() {
-  const branding = await getBrandingSettings();
-  const companyName = branding.companyName || "B2B Marketplace";
-
+export function AppFooter({ companyName }: { companyName: string }) {
   return (
     <footer className="mt-auto border-t bg-background">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8">

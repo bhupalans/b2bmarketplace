@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building, Home, PanelLeft, Loader2, LayoutDashboard, Package, Shield, FileText, FolderTree, MessageSquare, MessagesSquare, Gavel, CheckSquare, Settings, ShieldCheck, Database, Search, Handshake, Gem, List } from "lucide-react";
+import { Building, Home, PanelLeft, Loader2, LayoutDashboard, Package, Shield, FileText, FolderTree, MessageSquare, Handshake, Gem, List, ShieldCheck, Bug, Receipt } from "lucide-react";
 import {
   SidebarProvider,
   Sidebar,
@@ -15,14 +15,12 @@ import {
   SidebarFooter,
   SidebarInset,
   SidebarTrigger,
-  SidebarGroup,
-  SidebarGroupLabel,
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
-import { Button } from "./ui/button";
-import { UserNav } from "./user-nav";
+import { Button } from "@/components/ui/button";
+import { UserNav } from "@/components/user-nav";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -30,12 +28,18 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "./ui/collapsible";
+} from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { CurrencySwitcher } from "@/components/currency-switcher";
 import { AppFooter } from "@/components/app-footer";
+import { CurrencySwitcher } from "@/components/currency-switcher";
 
-export function AppLayout({ children }: { children: React.ReactNode }) {
+export function AppLayoutClient({ 
+  children,
+  companyName,
+ }: { 
+  children: React.ReactNode,
+  companyName: string
+}) {
   const pathname = usePathname();
   const { user, firebaseUser, loading } = useAuth();
   const router = useRouter();
@@ -54,6 +58,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         '/dashboard': 'seller',
         '/my-products': 'seller',
         '/sourcing/create': 'buyer',
+        '/sourcing/my-requests': 'buyer',
         '/admin': 'admin',
         '/messages': 'any', // any authenticated user
         '/profile': 'any',
@@ -104,6 +109,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       )
   }
+
 
   return (
     <SidebarProvider>
@@ -198,6 +204,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton
+                            asChild
+                            isActive={pathname.startsWith("/profile/invoices")}
+                            tooltip="Invoices"
+                        >
+                            <Link href="/profile/invoices">
+                            <Receipt />
+                            <span className="sr-only">Invoices</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
                  </>
             )}
              {user?.role === 'seller' && (
@@ -229,18 +247,34 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </>
             )}
             {user?.role === 'buyer' && (
-              <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname.startsWith("/sourcing/create")}
-                    tooltip="Post a Sourcing Request"
-                  >
-                    <Link href="/sourcing/create">
-                      <FileText />
-                      <span className="sr-only">Post a Request</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+              <Collapsible asChild defaultOpen={pathname.startsWith('/sourcing/create') || pathname.startsWith('/sourcing/my-requests')}>
+                  <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                          <SidebarMenuButton
+                              className="w-full justify-start"
+                              variant="ghost"
+                              tooltip="Sourcing Tools"
+                          >
+                              <FileText />
+                              <span className="sr-only">Sourcing Tools</span>
+                          </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent asChild>
+                          <SidebarMenuSub>
+                              <SidebarMenuSubItem>
+                                  <SidebarMenuSubButton asChild isActive={pathname === '/sourcing/create'}>
+                                      <Link href="/sourcing/create">Post a Request</Link>
+                                  </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                              <SidebarMenuSubItem>
+                                  <SidebarMenuSubButton asChild isActive={pathname === '/sourcing/my-requests'}>
+                                      <Link href="/sourcing/my-requests">My Requests</Link>
+                                  </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                          </SidebarMenuSub>
+                      </CollapsibleContent>
+                  </SidebarMenuItem>
+              </Collapsible>
             )}
              {user?.role === 'admin' && (
                 <Collapsible asChild defaultOpen={pathname.startsWith('/admin')}>
@@ -259,7 +293,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                             <SidebarMenuSub>
                                 <SidebarMenuSubItem>
                                     <SidebarMenuSubButton asChild isActive={pathname === '/admin/approvals'}>
-                                        <Link href="/admin/approvals">Approvals</Link>
+                                        <Link href="/admin/approvals">Product Approvals</Link>
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                                 <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={pathname === '/admin/sourcing-approvals'}>
+                                        <Link href="/admin/sourcing-approvals">Sourcing Approvals</Link>
                                     </SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
                                 <SidebarMenuSubItem>
@@ -302,6 +341,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                         <Link href="/admin/data-tools">Data Tools</Link>
                                     </SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={pathname === '/admin/debug-profile'}>
+                                        <Link href="/admin/debug-profile">Debug Profile</Link>
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
                             </SidebarMenuSub>
                         </CollapsibleContent>
                     </SidebarMenuItem>
@@ -310,21 +354,21 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>
-          { firebaseUser ? <UserNav /> : null }
+          {/* This is intentionally empty to remove the redundant UserNav from the bottom */}
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <div className="flex flex-col min-h-screen">
-            <header className={cn("sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6", isMessagesPage && "hidden")}>
-              <SidebarTrigger className="sm:hidden" />
+         <div className="flex flex-col min-h-screen">
+            <header className={cn("sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-6", isMessagesPage && "hidden")}>
+              <SidebarTrigger />
               <div className="flex-1" />
               <div className="flex items-center gap-4">
                 <CurrencySwitcher />
                 <UserNav />
               </div>
             </header>
-            <main className={cn("flex-1", isMessagesPage ? 'p-0' : "p-4 sm:px-6 sm:py-0")}>{children}</main>
-            <AppFooter />
+            <main className={cn("flex-1", isMessagesPage ? 'p-0' : "p-4 sm:p-6")}>{children}</main>
+            <AppFooter companyName={companyName} />
         </div>
       </SidebarInset>
     </SidebarProvider>
