@@ -1,8 +1,12 @@
 
 import Link from 'next/link';
 import { Building } from 'lucide-react';
+import { getBrandingSettings } from '@/lib/database';
 
-export function AppFooter() {
+export async function AppFooter() {
+  const branding = await getBrandingSettings();
+  const companyName = branding.companyName || "B2B Marketplace";
+
   return (
     <footer className="mt-auto border-t bg-background">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8">
@@ -43,10 +47,10 @@ export function AppFooter() {
           </div>
         </div>
         <div className="mt-8 border-t pt-4 flex justify-between items-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} B2B Marketplace. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} {companyName}. All rights reserved.</p>
           <div className="flex items-center gap-2">
             <Building className="h-4 w-4" />
-            <span>B2B Marketplace</span>
+            <span>{companyName}</span>
           </div>
         </div>
       </div>

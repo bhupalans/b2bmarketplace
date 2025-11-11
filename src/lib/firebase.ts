@@ -3,7 +3,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc as getDocClient, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError, setDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate, VerificationTemplate, VerificationField, SourcingRequest, Question, Answer, AppNotification, SubscriptionPlan, PaymentGateway, SubscriptionInvoice } from './types';
+import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate, VerificationTemplate, VerificationField, SourcingRequest, Question, Answer, AppNotification, SubscriptionPlan, PaymentGateway, SubscriptionInvoice, BrandingSettings } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { moderateMessageContent } from '@/ai/flows/moderate-message-content';
 import { sendQuestionAnsweredEmail, sendProductApprovedEmail, sendProductRejectedEmail, sendUserVerifiedEmail, sendUserRejectedEmail } from '@/services/email';
@@ -1108,6 +1108,20 @@ export async function getProductUpdateRulesClient(): Promise<string[]> {
 export async function saveProductUpdateRulesClient(fields: string[]): Promise<void> {
     const docRef = doc(db, 'settings', 'productUpdateRules');
     await setDoc(docRef, { autoApproveFields: fields });
+}
+
+export async function getBrandingSettingsClient(): Promise<BrandingSettings> {
+    const docRef = doc(db, 'settings', 'branding');
+    const docSnap = await getDocClient(docRef);
+    if (docSnap.exists()) {
+        return docSnap.data() as BrandingSettings;
+    }
+    return {};
+}
+
+export async function saveBrandingSettingsClient(settings: BrandingSettings): Promise<void> {
+    const docRef = doc(db, 'settings', 'branding');
+    await setDoc(docRef, settings, { merge: true });
 }
 
 // --- Payment Gateway Functions ---

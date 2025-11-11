@@ -18,8 +18,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { saveProductUpdateRulesClient } from '@/lib/firebase';
 import { Loader2 } from 'lucide-react';
-import { PaymentGateway } from '@/lib/types';
+import { PaymentGateway, BrandingSettings } from '@/lib/types';
 import { PaymentGatewaySettings } from './payment-gateway-settings';
+import { BrandingSettingsForm } from './branding-settings';
 
 const productFields = [
     { id: 'priceUSD', label: 'Price (USD)' },
@@ -40,9 +41,10 @@ type SettingsFormData = z.infer<typeof settingsSchema>;
 interface SettingsClientPageProps {
   initialRules: string[];
   initialPaymentGateways: PaymentGateway[];
+  initialBranding: BrandingSettings;
 }
 
-export function SettingsClientPage({ initialRules, initialPaymentGateways }: SettingsClientPageProps) {
+export function SettingsClientPage({ initialRules, initialPaymentGateways, initialBranding }: SettingsClientPageProps) {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
 
@@ -77,6 +79,9 @@ export function SettingsClientPage({ initialRules, initialPaymentGateways }: Set
             <h1 className="text-3xl font-bold tracking-tight">Marketplace Settings</h1>
             <p className="text-muted-foreground">Configure rules and settings for your marketplace.</p>
         </div>
+
+        <BrandingSettingsForm initialBranding={initialBranding} />
+
         <Card>
             <CardHeader>
                 <CardTitle>Product Auto-Approval</CardTitle>

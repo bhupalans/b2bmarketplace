@@ -16,6 +16,7 @@ import homePageImages from "@/lib/placeholder-images.json";
 import { formatDistanceToNow } from "date-fns";
 import { useCurrency } from "@/contexts/currency-context";
 import { cn } from "@/lib/utils";
+import { getBrandingSettings } from "@/lib/database";
 
 const iconMap: { [key: string]: React.ElementType } = {
     "Industrial Supplies": Building,
@@ -66,32 +67,16 @@ const SourcingRequestCard = ({ request }: { request: SourcingRequest }) => {
     )
 }
 
-export default function HomePage() {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [requests, setRequests] = useState<SourcingRequest[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchData() {
-        try {
-            setLoading(true);
-            const [cats, prods, reqs] = await Promise.all([
-                getActiveCategoriesClient(),
-                getProductsClient(),
-                getSourcingRequestsClient(),
-            ]);
-            setCategories(cats.filter(c => !c.parentId).slice(0, 6)); // Top-level categories only
-            setProducts(prods.slice(0, 3)); // Get first 3 featured products
-            setRequests(reqs.slice(0, 3)); // Get first 3 featured requests
-        } catch (error) {
-            console.error("Failed to fetch homepage data:", error);
-        } finally {
-            setLoading(false);
-        }
-    }
-    fetchData();
-  }, []);
+function HomePageClient({ initialBranding, initialCategories, initialProducts, initialRequests }: {
+    initialBranding: { headline: string, subhead: string },
+    initialCategories: Category[],
+    initialProducts: Product[],
+    initialRequests: SourcingRequest[],
+}) {
+  const [categories, setCategories] = useState<Category[]>(initialCategories);
+  const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [requests, setRequests] = useState<SourcingRequest[]>(initialRequests);
+  const [loading, setLoading] = useState(false); // Data is pre-fetched, so initial load is false
 
   return (
     <div className="space-y-12 md:space-y-20">
@@ -108,10 +93,10 @@ export default function HomePage() {
         />
         <div className="relative z-20 mx-auto max-w-2xl text-primary-foreground px-4">
           <h1 className="text-4xl font-bold tracking-tight md:text-6xl">
-            The Global B2B Marketplace
+            {initialBranding.headline}
           </h1>
           <p className="mt-4 text-lg text-primary-foreground/80">
-            Connect with verified suppliers, find quality products, or post your sourcing needs to get competitive quotes.
+            {initialBranding.subhead}
           </p>
           <div className="relative mx-auto mt-8 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -207,4 +192,32 @@ export default function HomePage() {
       </section>
     </div>
   );
+}
+
+// This is the main export for the page, a Server Component that fetches data.
+export default async function HomePage() {
+    const [branding, categories, products, requests] = await Promise.all([
+        getBrandingSettings(),
+        getActiveCategoriesClient(),
+        getProductsClient(),
+        getSourcingRequestsClient(),
+    ]);
+
+    const initialBranding = {
+        headline: branding.headline || "The Global B2B Marketplace",
+        subhead: branding.subhead || "Connect with verified suppliers, find quality products, or post your sourcing needs to get competitive quotes."
+    };
+    
+    const initialCategories = categories.filter(c => !c.parentId).slice(0, 6);
+    const initialProducts = products.slice(0, 3);
+    const initialRequests = requests.slice(0, 3);
+
+    return (
+        <HomePageClient 
+            initialBranding={initialBranding}
+            initialCategories={initialCategories}
+            initialProducts={initialProducts}
+            initialRequests={initialRequests}
+        />
+    )
 }

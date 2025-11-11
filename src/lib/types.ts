@@ -1,6 +1,12 @@
 
 import type { FieldValue, Timestamp } from "firebase/firestore";
 
+export type BrandingSettings = {
+  companyName?: string;
+  headline?: string;
+  subhead?: string;
+}
+
 export type User = {
   id: string; // This is the Firestore document ID, which is the same as the uid
   uid: string; // This is the Firebase Auth UID

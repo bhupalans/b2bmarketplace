@@ -1,12 +1,22 @@
-import type { Metadata } from "next";
+
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
 import Script from "next/script";
+import { getBrandingSettings } from "@/lib/database";
 
-export const metadata: Metadata = {
-  title: "B2B Marketplace",
-  description: "A B2B marketplace for buyers and sellers.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const branding = await getBrandingSettings();
+  const companyName = branding.companyName || "B2B Marketplace";
+  
+  return {
+    title: {
+      default: companyName,
+      template: `%s | ${companyName}`,
+    },
+    description: `A B2B marketplace for buyers and sellers, powered by ${companyName}.`,
+  };
+}
 
 export default async function RootLayout({
   children,

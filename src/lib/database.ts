@@ -3,7 +3,7 @@
 'use server';
 
 import { adminDb } from "./firebase-admin";
-import { Product, Category, User, Message, Conversation, Offer, SubscriptionPlan } from "./types";
+import { Product, Category, User, Message, Conversation, Offer, SubscriptionPlan, BrandingSettings } from "./types";
 import { mockCategories, mockProducts } from "./mock-data";
 import { firestore, firestore as adminFirestore } from "firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
@@ -35,6 +35,15 @@ function serializeTimestamps(data: any): any {
 
 
 // --- Read Operations ---
+
+export async function getBrandingSettings(): Promise<BrandingSettings> {
+    const docRef = adminDb.collection('settings').doc('branding');
+    const docSnap = await docRef.get();
+    if (docSnap.exists) {
+        return docSnap.data() as BrandingSettings;
+    }
+    return {}; // Return empty object if not found
+}
 
 export async function getProduct(productId: string): Promise<Product | null> {
     const productRef = adminDb.collection("products").doc(productId);

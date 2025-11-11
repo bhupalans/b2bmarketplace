@@ -63,7 +63,9 @@ export async function createStripePaymentIntent({ planId, userId }: { planId: st
             currency = regionalPricing.currency;
         }
         
-        const descriptionForStripe = `Subscription to ${plan.name} plan on B2B Marketplace for user ${user.email}.`;
+        const branding = await adminDb.collection('settings').doc('branding').get().then(doc => doc.data());
+        const companyName = branding?.companyName || "B2B Marketplace";
+        const descriptionForStripe = `Subscription to ${plan.name} plan on ${companyName} for user ${user.email}.`;
 
         const paymentIntent = await stripe.paymentIntents.create({
             amount: amount * 100, // Price in cents
