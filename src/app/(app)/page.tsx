@@ -6,7 +6,7 @@ import { getActiveCategoriesClient, getBrandingSettings, getProductsClient, getS
 import { ArrowRight, Search, Building, Package, ShieldCheck, Globe, Handshake } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { ProductCard } from "@/components/product-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -14,14 +14,6 @@ import homePageImages from "@/lib/placeholder-images.json";
 import { formatDistanceToNow } from "date-fns";
 import { useCurrency } from "@/contexts/currency-context";
 import { cn } from "@/lib/utils";
-
-const iconMap: { [key: string]: React.ElementType } = {
-    "Industrial Supplies": Building,
-    "Raw Materials": Package,
-    "Electronics": Package,
-    "Beauty & Personal Care": Package,
-    "Agriculture": Package,
-};
 
 function SourcingRequestCard({ request }: { request: SourcingRequest }) {
     const { currency, rates } = useCurrency();
@@ -63,6 +55,14 @@ function SourcingRequestCard({ request }: { request: SourcingRequest }) {
         </Card>
     )
 }
+
+const iconMap: { [key: string]: React.ElementType } = {
+    "Industrial Supplies": Building,
+    "Raw Materials": Package,
+    "Electronics": Package,
+    "Beauty & Personal Care": Package,
+    "Agriculture": Package,
+};
 
 // Client Component to handle state and interactions
 function HomePageClient({ initialBranding, initialCategories, initialProducts, initialRequests }: {
@@ -221,5 +221,3 @@ export default async function HomePage() {
         />
     )
 }
-
-    
