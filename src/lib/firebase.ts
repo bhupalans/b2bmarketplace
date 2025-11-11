@@ -28,16 +28,24 @@ const storage = getStorage(app);
 // Helper function to convert Timestamps in an object to strings
 export const convertTimestamps = (data: any): any => {
     if (!data) return data;
-    const newData: { [key: string]: any } = { ...data };
-    for (const key in newData) {
-        if (newData[key] instanceof Timestamp) {
-            newData[key] = newData[key].toDate().toISOString();
-        } else if (typeof newData[key] === 'object' && newData[key] !== null && !Array.isArray(newData[key])) {
-            // Recursively convert nested objects, but not arrays
-            newData[key] = convertTimestamps(newData[key]);
-        }
+
+    if (Array.isArray(data)) {
+        return data.map(item => convertTimestamps(item));
     }
-    return newData;
+
+    if (data instanceof Timestamp) {
+        return data.toDate().toISOString();
+    }
+
+    if (typeof data === 'object' && !(data instanceof Date)) {
+        const res: { [key: string]: any } = {};
+        for (const key in data) {
+            res[key] = convertTimestamps(data[key]);
+        }
+        return res;
+    }
+
+    return data;
 };
 
 
@@ -159,14 +167,14 @@ export async function getPendingProducts(): Promise<Product[]> {
 export async function getCategoriesClient(): Promise<Category[]> {
   const categoriesCol = collection(db, "categories");
   const categorySnapshot = await getDocs(categoriesCol);
-  return categorySnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Category));
+  return categorySnapshot.docs.map(docSnap => ({ id: docSnap.id, ...convertTimestamps(docSnap.data()) } as Category));
 }
 
 export async function getActiveCategoriesClient(): Promise<Category[]> {
   const categoriesCol = collection(db, "categories");
   const q = query(categoriesCol, where("status", "==", "active"));
   const categorySnapshot = await getDocs(q);
-  return categorySnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Category));
+  return categorySnapshot.docs.map(docSnap => ({ id: docSnap.id, ...convertTimestamps(docSnap.data()) } as Category));
 }
 
 
