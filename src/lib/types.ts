@@ -95,7 +95,7 @@ export type SubscriptionInvoice = {
   invoiceNumber: string;
   invoiceDate: string; // ISO string date
   planName: string;
-  amount: number; // Stored in the smallest currency unit (e.g., cents)
+  amount: number; // Stored in the primary currency unit (e.g., dollars, not cents)
   currency: string; // e.g., 'usd', 'inr'
   status: 'paid' | 'void';
   paymentId: string;

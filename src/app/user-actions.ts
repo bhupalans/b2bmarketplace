@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { adminDb, adminStorage, adminAuth } from '@/lib/firebase-admin';
@@ -9,6 +10,8 @@ import { firestore } from 'firebase-admin';
 import Stripe from 'stripe';
 import { areDetailsEqual } from '@/lib/utils';
 import { add } from 'date-fns';
+import { createSubscriptionInvoice } from '@/services/invoicing';
+import { getPlanAndUser } from '@/lib/database';
 
 type ProfileUpdateData = Omit<User, 'id' | 'uid' | 'email' | 'role' | 'avatar' | 'memberSince' | 'username' | 'subscriptionPlan'>;
 
@@ -199,19 +202,37 @@ export async function confirmStripePayment(
     if (!userId || !planId) {
       throw new Error('Payment metadata is missing user or plan ID.');
     }
-
+    
+    const { plan, user } = await getPlanAndUser(planId, userId);
     const userRef = adminDb.collection('users').doc(userId);
     const expiryDate = add(new Date(), { years: 1 });
 
-    await userRef.update({
+    const batch = adminDb.batch();
+
+    batch.update(userRef, {
       subscriptionPlanId: planId,
       subscriptionExpiryDate: expiryDate.toISOString(),
       renewalCancelled: false, // Ensure renewal is active on new purchase
     });
     
     console.log(`Stripe Yearly: Successfully updated subscription for user ${userId} to plan ${planId}, expiring on ${expiryDate.toISOString()}.`);
+    
+    // The invoice creation is now part of the same transaction
+    await createSubscriptionInvoice({
+        user,
+        plan,
+        paymentDetails: {
+            provider: 'stripe',
+            paymentId: paymentIntent.id,
+            amount: paymentIntent.amount,
+            currency: paymentIntent.currency,
+        }
+    });
+
+    await batch.commit();
 
     revalidatePath('/profile/subscription');
+    revalidatePath('/profile/invoices');
     revalidatePath('/(app)/layout'); // Revalidate layout to update user nav
 
     return { success: true };

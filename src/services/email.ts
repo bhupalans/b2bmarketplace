@@ -3,7 +3,8 @@
 'use server';
 
 import { Resend } from 'resend';
-import { User, Product, Question } from '@/lib/types';
+import { User, Product, Question, SubscriptionInvoice } from '@/lib/types';
+import { format } from 'date-fns';
 
 const fromAddress = 'B2B Marketplace <notifications@b2btest.veloglobal.in>';
 
@@ -14,6 +15,60 @@ function getResend() {
         return null;
     }
     return new Resend(process.env.RESEND_API_KEY);
+}
+
+export async function sendInvoiceEmail({ invoice, user }: { invoice: SubscriptionInvoice, user: User }) {
+    const resend = getResend();
+    if (!resend || !user.email) return;
+
+    const formattedAmount = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: invoice.currency,
+    }).format(invoice.amount);
+
+    const invoiceDate = format(new Date(invoice.invoiceDate), 'PPP');
+
+    try {
+        await resend.emails.send({
+            from: fromAddress,
+            to: user.email,
+            subject: `Your B2B Marketplace Invoice #${invoice.invoiceNumber}`,
+            html: `
+                <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px;">
+                    <h1 style="font-size: 24px; color: #333;">Invoice</h1>
+                    <p>Hi ${user.name},</p>
+                    <p>Thank you for your payment. Here is your invoice for your recent subscription purchase.</p>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #ddd;"><strong>Invoice Number:</strong></td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">${invoice.invoiceNumber}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #ddd;"><strong>Date:</strong></td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">${invoiceDate}</td>
+                        </tr>
+                        <tr style="background-color: #f9f9f9;">
+                            <td style="padding: 8px; border: 1px solid #ddd;"><strong>Item</strong></td>
+                            <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>Amount</strong></td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #ddd;">Yearly Subscription: ${invoice.planName} Plan</td>
+                            <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${formattedAmount}</td>
+                        </tr>
+                        <tr style="font-weight: bold;">
+                            <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">Total</td>
+                            <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${formattedAmount}</td>
+                        </tr>
+                    </table>
+                    <p>You can view all your past invoices by visiting your profile on the marketplace.</p>
+                    <p style="font-size: 12px; color: #777;">This is an automated email. Please do not reply.</p>
+                </div>
+            `
+        });
+        console.log(`Invoice email sent to ${user.email} for invoice #${invoice.invoiceNumber}`);
+    } catch (error) {
+        console.error(`Failed to send invoice email to ${user.email}:`, error);
+    }
 }
 
 export async function sendQuestionAnsweredEmail({ buyer, product, question }: { buyer: User, product: Product, question: Question }) {

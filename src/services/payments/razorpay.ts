@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import Razorpay from 'razorpay';
@@ -7,6 +8,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { SubscriptionPlan, User } from '@/lib/types';
 import { getPlanAndUser } from '@/lib/database';
 import { add } from 'date-fns';
+import { createSubscriptionInvoice } from '@/services/invoicing';
 
 export async function createRazorpayOrder({ planId, userId }: { planId: string, userId: string }): Promise<{ success: true; order: any, user: User, plan: SubscriptionPlan } | { success: false, error: string }> {
 
@@ -77,12 +79,13 @@ export async function verifyRazorpayPayment({
             
         if (expectedSignature === razorpay_signature) {
             // Signature is valid, now update the user's subscription
-            const userRef = adminDb.collection('users').doc(userId);
+            const { plan, user } = await getPlanAndUser(planId, userId);
             
             // Calculate expiry date: one year from now
             const expiryDate = add(new Date(), { years: 1 });
 
             // Update user with the new plan and expiry date
+            const userRef = adminDb.collection('users').doc(userId);
             await userRef.update({ 
                 subscriptionPlanId: planId,
                 subscriptionExpiryDate: expiryDate.toISOString(),
@@ -91,6 +94,23 @@ export async function verifyRazorpayPayment({
 
             console.log(`Razorpay Yearly: Successfully updated subscription for user ${userId} to plan ${planId}, expiring on ${expiryDate.toISOString()}.`);
             
+            // Determine amount and currency for invoice
+            const regionalPricing = plan.pricing?.find(p => p.country === user.address?.country);
+            const amount = regionalPricing ? regionalPricing.price : plan.price;
+            const currency = regionalPricing ? regionalPricing.currency : plan.currency;
+
+            // Create and send invoice
+            await createSubscriptionInvoice({
+                user,
+                plan,
+                paymentDetails: {
+                    provider: 'razorpay',
+                    paymentId: razorpay_payment_id,
+                    amount: amount * 100, // to smallest unit
+                    currency: currency,
+                }
+            });
+
             return { success: true };
             
         } else {

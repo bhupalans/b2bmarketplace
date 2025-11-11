@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import Stripe from 'stripe';
@@ -6,6 +7,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { SubscriptionPlan, User } from '@/lib/types';
 import { statesProvinces } from '@/lib/geography-data';
 import { getPlanAndUser } from '@/lib/database';
+import { createSubscriptionInvoice } from '@/services/invoicing';
 
 export async function createStripePaymentIntent({ planId, userId }: { planId: string, userId: string }): Promise<{ success: true; clientSecret: string; } | { success: false, error: string }> {
     const secretKey = process.env.STRIPE_SECRET_KEY;
