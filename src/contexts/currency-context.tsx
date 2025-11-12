@@ -28,13 +28,14 @@ export const CurrencyProvider = ({
   const { user } = useAuth();
 
   useEffect(() => {
-    // This effect runs when the user logs in or out, or when the initial currency changes.
+    // This effect ensures the currency updates when the user logs in or out.
     let determinedCurrency = initialCurrency;
 
-    if (user?.address?.country) {
-      const userCurrency = CURRENCY_MAP[user.address.country];
-      if (userCurrency && rates[userCurrency]) {
-        determinedCurrency = userCurrency;
+    // A logged-in user's profile country takes highest precedence.
+    if (user) {
+      const userCountry = user.address?.country || user.shippingAddress?.country;
+      if (userCountry && CURRENCY_MAP[userCountry] && rates[CURRENCY_MAP[userCountry]]) {
+        determinedCurrency = CURRENCY_MAP[userCountry];
       }
     }
     

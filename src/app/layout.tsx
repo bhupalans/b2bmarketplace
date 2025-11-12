@@ -12,13 +12,15 @@ import { parse } from 'accept-language-parser';
 
 async function getDefaultCurrency(): Promise<string> {
     try {
-        // 1. Check for logged-in user
-        const session = cookies().get('session')?.value;
+        // 1. Check for logged-in user's profile setting
+        const session = (await cookies()).get('session')?.value;
         if (session) {
             const decodedToken = await adminAuth.verifySessionCookie(session, true);
             const user = await getUser(decodedToken.uid);
-            if (user?.address?.country && CURRENCY_MAP[user.address.country]) {
-                return CURRENCY_MAP[user.address.country];
+            // Check both primary address and shipping address for a country
+            const userCountry = user?.address?.country || user?.shippingAddress?.country;
+            if (userCountry && CURRENCY_MAP[userCountry]) {
+                return CURRENCY_MAP[userCountry];
             }
         }
         
