@@ -7,23 +7,7 @@ import { getBrandingSettings } from "@/lib/database";
 import { cookies, headers } from 'next/headers';
 import { adminAuth } from "@/lib/firebase-admin";
 import { getUser } from "@/lib/database";
-
-const CURRENCY_MAP: Record<string, string> = {
-  // Add more country-to-currency mappings as needed
-  "IN": "INR",
-  "US": "USD",
-  "GB": "GBP",
-  "DE": "EUR",
-  "FR": "EUR",
-  "ES": "EUR",
-  "IT": "EUR",
-  "AU": "AUD",
-  "CA": "CAD",
-  "JP": "JPY",
-  "CN": "CNY",
-  "BR": "BRL",
-  "MX": "MXN",
-};
+import { CURRENCY_MAP } from "@/lib/geography-data";
 
 async function getDefaultCurrency(): Promise<string> {
     try {

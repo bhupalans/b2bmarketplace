@@ -438,3 +438,20 @@ export const statesProvinces: Record<string, { value: string; label: string }[]>
     { value: 'ZAC', label: 'Zacatecas' },
   ]
 };
+
+export const CURRENCY_MAP: Record<string, string> = {
+  // Add more country-to-currency mappings as needed
+  "IN": "INR",
+  "US": "USD",
+  "GB": "GBP",
+  "DE": "EUR",
+  "FR": "EUR",
+  "ES": "EUR",
+  "IT": "EUR",
+  "AU": "AUD",
+  "CA": "CAD",
+  "JP": "JPY",
+  "CN": "CNY",
+  "BR": "BRL",
+  "MX": "MXN",
+};
