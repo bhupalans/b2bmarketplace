@@ -8,6 +8,7 @@ import { cookies, headers } from 'next/headers';
 import { adminAuth } from "@/lib/firebase-admin";
 import { getUser } from "@/lib/database";
 import { CURRENCY_MAP } from "@/lib/geography-data";
+import { parse } from 'accept-language-parser';
 
 async function getDefaultCurrency(): Promise<string> {
     try {
@@ -21,16 +22,21 @@ async function getDefaultCurrency(): Promise<string> {
             }
         }
         
-        // 2. Fallback to GeoIP for anonymous users
-        const ipCountry = headers().get('x-vercel-ip-country') || headers().get('x-country'); // Vercel or other providers
-        if (ipCountry && CURRENCY_MAP[ipCountry]) {
-            return CURRENCY_MAP[ipCountry];
+        // 2. Fallback to Accept-Language header for anonymous users
+        const acceptLanguage = headers().get('accept-language');
+        if (acceptLanguage) {
+            const languages = parse(acceptLanguage);
+            for (const lang of languages) {
+                if (lang.region && CURRENCY_MAP[lang.region]) {
+                    return CURRENCY_MAP[lang.region];
+                }
+            }
         }
 
     } catch (error) {
         // This can happen if the session cookie is invalid or for other auth errors.
         // We can safely ignore it and proceed to the fallback.
-        console.warn("Could not determine currency from user session or GeoIP, falling back to USD.", error);
+        console.warn("Could not determine currency from user session or language header, falling back to USD.", error);
     }
 
     // 3. Final fallback
