@@ -21,7 +21,7 @@ async function getFxRates() {
   }
 }
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({ children, defaultCurrency = 'USD' }: { children: React.ReactNode; defaultCurrency?: string }) {
   const [rates, setRates] = useState<{ [key: string]: number }>({ USD: 1 });
 
   useEffect(() => {
@@ -30,7 +30,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthProvider>
-      <CurrencyProvider rates={rates}>
+      <CurrencyProvider rates={rates} initialCurrency={defaultCurrency}>
         {children}
         <Toaster />
       </CurrencyProvider>

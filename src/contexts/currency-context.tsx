@@ -1,6 +1,7 @@
+
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
 
 type CurrencyContextType = {
   currency: string;
@@ -15,11 +16,18 @@ const CurrencyContext = createContext<CurrencyContextType | undefined>(
 export const CurrencyProvider = ({
   children,
   rates,
+  initialCurrency = 'USD', // Default to USD if nothing is passed
 }: {
   children: ReactNode;
   rates: { [key: string]: number };
+  initialCurrency: string;
 }) => {
-  const [currency, setCurrency] = useState("EUR");
+  const [currency, setCurrency] = useState(initialCurrency);
+
+  // When the server-provided initial currency changes, update the state
+  useEffect(() => {
+    setCurrency(initialCurrency);
+  }, [initialCurrency]);
 
   return (
     <CurrencyContext.Provider value={{ currency, setCurrency, rates }}>
