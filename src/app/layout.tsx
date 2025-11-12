@@ -25,7 +25,7 @@ async function getDefaultCurrency(): Promise<string> {
         }
         
         // 2. Fallback to Accept-Language header for anonymous users
-        const acceptLanguage = headers().get('accept-language');
+        const acceptLanguage = (await headers()).get('accept-language');
         if (acceptLanguage) {
             const languages = parse(acceptLanguage);
             for (const lang of languages) {
