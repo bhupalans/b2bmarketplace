@@ -454,4 +454,5 @@ export const CURRENCY_MAP: Record<string, string> = {
   "CN": "CNY",
   "BR": "BRL",
   "MX": "MXN",
+  "ZA": "ZAR",
 };

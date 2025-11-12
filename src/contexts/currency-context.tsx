@@ -28,19 +28,18 @@ export const CurrencyProvider = ({
   const { user } = useAuth();
 
   useEffect(() => {
-    // This effect runs when the user logs in or out.
+    // This effect runs when the user logs in or out, or when the initial currency changes.
+    let determinedCurrency = initialCurrency;
+
     if (user?.address?.country) {
       const userCurrency = CURRENCY_MAP[user.address.country];
       if (userCurrency && rates[userCurrency]) {
-        setCurrency(userCurrency);
-      } else {
-        // If user's country currency is not available, use the server-provided initial currency
-        setCurrency(initialCurrency);
+        determinedCurrency = userCurrency;
       }
-    } else {
-      // When user logs out, revert to the initial server-detected currency
-      setCurrency(initialCurrency);
     }
+    
+    setCurrency(determinedCurrency);
+
   }, [user, initialCurrency, rates]);
 
   return (
