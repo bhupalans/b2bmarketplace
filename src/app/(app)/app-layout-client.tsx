@@ -363,7 +363,7 @@ export function AppLayoutClient({
             <header className={cn("sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-6", isMessagesPage && "hidden")}>
               <SidebarTrigger />
               <Link href="/" className="flex items-center gap-2 font-semibold text-lg">
-              <Image src="/Icon.png" alt="Company Logo" width={216} height={96} />
+              <Image src="/Icon.png" alt="Company Logo" width={32} height={16} />
               <span className="hidden sm:inline-block">{companyName}</span>
               </Link>
               <div className="flex-1" />
