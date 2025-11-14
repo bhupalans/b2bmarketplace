@@ -12,33 +12,39 @@ import { parse } from 'accept-language-parser';
 
 async function getDefaultCurrency(): Promise<string> {
     try {
-        // 1. Check for logged-in user's profile setting
+        // 1. Check for logged-in user's profile setting (highest priority)
         const session = (await cookies()).get('session')?.value;
         if (session) {
             const decodedToken = await adminAuth.verifySessionCookie(session, true);
             const user = await getUser(decodedToken.uid);
-            // Check both primary address and shipping address for a country
+            // Check all relevant address fields for a country
             const userCountry = user?.address?.country || user?.shippingAddress?.country;
             if (userCountry && CURRENCY_MAP[userCountry]) {
                 return CURRENCY_MAP[userCountry];
             }
         }
         
-        // 2. Fallback to Accept-Language header for anonymous users
-        const acceptLanguage = (await headers()).get('accept-language');
-        if (acceptLanguage) {
-            const languages = parse(acceptLanguage);
-            for (const lang of languages) {
-                if (lang.region && CURRENCY_MAP[lang.region]) {
-                    return CURRENCY_MAP[lang.region];
-                }
+        // 2. For anonymous users, perform a GeoIP lookup (server-side only)
+        const forwardedFor = (await headers()).get('x-forwarded-for');
+        const ip = forwardedFor ? forwardedFor.split(',')[0] : '127.0.0.1';
+
+        // Avoid API calls for local development
+        if (ip === '127.0.0.1' || ip === '::1') {
+             return 'USD';
+        }
+
+        const geoResponse = await fetch(`http://ip-api.com/json/${ip}?fields=status,countryCode`);
+        if (geoResponse.ok) {
+            const geoData = await geoResponse.json();
+            if (geoData.status === 'success' && geoData.countryCode && CURRENCY_MAP[geoData.countryCode]) {
+                return CURRENCY_MAP[geoData.countryCode];
             }
         }
 
     } catch (error) {
-        // This can happen if the session cookie is invalid or for other auth errors.
+        // This can happen if the session cookie is invalid or for other auth/network errors.
         // We can safely ignore it and proceed to the fallback.
-        console.warn("Could not determine currency from user session or language header, falling back to USD.", error);
+        console.warn("Could not determine currency from user session or GeoIP, falling back to USD.", error);
     }
 
     // 3. Final fallback
