@@ -44,6 +44,7 @@ import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { Switch } from "./ui/switch";
 import { Checkbox } from "./ui/checkbox";
 import { countries } from "@/lib/geography-data";
+import { useCurrency } from "@/contexts/currency-context";
 
 const MAX_IMAGES = 5;
 
@@ -95,6 +96,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
   const { toast } = useToast();
   const [isSaving, startSavingTransition] = useTransition();
   const { firebaseUser } = useAuth();
+  const { currency } = useCurrency();
   
   const [isLoadingProduct, setIsLoadingProduct] = useState(false);
   const [newImagePreviews, setNewImagePreviews] = useState<string[]>([]);
@@ -373,7 +375,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                   name="priceUSD"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Price per unit (USD)</FormLabel>
+                      <FormLabel>Price per unit ({currency})</FormLabel>
                       <FormControl>
                         <Input type="number" step="0.01" {...field} value={field.value ?? ''}/>
                       </FormControl>
