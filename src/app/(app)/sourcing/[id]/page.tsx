@@ -11,10 +11,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ContactBuyerDialog } from '@/components/contact-buyer-dialog';
+import { useCurrency } from '@/contexts/currency-context';
 
 export default function SourcingRequestDetailPage() {
   const params = useParams();
   const { id } = params;
+  const { currency, rates } = useCurrency();
   const [request, setRequest] = useState<SourcingRequest | null>(null);
   const [buyer, setBuyer] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,6 +48,13 @@ export default function SourcingRequestDetailPage() {
     }
     fetchData();
   }, [id]);
+
+  const getConvertedPrice = (priceUSD: number) => {
+    if (currency === "USD" || !rates[currency]) {
+      return priceUSD;
+    }
+    return priceUSD * rates[currency];
+  };
 
   if (loading) {
     return <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -91,8 +100,8 @@ export default function SourcingRequestDetailPage() {
 
                         {request.targetPriceUSD && (
                             <>
-                                <div className="font-medium flex items-center gap-2"><DollarSign className="h-4 w-4 text-muted-foreground" /> Target Price</div>
-                                <div>~${request.targetPriceUSD.toFixed(2)} / {request.quantityUnit.slice(0,-1)}</div>
+                                <div className="font-medium flex items-center gap-2"><DollarSign className="h-4 w-4 text-muted-foreground" /> Target Price ({currency})</div>
+                                <div>~{new Intl.NumberFormat(undefined, {style: 'currency', currency}).format(getConvertedPrice(request.targetPriceUSD))} / {request.quantityUnit.slice(0,-1)}</div>
                             </>
                         )}
                     </div>

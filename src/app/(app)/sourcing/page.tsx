@@ -4,7 +4,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { SourcingRequest, Category } from '@/lib/types';
 import { getSourcingRequestsClient, getActiveCategoriesClient } from '@/lib/firebase';
-import { Loader2, Handshake, MapPin, Calendar, Package, Search } from 'lucide-react';
+import { Loader2, Handshake, MapPin, Calendar, Package, Search, DollarSign } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import {
   Card,
@@ -28,6 +28,7 @@ import {
 import Link from 'next/link';
 import { CategorySidebar } from '@/components/category-sidebar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useCurrency } from '@/contexts/currency-context';
 
 const getDescendantCategoryIds = (
   categoryId: string,
@@ -49,8 +50,24 @@ const getDescendantCategoryIds = (
 };
 
 const RequestCard = ({ request }: { request: SourcingRequest }) => {
+    const { currency, rates } = useCurrency();
     const expiresAtDate = typeof request.expiresAt === 'string' ? new Date(request.expiresAt) : request.expiresAt.toDate();
     const createdAtDate = typeof request.createdAt === 'string' ? new Date(request.createdAt) : request.createdAt.toDate();
+
+    const getConvertedTargetPrice = () => {
+        if (!request.targetPriceUSD) return null;
+        if (currency === "USD" || !rates[currency]) {
+          return request.targetPriceUSD;
+        }
+        return request.targetPriceUSD * rates[currency];
+    };
+    
+    const convertedPrice = getConvertedTargetPrice();
+    const formattedPrice = convertedPrice ? new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: currency,
+        notation: "compact"
+    }).format(convertedPrice) : null;
 
     return (
         <Card className="flex flex-col">
@@ -77,6 +94,12 @@ const RequestCard = ({ request }: { request: SourcingRequest }) => {
                     <Package className="h-4 w-4" />
                     <span className="font-semibold">{request.quantity.toLocaleString()} {request.quantityUnit}</span>
                  </div>
+                 {formattedPrice && (
+                     <div className="mt-2 flex items-center gap-2">
+                        <DollarSign className="h-4 w-4" />
+                        <span className="text-sm text-muted-foreground">Target: ~{formattedPrice} / {request.quantityUnit.slice(0, -1)}</span>
+                    </div>
+                 )}
             </CardContent>
             <CardFooter className="flex justify-between items-center text-sm">
                  <Button asChild>
@@ -295,5 +318,3 @@ export default function SourcingRequestsPage() {
     </div>
   );
 }
-
-    
