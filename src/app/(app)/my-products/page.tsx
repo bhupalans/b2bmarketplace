@@ -43,9 +43,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import { useCurrency } from '@/contexts/currency-context';
 
 export default function MyProductsPage() {
   const { user } = useAuth();
+  const { currency, rates } = useCurrency();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [specTemplates, setSpecTemplates] = useState<SpecTemplate[]>([]);
@@ -158,6 +160,13 @@ export default function MyProductsPage() {
     setProductToDelete(null);
   };
 
+  const getConvertedPrice = (priceUSD: number) => {
+    if (currency === "USD" || !rates[currency]) {
+      return priceUSD;
+    }
+    return priceUSD * rates[currency];
+  };
+
   if (loading) {
     return <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
@@ -203,7 +212,7 @@ export default function MyProductsPage() {
                 <TableRow>
                   <TableHead className="hidden w-[100px] sm:table-cell">Image</TableHead>
                   <TableHead>Title</TableHead>
-                  <TableHead>Price (USD)</TableHead>
+                  <TableHead>Price ({currency})</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -235,7 +244,12 @@ export default function MyProductsPage() {
                            )}
                         </div>
                       </TableCell>
-                      <TableCell>${product.priceUSD.toFixed(2)}</TableCell>
+                      <TableCell>
+                        {new Intl.NumberFormat(undefined, {
+                          style: 'currency',
+                          currency: currency,
+                        }).format(getConvertedPrice(product.priceUSD))}
+                      </TableCell>
                       <TableCell>
                         <Badge
                           variant={
@@ -309,5 +323,3 @@ export default function MyProductsPage() {
     </>
   );
 }
-
-    
