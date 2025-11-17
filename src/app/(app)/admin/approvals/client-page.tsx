@@ -370,5 +370,3 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers, initia
     </div>
   );
 }
-
-    
