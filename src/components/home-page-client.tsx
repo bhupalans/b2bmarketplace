@@ -31,7 +31,6 @@ function SourcingRequestCard({ request }: { request: SourcingRequest }) {
     const formattedPrice = convertedPrice ? new Intl.NumberFormat(undefined, {
         style: "currency",
         currency: currency,
-        notation: "compact"
     }).format(convertedPrice) : null;
 
 
@@ -47,7 +46,7 @@ function SourcingRequestCard({ request }: { request: SourcingRequest }) {
             <CardContent className="flex-grow text-sm space-y-1">
                 <p>Quantity: <span className="font-semibold">{request.quantity.toLocaleString()} {request.quantityUnit}</span></p>
                 <p>Country: <span className="font-semibold">{request.buyerCountry}</span></p>
-                {formattedPrice && <p>Target Price: <span className="font-semibold">~{formattedPrice} / {request.quantityUnit.slice(0, -1)}</span></p>}
+                {formattedPrice && <p>Target Price: <span className="font-semibold">{formattedPrice} / {request.quantityUnit.slice(0, -1)}</span></p>}
             </CardContent>
             <CardContent className="text-xs text-muted-foreground">
                 Expires in {formatDistanceToNow(expiresAtDate)}
