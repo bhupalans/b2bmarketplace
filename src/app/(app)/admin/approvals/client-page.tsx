@@ -264,11 +264,6 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers, initia
                           style: 'currency',
                           currency: currency,
                       }).format(getConvertedPrice(reviewingProduct.priceUSD))}
-                      {currency !== 'USD' && (
-                        <span className="text-muted-foreground ml-1">
-                          (${reviewingProduct.priceUSD.toFixed(2)} USD)
-                        </span>
-                      )}
                     </div>
                     
                     <div className="font-medium">Category</div>
