@@ -43,6 +43,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { format, parseISO } from 'date-fns';
 import { RejectionReasonDialog } from '@/components/rejection-reason-dialog';
+import { useCurrency } from '@/contexts/currency-context';
 
 interface AdminApprovalsClientPageProps {
     initialProducts: Product[];
@@ -60,7 +61,14 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers, initia
   const [reviewingProduct, setReviewingProduct] = useState<Product | null>(null);
   const [isPending, startTransition] = useTransition();
   const [rejectingProduct, setRejectingProduct] = useState<Product | null>(null);
+  const { currency, rates } = useCurrency();
 
+  const getConvertedPrice = (priceUSD: number) => {
+    if (currency === "USD" || !rates[currency]) {
+      return priceUSD;
+    }
+    return priceUSD * rates[currency];
+  };
 
   const handleAction = async (action: 'approve' | 'reject', productId: string, reason?: string) => {
     setProcessingState(action === 'approve' ? 'approving' : 'rejecting');
@@ -166,7 +174,7 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers, initia
                 <TableHead className="hidden w-[100px] sm:table-cell">Image</TableHead>
                 <TableHead>Title</TableHead>
                 <TableHead>Seller</TableHead>
-                <TableHead>Price (USD)</TableHead>
+                <TableHead>Price ({currency})</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -186,7 +194,12 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers, initia
                     </TableCell>
                     <TableCell className="font-medium">{product.title}</TableCell>
                     <TableCell>{getUserName(product.sellerId)}</TableCell>
-                    <TableCell>${product.priceUSD.toFixed(2)}</TableCell>
+                    <TableCell>
+                      {new Intl.NumberFormat(undefined, {
+                          style: 'currency',
+                          currency: currency,
+                      }).format(getConvertedPrice(product.priceUSD))}
+                    </TableCell>
                     <TableCell className="text-right">
                         <Button variant="outline" size="sm" onClick={() => handleOpenReview(product)}>
                             <FileSearch className="mr-2 h-4 w-4" />
@@ -245,8 +258,18 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers, initia
               <div className="space-y-2">
                 <h3 className="font-semibold text-lg">Product Details</h3>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                    <div className="font-medium">Price (USD)</div>
-                    <div>${reviewingProduct.priceUSD.toFixed(2)}</div>
+                    <div className="font-medium">Price</div>
+                    <div>
+                      {new Intl.NumberFormat(undefined, {
+                          style: 'currency',
+                          currency: currency,
+                      }).format(getConvertedPrice(reviewingProduct.priceUSD))}
+                      {currency !== 'USD' && (
+                        <span className="text-muted-foreground ml-1">
+                          (${reviewingProduct.priceUSD.toFixed(2)} USD)
+                        </span>
+                      )}
+                    </div>
                     
                     <div className="font-medium">Category</div>
                     <div>{getCategoryPath(reviewingProduct.categoryId)}</div>
@@ -347,3 +370,5 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers, initia
     </div>
   );
 }
+
+    
