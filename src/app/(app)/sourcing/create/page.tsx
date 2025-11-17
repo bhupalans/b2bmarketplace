@@ -40,6 +40,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { add, differenceInDays } from "date-fns";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from "next/link";
+import { useCurrency } from "@/contexts/currency-context";
 
 const requestSchema = z.object({
   title: z.string().min(10, "Title must be at least 10 characters.").max(100, "Title is too long."),
@@ -59,6 +60,7 @@ function CreateSourcingRequestForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestId = searchParams.get('id');
+  const { currency, rates } = useCurrency();
 
   const [isSubmitting, startTransition] = useTransition();
   const [categories, setCategories] = useState<Category[]>([]);
@@ -99,9 +101,14 @@ function CreateSourcingRequestForm() {
                     const createdAt = new Date(requestToEdit.createdAt as string);
                     const expiresInDays = differenceInDays(expiresAt, createdAt);
 
+                    let displayPrice = requestToEdit.targetPriceUSD;
+                    if (displayPrice && currency !== 'USD' && rates[currency]) {
+                        displayPrice = displayPrice * rates[currency];
+                    }
+
                     form.reset({
                         ...requestToEdit,
-                        targetPriceUSD: requestToEdit.targetPriceUSD || undefined,
+                        targetPriceUSD: displayPrice || undefined,
                         expiresInDays: expiresInDays > 0 ? expiresInDays : 1,
                     });
                 } else {
@@ -118,7 +125,7 @@ function CreateSourcingRequestForm() {
         }
     }
     fetchData();
-  }, [user, requestId, isEditMode, toast, router, form]);
+  }, [user, requestId, isEditMode, toast, router, form, currency, rates]);
 
   const onSubmit = (values: SourcingRequestFormData) => {
     if (!user || user.role !== 'buyer') {
@@ -129,8 +136,15 @@ function CreateSourcingRequestForm() {
     startTransition(async () => {
       try {
         const expiresAt = add(new Date(), { days: values.expiresInDays });
+        
+        let finalPriceUSD = values.targetPriceUSD;
+        if (finalPriceUSD && currency !== 'USD' && rates[currency]) {
+            finalPriceUSD = finalPriceUSD / rates[currency];
+        }
+
         const requestData = {
             ...values,
+            targetPriceUSD: finalPriceUSD,
             expiresAt,
         }
         
@@ -301,7 +315,7 @@ function CreateSourcingRequestForm() {
                         name="targetPriceUSD"
                         render={({ field }) => (
                             <FormItem>
-                            <FormLabel>Target Price per Unit (USD)</FormLabel>
+                            <FormLabel>Target Price per Unit ({currency})</FormLabel>
                             <FormControl>
                                 <Input type="number" step="0.01" placeholder="Optional" {...field} value={field.value || ''} />
                             </FormControl>
