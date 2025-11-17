@@ -36,6 +36,7 @@ import { RejectionReasonDialog } from '@/components/rejection-reason-dialog';
 import { doc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { collection } from 'firebase/firestore';
+import { useCurrency } from '@/contexts/currency-context';
 
 interface AdminSourcingApprovalsClientPageProps {
     initialRequests: SourcingRequest[];
@@ -54,6 +55,14 @@ export function SourcingApprovalsClientPage({ initialRequests, initialUsers, ini
   const [reviewingRequest, setReviewingRequest] = useState<SourcingRequest | null>(null);
   const [isPending, startTransition] = useTransition();
   const [rejectingRequest, setRejectingRequest] = useState<SourcingRequest | null>(null);
+  const { currency, rates } = useCurrency();
+
+  const getConvertedPrice = (priceUSD: number) => {
+    if (currency === "USD" || !rates[currency]) {
+      return priceUSD;
+    }
+    return priceUSD * rates[currency];
+  };
 
   const handleAction = async (action: 'approve' | 'reject', request: SourcingRequest, reason?: string) => {
     setProcessingState(action === 'approve' ? 'approving' : 'rejecting');
@@ -222,8 +231,11 @@ export function SourcingApprovalsClientPage({ initialRequests, initialUsers, ini
                     
                     {reviewingRequest.targetPriceUSD && (
                         <>
-                        <div className="font-medium">Target Price (USD)</div>
-                        <div>~${reviewingRequest.targetPriceUSD.toFixed(2)} / {reviewingRequest.quantityUnit.slice(0, -1)}</div>
+                        <div className="font-medium">Target Price ({currency})</div>
+                        <div>
+                          ~{new Intl.NumberFormat(undefined, {style: 'currency', currency: currency, minimumFractionDigits: 2, maximumFractionDigits: 2}).format(getConvertedPrice(reviewingRequest.targetPriceUSD))} / {reviewingRequest.quantityUnit.slice(0, -1)}
+                          {currency !== 'USD' && <span className="text-muted-foreground ml-2">(${reviewingRequest.targetPriceUSD.toFixed(2)} USD)</span>}
+                        </div>
                         </>
                     )}
 
