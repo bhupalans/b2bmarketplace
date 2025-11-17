@@ -96,7 +96,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
   const { toast } = useToast();
   const [isSaving, startSavingTransition] = useTransition();
   const { firebaseUser } = useAuth();
-  const { currency } = useCurrency();
+  const { currency, rates } = useCurrency();
   
   const [isLoadingProduct, setIsLoadingProduct] = useState(false);
   const [newImagePreviews, setNewImagePreviews] = useState<string[]>([]);
@@ -205,10 +205,14 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
         try {
           const fetchedProduct = await getProductClient(productId);
           if (fetchedProduct) {
+            let displayPrice = fetchedProduct.priceUSD;
+            if (currency !== 'USD' && rates[currency]) {
+                displayPrice = fetchedProduct.priceUSD * rates[currency];
+            }
             form.reset({
                 title: fetchedProduct.title,
                 description: fetchedProduct.description,
-                priceUSD: fetchedProduct.priceUSD,
+                priceUSD: displayPrice,
                 categoryId: fetchedProduct.categoryId,
                 countryOfOrigin: fetchedProduct.countryOfOrigin,
                 stockAvailability: fetchedProduct.stockAvailability,
@@ -242,7 +246,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
     } else {
       resetForm();
     }
-  }, [productId, open, form, toast, resetForm, onOpenChange, categories]);
+  }, [productId, open, form, toast, resetForm, onOpenChange, categories, currency, rates]);
   
   useEffect(() => {
     if (watchedNewImageFiles && watchedNewImageFiles.length > 0) {
@@ -268,7 +272,14 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
         return;
       }
       
-      const { newImageFiles, ...productData } = values;
+      let finalPriceUSD = values.priceUSD;
+      if (currency !== 'USD' && rates[currency]) {
+          finalPriceUSD = values.priceUSD / rates[currency];
+      }
+
+      const valuesToSave = { ...values, priceUSD: finalPriceUSD };
+
+      const { newImageFiles, ...productData } = valuesToSave;
       const filesToUpload = newImageFiles ? Array.from(newImageFiles) : [];
 
       try {
@@ -760,3 +771,5 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
 }
 
 export const ProductFormDialog = memo(ProductFormDialogComponent);
+
+    
