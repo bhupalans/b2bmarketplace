@@ -258,12 +258,10 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers, initia
               <div className="space-y-2">
                 <h3 className="font-semibold text-lg">Product Details</h3>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                    <div className="font-medium">Price</div>
+                    <div className="font-medium">Price ({currency})</div>
                     <div>
-                      {new Intl.NumberFormat(undefined, {
-                          style: 'currency',
-                          currency: currency,
-                      }).format(getConvertedPrice(reviewingProduct.priceUSD))}
+                      {new Intl.NumberFormat(undefined, {style: 'currency', currency: currency, minimumFractionDigits: 2, maximumFractionDigits: 2}).format(getConvertedPrice(reviewingProduct.priceUSD))}
+                      {currency !== 'USD' && <span className="text-muted-foreground ml-2">(${reviewingProduct.priceUSD.toFixed(2)} USD)</span>}
                     </div>
                     
                     <div className="font-medium">Category</div>
