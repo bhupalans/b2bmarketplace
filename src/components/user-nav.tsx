@@ -149,6 +149,12 @@ export function UserNav() {
             {user.role === 'buyer' && (
               <>
                 <DropdownMenuItem asChild>
+                  <Link href="/sourcing/dashboard">
+                    <LayoutDashboard className="mr-2 h-4 w-4" />
+                    <span>Dashboard</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
                   <Link href="/sourcing/create">
                     <FileText className="mr-2 h-4 w-4" />
                     <span>Post Sourcing Request</span>
