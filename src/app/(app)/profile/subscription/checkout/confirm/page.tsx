@@ -110,6 +110,7 @@ function ConfirmationPageContent() {
     
     if (confirmationStatus === 'success') {
         const referenceNumber = paymentIntentId || razorpayPaymentId;
+        const dashboardUrl = user?.role === 'buyer' ? '/sourcing/dashboard' : '/dashboard';
         return (
              <div className="flex flex-col items-center justify-center min-h-[60vh]">
                 <Card className="w-full max-w-md text-center">
@@ -128,7 +129,7 @@ function ConfirmationPageContent() {
                             </div>
                         )}
                         <Button className="w-full" asChild>
-                            <Link href="/dashboard">
+                            <Link href={dashboardUrl}>
                                 Go to Dashboard
                             </Link>
                         </Button>
