@@ -60,6 +60,7 @@ export function AppLayoutClient({
         '/my-products': 'seller',
         '/sourcing/create': 'buyer',
         '/sourcing/my-requests': 'buyer',
+        '/sourcing/dashboard': 'buyer',
         '/admin': 'admin',
         '/messages': 'any', // any authenticated user
         '/profile': 'any',
@@ -248,7 +249,7 @@ export function AppLayoutClient({
               </>
             )}
             {user?.role === 'buyer' && (
-              <Collapsible asChild defaultOpen={pathname.startsWith('/sourcing/create') || pathname.startsWith('/sourcing/my-requests')}>
+              <Collapsible asChild defaultOpen={pathname.startsWith('/sourcing/create') || pathname.startsWith('/sourcing/my-requests') || pathname.startsWith('/sourcing/dashboard')}>
                   <SidebarMenuItem>
                       <CollapsibleTrigger asChild>
                           <SidebarMenuButton
@@ -262,6 +263,11 @@ export function AppLayoutClient({
                       </CollapsibleTrigger>
                       <CollapsibleContent asChild>
                           <SidebarMenuSub>
+                              <SidebarMenuSubItem>
+                                  <SidebarMenuSubButton asChild isActive={pathname === '/sourcing/dashboard'}>
+                                      <Link href="/sourcing/dashboard">Dashboard</Link>
+                                  </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
                               <SidebarMenuSubItem>
                                   <SidebarMenuSubButton asChild isActive={pathname === '/sourcing/create'}>
                                       <Link href="/sourcing/create">Post a Request</Link>
@@ -379,3 +385,5 @@ export function AppLayoutClient({
     </SidebarProvider>
   );
 }
+
+    
