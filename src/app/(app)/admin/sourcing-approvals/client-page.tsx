@@ -57,12 +57,19 @@ export function SourcingApprovalsClientPage({ initialRequests, initialUsers, ini
   const [rejectingRequest, setRejectingRequest] = useState<SourcingRequest | null>(null);
   const { currency, rates } = useCurrency();
 
-  const getConvertedPrice = (priceUSD: number) => {
-    if (currency === "USD" || !rates[currency]) {
-      return priceUSD;
+  const getConvertedPrice = (baseAmount: number, baseCurrency: string) => {
+    if (!rates[baseCurrency] || !rates[currency]) {
+      return baseAmount; // Fallback if rates are not available
     }
-    return priceUSD * rates[currency];
+    const priceInUSD = baseAmount / rates[baseCurrency];
+    return priceInUSD * rates[currency];
   };
+
+  const getPriceInUSD = (baseAmount: number, baseCurrency: string) => {
+    if (baseCurrency === 'USD') return baseAmount;
+    if (!rates[baseCurrency]) return baseAmount; // Fallback
+    return baseAmount / rates[baseCurrency];
+  }
 
   const handleAction = async (action: 'approve' | 'reject', request: SourcingRequest, reason?: string) => {
     setProcessingState(action === 'approve' ? 'approving' : 'rejecting');
@@ -229,12 +236,12 @@ export function SourcingApprovalsClientPage({ initialRequests, initialUsers, ini
                     <div className="font-medium">Quantity</div>
                     <div>{reviewingRequest.quantity.toLocaleString()} {reviewingRequest.quantityUnit}</div>
                     
-                    {reviewingRequest.targetPriceUSD && (
+                    {reviewingRequest.targetPrice && (
                         <>
                         <div className="font-medium">Target Price ({currency})</div>
                         <div>
-                          ~{new Intl.NumberFormat(undefined, {style: 'currency', currency: currency, minimumFractionDigits: 2, maximumFractionDigits: 2}).format(getConvertedPrice(reviewingRequest.targetPriceUSD))} / {reviewingRequest.quantityUnit.slice(0, -1)}
-                          {currency !== 'USD' && <span className="text-muted-foreground ml-2">(${reviewingRequest.targetPriceUSD.toFixed(2)} USD)</span>}
+                          ~{new Intl.NumberFormat(undefined, {style: 'currency', currency: currency, minimumFractionDigits: 2, maximumFractionDigits: 2}).format(getConvertedPrice(reviewingRequest.targetPrice.baseAmount, reviewingRequest.targetPrice.baseCurrency))} / {reviewingRequest.quantityUnit.slice(0, -1)}
+                          {currency !== 'USD' && <span className="text-muted-foreground ml-2">({new Intl.NumberFormat(undefined, {style: 'currency', currency: 'USD'}).format(getPriceInUSD(reviewingRequest.targetPrice.baseAmount, reviewingRequest.targetPrice.baseCurrency))} USD)</span>}
                         </div>
                         </>
                     )}

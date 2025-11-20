@@ -63,12 +63,20 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers, initia
   const [rejectingProduct, setRejectingProduct] = useState<Product | null>(null);
   const { currency, rates } = useCurrency();
 
-  const getConvertedPrice = (priceUSD: number) => {
-    if (currency === "USD" || !rates[currency]) {
-      return priceUSD;
+  const getConvertedPrice = (baseAmount: number, baseCurrency: string) => {
+    if (!rates[baseCurrency] || !rates[currency]) {
+      return baseAmount; // Fallback if rates are not available
     }
-    return priceUSD * rates[currency];
+    const priceInUSD = baseAmount / rates[baseCurrency];
+    return priceInUSD * rates[currency];
   };
+
+  const getPriceInUSD = (baseAmount: number, baseCurrency: string) => {
+      if (baseCurrency === 'USD') return baseAmount;
+      if (!rates[baseCurrency]) return baseAmount; // Fallback
+      return baseAmount / rates[baseCurrency];
+  }
+
 
   const handleAction = async (action: 'approve' | 'reject', productId: string, reason?: string) => {
     setProcessingState(action === 'approve' ? 'approving' : 'rejecting');
@@ -198,7 +206,7 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers, initia
                       {new Intl.NumberFormat(undefined, {
                           style: 'currency',
                           currency: currency,
-                      }).format(getConvertedPrice(product.priceUSD))}
+                      }).format(getConvertedPrice(product.price.baseAmount, product.price.baseCurrency))}
                     </TableCell>
                     <TableCell className="text-right">
                         <Button variant="outline" size="sm" onClick={() => handleOpenReview(product)}>
@@ -260,8 +268,8 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers, initia
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                     <div className="font-medium">Price ({currency})</div>
                     <div>
-                      {new Intl.NumberFormat(undefined, {style: 'currency', currency: currency, minimumFractionDigits: 2, maximumFractionDigits: 2}).format(getConvertedPrice(reviewingProduct.priceUSD))}
-                      {currency !== 'USD' && <span className="text-muted-foreground ml-2">(${reviewingProduct.priceUSD.toFixed(2)} USD)</span>}
+                      {new Intl.NumberFormat(undefined, {style: 'currency', currency: currency, minimumFractionDigits: 2, maximumFractionDigits: 2}).format(getConvertedPrice(reviewingProduct.price.baseAmount, reviewingProduct.price.baseCurrency))}
+                      {currency !== 'USD' && <span className="text-muted-foreground ml-2">({new Intl.NumberFormat(undefined, {style: 'currency', currency: 'USD'}).format(getPriceInUSD(reviewingProduct.price.baseAmount, reviewingProduct.price.baseCurrency))} USD)</span>}
                     </div>
                     
                     <div className="font-medium">Category</div>
