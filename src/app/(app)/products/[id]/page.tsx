@@ -108,11 +108,12 @@ export default function ProductDetailPage() {
     setQuestions(prev => prev.map(q => q.id === answeredQuestion.id ? answeredQuestion : q));
   }
 
-  const getConvertedPrice = (priceUSD: number) => {
-    if (currency === "USD" || !rates[currency]) {
-      return priceUSD;
+  const getConvertedPrice = (price: {baseAmount: number, baseCurrency: string}) => {
+    if (!rates[price.baseCurrency] || !rates[currency]) {
+      return price.baseAmount;
     }
-    return priceUSD * rates[currency];
+    const priceInUSD = price.baseAmount / rates[price.baseCurrency];
+    return priceInUSD * rates[currency];
   };
   
   const getStockLabel = (stock?: string) => {
@@ -146,7 +147,7 @@ export default function ProductDetailPage() {
   const formattedPrice = new Intl.NumberFormat(undefined, {
     style: "currency",
     currency: currency,
-  }).format(getConvertedPrice(product.priceUSD));
+  }).format(getConvertedPrice(product.price));
   
   const isFeaturedSeller = seller?.subscriptionPlan?.isFeatured;
 

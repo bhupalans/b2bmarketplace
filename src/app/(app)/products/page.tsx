@@ -58,18 +58,24 @@ export default function ProductsPage() {
 
   const maxPrice = useMemo(() => {
     if (products.length === 0) return 100000;
-    return Math.max(...products.map(p => p.priceUSD));
-  }, [products]);
+    const maxBasePrice = Math.max(...products.map(p => p.price.baseAmount));
+    // A rough conversion for the slider max
+    if (rates[currency]) {
+        return Math.ceil(maxBasePrice * (rates[currency] || 1));
+    }
+    return maxBasePrice;
+  }, [products, currency, rates]);
 
   useEffect(() => {
     setPriceRange([0, maxPrice]);
   }, [maxPrice]);
   
-  const getConvertedPrice = (priceUSD: number) => {
-    if (currency === "USD" || !rates[currency]) {
-      return priceUSD;
+  const getConvertedPrice = (price: {baseAmount: number, baseCurrency: string}) => {
+    if (!rates[price.baseCurrency] || !rates[currency]) {
+      return price.baseAmount; // Fallback if rates are not available
     }
-    return priceUSD * rates[currency];
+    const priceInUSD = price.baseAmount / rates[price.baseCurrency];
+    return priceInUSD * rates[currency];
   };
 
   const filteredProducts = useMemo(() => {
@@ -97,7 +103,7 @@ export default function ProductsPage() {
 
     // Filter by price range
     filtered = filtered.filter(product => {
-        const convertedPrice = getConvertedPrice(product.priceUSD);
+        const convertedPrice = getConvertedPrice(product.price);
         return convertedPrice >= priceRange[0] && convertedPrice <= priceRange[1];
     });
 
@@ -114,10 +120,10 @@ export default function ProductsPage() {
     // Sort products
     switch (sortBy) {
         case 'price_asc':
-            filtered.sort((a,b) => a.priceUSD - b.priceUSD);
+            filtered.sort((a,b) => getConvertedPrice(a.price) - getConvertedPrice(b.price));
             break;
         case 'price_desc':
-            filtered.sort((a,b) => b.priceUSD - a.priceUSD);
+            filtered.sort((a,b) => getConvertedPrice(b.price) - getConvertedPrice(a.price));
             break;
         case 'newest':
             filtered.sort((a,b) => new Date(b.createdAt as string).getTime() - new Date(a.createdAt as string).getTime());
@@ -208,11 +214,11 @@ export default function ProductsPage() {
                         max={maxPrice}
                         step={100}
                         value={priceRange}
-                        onValueChange={(value) => setPriceRange(value)}
+                        onValueChange={(value) => setPriceRange(value as [number, number])}
                     />
                     <div className="flex justify-between text-sm text-muted-foreground">
-                        <span>{new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(getConvertedPrice(priceRange[0]))}</span>
-                        <span>{new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(getConvertedPrice(priceRange[1]))}</span>
+                        <span>{new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(priceRange[0])}</span>
+                        <span>{new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(priceRange[1])}</span>
                     </div>
                 </div>
                  <div className="space-y-2">

@@ -192,7 +192,10 @@ export type Product = {
   title: string;
   description: string;
   images: string[];
-  priceUSD: number;
+  price: {
+      baseAmount: number;
+      baseCurrency: string;
+  };
   sellerId: string; // This should be the seller's UID
   categoryId: string;
   status: 'pending' | 'approved' | 'rejected';
@@ -220,7 +223,10 @@ export type SourcingRequest = {
   description: string;
   quantity: number;
   quantityUnit: string;
-  targetPriceUSD?: number;
+  targetPrice?: {
+      baseAmount: number;
+      baseCurrency: string;
+  };
   status: 'pending' | 'active' | 'closed' | 'expired';
   createdAt: Timestamp | string;
   expiresAt: Timestamp | string;

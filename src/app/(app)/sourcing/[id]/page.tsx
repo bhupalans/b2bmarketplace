@@ -49,11 +49,12 @@ export default function SourcingRequestDetailPage() {
     fetchData();
   }, [id]);
 
-  const getConvertedPrice = (priceUSD: number) => {
-    if (currency === "USD" || !rates[currency]) {
-      return priceUSD;
+  const getConvertedPrice = (price: {baseAmount: number, baseCurrency: string}) => {
+    if (!rates[price.baseCurrency] || !rates[currency]) {
+      return price.baseAmount; // Fallback
     }
-    return priceUSD * rates[currency];
+    const priceInUSD = price.baseAmount / rates[price.baseCurrency];
+    return priceInUSD * rates[currency];
   };
 
   if (loading) {
@@ -98,10 +99,10 @@ export default function SourcingRequestDetailPage() {
                         <div className="font-medium flex items-center gap-2"><Package className="h-4 w-4 text-muted-foreground" /> Required Quantity</div>
                         <div>{request.quantity.toLocaleString()} {request.quantityUnit}</div>
 
-                        {request.targetPriceUSD && (
+                        {request.targetPrice?.baseAmount && (
                             <>
                                 <div className="font-medium flex items-center gap-2"><DollarSign className="h-4 w-4 text-muted-foreground" /> Target Price ({currency})</div>
-                                <div>~{new Intl.NumberFormat(undefined, {style: 'currency', currency}).format(getConvertedPrice(request.targetPriceUSD))} / {request.quantityUnit.slice(0,-1)}</div>
+                                <div>~{new Intl.NumberFormat(undefined, {style: 'currency', currency}).format(getConvertedPrice(request.targetPrice))} / {request.quantityUnit.slice(0,-1)}</div>
                             </>
                         )}
                     </div>

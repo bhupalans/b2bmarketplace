@@ -53,11 +53,11 @@ export function ProductCard({ product }: ProductCardProps) {
 
 
   const getConvertedPrice = () => {
-    if (currency === "USD" || !rates[currency]) {
-      return product.priceUSD;
+    if (!rates[product.price.baseCurrency] || !rates[currency]) {
+      return product.price.baseAmount; // Fallback
     }
-    const rate = rates[currency] || 1;
-    return product.priceUSD * rate;
+    const priceInUSD = product.price.baseAmount / rates[product.price.baseCurrency];
+    return priceInUSD * rates[currency];
   };
 
   const formattedPrice = new Intl.NumberFormat(undefined, {

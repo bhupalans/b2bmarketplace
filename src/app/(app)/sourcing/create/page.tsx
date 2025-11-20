@@ -48,7 +48,10 @@ const requestSchema = z.object({
   categoryId: z.string().min(1, "Please select a relevant category."),
   quantity: z.coerce.number().int().positive("Quantity must be a positive number."),
   quantityUnit: z.string().min(1, "Please specify a unit (e.g., pieces, kg)."),
-  targetPriceUSD: z.coerce.number().optional(),
+  targetPrice: z.object({
+      baseAmount: z.coerce.number().optional(),
+      baseCurrency: z.string(),
+  }).optional(),
   expiresInDays: z.coerce.number().int().min(1).max(90),
 });
 
@@ -77,7 +80,7 @@ function CreateSourcingRequestForm() {
       categoryId: "",
       quantity: "" as any,
       quantityUnit: "units",
-      targetPriceUSD: "" as any,
+      targetPrice: { baseAmount: undefined, baseCurrency: currency },
       expiresInDays: 30,
     },
   });
@@ -101,20 +104,20 @@ function CreateSourcingRequestForm() {
                     const createdAt = new Date(requestToEdit.createdAt as string);
                     const expiresInDays = differenceInDays(expiresAt, createdAt);
 
-                    let displayPrice = requestToEdit.targetPriceUSD;
-                    if (displayPrice && currency !== 'USD' && rates[currency]) {
-                        displayPrice = displayPrice * rates[currency];
-                    }
-
                     form.reset({
                         ...requestToEdit,
-                        targetPriceUSD: displayPrice || undefined,
+                        targetPrice: {
+                            baseAmount: requestToEdit.targetPrice?.baseAmount || undefined,
+                            baseCurrency: requestToEdit.targetPrice?.baseCurrency || currency,
+                        },
                         expiresInDays: expiresInDays > 0 ? expiresInDays : 1,
                     });
                 } else {
                     toast({ variant: 'destructive', title: 'Error', description: 'Could not find the request to edit.' });
                     router.push('/sourcing/my-requests');
                 }
+            } else {
+                form.setValue('targetPrice.baseCurrency', currency);
             }
 
         } catch (error) {
@@ -125,7 +128,7 @@ function CreateSourcingRequestForm() {
         }
     }
     fetchData();
-  }, [user, requestId, isEditMode, toast, router, form, currency, rates]);
+  }, [user, requestId, isEditMode, toast, router, form, currency]);
 
   const onSubmit = (values: SourcingRequestFormData) => {
     if (!user || user.role !== 'buyer') {
@@ -137,14 +140,8 @@ function CreateSourcingRequestForm() {
       try {
         const expiresAt = add(new Date(), { days: values.expiresInDays });
         
-        let finalPriceUSD = values.targetPriceUSD;
-        if (finalPriceUSD && currency !== 'USD' && rates[currency]) {
-            finalPriceUSD = finalPriceUSD / rates[currency];
-        }
-
         const requestData = {
             ...values,
-            targetPriceUSD: finalPriceUSD,
             expiresAt,
         }
         
@@ -155,7 +152,7 @@ function CreateSourcingRequestForm() {
               description: "Your sourcing request has been updated and is pending review.",
             });
         } else {
-            await createSourcingRequestClient(requestData, user);
+            await createSourcingRequestClient(requestData as any, user);
             toast({
               title: "Request Submitted",
               description: "Your sourcing request is pending admin review.",
@@ -312,7 +309,7 @@ function CreateSourcingRequestForm() {
                     </div>
                     <FormField
                         control={form.control}
-                        name="targetPriceUSD"
+                        name="targetPrice.baseAmount"
                         render={({ field }) => (
                             <FormItem>
                             <FormLabel>Target Price per Unit ({currency})</FormLabel>

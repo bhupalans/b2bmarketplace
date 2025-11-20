@@ -51,7 +51,10 @@ const MAX_IMAGES = 5;
 const productSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
   description: z.string().min(10, { message: "Description must be at least 10 characters." }),
-  priceUSD: z.coerce.number().positive({ message: "Price must be a positive number." }),
+  price: z.object({
+      baseAmount: z.coerce.number().positive({ message: "Price must be a positive number." }),
+      baseCurrency: z.string().min(3, 'Currency is required.').max(3, 'Currency must be 3 letters.'),
+  }),
   categoryId: z.string().min(1, { message: "Please select a sub-category." }),
   countryOfOrigin: z.string().min(1, { message: "Please select a country of origin." }),
   stockAvailability: z.enum(['in_stock', 'out_of_stock', 'made_to_order'], { required_error: 'Please select stock availability.'}),
@@ -96,7 +99,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
   const { toast } = useToast();
   const [isSaving, startSavingTransition] = useTransition();
   const { firebaseUser } = useAuth();
-  const { currency, rates } = useCurrency();
+  const { currency } = useCurrency();
   
   const [isLoadingProduct, setIsLoadingProduct] = useState(false);
   const [newImagePreviews, setNewImagePreviews] = useState<string[]>([]);
@@ -112,7 +115,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
     defaultValues: {
       title: "",
       description: "",
-      priceUSD: undefined,
+      price: { baseAmount: undefined, baseCurrency: currency },
       categoryId: "",
       countryOfOrigin: "",
       stockAvailability: 'in_stock',
@@ -181,7 +184,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
     form.reset({
       title: "",
       description: "",
-      priceUSD: undefined,
+      price: { baseAmount: undefined, baseCurrency: currency },
       categoryId: "",
       countryOfOrigin: "",
       stockAvailability: 'in_stock',
@@ -196,7 +199,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
     setNewImagePreviews([]);
     setActiveTemplate(null);
     setSelectedParentCategory(null);
-  }, [form]);
+  }, [form, currency]);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -205,14 +208,10 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
         try {
           const fetchedProduct = await getProductClient(productId);
           if (fetchedProduct) {
-            let displayPrice = fetchedProduct.priceUSD;
-            if (currency !== 'USD' && rates[currency]) {
-                displayPrice = fetchedProduct.priceUSD * rates[currency];
-            }
             form.reset({
                 title: fetchedProduct.title,
                 description: fetchedProduct.description,
-                priceUSD: displayPrice,
+                price: fetchedProduct.price,
                 categoryId: fetchedProduct.categoryId,
                 countryOfOrigin: fetchedProduct.countryOfOrigin,
                 stockAvailability: fetchedProduct.stockAvailability,
@@ -246,7 +245,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
     } else {
       resetForm();
     }
-  }, [productId, open, form, toast, resetForm, onOpenChange, categories, currency, rates]);
+  }, [productId, open, form, toast, resetForm, onOpenChange, categories]);
   
   useEffect(() => {
     if (watchedNewImageFiles && watchedNewImageFiles.length > 0) {
@@ -272,14 +271,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
         return;
       }
       
-      let finalPriceUSD = values.priceUSD;
-      if (currency !== 'USD' && rates[currency]) {
-          finalPriceUSD = values.priceUSD / rates[currency];
-      }
-
-      const valuesToSave = { ...values, priceUSD: finalPriceUSD };
-
-      const { newImageFiles, ...productData } = valuesToSave;
+      const { newImageFiles, ...productData } = values;
       const filesToUpload = newImageFiles ? Array.from(newImageFiles) : [];
 
       try {
@@ -383,7 +375,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
-                  name="priceUSD"
+                  name="price.baseAmount"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Price per unit ({currency})</FormLabel>
@@ -771,5 +763,3 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
 }
 
 export const ProductFormDialog = memo(ProductFormDialogComponent);
-
-    

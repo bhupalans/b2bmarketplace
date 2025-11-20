@@ -55,11 +55,12 @@ const RequestCard = ({ request }: { request: SourcingRequest }) => {
     const createdAtDate = typeof request.createdAt === 'string' ? new Date(request.createdAt) : request.createdAt.toDate();
 
     const getConvertedTargetPrice = () => {
-        if (!request.targetPriceUSD) return null;
-        if (currency === "USD" || !rates[currency]) {
-          return request.targetPriceUSD;
+        if (!request.targetPrice?.baseAmount) return null;
+        if (!rates[request.targetPrice.baseCurrency] || !rates[currency]) {
+          return request.targetPrice.baseAmount;
         }
-        return request.targetPriceUSD * rates[currency];
+        const priceInUSD = request.targetPrice.baseAmount / rates[request.targetPrice.baseCurrency];
+        return priceInUSD * rates[currency];
     };
     
     const convertedPrice = getConvertedTargetPrice();
@@ -73,9 +74,9 @@ const RequestCard = ({ request }: { request: SourcingRequest }) => {
         <Card className="flex flex-col">
             <CardHeader>
                 <CardTitle className="line-clamp-2">
-                    <Link href={`/sourcing/${request.id}`} className="hover:underline">
+                     <Link href={`/sourcing/${request.id}`} className="hover:underline">
                         {request.title}
-                    </Link>
+                     </Link>
                 </CardTitle>
                 <CardDescription>
                     <div className="flex items-center gap-4 text-xs pt-1">

@@ -1,5 +1,4 @@
 
-
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc as getDocClient, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError, setDoc } from 'firebase/firestore';
@@ -412,7 +411,7 @@ export async function createOrUpdateProductClient(
 
         // List of all editable fields by the user
         const editableFields: (keyof Product)[] = [
-            'title', 'description', 'priceUSD', 'categoryId', 'countryOfOrigin',
+            'title', 'description', 'price', 'categoryId', 'countryOfOrigin',
             'stockAvailability', 'moq', 'moqUnit', 'sku', 'leadTime', 'specifications'
         ];
 
@@ -420,16 +419,19 @@ export async function createOrUpdateProductClient(
           const originalValue = originalProduct[key as keyof Product];
           let submittedValue = productFormData[key as keyof typeof productFormData];
 
-          // Normalize undefined/null to empty strings for a more reliable comparison.
-          const normalizedOriginal = (originalValue === null || originalValue === undefined) ? "" : originalValue;
-          const normalizedSubmitted = (submittedValue === null || submittedValue === undefined) ? "" : submittedValue;
+          let isEqual = false;
+          if (key === 'price') {
+             isEqual = originalValue?.baseAmount === submittedValue?.baseAmount && originalValue?.baseCurrency === submittedValue?.baseCurrency;
+          } else if (key === 'specifications') {
+             isEqual = areSpecificationsEqual(originalValue, submittedValue as any);
+          } else {
+             const normalizedOriginal = (originalValue === null || originalValue === undefined) ? "" : originalValue;
+             const normalizedSubmitted = (submittedValue === null || submittedValue === undefined) ? "" : submittedValue;
+             isEqual = String(normalizedOriginal) === String(normalizedSubmitted);
+          }
 
-          if (key === 'specifications') {
-            if (!areSpecificationsEqual(originalProduct.specifications, productFormData.specifications)) {
-              changedFields.push(key);
-            }
-          } else if (String(normalizedOriginal) !== String(normalizedSubmitted)) {
-             changedFields.push(key);
+          if (!isEqual) {
+            changedFields.push(key);
           }
         }
         
@@ -1167,7 +1169,7 @@ export async function getPendingSourcingRequestsClient(): Promise<SourcingReques
 
 
 export async function createSourcingRequestClient(
-    requestData: Omit<SourcingRequest, 'id' | 'buyerId' | 'buyerName' | 'buyerCountry' | 'status' | 'createdAt'>,
+    requestData: Omit<SourcingRequest, 'id' | 'buyerId' | 'buyerName' | 'buyerCountry' | 'status' | 'createdAt' | 'targetPrice'> & { targetPrice?: { baseAmount: number; baseCurrency: string; } },
     buyer: User
 ): Promise<SourcingRequest> {
     if (!buyer.address?.country) {

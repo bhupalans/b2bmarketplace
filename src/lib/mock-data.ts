@@ -140,7 +140,7 @@ export const mockCategories: Category[] = [
   { id: 'cat-3-1', name: 'Electronic Components', parentId: 'cat-3', status: 'active' },
 
   { id: 'cat-4-1', name: 'Hair Care & Styling', parentId: 'cat-4', status: 'active' },
-
+  
   { id: 'cat-5-1', name: 'Farming Equipment & Machinery', parentId: 'cat-5', status: 'active' },
   { id: 'cat-5-2', name: 'Fertilizers & Soil Amendments', parentId: 'cat-5', status: 'active' },
 
@@ -161,13 +161,13 @@ export const mockCategories: Category[] = [
   { id: 'cat-5-2-1', name: 'Organic Fertilizers', parentId: 'cat-5-2', status: 'active' },
 ];
 
-export const mockProducts: Product[] = [
+export const mockProducts: Omit<Product, 'priceUSD'>[] = [
   {
     id: 'prod-1',
     title: 'Industrial Grade Widgets',
     description: 'High-quality widgets for all your industrial needs. Made from reinforced steel.',
     images: ['https://picsum.photos/600/400?random=1', 'https://picsum.photos/600/400?random=8', 'https://picsum.photos/600/400?random=9'],
-    priceUSD: 1200.50,
+    price: { baseAmount: 1200.50, baseCurrency: 'USD' },
     sellerId: 'user-2',
     categoryId: 'cat-1-1-1',
     specifications: [
@@ -187,7 +187,7 @@ export const mockProducts: Product[] = [
     title: 'Precision Cog Set',
     description: 'A set of 12 precision-engineered cogs for high-performance machinery.',
     images: ['https://picsum.photos/600/400?random=2', 'https://picsum.photos/600/400?random=10', 'https://picsum.photos/600/400?random=11'],
-    priceUSD: 850.00,
+    price: { baseAmount: 850.00, baseCurrency: 'USD' },
     sellerId: 'user-2',
     categoryId: 'cat-1-1-2',
     specifications: [
@@ -208,7 +208,7 @@ export const mockProducts: Product[] = [
     title: 'Bulk Organic Cotton',
     description: '1000kg of premium, ethically sourced organic cotton bales.',
     images: ['https://picsum.photos/600/400?random=3', 'https://picsum.photos/600/400?random=12'],
-    priceUSD: 5500.00,
+    price: { baseAmount: 5500.00, baseCurrency: 'USD' },
     sellerId: 'user-3',
     categoryId: 'cat-2-1-1',
     specifications: [
@@ -229,7 +229,7 @@ export const mockProducts: Product[] = [
     title: 'Advanced Circuit Boards (100-pack)',
     description: 'Pack of 100 multi-layer circuit boards for complex electronics manufacturing.',
     images: ['https://picsum.photos/600/400?random=4', 'https://picsum.photos/600/400?random=13', 'https://picsum.photos/600/400?random=14'],
-    priceUSD: 3200.75,
+    price: { baseAmount: 3200.75, baseCurrency: 'USD' },
     sellerId: 'user-3',
     categoryId: 'cat-3-1-1',
     specifications: [
@@ -250,7 +250,7 @@ export const mockProducts: Product[] = [
     title: 'Automated Conveyor System',
     description: 'A 10-meter modular conveyor belt system with variable speed control.',
     images: ['https://picsum.photos/600/400?random=5', 'https://picsum.photos/600/400?random=15'],
-    priceUSD: 15000.00,
+    price: { baseAmount: 15000.00, baseCurrency: 'USD' },
     sellerId: 'user-2',
     categoryId: 'cat-1-2-1',
     specifications: [
@@ -271,7 +271,7 @@ export const mockProducts: Product[] = [
     title: 'Titanium Alloy Rods (50-pack)',
     description: 'High-tensile strength titanium alloy rods, 1-meter length.',
     images: ['https://picsum.photos/600/400?random=6'],
-    priceUSD: 7800.00,
+    price: { baseAmount: 7800.00, baseCurrency: 'USD' },
     sellerId: 'user-3',
     categoryId: 'cat-2-2-1',
     specifications: [
@@ -292,7 +292,7 @@ export const mockProducts: Product[] = [
     title: 'Lace Front Human Hair Wig',
     description: '22-inch Brazilian human hair wig with a natural-looking lace front.',
     images: ['https://picsum.photos/600/400?random=7', 'https://picsum.photos/600/400?random=16', 'https://picsum.photos/600/400?random=17'],
-    priceUSD: 450.00,
+    price: { baseAmount: 450.00, baseCurrency: 'USD' },
     sellerId: 'user-3',
     categoryId: 'cat-4-1-1',
     specifications: [
@@ -315,7 +315,7 @@ export const mockProducts: Product[] = [
     title: 'AgroMax X120 Tractor',
     description: 'A powerful and reliable 120HP tractor for medium to large scale farming operations. Features a comfortable cabin and advanced CVT transmission.',
     images: ['https://picsum.photos/600/400?random=18', 'https://picsum.photos/600/400?random=19', 'https://picsum.photos/600/400?random=20'],
-    priceUSD: 75000.00,
+    price: { baseAmount: 75000.00, baseCurrency: 'USD' },
     sellerId: 'user-2',
     categoryId: 'cat-5-1-1',
     specifications: [

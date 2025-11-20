@@ -8,11 +8,11 @@ serviceAccount:
   # Add necessary roles to the service account.
   # - firebase.serviceAccountUser: allows impersonation and token generation for Auth.
   # - iam.serviceAccountTokenCreator: allows creating OAuth 2.0 access tokens for other Google APIs like Firestore.
-  # - roles/datastore.user: allows the backend to read from and write to Firestore.
+  # - roles/firebase.datastoreUser: allows the backend to read from and write to Firestore in Native Mode.
   roles:
     - firebase.serviceAccountUser
     - iam.serviceAccountTokenCreator
-    - roles/datastore.user
+    - roles/firebase.datastoreUser
 
 # Build-time environment variables. These are available during the `next build` step.
 # Essential for NEXT_PUBLIC_ variables that need to be baked into the client-side bundle.
@@ -44,3 +44,4 @@ requiredAPIs:
     reason: To allow the backend to verify Firebase Auth tokens.
   - service: firebasestorage.googleapis.com
     reason: To allow the backend to use Firebase Storage for image uploads.
+

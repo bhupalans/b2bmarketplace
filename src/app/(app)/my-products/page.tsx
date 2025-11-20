@@ -160,11 +160,12 @@ export default function MyProductsPage() {
     setProductToDelete(null);
   };
 
-  const getConvertedPrice = (priceUSD: number) => {
-    if (currency === "USD" || !rates[currency]) {
-      return priceUSD;
+  const getConvertedPrice = (price: {baseAmount: number, baseCurrency: string}) => {
+    if (!rates[price.baseCurrency] || !rates[currency]) {
+      return price.baseAmount; // Fallback if rates are not available
     }
-    return priceUSD * rates[currency];
+    const priceInUSD = price.baseAmount / rates[price.baseCurrency];
+    return priceInUSD * rates[currency];
   };
 
   if (loading) {
@@ -245,10 +246,10 @@ export default function MyProductsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {new Intl.NumberFormat(undefined, {
+                        {product.price ? new Intl.NumberFormat(undefined, {
                           style: 'currency',
                           currency: currency,
-                        }).format(getConvertedPrice(product.priceUSD))}
+                        }).format(getConvertedPrice(product.price)) : '$0.00'}
                       </TableCell>
                       <TableCell>
                         <Badge
