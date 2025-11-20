@@ -22,24 +22,22 @@ function SourcingRequestCard({ request }: { request: SourcingRequest }) {
     
     const formattedPrice = useMemo(() => {
         if (!request.targetPrice?.baseAmount || !request.targetPrice.baseCurrency || !ratesLoaded) {
-            return null;
+            return null; // Return null if data isn't ready
         }
 
-        const baseAmount = request.targetPrice.baseAmount;
-        const baseCurrency = request.targetPrice.baseCurrency;
+        const { baseAmount, baseCurrency } = request.targetPrice;
 
-        if (currency === baseCurrency) {
-            return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(baseAmount);
+        if (baseCurrency !== 'USD' && !rates[baseCurrency]) {
+             return new Intl.NumberFormat('en-US', { style: "currency", currency: baseCurrency, notation: "compact" }).format(baseAmount);
         }
 
-        if (!rates[baseCurrency] || !rates[currency]) {
-            return null; // Cannot convert if rates are missing
-        }
-
-        const priceInUSD = baseAmount / rates[baseCurrency];
-        const convertedPrice = priceInUSD * rates[currency];
+        // 1. Convert to USD
+        const priceInUSD = baseCurrency === 'USD' ? baseAmount : baseAmount / rates[baseCurrency];
         
-        return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(convertedPrice);
+        // 2. Convert from USD to display currency
+        const finalPrice = priceInUSD * (rates[currency] || 1);
+        
+        return new Intl.NumberFormat(undefined, { style: "currency", currency, notation: "compact" }).format(finalPrice);
     }, [request.targetPrice, currency, rates, ratesLoaded]);
 
 
@@ -57,9 +55,9 @@ function SourcingRequestCard({ request }: { request: SourcingRequest }) {
                 <p>Country: <span className="font-semibold">{request.buyerCountry}</span></p>
                 {formattedPrice ? (
                     <p>Target Price: <span className="font-semibold">~{formattedPrice} / {request.quantityUnit.slice(0, -1)}</span></p>
-                ) : ratesLoaded ? null : ( // Only show skeleton if rates are not yet loaded
+                ) : (
                     <div className="flex items-center gap-2">
-                        <span className="font-medium">Target Price:</span>
+                        <p>Target Price:</p>
                         <Skeleton className="h-5 w-20" />
                     </div>
                 )}
