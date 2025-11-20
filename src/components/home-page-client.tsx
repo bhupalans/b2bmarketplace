@@ -20,15 +20,26 @@ function SourcingRequestCard({ request }: { request: SourcingRequest }) {
     const expiresAtDate = typeof request.expiresAt === 'string' ? new Date(request.expiresAt) : request.expiresAt.toDate();
     
     const getConvertedTargetPrice = () => {
-        if (!request.targetPriceUSD) return null;
-        if (currency === "USD" || !rates[currency]) {
-          return request.targetPriceUSD;
+        if (!request.targetPrice?.baseAmount || !request.targetPrice?.baseCurrency) return null;
+        
+        const baseAmount = request.targetPrice.baseAmount;
+        const baseCurrency = request.targetPrice.baseCurrency;
+
+        if (currency === baseCurrency) {
+            return baseAmount;
         }
-        return request.targetPriceUSD * rates[currency];
+
+        if (!rates[baseCurrency] || !rates[currency]) {
+            return null; // Cannot convert if rates are missing
+        }
+
+        // Convert base to USD first, then to target currency
+        const priceInUSD = baseAmount / rates[baseCurrency];
+        return priceInUSD * rates[currency];
     };
     
     const convertedPrice = getConvertedTargetPrice();
-    const formattedPrice = convertedPrice ? new Intl.NumberFormat(undefined, {
+    const formattedPrice = (convertedPrice !== null) ? new Intl.NumberFormat(undefined, {
         style: "currency",
         currency: currency,
     }).format(convertedPrice) : null;
