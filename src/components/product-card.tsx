@@ -14,7 +14,7 @@ import {
 import { useCurrency } from "@/contexts/currency-context";
 import { Product, User } from "@/lib/types";
 import { Skeleton } from "./ui/skeleton";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db, getUserClient } from "@/lib/firebase";
 import { Badge } from "./ui/badge";
@@ -52,18 +52,25 @@ export function ProductCard({ product }: ProductCardProps) {
   }, [product.sellerId]);
 
 
-  const getConvertedPrice = () => {
-    if (!rates[product.price.baseCurrency] || !rates[currency]) {
-      return product.price.baseAmount; // Fallback
-    }
-    const priceInUSD = product.price.baseAmount / rates[product.price.baseCurrency];
-    return priceInUSD * rates[currency];
-  };
+  const formattedPrice = useMemo(() => {
+    if (!product.price) return '$0.00'; // Defensive check
 
-  const formattedPrice = new Intl.NumberFormat(undefined, {
-    style: "currency",
-    currency: currency,
-  }).format(getConvertedPrice());
+    const getConvertedPrice = () => {
+      // Check if rates are available for conversion
+      if (Object.keys(rates).length <= 1) return product.price.baseAmount;
+
+      if (!rates[product.price.baseCurrency] || !rates[currency]) {
+        return product.price.baseAmount; // Fallback
+      }
+      const priceInUSD = product.price.baseAmount / rates[product.price.baseCurrency];
+      return priceInUSD * rates[currency];
+    };
+
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: currency,
+    }).format(getConvertedPrice());
+  }, [currency, rates, product.price]);
   
   const isFeaturedSeller = seller?.subscriptionPlan?.isFeatured;
 
