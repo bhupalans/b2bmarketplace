@@ -3,6 +3,7 @@
 
 import { adminAuth, adminDb, adminStorage } from "@/lib/firebase-admin";
 import { headers } from "next/headers";
+import { Product } from "@/lib/types";
 
 // Helper function to check if the caller is an admin
 async function isAdmin() {
@@ -12,6 +13,53 @@ async function isAdmin() {
     const referer = headers().get('referer');
     return referer?.includes('/admin');
 }
+
+export async function migrateProductPrices() {
+    if (!(await isAdmin())) {
+        return { success: false, error: 'Unauthorized' };
+    }
+
+    try {
+        const productsRef = adminDb.collection('products');
+        const snapshot = await productsRef.get();
+
+        if (snapshot.empty) {
+            return { success: true, message: 'No products found to migrate.' };
+        }
+
+        const batch = adminDb.batch();
+        let migratedCount = 0;
+
+        snapshot.docs.forEach(doc => {
+            const product = doc.data() as Partial<Product> & { price?: any, priceUSD?: number };
+
+            // Check if the product has the old priceUSD field and not the new price object
+            if (product.priceUSD !== undefined && product.price === undefined) {
+                batch.update(doc.ref, {
+                    price: {
+                        baseAmount: product.priceUSD,
+                        baseCurrency: 'USD'
+                    },
+                    priceUSD: adminDb.FieldValue.delete() // Remove the old field
+                });
+                migratedCount++;
+            }
+        });
+
+        if (migratedCount === 0) {
+            return { success: true, message: 'All products already have the new price format. No migration needed.' };
+        }
+
+        await batch.commit();
+
+        return { success: true, message: `Successfully migrated ${migratedCount} product(s) to the new price format.` };
+
+    } catch (error: any) {
+        console.error("Error migrating product prices:", error);
+        return { success: false, error: error.message };
+    }
+}
+
 
 export async function clearAllProducts() {
     if (!(await isAdmin())) {

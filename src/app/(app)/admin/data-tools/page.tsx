@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, Trash2, ShieldAlert } from "lucide-react";
+import { Loader2, Trash2, ShieldAlert, DatabaseZap } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,9 +25,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
-import { clearAllProducts, clearAllConversationsAndOffers, clearAllNonAdminUsers } from '@/app/admin-data-actions';
+import { clearAllProducts, clearAllConversationsAndOffers, clearAllNonAdminUsers, migrateProductPrices } from '@/app/admin-data-actions';
 
-type ActionType = 'products' | 'conversations' | 'users';
+type ActionType = 'products' | 'conversations' | 'users' | 'migratePrices';
 
 export default function DataToolsPage() {
     const { user } = useAuth();
@@ -90,6 +90,24 @@ export default function DataToolsPage() {
             handleCloseDialog();
         });
     };
+    
+    const handleMigratePrices = () => {
+        startTransition(async () => {
+            const result = await migrateProductPrices();
+             if (result.success) {
+                toast({
+                    title: 'Migration Successful',
+                    description: result.message,
+                });
+            } else {
+                 toast({
+                    variant: 'destructive',
+                    title: 'Migration Failed',
+                    description: result.error || 'An unknown error occurred.',
+                });
+            }
+        });
+    }
 
     const handleCloseDialog = () => {
         setDialogOpen(false);
@@ -115,11 +133,24 @@ export default function DataToolsPage() {
                     <p className="text-muted-foreground">Tools for managing and resetting test data.</p>
                 </div>
 
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Product Price Migrator</CardTitle>
+                        <CardDescription>This is a one-time tool to update your existing products from the old `priceUSD` format to the new `price` object format. Run this if your product prices are not displaying correctly after the recent update.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Button variant="outline" onClick={handleMigratePrices} disabled={isPending}>
+                            {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <DatabaseZap className="mr-2 h-4 w-4"/>}
+                            Migrate Product Prices
+                        </Button>
+                    </CardContent>
+                </Card>
+
                 <Alert variant="destructive">
                     <ShieldAlert className="h-4 w-4" />
                     <AlertTitle>Danger Zone</AlertTitle>
                     <AlertDescription>
-                        The actions on this page are irreversible and will permanently delete data. Use with extreme caution.
+                        The actions below are irreversible and will permanently delete data. Use with extreme caution.
                     </AlertDescription>
                 </Alert>
 
