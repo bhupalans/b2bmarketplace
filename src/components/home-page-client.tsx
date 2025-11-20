@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -17,34 +17,30 @@ import { useCurrency } from "@/contexts/currency-context";
 
 function SourcingRequestCard({ request }: { request: SourcingRequest }) {
     const { currency, rates } = useCurrency();
+    const ratesLoaded = Object.keys(rates).length > 1;
     const expiresAtDate = typeof request.expiresAt === 'string' ? new Date(request.expiresAt) : request.expiresAt.toDate();
     
-    const getConvertedTargetPrice = () => {
-        if (!request.targetPrice?.baseAmount || !request.targetPrice?.baseCurrency) {
+    const formattedPrice = useMemo(() => {
+        if (!request.targetPrice?.baseAmount || !request.targetPrice.baseCurrency || !ratesLoaded) {
             return null;
         }
-        
+
         const baseAmount = request.targetPrice.baseAmount;
         const baseCurrency = request.targetPrice.baseCurrency;
 
         if (currency === baseCurrency) {
-            return baseAmount;
+            return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(baseAmount);
         }
 
         if (!rates[baseCurrency] || !rates[currency]) {
             return null; // Cannot convert if rates are missing
         }
 
-        // Convert base to USD first, then to target currency
-        const priceInUSD = baseAmount / (rates[baseCurrency] || 1); // Use 1 as fallback for USD to USD
-        return priceInUSD * rates[currency];
-    };
-    
-    const convertedPrice = getConvertedTargetPrice();
-    const formattedPrice = (convertedPrice !== null) ? new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency: currency,
-    }).format(convertedPrice) : null;
+        const priceInUSD = baseAmount / rates[baseCurrency];
+        const convertedPrice = priceInUSD * rates[currency];
+        
+        return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(convertedPrice);
+    }, [request.targetPrice, currency, rates, ratesLoaded]);
 
 
     return (
@@ -59,7 +55,14 @@ function SourcingRequestCard({ request }: { request: SourcingRequest }) {
             <CardContent className="flex-grow text-sm space-y-1">
                 <p>Quantity: <span className="font-semibold">{request.quantity.toLocaleString()} {request.quantityUnit}</span></p>
                 <p>Country: <span className="font-semibold">{request.buyerCountry}</span></p>
-                {formattedPrice && <p>Target Price: <span className="font-semibold">~{formattedPrice} / {request.quantityUnit.slice(0, -1)}</span></p>}
+                {formattedPrice ? (
+                    <p>Target Price: <span className="font-semibold">~{formattedPrice} / {request.quantityUnit.slice(0, -1)}</span></p>
+                ) : ratesLoaded ? null : ( // Only show skeleton if rates are not yet loaded
+                    <div className="flex items-center gap-2">
+                        <span className="font-medium">Target Price:</span>
+                        <Skeleton className="h-5 w-20" />
+                    </div>
+                )}
             </CardContent>
             <CardContent className="text-xs text-muted-foreground">
                 Expires in {formatDistanceToNow(expiresAtDate)}

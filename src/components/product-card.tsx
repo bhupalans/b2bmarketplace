@@ -29,6 +29,7 @@ export function ProductCard({ product }: ProductCardProps) {
   const { currency, rates } = useCurrency();
   const [seller, setSeller] = useState<User | null>(null);
   const [loadingSeller, setLoadingSeller] = useState(true);
+  const ratesLoaded = Object.keys(rates).length > 1;
 
   useEffect(() => {
     const fetchSeller = async () => {
@@ -53,12 +54,9 @@ export function ProductCard({ product }: ProductCardProps) {
 
 
   const formattedPrice = useMemo(() => {
-    if (!product.price) return '$0.00'; // Defensive check
+    if (!product.price || !ratesLoaded) return null;
 
     const getConvertedPrice = () => {
-      // Check if rates are available for conversion
-      if (Object.keys(rates).length <= 1) return product.price.baseAmount;
-
       if (!rates[product.price.baseCurrency] || !rates[currency]) {
         return product.price.baseAmount; // Fallback
       }
@@ -70,7 +68,7 @@ export function ProductCard({ product }: ProductCardProps) {
       style: "currency",
       currency: currency,
     }).format(getConvertedPrice());
-  }, [currency, rates, product.price]);
+  }, [currency, rates, product.price, ratesLoaded]);
   
   const isFeaturedSeller = seller?.subscriptionPlan?.isFeatured;
 
@@ -98,7 +96,11 @@ export function ProductCard({ product }: ProductCardProps) {
         </CardContent>
       </Link>
       <CardContent className="flex-grow p-6 pt-2">
-        <p className="text-2xl font-bold text-primary">{formattedPrice}</p>
+        {formattedPrice ? (
+          <p className="text-2xl font-bold text-primary">{formattedPrice}</p>
+        ) : (
+          <Skeleton className="h-8 w-1/2" />
+        )}
          {loadingSeller ? (
           <Skeleton className="h-5 w-2/3 mt-2" />
         ) : seller ? (
