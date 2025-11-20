@@ -20,7 +20,9 @@ function SourcingRequestCard({ request }: { request: SourcingRequest }) {
     const expiresAtDate = typeof request.expiresAt === 'string' ? new Date(request.expiresAt) : request.expiresAt.toDate();
     
     const getConvertedTargetPrice = () => {
-        if (!request.targetPrice?.baseAmount || !request.targetPrice?.baseCurrency) return null;
+        if (!request.targetPrice?.baseAmount || !request.targetPrice?.baseCurrency) {
+            return null;
+        }
         
         const baseAmount = request.targetPrice.baseAmount;
         const baseCurrency = request.targetPrice.baseCurrency;
@@ -34,7 +36,7 @@ function SourcingRequestCard({ request }: { request: SourcingRequest }) {
         }
 
         // Convert base to USD first, then to target currency
-        const priceInUSD = baseAmount / rates[baseCurrency];
+        const priceInUSD = baseAmount / (rates[baseCurrency] || 1); // Use 1 as fallback for USD to USD
         return priceInUSD * rates[currency];
     };
     
@@ -57,7 +59,7 @@ function SourcingRequestCard({ request }: { request: SourcingRequest }) {
             <CardContent className="flex-grow text-sm space-y-1">
                 <p>Quantity: <span className="font-semibold">{request.quantity.toLocaleString()} {request.quantityUnit}</span></p>
                 <p>Country: <span className="font-semibold">{request.buyerCountry}</span></p>
-                {formattedPrice && <p>Target Price: <span className="font-semibold">{formattedPrice} / {request.quantityUnit.slice(0, -1)}</span></p>}
+                {formattedPrice && <p>Target Price: <span className="font-semibold">~{formattedPrice} / {request.quantityUnit.slice(0, -1)}</span></p>}
             </CardContent>
             <CardContent className="text-xs text-muted-foreground">
                 Expires in {formatDistanceToNow(expiresAtDate)}
