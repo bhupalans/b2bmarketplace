@@ -50,11 +50,14 @@ export default function SourcingRequestDetailPage() {
   }, [id]);
 
   const getConvertedPrice = (price: {baseAmount: number, baseCurrency: string}) => {
-    if (!rates[price.baseCurrency] || !rates[currency]) {
-      return price.baseAmount; // Fallback
-    }
-    const priceInUSD = price.baseAmount / rates[price.baseCurrency];
-    return priceInUSD * rates[currency];
+    // 1. Convert the original price to USD.
+    // The `rates` object is based on USD, so rates['USD'] is 1.
+    const priceInUSD = price.baseCurrency === 'USD' 
+      ? price.baseAmount 
+      : price.baseAmount / (rates[price.baseCurrency] || 1);
+
+    // 2. Convert from USD to the target currency.
+    return priceInUSD * (rates[currency] || 1);
   };
 
   if (loading) {
@@ -159,3 +162,5 @@ export default function SourcingRequestDetailPage() {
     </div>
   );
 }
+
+    
