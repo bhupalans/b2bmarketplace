@@ -63,18 +63,20 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers, initia
   const [rejectingProduct, setRejectingProduct] = useState<Product | null>(null);
   const { currency, rates } = useCurrency();
 
-  const getConvertedPrice = (baseAmount: number, baseCurrency: string) => {
-    if (!rates[baseCurrency] || !rates[currency]) {
-      return baseAmount; // Fallback if rates are not available
+  const getConvertedPrice = (price: { baseAmount: number; baseCurrency: string; }) => {
+    if (!rates[price.baseCurrency] || !rates[currency]) {
+      return price.baseAmount; // Fallback if rates are not available
     }
-    const priceInUSD = baseAmount / rates[baseCurrency];
+    // 1. Convert to USD
+    const priceInUSD = price.baseCurrency === 'USD' ? price.baseAmount : price.baseAmount / rates[price.baseCurrency];
+    // 2. Convert from USD to target currency
     return priceInUSD * rates[currency];
   };
 
-  const getPriceInUSD = (baseAmount: number, baseCurrency: string) => {
-      if (baseCurrency === 'USD') return baseAmount;
-      if (!rates[baseCurrency]) return baseAmount; // Fallback
-      return baseAmount / rates[baseCurrency];
+  const getPriceInUSD = (price: { baseAmount: number; baseCurrency: string; }) => {
+      if (price.baseCurrency === 'USD') return price.baseAmount;
+      if (!rates[price.baseCurrency]) return price.baseAmount; // Fallback
+      return price.baseAmount / rates[price.baseCurrency];
   }
 
 
@@ -206,7 +208,7 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers, initia
                       {product.price ? new Intl.NumberFormat(undefined, {
                           style: 'currency',
                           currency: currency,
-                      }).format(getConvertedPrice(product.price.baseAmount, product.price.baseCurrency)) : '$0.00'}
+                      }).format(getConvertedPrice(product.price)) : '$0.00'}
                     </TableCell>
                     <TableCell className="text-right">
                         <Button variant="outline" size="sm" onClick={() => handleOpenReview(product)}>
@@ -270,8 +272,8 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers, initia
                     <div>
                       {reviewingProduct.price ? (
                         <>
-                          {new Intl.NumberFormat(undefined, {style: 'currency', currency: currency, minimumFractionDigits: 2, maximumFractionDigits: 2}).format(getConvertedPrice(reviewingProduct.price.baseAmount, reviewingProduct.price.baseCurrency))}
-                          {currency !== 'USD' && <span className="text-muted-foreground ml-2">({new Intl.NumberFormat(undefined, {style: 'currency', currency: 'USD'}).format(getPriceInUSD(reviewingProduct.price.baseAmount, reviewingProduct.price.baseCurrency))} USD)</span>}
+                          {new Intl.NumberFormat(undefined, {style: 'currency', currency: currency, minimumFractionDigits: 2, maximumFractionDigits: 2}).format(getConvertedPrice(reviewingProduct.price))}
+                          {currency !== 'USD' && <span className="text-muted-foreground ml-2">({new Intl.NumberFormat(undefined, {style: 'currency', currency: 'USD'}).format(getPriceInUSD(reviewingProduct.price))} USD)</span>}
                         </>
                       ) : '$0.00'}
                     </div>

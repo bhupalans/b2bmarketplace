@@ -164,7 +164,9 @@ export default function MyProductsPage() {
     if (!rates[price.baseCurrency] || !rates[currency]) {
       return price.baseAmount; // Fallback if rates are not available
     }
-    const priceInUSD = price.baseAmount / rates[price.baseCurrency];
+    // 1. Convert to USD
+    const priceInUSD = price.baseCurrency === 'USD' ? price.baseAmount : price.baseAmount / rates[price.baseCurrency];
+    // 2. Convert from USD to target currency
     return priceInUSD * rates[currency];
   };
 

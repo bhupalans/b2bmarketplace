@@ -99,7 +99,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
   const { toast } = useToast();
   const [isSaving, startSavingTransition] = useTransition();
   const { firebaseUser } = useAuth();
-  const { currency } = useCurrency();
+  const { currency, rates } = useCurrency();
   
   const [isLoadingProduct, setIsLoadingProduct] = useState(false);
   const [newImagePreviews, setNewImagePreviews] = useState<string[]>([]);
@@ -372,13 +372,13 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                   </FormItem>
                 )}
               />
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <FormField
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <FormField
                   control={form.control}
                   name="price.baseAmount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Price per unit ({currency})</FormLabel>
+                      <FormLabel>Price per unit</FormLabel>
                       <FormControl>
                         <Input type="number" step="0.01" {...field} value={field.value ?? ''}/>
                       </FormControl>
@@ -386,6 +386,30 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                     </FormItem>
                   )}
                 />
+                 <FormField
+                  control={form.control}
+                  name="price.baseCurrency"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Price Currency</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a currency" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {Object.keys(rates).sort().map((c) => (
+                            <SelectItem key={c} value={c}>{c}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                  <FormItem>
                     <FormLabel>Category</FormLabel>
                      <Select onValueChange={handleParentCategoryChange} value={selectedParentCategory ?? ''}>

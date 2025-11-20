@@ -112,7 +112,9 @@ export default function ProductDetailPage() {
     if (!rates[price.baseCurrency] || !rates[currency]) {
       return price.baseAmount;
     }
-    const priceInUSD = price.baseAmount / rates[price.baseCurrency];
+    // 1. Convert to USD
+    const priceInUSD = price.baseCurrency === 'USD' ? price.baseAmount : price.baseAmount / rates[price.baseCurrency];
+    // 2. Convert from USD to target currency
     return priceInUSD * rates[currency];
   };
   
