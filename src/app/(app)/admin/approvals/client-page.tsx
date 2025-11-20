@@ -203,10 +203,10 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers, initia
                     <TableCell className="font-medium">{product.title}</TableCell>
                     <TableCell>{getUserName(product.sellerId)}</TableCell>
                     <TableCell>
-                      {new Intl.NumberFormat(undefined, {
+                      {product.price ? new Intl.NumberFormat(undefined, {
                           style: 'currency',
                           currency: currency,
-                      }).format(getConvertedPrice(product.price.baseAmount, product.price.baseCurrency))}
+                      }).format(getConvertedPrice(product.price.baseAmount, product.price.baseCurrency)) : '$0.00'}
                     </TableCell>
                     <TableCell className="text-right">
                         <Button variant="outline" size="sm" onClick={() => handleOpenReview(product)}>
@@ -268,8 +268,12 @@ export function AdminApprovalsClientPage({ initialProducts, initialUsers, initia
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                     <div className="font-medium">Price ({currency})</div>
                     <div>
-                      {new Intl.NumberFormat(undefined, {style: 'currency', currency: currency, minimumFractionDigits: 2, maximumFractionDigits: 2}).format(getConvertedPrice(reviewingProduct.price.baseAmount, reviewingProduct.price.baseCurrency))}
-                      {currency !== 'USD' && <span className="text-muted-foreground ml-2">({new Intl.NumberFormat(undefined, {style: 'currency', currency: 'USD'}).format(getPriceInUSD(reviewingProduct.price.baseAmount, reviewingProduct.price.baseCurrency))} USD)</span>}
+                      {reviewingProduct.price ? (
+                        <>
+                          {new Intl.NumberFormat(undefined, {style: 'currency', currency: currency, minimumFractionDigits: 2, maximumFractionDigits: 2}).format(getConvertedPrice(reviewingProduct.price.baseAmount, reviewingProduct.price.baseCurrency))}
+                          {currency !== 'USD' && <span className="text-muted-foreground ml-2">({new Intl.NumberFormat(undefined, {style: 'currency', currency: 'USD'}).format(getPriceInUSD(reviewingProduct.price.baseAmount, reviewingProduct.price.baseCurrency))} USD)</span>}
+                        </>
+                      ) : '$0.00'}
                     </div>
                     
                     <div className="font-medium">Category</div>
