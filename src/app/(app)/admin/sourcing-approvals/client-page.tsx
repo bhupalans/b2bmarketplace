@@ -37,6 +37,7 @@ import { doc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { collection } from 'firebase/firestore';
 import { useCurrency } from '@/contexts/currency-context';
+import { convertPrice, convertPriceToUSD } from '@/lib/currency';
 
 interface AdminSourcingApprovalsClientPageProps {
     initialRequests: SourcingRequest[];
@@ -57,20 +58,9 @@ export function SourcingApprovalsClientPage({ initialRequests, initialUsers, ini
   const [rejectingRequest, setRejectingRequest] = useState<SourcingRequest | null>(null);
   const { currency, rates } = useCurrency();
 
-  const getConvertedPrice = (price?: { baseAmount: number; baseCurrency: string }) => {
-    if (!price || !price.baseAmount) return 0;
-    const { baseAmount, baseCurrency } = price;
-    // 1. Convert to USD
-    const priceInUSD = baseCurrency === 'USD' ? baseAmount : baseAmount / (rates[baseCurrency] || 1);
-    // 2. Convert from USD to target currency
-    return priceInUSD * (rates[currency] || 1);
-  };
-  
   const getPriceInUSD = (price?: { baseAmount: number; baseCurrency: string }) => {
-    if (!price || !price.baseAmount) return 0;
-    const { baseAmount, baseCurrency } = price;
-    if (baseCurrency === 'USD') return baseAmount;
-    return baseAmount / (rates[baseCurrency] || 1);
+    if (!price) return 0;
+    return convertPriceToUSD(price, rates);
   };
 
 
@@ -243,7 +233,7 @@ export function SourcingApprovalsClientPage({ initialRequests, initialUsers, ini
                         <>
                         <div className="font-medium">Target Price ({currency})</div>
                         <div>
-                          ~{new Intl.NumberFormat(undefined, {style: 'currency', currency: currency, minimumFractionDigits: 2, maximumFractionDigits: 2}).format(getConvertedPrice(reviewingRequest.targetPrice))} / {reviewingRequest.quantityUnit.slice(0, -1)}
+                          ~{new Intl.NumberFormat(undefined, {style: 'currency', currency: currency, minimumFractionDigits: 2, maximumFractionDigits: 2}).format(convertPrice(reviewingRequest.targetPrice, currency, rates))} / {reviewingRequest.quantityUnit.slice(0, -1)}
                           {currency !== 'USD' && <span className="text-muted-foreground ml-2">({new Intl.NumberFormat(undefined, {style: 'currency', currency: 'USD'}).format(getPriceInUSD(reviewingRequest.targetPrice))} USD)</span>}
                         </div>
                         </>

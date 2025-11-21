@@ -44,6 +44,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useCurrency } from '@/contexts/currency-context';
+import { convertPrice } from '@/lib/currency';
 
 export default function MyProductsPage() {
   const { user } = useAuth();
@@ -160,20 +161,6 @@ export default function MyProductsPage() {
     setProductToDelete(null);
   };
 
-  const getConvertedPrice = (price?: {baseAmount: number, baseCurrency: string}) => {
-    // This is the robust, two-step conversion logic.
-    if (!price || !rates[price.baseCurrency] || !rates[currency]) {
-      return price?.baseAmount || 0;
-    }
-    // 1. Convert any currency to USD
-    const priceInUSD = price.baseCurrency === 'USD' 
-        ? price.baseAmount 
-        : price.baseAmount / rates[price.baseCurrency];
-        
-    // 2. Convert the USD amount to the target display currency
-    return priceInUSD * rates[currency];
-  };
-
   if (loading) {
     return <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
@@ -255,7 +242,7 @@ export default function MyProductsPage() {
                         {product.price ? new Intl.NumberFormat(undefined, {
                           style: 'currency',
                           currency: currency,
-                        }).format(getConvertedPrice(product.price)) : '$0.00'}
+                        }).format(convertPrice(product.price, currency, rates)) : '$0.00'}
                       </TableCell>
                       <TableCell>
                         <Badge

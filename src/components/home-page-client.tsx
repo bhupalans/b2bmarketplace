@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import homePageImages from "@/lib/placeholder-images.json";
 import { formatDistanceToNow } from "date-fns";
 import { useCurrency } from "@/contexts/currency-context";
+import { convertPrice } from "@/lib/currency";
 
 function SourcingRequestCard({ request }: { request: SourcingRequest }) {
     const { currency, rates } = useCurrency();
@@ -21,23 +22,10 @@ function SourcingRequestCard({ request }: { request: SourcingRequest }) {
     const expiresAtDate = typeof request.expiresAt === 'string' ? new Date(request.expiresAt) : request.expiresAt.toDate();
     
     const formattedPrice = useMemo(() => {
-        if (!request.targetPrice?.baseAmount || !request.targetPrice.baseCurrency || !ratesLoaded) {
+        if (!request.targetPrice?.baseAmount || !ratesLoaded) {
             return null; // Return null if data isn't ready
         }
-
-        const { baseAmount, baseCurrency } = request.targetPrice;
-
-        if (baseCurrency !== 'USD' && !rates[baseCurrency]) {
-             return new Intl.NumberFormat('en-US', { style: "currency", currency: baseCurrency, notation: "compact" }).format(baseAmount);
-        }
-
-        // 1. Convert to USD
-        const priceInUSD = baseCurrency === 'USD' ? baseAmount : baseAmount / rates[baseCurrency];
-        
-        // 2. Convert from USD to display currency
-        const finalPrice = priceInUSD * (rates[currency] || 1);
-        
-        return new Intl.NumberFormat(undefined, { style: "currency", currency, notation: "compact" }).format(finalPrice);
+        return new Intl.NumberFormat(undefined, { style: "currency", currency, notation: "compact" }).format(convertPrice(request.targetPrice, currency, rates));
     }, [request.targetPrice, currency, rates, ratesLoaded]);
 
 

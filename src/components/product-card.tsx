@@ -20,6 +20,7 @@ import { db, getUserClient } from "@/lib/firebase";
 import { Badge } from "./ui/badge";
 import { CheckCircle, FileText, Gem } from "lucide-react";
 import { RequestQuoteDialog } from "./request-quote-dialog";
+import { convertPrice } from "@/lib/currency";
 
 interface ProductCardProps {
   product: Product;
@@ -57,28 +58,10 @@ export function ProductCard({ product }: ProductCardProps) {
     if (!product.price || !ratesLoaded) {
       return null; // Return null if data is not ready
     }
-
-    const { baseAmount, baseCurrency } = product.price;
-
-    // If we have no rate for the product's base currency, we can't convert.
-    // This is a fallback and shouldn't happen with valid data.
-    if (baseCurrency !== 'USD' && !rates[baseCurrency]) {
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: baseCurrency,
-      }).format(baseAmount);
-    }
-    
-    // 1. Convert the product's price to USD (our common denominator)
-    const priceInUSD = baseCurrency === 'USD' ? baseAmount : baseAmount / rates[baseCurrency];
-
-    // 2. Convert from USD to the target display currency
-    const finalPrice = priceInUSD * (rates[currency] || 1);
-
     return new Intl.NumberFormat(undefined, {
       style: "currency",
       currency: currency,
-    }).format(finalPrice);
+    }).format(convertPrice(product.price, currency, rates));
   }, [currency, rates, product.price, ratesLoaded]);
   
   const isFeaturedSeller = seller?.subscriptionPlan?.isFeatured;

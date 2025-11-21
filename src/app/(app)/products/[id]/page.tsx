@@ -47,6 +47,7 @@ import { ProductCard } from "@/components/product-card";
 import { QuestionForm } from "@/components/question-form";
 import { QuestionItem } from "@/components/question-item";
 import { useAuth } from "@/contexts/auth-context";
+import { convertPrice } from "@/lib/currency";
 
 type ProductData = {
   product: Product;
@@ -107,16 +108,6 @@ export default function ProductDetailPage() {
   const onAnswerSubmitted = (answeredQuestion: Question) => {
     setQuestions(prev => prev.map(q => q.id === answeredQuestion.id ? answeredQuestion : q));
   }
-
-  const getConvertedPrice = (price: {baseAmount: number, baseCurrency: string}) => {
-    if (!rates[price.baseCurrency] || !rates[currency]) {
-      return price.baseAmount;
-    }
-    // 1. Convert to USD
-    const priceInUSD = price.baseCurrency === 'USD' ? price.baseAmount : price.baseAmount / rates[price.baseCurrency];
-    // 2. Convert from USD to target currency
-    return priceInUSD * rates[currency];
-  };
   
   const getStockLabel = (stock?: string) => {
     switch(stock) {
@@ -149,7 +140,7 @@ export default function ProductDetailPage() {
   const formattedPrice = new Intl.NumberFormat(undefined, {
     style: "currency",
     currency: currency,
-  }).format(getConvertedPrice(product.price));
+  }).format(convertPrice(product.price, currency, rates));
   
   const isFeaturedSeller = seller?.subscriptionPlan?.isFeatured;
 

@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ContactBuyerDialog } from '@/components/contact-buyer-dialog';
 import { useCurrency } from '@/contexts/currency-context';
+import { convertPrice } from '@/lib/currency';
 
 export default function SourcingRequestDetailPage() {
   const params = useParams();
@@ -48,17 +49,6 @@ export default function SourcingRequestDetailPage() {
     }
     fetchData();
   }, [id]);
-
-  const getConvertedPrice = (price: {baseAmount: number, baseCurrency: string}) => {
-    // 1. Convert the original price to USD.
-    // The `rates` object is based on USD, so rates['USD'] is 1.
-    const priceInUSD = price.baseCurrency === 'USD' 
-      ? price.baseAmount 
-      : price.baseAmount / (rates[price.baseCurrency] || 1);
-
-    // 2. Convert from USD to the target currency.
-    return priceInUSD * (rates[currency] || 1);
-  };
 
   if (loading) {
     return <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -105,7 +95,7 @@ export default function SourcingRequestDetailPage() {
                         {request.targetPrice?.baseAmount && (
                             <>
                                 <div className="font-medium flex items-center gap-2"><DollarSign className="h-4 w-4 text-muted-foreground" /> Target Price ({currency})</div>
-                                <div>~{new Intl.NumberFormat(undefined, {style: 'currency', currency}).format(getConvertedPrice(request.targetPrice))} / {request.quantityUnit.slice(0,-1)}</div>
+                                <div>~{new Intl.NumberFormat(undefined, {style: 'currency', currency}).format(convertPrice(request.targetPrice, currency, rates))} / {request.quantityUnit.slice(0,-1)}</div>
                             </>
                         )}
                     </div>
@@ -162,5 +152,3 @@ export default function SourcingRequestDetailPage() {
     </div>
   );
 }
-
-    

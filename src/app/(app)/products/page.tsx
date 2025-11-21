@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { convertPrice } from "@/lib/currency";
 
 // Helper function to get all descendant category IDs
 const getDescendantCategoryIds = (
@@ -69,14 +70,6 @@ export default function ProductsPage() {
   useEffect(() => {
     setPriceRange([0, maxPrice]);
   }, [maxPrice]);
-  
-  const getConvertedPrice = (price: {baseAmount: number, baseCurrency: string}) => {
-    if (!rates[price.baseCurrency] || !rates[currency]) {
-      return price.baseAmount; // Fallback if rates are not available
-    }
-    const priceInUSD = price.baseAmount / rates[price.baseCurrency];
-    return priceInUSD * rates[currency];
-  };
 
   const filteredProducts = useMemo(() => {
     if (loading) {
@@ -103,8 +96,8 @@ export default function ProductsPage() {
 
     // Filter by price range
     filtered = filtered.filter(product => {
-        const convertedPrice = getConvertedPrice(product.price);
-        return convertedPrice >= priceRange[0] && convertedPrice <= priceRange[1];
+        const convertedPriceValue = convertPrice(product.price, currency, rates);
+        return convertedPriceValue >= priceRange[0] && convertedPriceValue <= priceRange[1];
     });
 
     // Filter by stock status
@@ -120,10 +113,10 @@ export default function ProductsPage() {
     // Sort products
     switch (sortBy) {
         case 'price_asc':
-            filtered.sort((a,b) => getConvertedPrice(a.price) - getConvertedPrice(b.price));
+            filtered.sort((a,b) => convertPrice(a.price, currency, rates) - convertPrice(b.price, currency, rates));
             break;
         case 'price_desc':
-            filtered.sort((a,b) => getConvertedPrice(b.price) - getConvertedPrice(a.price));
+            filtered.sort((a,b) => convertPrice(b.price, currency, rates) - convertPrice(a.price, currency, rates));
             break;
         case 'newest':
             filtered.sort((a,b) => new Date(b.createdAt as string).getTime() - new Date(a.createdAt as string).getTime());
