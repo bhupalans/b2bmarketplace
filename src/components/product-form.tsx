@@ -109,6 +109,8 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
   const [parentCategories, setParentCategories] = useState<Category[]>([]);
   const [subCategories, setSubCategories] = useState<Category[]>([]);
 
+  const availableCurrencies = Array.from(new Set(["USD", ...Object.keys(rates)]));
+
 
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
@@ -399,7 +401,7 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {Object.keys(rates).sort().map((c) => (
+                          {availableCurrencies.sort().map((c) => (
                             <SelectItem key={c} value={c}>{c}</SelectItem>
                           ))}
                         </SelectContent>
@@ -787,3 +789,5 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
 }
 
 export const ProductFormDialog = memo(ProductFormDialogComponent);
+
+    
