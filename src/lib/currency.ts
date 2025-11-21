@@ -23,16 +23,24 @@ export function convertPrice(
 
   const { baseAmount, baseCurrency } = price;
   
-  if (!rates[baseCurrency] || !rates[targetCurrency]) {
-      // Fallback if a rate is missing, though this shouldn't happen with valid data.
-      return baseAmount;
+  if (baseCurrency === targetCurrency) {
+    return baseAmount;
+  }
+
+  // Handle the case where a rate might be missing, but allow USD as a valid currency
+  const baseRate = baseCurrency === 'USD' ? 1 : rates[baseCurrency];
+  const targetRate = targetCurrency === 'USD' ? 1 : rates[targetCurrency];
+
+  if (!baseRate || !targetRate) {
+    console.warn(`Missing exchange rate for conversion from ${baseCurrency} to ${targetCurrency}.`);
+    return baseAmount; // Fallback to the original amount if rates are unavailable
   }
 
   // 1. Convert the base amount to USD
-  const amountInUSD = baseAmount / rates[baseCurrency];
+  const amountInUSD = baseAmount / baseRate;
 
   // 2. Convert the USD amount to the target currency
-  const finalAmount = amountInUSD * rates[targetCurrency];
+  const finalAmount = amountInUSD * targetRate;
   
   return finalAmount;
 }
@@ -56,8 +64,14 @@ export function convertPriceToUSD(
     if (price.baseCurrency === 'USD') {
         return price.baseAmount;
     }
-    if (!rates[price.baseCurrency]) {
+    
+    const baseRate = price.baseCurrency === 'USD' ? 1 : rates[price.baseCurrency];
+    
+    if (!baseRate) {
+        console.warn(`Missing exchange rate for base currency ${price.baseCurrency} in convertPriceToUSD.`);
         return price.baseAmount; // Fallback
     }
-    return price.baseAmount / rates[price.baseCurrency];
+
+    return price.baseAmount / baseRate;
 }
+
