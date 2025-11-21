@@ -161,12 +161,16 @@ export default function MyProductsPage() {
   };
 
   const getConvertedPrice = (price?: {baseAmount: number, baseCurrency: string}) => {
+    // This is the robust, two-step conversion logic.
     if (!price || !rates[price.baseCurrency] || !rates[currency]) {
-      return price?.baseAmount || 0; // Fallback if rates are not available or price is missing
+      return price?.baseAmount || 0;
     }
-    // 1. Convert to USD
-    const priceInUSD = price.baseCurrency === 'USD' ? price.baseAmount : price.baseAmount / rates[price.baseCurrency];
-    // 2. Convert from USD to target currency
+    // 1. Convert any currency to USD
+    const priceInUSD = price.baseCurrency === 'USD' 
+        ? price.baseAmount 
+        : price.baseAmount / rates[price.baseCurrency];
+        
+    // 2. Convert the USD amount to the target display currency
     return priceInUSD * rates[currency];
   };
 
