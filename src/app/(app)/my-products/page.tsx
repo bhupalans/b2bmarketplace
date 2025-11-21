@@ -160,9 +160,9 @@ export default function MyProductsPage() {
     setProductToDelete(null);
   };
 
-  const getConvertedPrice = (price: {baseAmount: number, baseCurrency: string}) => {
-    if (!rates[price.baseCurrency] || !rates[currency]) {
-      return price.baseAmount; // Fallback if rates are not available
+  const getConvertedPrice = (price?: {baseAmount: number, baseCurrency: string}) => {
+    if (!price || !rates[price.baseCurrency] || !rates[currency]) {
+      return price?.baseAmount || 0; // Fallback if rates are not available or price is missing
     }
     // 1. Convert to USD
     const priceInUSD = price.baseCurrency === 'USD' ? price.baseAmount : price.baseAmount / rates[price.baseCurrency];
