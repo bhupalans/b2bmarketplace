@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Toaster } from "@/components/ui/toaster";
@@ -8,13 +7,18 @@ import { useEffect, useState } from "react";
 
 async function getFxRates() {
   try {
-    const response = await fetch("https://api.frankfurter.app/latest?from=USD");
+    // Switched to a more comprehensive, free currency API provider
+    const response = await fetch("https://open.er-api.com/v6/latest/USD");
     if (!response.ok) {
       console.error("Failed to fetch FX rates");
       return { USD: 1 };
     }
     const data = await response.json();
-    return data.rates;
+    if (data.result === 'success') {
+        return data.rates;
+    }
+    console.error("FX rates API returned an error:", data['error-type']);
+    return { USD: 1 };
   } catch (error) {
     console.error("Error fetching FX rates:", error);
     return { USD: 1 };
