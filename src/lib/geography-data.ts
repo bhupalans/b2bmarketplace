@@ -440,206 +440,208 @@ export const statesProvinces: Record<string, { value: string; label: string }[]>
 };
 
 export const CURRENCY_MAP: Record<string, string> = {
-  "AF": "AFN", // Afghanistan -> Afghan Afghani
-  "AL": "ALL", // Albania -> Albanian Lek
-  "DZ": "DZD", // Algeria -> Algerian Dinar
-  "AS": "USD", // American Samoa -> US Dollar
-  "AD": "EUR", // Andorra -> Euro
-  "AO": "AOA", // Angola -> Angolan Kwanza
-  "AI": "XCD", // Anguilla -> East Caribbean Dollar
-  "AG": "XCD", // Antigua and Barbuda -> East Caribbean Dollar
-  "AR": "ARS", // Argentina -> Argentine Peso
-  "AM": "AMD", // Armenia -> Armenian Dram
-  "AW": "AWG", // Aruba -> Aruban Florin
-  "AU": "AUD", // Australia -> Australian Dollar
-  "AT": "EUR", // Austria -> Euro
-  "AZ": "AZN", // Azerbaijan -> Azerbaijani Manat
-  "BS": "BSD", // Bahamas -> Bahamian Dollar
-  "BH": "BHD", // Bahrain -> Bahraini Dinar
-  "BD": "BDT", // Bangladesh -> Bangladeshi Taka
-  "BB": "BBD", // Barbados -> Barbadian Dollar
-  "BY": "BYN", // Belarus -> Belarusian Ruble
-  "BE": "EUR", // Belgium -> Euro
-  "BZ": "BZD", // Belize -> Belize Dollar
-  "BJ": "XOF", // Benin -> West African CFA franc
-  "BM": "BMD", // Bermuda -> Bermudian Dollar
-  "BT": "BTN", // Bhutan -> Bhutanese Ngultrum
-  "BO": "BOB", // Bolivia -> Bolivian Boliviano
-  "BA": "BAM", // Bosnia and Herzegovina -> Bosnia-Herzegovina Convertible Mark
-  "BW": "BWP", // Botswana -> Botswana Pula
-  "BR": "BRL", // Brazil -> Brazilian Real
-  "BN": "BND", // Brunei Darussalam -> Brunei Dollar
-  "BG": "BGN", // Bulgaria -> Bulgarian Lev
-  "BF": "XOF", // Burkina Faso -> West African CFA franc
-  "BI": "BIF", // Burundi -> Burundian Franc
-  "KH": "KHR", // Cambodia -> Cambodian Riel
-  "CM": "XAF", // Cameroon -> Central African CFA franc
-  "CA": "CAD", // Canada -> Canadian Dollar
-  "CV": "CVE", // Cape Verde -> Cape Verdean Escudo
-  "KY": "KYD", // Cayman Islands -> Cayman Islands Dollar
-  "CF": "XAF", // Central African Republic -> Central African CFA franc
-  "TD": "XAF", // Chad -> Central African CFA franc
-  "CL": "CLP", // Chile -> Chilean Peso
-  "CN": "CNY", // China -> Chinese Yuan
-  "CO": "COP", // Colombia -> Colombian Peso
-  "KM": "KMF", // Comoros -> Comorian Franc
-  "CG": "XAF", // Congo -> Central African CFA franc
-  "CD": "CDF", // Congo, Democratic Republic of the -> Congolese Franc
-  "CK": "NZD", // Cook Islands -> New Zealand Dollar
-  "CR": "CRC", // Costa Rica -> Costa Rican Colón
-  "CI": "XOF", // Cote D'ivoire -> West African CFA franc
-  "HR": "EUR", // Croatia -> Euro
-  "CU": "CUP", // Cuba -> Cuban Peso
-  "CY": "EUR", // Cyprus -> Euro
-  "CZ": "CZK", // Czech Republic -> Czech Koruna
-  "DK": "DKK", // Denmark -> Danish Krone
-  "DJ": "DJF", // Djibouti -> Djiboutian Franc
-  "DM": "XCD", // Dominica -> East Caribbean Dollar
-  "DO": "DOP", // Dominican Republic -> Dominican Peso
-  "EC": "USD", // Ecuador -> US Dollar
-  "EG": "EGP", // Egypt -> Egyptian Pound
-  "SV": "USD", // El Salvador -> US Dollar
-  "GQ": "XAF", // Equatorial Guinea -> Central African CFA franc
-  "ER": "ERN", // Eritrea -> Eritrean Nakfa
-  "EE": "EUR", // Estonia -> Euro
-  "ET": "ETB", // Ethiopia -> Ethiopian Birr
-  "FK": "FKP", // Falkland Islands (Malvinas) -> Falkland Islands Pound
-  "FO": "DKK", // Faroe Islands -> Danish Krone
-  "FJ": "FJD", // Fiji -> Fijian Dollar
-  "FI": "EUR", // Finland -> Euro
-  "FR": "EUR", // France -> Euro
-  "GA": "XAF", // Gabon -> Central African CFA franc
-  "GM": "GMD", // Gambia -> Gambian Dalasi
-  "GE": "GEL", // Georgia -> Georgian Lari
-  "DE": "EUR", // Germany -> Euro
-  "GH": "GHS", // Ghana -> Ghanaian Cedi
-  "GI": "GIP", // Gibraltar -> Gibraltar Pound
-  "GR": "EUR", // Greece -> Euro
-  "GL": "DKK", // Greenland -> Danish Krone
-  "GD": "XCD", // Grenada -> East Caribbean Dollar
-  "GT": "GTQ", // Guatemala -> Guatemalan Quetzal
-  "GN": "GNF", // Guinea -> Guinean Franc
-  "GW": "XOF", // Guinea-bissau -> West African CFA franc
-  "GY": "GYD", // Guyana -> Guyanaese Dollar
-  "HT": "HTG", // Haiti -> Haitian Gourde
-  "HN": "HNL", // Honduras -> Honduran Lempira
-  "HK": "HKD", // Hong Kong -> Hong Kong Dollar
-  "HU": "HUF", // Hungary -> Hungarian Forint
-  "IS": "ISK", // Iceland -> Icelandic Króna
-  "IN": "INR", // India -> Indian Rupee
-  "ID": "IDR", // Indonesia -> Indonesian Rupiah
-  "IR": "IRR", // Iran, Islamic Republic of -> Iranian Rial
-  "IQ": "IQD", // Iraq -> Iraqi Dinar
-  "IE": "EUR", // Ireland -> Euro
-  "IL": "ILS", // Israel -> Israeli New Sheqel
-  "IT": "EUR", // Italy -> Euro
-  "JM": "JMD", // Jamaica -> Jamaican Dollar
-  "JP": "JPY", // Japan -> Japanese Yen
-  "JO": "JOD", // Jordan -> Jordanian Dinar
-  "KZ": "KZT", // Kazakhstan -> Kazakhstani Tenge
-  "KE": "KES", // Kenya -> Kenyan Shilling
-  "KI": "AUD", // Kiribati -> Australian Dollar
-  "KR": "KRW", // Korea, Republic of -> South Korean Won
-  "KW": "KWD", // Kuwait -> Kuwaiti Dinar
-  "KG": "KGS", // Kyrgyzstan -> Kyrgystani Som
-  "LA": "LAK", // Lao People's Democratic Republic -> Laotian Kip
-  "LV": "EUR", // Latvia -> Euro
-  "LB": "LBP", // Lebanon -> Lebanese Pound
-  "LS": "LSL", // Lesotho -> Lesotho Loti
-  "LR": "LRD", // Liberia -> Liberian Dollar
-  "LY": "LYD", // Libyan Arab Jamahiriya -> Libyan Dinar
-  "LI": "CHF", // Liechtenstein -> Swiss Franc
-  "LT": "EUR", // Lithuania -> Euro
-  "LU": "EUR", // Luxembourg -> Euro
-  "MG": "MGA", // Madagascar -> Malagasy Ariary
-  "MW": "MWK", // Malawi -> Malawian Kwacha
-  "MY": "MYR", // Malaysia -> Malaysian Ringgit
-  "MV": "MVR", // Maldives -> Maldivian Rufiyaa
-  "ML": "XOF", // Mali -> West African CFA franc
-  "MT": "EUR", // Malta -> Euro
-  "MH": "USD", // Marshall Islands -> US Dollar
-  "MR": "MRU", // Mauritania -> Mauritanian Ouguiya
-  "MU": "MUR", // Mauritius -> Mauritian Rupee
-  "MX": "MXN", // Mexico -> Mexican Peso
-  "MD": "MDL", // Moldova, Republic of -> Moldovan Leu
-  "MC": "EUR", // Monaco -> Euro
-  "MN": "MNT", // Mongolia -> Mongolian Tugrik
-  "ME": "EUR", // Montenegro -> Euro
-  "MS": "XCD", // Montserrat -> East Caribbean Dollar
-  "MA": "MAD", // Morocco -> Moroccan Dirham
-  "MZ": "MZN", // Mozambique -> Mozambican Metical
-  "MM": "MMK", // Myanmar -> Myanma Kyat
-  "NA": "NAD", // Namibia -> Namibian Dollar
-  "NR": "AUD", // Nauru -> Australian Dollar
-  "NP": "NPR", // Nepal -> Nepalese Rupee
-  "NL": "EUR", // Netherlands -> Euro
-  "NZ": "NZD", // New Zealand -> New Zealand Dollar
-  "NI": "NIO", // Nicaragua -> Nicaraguan Córdoba
-  "NE": "XOF", // Niger -> West African CFA franc
-  "NG": "NGN", // Nigeria -> Nigerian Naira
-  "NO": "NOK", // Norway -> Norwegian Krone
-  "OM": "OMR", // Oman -> Omani Rial
-  "PK": "PKR", // Pakistan -> Pakistani Rupee
-  "PW": "USD", // Palau -> US Dollar
-  "PA": "PAB", // Panama -> Panamanian Balboa
-  "PG": "PGK", // Papua New Guinea -> Papua New Guinean Kina
-  "PY": "PYG", // Paraguay -> Paraguayan Guarani
-  "PE": "PEN", // Peru -> Peruvian Nuevo Sol
-  "PH": "PHP", // Philippines -> Philippine Peso
-  "PL": "PLN", // Poland -> Polish Zloty
-  "PT": "EUR", // Portugal -> Euro
-  "PR": "USD", // Puerto Rico -> US Dollar
-  "QA": "QAR", // Qatar -> Qatari Rial
-  "RO": "RON", // Romania -> Romanian Leu
-  "RU": "RUB", // Russian Federation -> Russian Ruble
-  "RW": "RWF", // Rwanda -> Rwandan Franc
-  "KN": "XCD", // Saint Kitts and Nevis -> East Caribbean Dollar
-  "LC": "XCD", // Saint Lucia -> East Caribbean Dollar
-  "VC": "XCD", // Saint Vincent and The Grenadines -> East Caribbean Dollar
-  "WS": "WST", // Samoa -> Samoan Tala
-  "SM": "EUR", // San Marino -> Euro
-  "ST": "STD", // Sao Tome and Principe -> São Tomé and Príncipe Dobra
-  "SA": "SAR", // Saudi Arabia -> Saudi Riyal
-  "SN": "XOF", // Senegal -> West African CFA franc
-  "RS": "RSD", // Serbia -> Serbian Dinar
-  "SC": "SCR", // Seychelles -> Seychellois Rupee
-  "SL": "SLL", // Sierra Leone -> Sierra Leonean Leone
-  "SG": "SGD", // Singapore -> Singapore Dollar
-  "SK": "EUR", // Slovakia -> Euro
-  "SI": "EUR", // Slovenia -> Euro
-  "SB": "SBD", // Solomon Islands -> Solomon Islands Dollar
-  "SO": "SOS", // Somalia -> Somali Shilling
-  "ZA": "ZAR", // South Africa -> South African Rand
-  "ES": "EUR", // Spain -> Euro
-  "LK": "LKR", // Sri Lanka -> Sri Lankan Rupee
-  "SD": "SDG", // Sudan -> Sudanese Pound
-  "SR": "SRD", // Suriname -> Surinamese Dollar
-  "SZ": "SZL", // Swaziland -> Swazi Lilangeni
-  "SE": "SEK", // Sweden -> Swedish Krona
-  "CH": "CHF", // Switzerland -> Swiss Franc
-  "SY": "SYP", // Syrian Arab Republic -> Syrian Pound
-  "TW": "TWD", // Taiwan, Province of China -> New Taiwan Dollar
-  "TJ": "TJS", // Tajikistan -> Tajikistani Somoni
-  "TZ": "TZS", // Tanzania, United Republic of -> Tanzanian Shilling
-  "TH": "THB", // Thailand -> Thai Baht
-  "TG": "XOF", // Togo -> West African CFA franc
-  "TO": "TOP", // Tonga -> Tongan Paʻanga
-  "TT": "TTD", // Trinidad and Tobago -> Trinidad and Tobago Dollar
-  "TN": "TND", // Tunisia -> Tunisian Dinar
-  "TR": "TRY", // Turkey -> Turkish Lira
-  "TM": "TMT", // Turkmenistan -> Turkmenistani Manat
-  "TV": "AUD", // Tuvalu -> Australian Dollar
-  "UG": "UGX", // Uganda -> Ugandan Shilling
-  "UA": "UAH", // Ukraine -> Ukrainian Hryvnia
-  "AE": "AED", // United Arab Emirates -> UAE Dirham
-  "GB": "GBP", // United Kingdom -> Pound Sterling
-  "US": "USD", // United States -> US Dollar
-  "UY": "UYU", // Uruguay -> Uruguayan Peso
-  "UZ": "UZS", // Uzbekistan -> Uzbekistan Som
-  "VU": "VUV", // Vanuatu -> Vanuatu Vatu
-  "VE": "VES", // Venezuela -> Venezuelan Bolívar
-  "VN": "VND", // Viet Nam -> Vietnamese Dong
-  "YE": "YER", // Yemen -> Yemeni Rial
-  "ZM": "ZMW", // Zambia -> Zambian Kwacha
-  "ZW": "ZWL"  // Zimbabwe -> Zimbabwean Dollar
+  "AF": "AFN",
+  "AL": "ALL",
+  "DZ": "DZD",
+  "AS": "USD",
+  "AD": "EUR",
+  "AO": "AOA",
+  "AI": "XCD",
+  "AG": "XCD",
+  "AR": "ARS",
+  "AM": "AMD",
+  "AW": "AWG",
+  "AU": "AUD",
+  "AT": "EUR",
+  "AZ": "AZN",
+  "BS": "BSD",
+  "BH": "BHD",
+  "BD": "BDT",
+  "BB": "BBD",
+  "BY": "BYN",
+  "BE": "EUR",
+  "BZ": "BZD",
+  "BJ": "XOF",
+  "BM": "BMD",
+  "BT": "BTN",
+  "BO": "BOB",
+  "BA": "BAM",
+  "BW": "BWP",
+  "BR": "BRL",
+  "BN": "BND",
+  "BG": "BGN",
+  "BF": "XOF",
+  "BI": "BIF",
+  "KH": "KHR",
+  "CM": "XAF",
+  "CA": "CAD",
+  "CV": "CVE",
+  "KY": "KYD",
+  "CF": "XAF",
+  "TD": "XAF",
+  "CL": "CLP",
+  "CN": "CNY",
+  "CO": "COP",
+  "KM": "KMF",
+  "CG": "XAF",
+  "CD": "CDF",
+  "CK": "NZD",
+  "CR": "CRC",
+  "CI": "XOF",
+  "HR": "EUR",
+  "CU": "CUP",
+  "CY": "EUR",
+  "CZ": "CZK",
+  "DK": "DKK",
+  "DJ": "DJF",
+  "DM": "XCD",
+  "DO": "DOP",
+  "EC": "USD",
+  "EG": "EGP",
+  "SV": "USD",
+  "GQ": "XAF",
+  "ER": "ERN",
+  "EE": "EUR",
+  "ET": "ETB",
+  "FK": "FKP",
+  "FO": "DKK",
+  "FJ": "FJD",
+  "FI": "EUR",
+  "FR": "EUR",
+  "GA": "XAF",
+  "GM": "GMD",
+  "GE": "GEL",
+  "DE": "EUR",
+  "GH": "GHS",
+  "GI": "GIP",
+  "GR": "EUR",
+  "GL": "DKK",
+  "GD": "XCD",
+  "GT": "GTQ",
+  "GN": "GNF",
+  "GW": "XOF",
+  "GY": "GYD",
+  "HT": "HTG",
+  "HN": "HNL",
+  "HK": "HKD",
+  "HU": "HUF",
+  "IS": "ISK",
+  "IN": "INR",
+  "ID": "IDR",
+  "IR": "IRR",
+  "IQ": "IQD",
+  "IE": "EUR",
+  "IL": "ILS",
+  "IT": "EUR",
+  "JM": "JMD",
+  "JP": "JPY",
+  "JO": "JOD",
+  "KZ": "KZT",
+  "KE": "KES",
+  "KI": "AUD",
+  "KR": "KRW",
+  "KW": "KWD",
+  "KG": "KGS",
+  "LA": "LAK",
+  "LV": "EUR",
+  "LB": "LBP",
+  "LS": "LSL",
+  "LR": "LRD",
+  "LY": "LYD",
+  "LI": "CHF",
+  "LT": "EUR",
+  "LU": "EUR",
+  "MG": "MGA",
+  "MW": "MWK",
+  "MY": "MYR",
+  "MV": "MVR",
+  "ML": "XOF",
+  "MT": "EUR",
+  "MH": "USD",
+  "MR": "MRU",
+  "MU": "MUR",
+  "MX": "MXN",
+  "MD": "MDL",
+  "MC": "EUR",
+  "MN": "MNT",
+  "ME": "EUR",
+  "MS": "XCD",
+  "MA": "MAD",
+  "MZ": "MZN",
+  "MM": "MMK",
+  "NA": "NAD",
+  "NR": "AUD",
+  "NP": "NPR",
+  "NL": "EUR",
+  "NZ": "NZD",
+  "NI": "NIO",
+  "NE": "XOF",
+  "NG": "NGN",
+  "NO": "NOK",
+  "OM": "OMR",
+  "PK": "PKR",
+  "PW": "USD",
+  "PA": "PAB",
+  "PG": "PGK",
+  "PY": "PYG",
+  "PE": "PEN",
+  "PH": "PHP",
+  "PL": "PLN",
+  "PT": "EUR",
+  "PR": "USD",
+  "QA": "QAR",
+  "RO": "RON",
+  "RU": "RUB",
+  "RW": "RWF",
+  "KN": "XCD",
+  "LC": "XCD",
+  "VC": "XCD",
+  "WS": "WST",
+  "SM": "EUR",
+  "ST": "STN",
+  "SA": "SAR",
+  "SN": "XOF",
+  "RS": "RSD",
+  "SC": "SCR",
+  "SL": "SLL",
+  "SG": "SGD",
+  "SK": "EUR",
+  "SI": "EUR",
+  "SB": "SBD",
+  "SO": "SOS",
+  "ZA": "ZAR",
+  "ES": "EUR",
+  "LK": "LKR",
+  "SD": "SDG",
+  "SR": "SRD",
+  "SZ": "SZL",
+  "SE": "SEK",
+  "CH": "CHF",
+  "SY": "SYP",
+  "TW": "TWD",
+  "TJ": "TJS",
+  "TZ": "TZS",
+  "TH": "THB",
+  "TG": "XOF",
+  "TO": "TOP",
+  "TT": "TTD",
+  "TN": "TND",
+  "TR": "TRY",
+  "TM": "TMT",
+  "TV": "AUD",
+  "UG": "UGX",
+  "UA": "UAH",
+  "AE": "AED",
+  "GB": "GBP",
+  "US": "USD",
+  "UY": "UYU",
+  "UZ": "UZS",
+  "VU": "VUV",
+  "VE": "VES",
+  "VN": "VND",
+  "YE": "YER",
+  "ZM": "ZMW",
+  "ZW": "ZWL"
 };
+
+    
