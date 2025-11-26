@@ -169,9 +169,11 @@ export default function SubscriptionPage() {
                         currency: displayCurrency,
                     }).format(displayPrice);
 
+                    const showFeaturedBadge = plan.isFeatured && plan.price > 0;
+
                     return (
                     <Card key={plan.id} className={cn("flex flex-col", (isCurrentPaidPlan || isCurrentFreePlan) && !isCancelled && "ring-2 ring-primary")}>
-                        {plan.isFeatured && (
+                        {showFeaturedBadge && (
                             <div className="bg-primary text-primary-foreground text-xs font-bold text-center py-1 rounded-t-lg flex items-center justify-center gap-1">
                                <Star className="h-3 w-3" /> Most Popular
                             </div>

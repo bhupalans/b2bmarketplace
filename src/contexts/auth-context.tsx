@@ -56,15 +56,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }
         }
         
-        // If the user has a subscription, fetch the plan details
-        if (userProfile && userProfile.subscriptionPlanId) {
-            const planRef = doc(db, 'subscriptionPlans', userProfile.subscriptionPlanId);
-            const planSnap = await getDoc(planRef);
-            if (planSnap.exists()) {
-                const planData = convertTimestamps(planSnap.data());
-                userProfile.subscriptionPlan = { id: planSnap.id, ...planData } as SubscriptionPlan;
+        if (userProfile) {
+            // Check for expired subscription
+            if (userProfile.subscriptionExpiryDate && new Date(userProfile.subscriptionExpiryDate) < new Date()) {
+                userProfile.subscriptionPlanId = undefined;
+                userProfile.subscriptionPlan = undefined;
+                // We don't write this back to the DB here, we just fix the client state.
+                // The backend should be the source of truth for enforcement.
+            }
+            // If the user has a subscription, fetch the plan details
+            else if (userProfile.subscriptionPlanId) {
+                const planRef = doc(db, 'subscriptionPlans', userProfile.subscriptionPlanId);
+                const planSnap = await getDoc(planRef);
+                if (planSnap.exists()) {
+                    const planData = convertTimestamps(planSnap.data());
+                    userProfile.subscriptionPlan = { id: planSnap.id, ...planData } as SubscriptionPlan;
+                }
             }
         }
+        
         setUser(convertTimestamps(userProfile));
     } else {
         setUser(null);
