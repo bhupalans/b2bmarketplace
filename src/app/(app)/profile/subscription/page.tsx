@@ -149,7 +149,7 @@ export default function SubscriptionPage() {
                             {isCancelled ? (
                                 `Your plan was cancelled and is set to expire on ${format(new Date(user.subscriptionExpiryDate!), 'PPP')}.`
                             ) : hasActiveSubscription ? (
-                                `Your plan is active and will renew on ${format(new Date(user.subscriptionExpiryDate!), 'PPP')}.`
+                                `Your plan is active and your next renew is on ${format(new Date(user.subscriptionExpiryDate!), 'PPP')}.`
                             ) : (
                                 "You are currently on the Free plan."
                             )}
