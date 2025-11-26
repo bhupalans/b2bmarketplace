@@ -54,13 +54,14 @@ async function getDefaultCurrency(): Promise<string> {
 export async function generateMetadata(): Promise<Metadata> {
   const branding = await getBrandingSettings();
   const companyName = branding.companyName || "B2B Marketplace";
+  const subhead = branding.subhead || "Connect with verified suppliers and source products globally.";
   
   return {
     title: {
-      default: companyName,
+      default: `${companyName} - The Global B2B Sourcing Platform`,
       template: `%s | ${companyName}`,
     },
-    description: `A B2B marketplace for buyers and sellers, powered by ${companyName}.`,
+    description: subhead,
   };
 }
 
