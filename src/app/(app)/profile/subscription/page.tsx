@@ -103,6 +103,19 @@ export default function SubscriptionPage() {
         });
     }
 
+    const { currentPlan, usageCount } = useMemo(() => {
+        if (!user || plans.length === 0) {
+            return { currentPlan: null, usageCount: 0 };
+        }
+        const hasActiveSubscription = user.subscriptionPlanId && user.subscriptionExpiryDate && new Date(user.subscriptionExpiryDate) > new Date();
+        
+        let plan = hasActiveSubscription ? user.subscriptionPlan : plans.find(p => p.price === 0);
+        let count = user.role === 'seller' ? products.length : sourcingRequests.length;
+        
+        return { currentPlan: plan, usageCount: count };
+
+    }, [user, plans, products, sourcingRequests]);
+
     if (loading || authLoading) {
         return <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     }
@@ -118,7 +131,6 @@ export default function SubscriptionPage() {
     
     const hasActiveSubscription = user.subscriptionExpiryDate && new Date(user.subscriptionExpiryDate) > new Date();
     const isCancelled = hasActiveSubscription && user.renewalCancelled;
-    const currentPlan = hasActiveSubscription ? user.subscriptionPlan : plans.find(p => p.price === 0);
     
     return (
         <div className="max-w-5xl mx-auto space-y-8">
@@ -146,8 +158,8 @@ export default function SubscriptionPage() {
                     <CardContent>
                          <p className="text-sm">
                             {user.role === 'buyer'
-                                ? `You have posted ${sourcingRequests.length} of ${formatLimit(currentPlan.sourcingRequestLimit)} sourcing requests.`
-                                : `You have listed ${products.length} of ${formatLimit(currentPlan.productLimit)} products.`
+                                ? `You have posted ${usageCount} of ${formatLimit(currentPlan.sourcingRequestLimit)} sourcing requests.`
+                                : `You have listed ${usageCount} of ${formatLimit(currentPlan.productLimit)} products.`
                             }
                         </p>
                     </CardContent>

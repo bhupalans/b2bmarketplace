@@ -1,13 +1,13 @@
 
 "use client";
 
-import React, { useState, useTransition, useEffect, Suspense } from "react";
+import React, { useState, useTransition, useEffect, Suspense, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useAuth } from "@/contexts/auth-context";
-import { createSourcingRequestClient, getActiveCategoriesClient, getSourcingRequestsClient, getSourcingRequestClient, updateSourcingRequestClient } from "@/lib/firebase";
-import { Category, SourcingRequest } from "@/lib/types";
+import { createSourcingRequestClient, getActiveCategoriesClient, getSourcingRequestsClient, getSourcingRequestClient, updateSourcingRequestClient, getSubscriptionPlansClient } from "@/lib/firebase";
+import { Category, SourcingRequest, SubscriptionPlan } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -68,6 +68,7 @@ function CreateSourcingRequestForm() {
   const [isSubmitting, startTransition] = useTransition();
   const [categories, setCategories] = useState<Category[]>([]);
   const [sourcingRequests, setSourcingRequests] = useState<SourcingRequest[]>([]);
+  const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
   const [loadingInitialData, setLoadingInitialData] = useState(true);
 
   const isEditMode = !!requestId;
@@ -90,12 +91,14 @@ function CreateSourcingRequestForm() {
 
     async function fetchData() {
         try {
-            const [cats, reqs] = await Promise.all([
+            const [cats, reqs, plans] = await Promise.all([
                 getActiveCategoriesClient(),
                 getSourcingRequestsClient({ buyerId: user.uid }),
+                getSubscriptionPlansClient(),
             ]);
             setCategories(cats);
             setSourcingRequests(reqs);
+            setSubscriptionPlans(plans);
 
             if (isEditMode) {
                 const requestToEdit = await getSourcingRequestClient(requestId);
@@ -129,6 +132,28 @@ function CreateSourcingRequestForm() {
     }
     fetchData();
   }, [user, requestId, isEditMode, toast, router, form, currency]);
+
+  const { limit, canPost } = useMemo(() => {
+    if (!user || user.role !== 'buyer') {
+      return { limit: 0, canPost: false };
+    }
+    
+    const hasActiveSubscription = user.subscriptionPlanId && user.subscriptionExpiryDate && new Date(user.subscriptionExpiryDate) > new Date();
+
+    let effectiveLimit = 0;
+    
+    if (hasActiveSubscription && user.subscriptionPlan) {
+        effectiveLimit = user.subscriptionPlan.sourcingRequestLimit ?? -1;
+    } else {
+        const freePlan = subscriptionPlans.find(p => p.type === 'buyer' && p.price === 0);
+        effectiveLimit = freePlan?.sourcingRequestLimit ?? 0;
+    }
+
+    const canPostResult = isEditMode || effectiveLimit === -1 || sourcingRequests.length < effectiveLimit;
+
+    return { limit: effectiveLimit, canPost: canPostResult };
+
+  }, [user, sourcingRequests, subscriptionPlans, isEditMode]);
 
   const onSubmit = (values: SourcingRequestFormData) => {
     if (!user || user.role !== 'buyer') {
@@ -178,11 +203,6 @@ function CreateSourcingRequestForm() {
     );
   }
 
-  const hasActiveSubscription = user?.subscriptionExpiryDate && new Date(user.subscriptionExpiryDate) > new Date();
-  const limit = hasActiveSubscription ? user?.subscriptionPlan?.sourcingRequestLimit ?? -1 : 0;
-  const count = sourcingRequests.length;
-  const canPost = isEditMode || limit === -1 || count < limit;
-
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
@@ -197,7 +217,7 @@ function CreateSourcingRequestForm() {
             <Gem className="h-4 w-4" />
             <AlertTitle>Sourcing Request Limit Reached</AlertTitle>
             <AlertDescription>
-                You have posted {count} of {limit} sourcing requests allowed by your current plan.
+                You have posted {sourcingRequests.length} of {limit === -1 ? "unlimited" : limit} sourcing requests allowed by your current plan.
                 <Link href="/profile/subscription" className="font-semibold text-primary hover:underline ml-2">
                 Upgrade your plan
                 </Link> to post more.

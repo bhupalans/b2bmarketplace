@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useTransition, useCallback } from 'react';
+import React, { useState, useEffect, useTransition, useCallback, useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -24,10 +24,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, PlusCircle, Trash2, Edit, Loader2, MessageSquare } from "lucide-react";
-import { Category, Product, SpecTemplate } from '@/lib/types';
+import { MoreHorizontal, PlusCircle, Trash2, Edit, Loader2, MessageSquare, Gem } from "lucide-react";
+import { Category, Product, SpecTemplate, SubscriptionPlan } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
-import { getSellerProductsClient, getCategoriesClient, deleteProductClient, getSpecTemplatesClient } from '@/lib/firebase';
+import { getSellerProductsClient, getCategoriesClient, deleteProductClient, getSpecTemplatesClient, getSubscriptionPlansClient } from '@/lib/firebase';
 import Image from 'next/image';
 import { ProductFormDialog } from '@/components/product-form';
 import { useToast } from '@/hooks/use-toast';
@@ -45,6 +45,7 @@ import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useCurrency } from '@/contexts/currency-context';
 import { convertPrice } from '@/lib/currency';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function MyProductsPage() {
   const { user } = useAuth();
@@ -52,6 +53,7 @@ export default function MyProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [specTemplates, setSpecTemplates] = useState<SpecTemplate[]>([]);
+  const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFormOpen, setFormOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
@@ -79,12 +81,14 @@ export default function MyProductsPage() {
       const fetchData = async () => {
         setLoading(true);
         try {
-          const [categoryData, templateData] = await Promise.all([
+          const [categoryData, templateData, planData] = await Promise.all([
             getCategoriesClient(),
             getSpecTemplatesClient(),
+            getSubscriptionPlansClient(),
           ]);
           setCategories(categoryData);
           setSpecTemplates(templateData);
+          setSubscriptionPlans(planData);
           await fetchProducts(user.id);
         } catch (error) {
           console.error("Failed to fetch initial data:", error);
@@ -102,11 +106,41 @@ export default function MyProductsPage() {
       setLoading(false);
     }
   }, [user, toast, fetchProducts]);
+  
+  const { productLimit, canCreateProduct } = useMemo(() => {
+    if (!user || user.role !== 'seller') {
+      return { productLimit: 0, canCreateProduct: false };
+    }
+
+    const hasActiveSubscription = user.subscriptionPlanId && user.subscriptionExpiryDate && new Date(user.subscriptionExpiryDate) > new Date();
+
+    let limit = 0;
+
+    if (hasActiveSubscription && user.subscriptionPlan) {
+      limit = user.subscriptionPlan.productLimit ?? -1;
+    } else {
+      const freePlan = subscriptionPlans.find(p => p.type === 'seller' && p.price === 0);
+      limit = freePlan?.productLimit ?? 0;
+    }
+
+    const canCreate = limit === -1 || products.length < limit;
+    
+    return { productLimit: limit, canCreateProduct: canCreate };
+  }, [user, products, subscriptionPlans]);
+
 
   const handleCreate = useCallback(() => {
+    if (!canCreateProduct) {
+        toast({
+            variant: 'destructive',
+            title: 'Product Limit Reached',
+            description: 'Please upgrade your subscription plan to list more products.',
+        });
+        return;
+    }
     setSelectedProductId(null);
     setFormOpen(true);
-  }, []);
+  }, [canCreateProduct, toast]);
 
   const handleEdit = useCallback((productId: string) => {
     setSelectedProductId(productId);
@@ -177,11 +211,24 @@ export default function MyProductsPage() {
             <h1 className="text-3xl font-bold tracking-tight">My Products</h1>
             <p className="text-muted-foreground">Manage your product listings.</p>
           </div>
-          <Button onClick={handleCreate}>
+          <Button onClick={handleCreate} disabled={!canCreateProduct && products.length > 0}>
             <PlusCircle className="mr-2" />
             Create Product
           </Button>
         </div>
+
+        {!canCreateProduct && products.length > 0 && (
+           <Alert>
+            <Gem className="h-4 w-4" />
+            <AlertTitle>Product Limit Reached</AlertTitle>
+            <AlertDescription>
+                You have listed {products.length} of {productLimit === -1 ? 'Unlimited' : productLimit} allowed products. 
+                <Link href="/profile/subscription" className="font-semibold text-primary hover:underline ml-1">
+                 Upgrade your plan
+                </Link> to list more.
+            </AlertDescription>
+          </Alert>
+        )}
 
         <ProductFormDialog
           key={selectedProductId || 'new'}
