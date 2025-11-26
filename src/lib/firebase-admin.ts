@@ -14,13 +14,12 @@ function getAdminApp() {
   }
 
   // If not initialized, create a new app instance.
-  // Explicitly setting the project ID, storage bucket, and credentials makes initialization
-  // more robust, especially in serverless environments where environment variable inference can fail.
+  // Explicitly setting the project ID and storage bucket makes initialization more robust,
+  // especially in serverless environments where environment variable inference can fail.
   return admin.initializeApp(
     {
-      credential: admin.credential.applicationDefault(),
       projectId: "b2b-marketplace-udg1v",
-      storageBucket: "b2b-marketplace-udg1v.appspot.com",
+      storageBucket: "b2b-marketplace-udg1v.firebasestorage.app",
     },
     appName
   );
