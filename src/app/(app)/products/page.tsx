@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { ProductCard } from "@/components/product-card";
 import { CategorySidebar } from "@/components/category-sidebar";
 import { Category, Product } from "@/lib/types";
@@ -49,6 +50,7 @@ const getDescendantCategoryIds = (
 export default function ProductsPage() {
   const { products, categories, loading } = useProducts();
   const { currency, rates } = useCurrency();
+  const searchParams = useSearchParams();
   
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -70,6 +72,13 @@ export default function ProductsPage() {
   useEffect(() => {
     setPriceRange([0, maxPrice]);
   }, [maxPrice]);
+  
+  useEffect(() => {
+    const categoryIdFromUrl = searchParams.get('category');
+    if (categoryIdFromUrl) {
+      setSelectedCategoryId(categoryIdFromUrl);
+    }
+  }, [searchParams]);
 
   const filteredProducts = useMemo(() => {
     if (loading) {
