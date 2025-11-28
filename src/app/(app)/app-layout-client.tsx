@@ -366,7 +366,7 @@ export function AppLayoutClient({
       </Sidebar>
       <SidebarInset>
          <div className="flex flex-col min-h-screen">
-            <header className={cn("sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-6", isMessagesPage && "hidden")}>
+            <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-6">
               <SidebarTrigger />
               <Link href="/" className="flex items-center gap-2 font-semibold text-lg">
               <Image src="/Icon.png" alt="Company Logo" width={32} height={16} />
@@ -378,12 +378,14 @@ export function AppLayoutClient({
                 <UserNav />
               </div>
             </header>
-            <main className={cn("flex-1", isMessagesPage ? 'p-0' : "p-4 sm:p-6")}>{children}</main>
+            <main className="flex-1 p-4 sm:p-6">{children}</main>
             <AppFooter companyName={companyName} />
         </div>
       </SidebarInset>
     </SidebarProvider>
   );
 }
+
+    
 
     
