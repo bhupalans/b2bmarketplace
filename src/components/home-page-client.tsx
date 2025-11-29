@@ -25,7 +25,7 @@ function SourcingRequestCard({ request }: { request: SourcingRequest }) {
         if (!request.targetPrice?.baseAmount || !ratesLoaded) {
             return null; // Return null if data isn't ready
         }
-        return new Intl.NumberFormat(undefined, { style: "currency", currency, notation: "compact" }).format(convertPrice(request.targetPrice, currency, rates));
+        return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(convertPrice(request.targetPrice, currency, rates));
     }, [request.targetPrice, currency, rates, ratesLoaded]);
 
 
