@@ -51,6 +51,7 @@ const getDescendantCategoryIds = (
 
 const RequestCard = ({ request }: { request: SourcingRequest }) => {
     const { currency, rates } = useCurrency();
+    const ratesLoaded = Object.keys(rates).length > 1;
     const expiresAtDate = typeof request.expiresAt === 'string' ? new Date(request.expiresAt) : request.expiresAt.toDate();
     const createdAtDate = typeof request.createdAt === 'string' ? new Date(request.createdAt) : request.createdAt.toDate();
 
@@ -67,13 +68,12 @@ const RequestCard = ({ request }: { request: SourcingRequest }) => {
     const formattedPrice = convertedPrice ? new Intl.NumberFormat(undefined, {
         style: "currency",
         currency: currency,
-        notation: "compact"
     }).format(convertedPrice) : null;
 
     return (
-        <Card className="flex flex-col">
+        <Card className="flex flex-col h-full">
             <CardHeader>
-                <CardTitle className="line-clamp-2">
+                <CardTitle className="text-base line-clamp-2 leading-snug">
                      <Link href={`/sourcing/${request.id}`} className="hover:underline">
                         {request.title}
                      </Link>
