@@ -64,7 +64,7 @@ export function ProductCard({ product }: ProductCardProps) {
     }).format(convertPrice(product.price, currency, rates));
   }, [currency, rates, product.price, ratesLoaded]);
   
-  const isFeaturedSeller = seller?.subscriptionPlan?.isFeatured;
+  const isFeaturedSeller = seller?.subscriptionPlan?.isFeatured && seller?.subscriptionExpiryDate && new Date(seller.subscriptionExpiryDate) > new Date();
 
   return (
     <Card className="flex h-full w-full flex-col overflow-hidden transition-all hover:shadow-lg">
@@ -108,7 +108,7 @@ export function ProductCard({ product }: ProductCardProps) {
                     Featured
                 </Badge>
             )}
-            {seller.verified && (
+            {seller.verificationStatus === 'verified' && (
                 <Badge variant="secondary" className="ml-2 border-green-600/50 text-green-700">
                     <CheckCircle className="h-3 w-3 mr-1" />
                     Verified

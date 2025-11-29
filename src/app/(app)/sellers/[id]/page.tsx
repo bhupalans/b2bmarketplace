@@ -80,7 +80,7 @@ export default function SellerProfilePage() {
 
   const { seller, products } = data;
   const isOwnProfile = user?.id === seller.id;
-  const isFeaturedSeller = seller.subscriptionPlanId && seller.subscriptionPlan?.isFeatured;
+  const isFeaturedSeller = seller?.subscriptionPlan?.isFeatured && seller?.subscriptionExpiryDate && new Date(seller.subscriptionExpiryDate) > new Date();
 
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
@@ -99,7 +99,7 @@ export default function SellerProfilePage() {
                         Featured Seller
                     </Badge>
                 )}
-                {seller.verified && (
+                {seller.verificationStatus === 'verified' && (
                     <Badge variant="secondary" className="border-green-600/50 text-green-700">
                         <CheckCircle className="h-3 w-3 mr-1" />
                         Verified

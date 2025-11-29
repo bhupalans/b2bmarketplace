@@ -119,7 +119,7 @@ export default function SourcingRequestDetailPage() {
                             {buyer.companyName && <p className="text-sm text-muted-foreground">{buyer.companyName}</p>}
                         </div>
                     </div>
-                    {buyer.verified && (
+                    {buyer.verificationStatus === 'verified' && (
                         <Badge variant="secondary" className="border-green-600/50 text-green-700 w-full justify-center">
                             <ShieldCheck className="h-4 w-4 mr-2" /> Verified Buyer
                         </Badge>

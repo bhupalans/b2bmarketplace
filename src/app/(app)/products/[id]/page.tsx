@@ -142,7 +142,7 @@ export default function ProductDetailPage() {
     currency: currency,
   }).format(convertPrice(product.price, currency, rates));
   
-  const isFeaturedSeller = seller?.subscriptionPlan?.isFeatured;
+  const isFeaturedSeller = seller?.subscriptionPlan?.isFeatured && seller?.subscriptionExpiryDate && new Date(seller.subscriptionExpiryDate) > new Date();
 
 
   return (
@@ -305,7 +305,7 @@ export default function ProductDetailPage() {
                             Featured
                         </Badge>
                     )}
-                     {seller.verified && (
+                     {seller.verificationStatus === 'verified' && (
                         <Badge variant="secondary" className="ml-2 border-green-600/50 text-green-700">
                             <CheckCircle className="h-3 w-3 mr-1" />
                             Verified

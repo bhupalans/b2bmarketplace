@@ -61,6 +61,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             if (userProfile.subscriptionExpiryDate && new Date(userProfile.subscriptionExpiryDate) < new Date()) {
                 userProfile.subscriptionPlanId = undefined;
                 userProfile.subscriptionPlan = undefined;
+                userProfile.renewalCancelled = undefined;
                 // We don't write this back to the DB here, we just fix the client state.
                 // The backend should be the source of truth for enforcement.
             }

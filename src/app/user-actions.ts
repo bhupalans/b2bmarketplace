@@ -153,6 +153,7 @@ export async function submitVerificationDocuments(formData: FormData, token: str
 
     if (shouldUpdateStatus) {
       docUpdates['verificationStatus'] = 'pending';
+      docUpdates['verified'] = false;
     }
 
     if (Object.keys(uploadedDocs).length > 0) {
