@@ -248,7 +248,8 @@ export function ProfileForm({ user }: ProfileFormProps) {
                 if (field.required === 'always') {
                   isRequired = true;
                 } else if (field.required === 'international') {
-                  isRequired = user.role === 'buyer' || (data.exportScope?.includes('international') ?? false);
+                  // The same scope field is used for both sellers and buyers now.
+                  isRequired = data.exportScope?.includes('international') ?? false;
                 }
 
                 if (isRequired && (!value || value.trim() === "")) {
@@ -679,6 +680,111 @@ export function ProfileForm({ user }: ProfileFormProps) {
             </Card>
           )}
 
+          {user.role === 'buyer' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Business Details</CardTitle>
+                <CardDescription>
+                  Provide optional details about your business to help sellers understand your needs.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="companyDescription"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Company Description</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Describe your company and what you source." {...field} value={field.value || ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="taxId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tax ID / VAT Number</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter your business tax ID" {...field} value={field.value || ''} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="businessType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Business Type</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select your business type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Manufacturer">Manufacturer</SelectItem>
+                            <SelectItem value="Distributor">Distributor</SelectItem>
+                            <SelectItem value="Trading Company">Trading Company</SelectItem>
+                            <SelectItem value="Agent">Agent</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <FormField
+                  control={form.control}
+                  name="exportScope"
+                  render={() => (
+                    <FormItem>
+                      <div className="mb-4">
+                        <FormLabel className="text-base">Sourcing Scope</FormLabel>
+                        <FormDescription>
+                          Select the markets you typically source for. This may affect verification requirements.
+                        </FormDescription>
+                      </div>
+                      <div className="flex flex-row items-center gap-x-6 gap-y-2 flex-wrap">
+                        {exportScopeItems.map((item) => (
+                          <FormField
+                            key={item.id}
+                            control={form.control}
+                            name="exportScope"
+                            render={({ field }) => {
+                              return (
+                                <FormItem key={item.id} className="flex flex-row items-start space-x-2 space-y-0">
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={field.value?.includes(item.id)}
+                                      onCheckedChange={(checked) => {
+                                        return checked
+                                          ? field.onChange([...(field.value || []), item.id])
+                                          : field.onChange(field.value?.filter((value) => value !== item.id));
+                                      }}
+                                    />
+                                  </FormControl>
+                                  <FormLabel className="font-normal">{item.label}</FormLabel>
+                                </FormItem>
+                              );
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
+          )}
+
           {activeTemplate && (
               <Card>
                   <CardHeader>
@@ -691,7 +797,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                       if (fieldTemplate.required === 'always') {
                           isRequired = true;
                       } else if (fieldTemplate.required === 'international') {
-                          isRequired = user.role === 'buyer' || (watchedExportScope?.includes('international') ?? false);
+                          isRequired = watchedExportScope?.includes('international') ?? false;
                       }
 
                       if (fieldTemplate.required === 'never') return null;
@@ -764,3 +870,4 @@ export function ProfileForm({ user }: ProfileFormProps) {
     </Form>
   );
 }
+
