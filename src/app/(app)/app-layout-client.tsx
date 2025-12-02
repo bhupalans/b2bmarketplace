@@ -370,7 +370,7 @@ export function AppLayoutClient({
               <div className="flex items-center gap-2">
                 <SidebarTrigger />
                 <Link href="/" className="flex items-center gap-2 font-semibold text-lg">
-                  <Image src="/Veloglobal.png" alt="Company Logo" width="0" height="0" sizes="100vw" className="h-8 w-auto" />
+                  <Image src="/Veloglobal.png" alt="Company Logo" width="0" height="0" sizes="100vw" className="h-auto w-8" />
                   <span className="hidden sm:inline-block">{companyName}</span>
                 </Link>
               </div>
