@@ -45,7 +45,7 @@ export function AppFooter({ companyName }: { companyName: string }) {
         <div className="mt-8 border-t pt-4 flex justify-between items-center text-sm text-muted-foreground">
           <p>&copy; {new Date().getFullYear()} {companyName}. All rights reserved.</p>
           <div className="flex items-center gap-2">
-          <Image src="/Icon.png" alt="Company Logo" width={36} height={16} />
+          <Image src="/Veloglobal.png" alt="Company Logo" width={36} height={16} />
             <span>{companyName}</span>
           </div>
         </div>
