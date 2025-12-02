@@ -86,7 +86,7 @@ export function AppLayoutClient({
         
         // If the user is logged in, check their role
         if (user) {
-             if (requiredRole !== 'any' && user.role !== requiredRole) {
+             if (requiredRole !== 'any' && user.role !== requiredRole && user.role !== 'admin') {
                  // If user role doesn't match, redirect to homepage
                  router.push('/');
              }
@@ -369,7 +369,7 @@ export function AppLayoutClient({
             <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-6">
               <SidebarTrigger />
               <Link href="/" className="flex items-center gap-2 font-semibold text-lg">
-              <Image src="/Veloglobal.png" alt="Company Logo" width={32} height={32} />
+              <Image src="/Veloglobal.png" alt="Company Logo" width="0" height="0" sizes="100vw" className="h-8 w-auto" />
               <span className="hidden sm:inline-block">{companyName}</span>
               </Link>
               <div className="flex-1" />
