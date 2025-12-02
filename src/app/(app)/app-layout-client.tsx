@@ -367,13 +367,15 @@ export function AppLayoutClient({
       <SidebarInset>
          <div className="flex flex-col min-h-screen">
             <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-6">
-              <SidebarTrigger />
-              <Link href="/" className="flex items-center gap-2 font-semibold text-lg">
-              <Image src="/Veloglobal.png" alt="Company Logo" width="0" height="0" sizes="100vw" className="h-8 w-auto" />
-              <span className="hidden sm:inline-block">{companyName}</span>
-              </Link>
+              <div className="flex items-center gap-2">
+                <SidebarTrigger />
+                <Link href="/" className="flex items-center gap-2 font-semibold text-lg">
+                  <Image src="/Veloglobal.png" alt="Company Logo" width="0" height="0" sizes="100vw" className="h-8 w-auto" />
+                  <span className="hidden sm:inline-block">{companyName}</span>
+                </Link>
+              </div>
               <div className="flex-1" />
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 md:gap-4">
                 <CurrencySwitcher />
                 <UserNav />
               </div>
@@ -385,7 +387,3 @@ export function AppLayoutClient({
     </SidebarProvider>
   );
 }
-
-    
-
-    
