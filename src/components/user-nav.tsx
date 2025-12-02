@@ -45,7 +45,7 @@ export function UserNav() {
   if (!firebaseUser) {
     return (
        <Button asChild>
-          <Link href="/login">Log In / Sign Up</Link>
+          <Link href="/login">Sign In</Link>
        </Button>
     )
   }
