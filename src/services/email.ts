@@ -3,7 +3,7 @@
 'use server';
 
 import { Resend } from 'resend';
-import { User, Product, Question, SubscriptionInvoice } from '@/lib/types';
+import { User, Product, Question, SubscriptionInvoice, SourcingRequest } from '@/lib/types';
 import { format } from 'date-fns';
 
 const fromAddress = 'B2B Marketplace <notifications@b2btest.veloglobal.in>';
@@ -15,6 +15,102 @@ function getResend() {
         return null;
     }
     return new Resend(process.env.RESEND_API_KEY);
+}
+
+export async function sendSourcingRequestSubmittedEmail({ request, buyer, isUpdate = false }: { request: SourcingRequest, buyer: User, isUpdate?: boolean }) {
+    const resend = getResend();
+    if (!resend) return;
+
+    // This email should go to the admin
+    const adminEmail = 'admin@b2b.com';
+    const adminApprovalUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/admin/sourcing-approvals`;
+
+    try {
+        await resend.emails.send({
+            from: fromAddress,
+            to: adminEmail,
+            subject: isUpdate ? `Sourcing Request Updated and Pending Review: "${request.title}"` : `New Sourcing Request Pending Review: "${request.title}"`,
+            html: `
+                <div style="font-family: sans-serif; line-height: 1.5;">
+                    <h1>Sourcing Request Requires Review</h1>
+                    <p>A buyer, ${buyer.name} (${buyer.email}), has ${isUpdate ? 'updated' : 'submitted'} a sourcing request that requires your approval.</p>
+                    <p><strong>Request Title:</strong> ${request.title}</p>
+                    <p><strong>Buyer:</strong> ${buyer.name}</p>
+                    <p>
+                        <a href="${adminApprovalUrl}" style="display: inline-block; padding: 10px 15px; background-color: #007bff; color: #ffffff; text-decoration: none; border-radius: 5px;">
+                            Go to Admin Approvals
+                        </a>
+                    </p>
+                </div>
+            `
+        });
+        console.log(`Admin notification email sent for sourcing request ${request.id}`);
+    } catch (error) {
+        console.error(`Failed to send admin notification for sourcing request:`, error);
+    }
+}
+
+
+export async function sendSourcingRequestApprovedEmail({ request, buyer }: { request: SourcingRequest, buyer: User }) {
+    const resend = getResend();
+    if (!resend || !buyer.email) return;
+
+    const requestUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/sourcing/${request.id}`;
+
+    try {
+        await resend.emails.send({
+            from: fromAddress,
+            to: buyer.email,
+            subject: `Your sourcing request "${request.title}" is now live!`,
+            html: `
+                <div style="font-family: sans-serif; line-height: 1.5;">
+                    <h1>Hi ${buyer.name},</h1>
+                    <p>Great news! Your sourcing request, <strong>${request.title}</strong>, has been approved and is now visible to all sellers on the marketplace.</p>
+                    <p>You should start receiving quotes and messages from interested suppliers soon.</p>
+                    <p>
+                        <a href="${requestUrl}" style="display: inline-block; padding: 10px 15px; background-color: #28a745; color: #ffffff; text-decoration: none; border-radius: 5px;">
+                            View Your Live Request
+                        </a>
+                    </p>
+                </div>
+            `
+        });
+        console.log(`Sourcing request approved email sent to ${buyer.email}`);
+    } catch (error) {
+        console.error(`Failed to send sourcing request approved email to ${buyer.email}:`, error);
+    }
+}
+
+export async function sendSourcingRequestRejectedEmail({ request, buyer, reason }: { request: SourcingRequest, buyer: User, reason: string }) {
+    const resend = getResend();
+    if (!resend || !buyer.email) return;
+
+    const editRequestUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/sourcing/create?id=${request.id}`;
+
+    try {
+        await resend.emails.send({
+            from: fromAddress,
+            to: buyer.email,
+            subject: `Action Required: Your sourcing request "${request.title}"`,
+            html: `
+                <div style="font-family: sans-serif; line-height: 1.5;">
+                    <h1>Hi ${buyer.name},</h1>
+                    <p>Your sourcing request, <strong>${request.title}</strong>, could not be approved at this time.</p>
+                    <p style="color: #555;">Reason provided by our admin team:</p>
+                    <p style="font-style: italic; border-left: 3px solid #dc3545; padding-left: 10px;">"${reason}"</p>
+                    <p>Please review your request, make the necessary corrections, and re-submit for approval.</p>
+                    <p>
+                        <a href="${editRequestUrl}" style="display: inline-block; padding: 10px 15px; background-color: #007bff; color: #ffffff; text-decoration: none; border-radius: 5px;">
+                            Edit Your Request
+                        </a>
+                    </p>
+                </div>
+            `
+        });
+        console.log(`Sourcing request rejected email sent to ${buyer.email}`);
+    } catch (error) {
+        console.error(`Failed to send sourcing request rejected email to ${buyer.email}:`, error);
+    }
 }
 
 export async function sendInvoiceEmail({ invoice, user }: { invoice: SubscriptionInvoice, user: User }) {

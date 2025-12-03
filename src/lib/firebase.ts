@@ -6,7 +6,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'fire
 import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate, VerificationTemplate, VerificationField, SourcingRequest, Question, Answer, AppNotification, SubscriptionPlan, PaymentGateway, SubscriptionInvoice, BrandingSettings } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { moderateMessageContent } from '@/ai/flows/moderate-message-content';
-import { sendQuestionAnsweredEmail, sendProductApprovedEmail, sendProductRejectedEmail, sendUserVerifiedEmail, sendUserRejectedEmail } from '@/services/email';
+import { sendQuestionAnsweredEmail, sendProductApprovedEmail, sendProductRejectedEmail, sendUserVerifiedEmail, sendUserRejectedEmail, sendSourcingRequestSubmittedEmail } from '@/services/email';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDL_o5j6RtqjCwFN5iTtvUj6nFfyDJaaxc",
@@ -1182,7 +1182,7 @@ export async function createSourcingRequestClient(
         throw new Error("Please complete your primary business address in your profile before posting a request.");
     }
     
-    const newRequest: Omit<SourcingRequest, 'id'> = {
+    const newRequestData: Omit<SourcingRequest, 'id'> = {
         ...requestData,
         buyerId: buyer.uid,
         buyerName: buyer.companyName || buyer.name,
@@ -1191,10 +1191,14 @@ export async function createSourcingRequestClient(
         createdAt: serverTimestamp() as Timestamp,
     };
     
-    const docRef = await addDoc(collection(db, "sourcingRequests"), newRequest);
+    const docRef = await addDoc(collection(db, "sourcingRequests"), newRequestData);
     const newDocSnap = await getDocClient(docRef);
-    const newData = convertTimestamps(newDocSnap.data());
-    return { id: docRef.id, ...newData } as SourcingRequest;
+    const createdRequest = { id: docRef.id, ...convertTimestamps(newDocSnap.data()) } as SourcingRequest;
+
+    // Send email to admin
+    await sendSourcingRequestSubmittedEmail({ request: createdRequest, buyer });
+    
+    return createdRequest;
 }
 
 export async function getSourcingRequestsClient(filters?: { buyerId?: string }): Promise<SourcingRequest[]> {
@@ -1238,7 +1242,15 @@ export async function updateSourcingRequestClient(
     await updateDoc(requestRef, dataToUpdate);
 
     const updatedDoc = await getDocClient(requestRef);
-    return { id: updatedDoc.id, ...convertTimestamps(updatedDoc.data()) } as SourcingRequest;
+    const updatedRequest = { id: updatedDoc.id, ...convertTimestamps(updatedDoc.data()) } as SourcingRequest;
+
+    // Send email notification to admin about the update
+    const buyer = await getUserClient(updatedRequest.buyerId);
+    if (buyer) {
+        await sendSourcingRequestSubmittedEmail({ request: updatedRequest, buyer, isUpdate: true });
+    }
+
+    return updatedRequest;
 }
 
 export async function closeSourcingRequestClient(requestId: string): Promise<void> {

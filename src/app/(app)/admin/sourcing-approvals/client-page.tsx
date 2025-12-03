@@ -19,7 +19,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Check, X, Loader2, FileSearch } from "lucide-react";
-import { SourcingRequest, User, Category, AppNotification } from '@/lib/types';
+import { SourcingRequest, User, Category } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 import {
@@ -33,11 +33,9 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
 import { RejectionReasonDialog } from '@/components/rejection-reason-dialog';
-import { doc, writeBatch } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { collection } from 'firebase/firestore';
 import { useCurrency } from '@/contexts/currency-context';
 import { convertPrice, convertPriceToUSD } from '@/lib/currency';
+import { updateSourcingRequestStatusAction } from '@/app/admin-sourcing-actions';
 
 interface AdminSourcingApprovalsClientPageProps {
     initialRequests: SourcingRequest[];
@@ -74,30 +72,10 @@ export function SourcingApprovalsClientPage({ initialRequests, initialUsers, ini
         }
 
         try {
-            const batch = writeBatch(db);
-            const requestRef = doc(db, 'sourcingRequests', request.id);
-
-            const updateData: { status: 'active' | 'closed'; rejectionReason?: string } = {
-                status: action === 'approve' ? 'active' : 'closed',
-            };
-
-            if (action === 'reject' && reason) {
-                updateData.rejectionReason = reason;
-
-                // Create a notification for the buyer
-                const notificationRef = doc(collection(db, 'notifications'));
-                const notificationData: Omit<AppNotification, 'id'> = {
-                    userId: request.buyerId,
-                    message: `Your sourcing request "${request.title}" was rejected. Reason: ${reason}`,
-                    link: `/sourcing/my-requests`,
-                    read: false,
-                    createdAt: new Date().toISOString(),
-                };
-                batch.set(notificationRef, notificationData);
+            const result = await updateSourcingRequestStatusAction(request.id, action, reason);
+            if (!result.success) {
+                throw new Error(result.error);
             }
-            
-            batch.update(requestRef, updateData);
-            await batch.commit();
             
             setPendingRequests(prev => prev.filter(r => r.id !== request.id));
             toast({
