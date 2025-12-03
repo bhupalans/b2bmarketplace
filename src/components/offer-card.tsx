@@ -29,11 +29,17 @@ interface OfferCardProps {
   currentUserId: string;
 }
 
+// Add the old pricePerUnit property as optional for backward compatibility
+type OfferWithLegacyPrice = Offer & {
+  pricePerUnit?: number;
+};
+
+
 export function OfferCard({ offerId, currentUserId }: OfferCardProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const { currency, rates } = useCurrency();
-  const [offer, setOffer] = useState<Offer | null>(null);
+  const [offer, setOffer] = useState<OfferWithLegacyPrice | null>(null);
   const [loading, setLoading] = useState(true);
   const [isProcessing, startTransition] = useTransition();
 
@@ -43,7 +49,7 @@ export function OfferCard({ offerId, currentUserId }: OfferCardProps) {
     const fetchOffer = async () => {
         setLoading(true);
         const data = await getOfferClient(offerId);
-        setOffer(data);
+        setOffer(data as OfferWithLegacyPrice);
         setLoading(false);
     }
     fetchOffer();
@@ -110,7 +116,10 @@ export function OfferCard({ offerId, currentUserId }: OfferCardProps) {
   const isBuyer = currentUserId === offer.buyerId;
   const isRatesLoaded = Object.keys(rates).length > 1;
 
-  const unitPrice = isRatesLoaded ? convertPrice(offer.price, currency, rates) : offer.price.baseAmount;
+  // Handle both new `price` object and old `pricePerUnit` number
+  const priceObject = offer.price || { baseAmount: offer.pricePerUnit || 0, baseCurrency: 'USD' };
+
+  const unitPrice = isRatesLoaded ? convertPrice(priceObject, currency, rates) : priceObject.baseAmount;
   const totalPrice = unitPrice * offer.quantity;
   
   const formattedTotalPrice = new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(totalPrice);
@@ -145,8 +154,8 @@ export function OfferCard({ offerId, currentUserId }: OfferCardProps) {
                     <p className="font-semibold">{offer.productTitle}</p>
                     <p className="text-sm text-muted-foreground">{offer.quantity.toLocaleString()} units @ {formattedUnitPrice} / unit</p>
                     <p className="text-lg font-bold mt-1">{formattedTotalPrice} total</p>
-                    {currency !== offer.price.baseCurrency && (
-                        <p className="text-xs text-muted-foreground">(Originally {new Intl.NumberFormat(undefined, { style: 'currency', currency: offer.price.baseCurrency }).format(offer.price.baseAmount)} per unit)</p>
+                    {offer.price && currency !== priceObject.baseCurrency && (
+                        <p className="text-xs text-muted-foreground">(Originally {new Intl.NumberFormat(undefined, { style: 'currency', currency: priceObject.baseCurrency }).format(priceObject.baseAmount)} per unit)</p>
                     )}
                 </div>
             </div>
