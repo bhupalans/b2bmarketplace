@@ -27,12 +27,16 @@ export async function getBuyerDashboardData(buyerId: string) {
     const offersSnapshot = await adminDb.collection("offers").where("buyerId", "==", buyerId).where("status", "==", "accepted").get();
     
     const sourcingRequests = requestsSnapshot.docs.map(doc => doc.data() as SourcingRequest);
-    const acceptedOffers = offersSnapshot.docs.map(doc => doc.data() as Offer);
+    const acceptedOffers = offersSnapshot.docs.map(doc => doc.data() as any); // Use any to handle legacy type
 
     let totalSpend = 0;
     acceptedOffers.forEach(offer => {
-        const usdValue = convertToUSD(offer.price.baseAmount, offer.price.baseCurrency);
-        totalSpend += offer.quantity * usdValue;
+        // Handle both new and legacy offer price structures
+        const priceObject = offer.price || { baseAmount: offer.pricePerUnit || 0, baseCurrency: 'USD' };
+        if (priceObject.baseAmount > 0 && priceObject.baseCurrency) {
+          const usdValue = convertToUSD(priceObject.baseAmount, priceObject.baseCurrency);
+          totalSpend += (offer.quantity || 0) * usdValue;
+        }
     });
 
     const statusCounts: Record<SourcingRequest['status'], number> = {
