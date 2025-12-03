@@ -1,4 +1,5 @@
 
+
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc as getDocClient, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError, setDoc } from 'firebase/firestore';
@@ -1195,8 +1196,15 @@ export async function createSourcingRequestClient(
     const newDocSnap = await getDocClient(docRef);
     const createdRequest = { id: docRef.id, ...convertTimestamps(newDocSnap.data()) } as SourcingRequest;
 
-    // Send email to admin
-    await sendSourcingRequestSubmittedEmail({ request: createdRequest, buyer });
+    // Send email to admin, passing only primitive data
+    await sendSourcingRequestSubmittedEmail({
+      request: {
+        id: createdRequest.id,
+        title: createdRequest.title,
+      },
+      buyer,
+      isUpdate: false,
+    });
     
     return createdRequest;
 }
@@ -1247,7 +1255,7 @@ export async function updateSourcingRequestClient(
     // Send email notification to admin about the update
     const buyer = await getUserClient(updatedRequest.buyerId);
     if (buyer) {
-        await sendSourcingRequestSubmittedEmail({ request: updatedRequest, buyer, isUpdate: true });
+        await sendSourcingRequestSubmittedEmail({ request: {id: updatedRequest.id, title: updatedRequest.title}, buyer, isUpdate: true });
     }
 
     return updatedRequest;
@@ -1258,50 +1266,49 @@ export async function updateSourcingRequestStatus(
     action: 'approve' | 'reject',
     reason?: string
 ): Promise<void> {
-    const requestRef = doc(db, 'sourcingRequests', requestId);
-    const updateData: { status: 'active' | 'closed'; rejectionReason?: string } = {
-        status: action === 'approve' ? 'active' : 'closed',
-    };
+  const requestRef = doc(db, 'sourcingRequests', requestId);
+  const updateData: { status: 'active' | 'closed'; rejectionReason?: any } = {
+    status: action === 'approve' ? 'active' : 'closed',
+  };
 
-    if (action === 'reject' && reason) {
-        updateData.rejectionReason = reason;
-    }
-    
-    await updateDoc(requestRef, updateData);
+  if (action === 'reject') {
+    updateData.rejectionReason = reason || '';
+  }
 
-    // Now handle notifications
-    try {
-        const requestSnap = await getDocClient(requestRef);
-        if (requestSnap.exists()) {
-            const request = { id: requestSnap.id, ...convertTimestamps(requestSnap.data()) } as SourcingRequest;
-            const buyer = await getUserClient(request.buyerId);
-            
-            if (buyer) {
-                if (action === 'approve') {
-                    await sendSourcingRequestApprovedEmail({ request, buyer });
-                } else if (action === 'reject') {
-                    await sendSourcingRequestRejectedEmail({
-                        request,
-                        buyer,
-                        reason: reason || "Your request did not meet our guidelines."
-                    });
+  await updateDoc(requestRef, updateData);
 
-                    const notificationData = {
-                        userId: request.buyerId,
-                        message: `Your sourcing request "${request.title}" was rejected. Reason: ${reason}`,
-                        link: `/sourcing/my-requests`,
-                        read: false,
-                        createdAt: new Date().toISOString(),
-                    };
-                    await addDoc(collection(db, 'notifications'), notificationData);
-                }
-            }
+  try {
+    const requestSnap = await getDocClient(requestRef);
+    if (requestSnap.exists()) {
+      const request = { id: requestSnap.id, ...convertTimestamps(requestSnap.data()) } as SourcingRequest;
+      const buyer = await getUserClient(request.buyerId);
+
+      if (buyer) {
+        if (action === 'approve') {
+          await sendSourcingRequestApprovedEmail({ requestId: request.id, requestTitle: request.title, buyer });
+        } else if (action === 'reject') {
+          await sendSourcingRequestRejectedEmail({
+            requestId: request.id,
+            requestTitle: request.title,
+            buyer,
+            reason: reason || "Your request did not meet our guidelines.",
+          });
+          const notificationData = {
+            userId: request.buyerId,
+            message: `Your sourcing request "${request.title}" was rejected. Reason: ${reason}`,
+            link: `/sourcing/my-requests`,
+            read: false,
+            createdAt: new Date().toISOString(),
+          };
+          await addDoc(collection(db, 'notifications'), notificationData);
         }
-    } catch (notificationError) {
-        console.error("Failed to send sourcing request status notification:", notificationError);
-        // Don't re-throw, as the primary action (status update) succeeded.
+      }
     }
+  } catch (notificationError) {
+    console.error("Failed to send sourcing request status notification:", notificationError);
+  }
 }
+
 
 export async function closeSourcingRequestClient(requestId: string): Promise<void> {
   const requestRef = doc(db, 'sourcingRequests', requestId);

@@ -17,7 +17,7 @@ function getResend() {
     return new Resend(process.env.RESEND_API_KEY);
 }
 
-export async function sendSourcingRequestSubmittedEmail({ request, buyer, isUpdate = false }: { request: SourcingRequest, buyer: User, isUpdate?: boolean }) {
+export async function sendSourcingRequestSubmittedEmail({ request, buyer, isUpdate = false }: { request: { id: string, title: string }, buyer: User, isUpdate?: boolean }) {
     const resend = getResend();
     if (!resend) return;
 
@@ -51,21 +51,21 @@ export async function sendSourcingRequestSubmittedEmail({ request, buyer, isUpda
 }
 
 
-export async function sendSourcingRequestApprovedEmail({ request, buyer }: { request: SourcingRequest, buyer: User }) {
+export async function sendSourcingRequestApprovedEmail({ requestId, requestTitle, buyer }: { requestId: string, requestTitle: string, buyer: User }) {
     const resend = getResend();
     if (!resend || !buyer.email) return;
 
-    const requestUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/sourcing/${request.id}`;
+    const requestUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/sourcing/${requestId}`;
 
     try {
         await resend.emails.send({
             from: fromAddress,
             to: buyer.email,
-            subject: `Your sourcing request "${request.title}" is now live!`,
+            subject: `Your sourcing request "${requestTitle}" is now live!`,
             html: `
                 <div style="font-family: sans-serif; line-height: 1.5;">
                     <h1>Hi ${buyer.name},</h1>
-                    <p>Great news! Your sourcing request, <strong>${request.title}</strong>, has been approved and is now visible to all sellers on the marketplace.</p>
+                    <p>Great news! Your sourcing request, <strong>${requestTitle}</strong>, has been approved and is now visible to all sellers on the marketplace.</p>
                     <p>You should start receiving quotes and messages from interested suppliers soon.</p>
                     <p>
                         <a href="${requestUrl}" style="display: inline-block; padding: 10px 15px; background-color: #28a745; color: #ffffff; text-decoration: none; border-radius: 5px;">
@@ -81,21 +81,21 @@ export async function sendSourcingRequestApprovedEmail({ request, buyer }: { req
     }
 }
 
-export async function sendSourcingRequestRejectedEmail({ request, buyer, reason }: { request: SourcingRequest, buyer: User, reason: string }) {
+export async function sendSourcingRequestRejectedEmail({ requestId, requestTitle, buyer, reason }: { requestId: string, requestTitle: string, buyer: User, reason: string }) {
     const resend = getResend();
     if (!resend || !buyer.email) return;
 
-    const editRequestUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/sourcing/create?id=${request.id}`;
+    const editRequestUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/sourcing/create?id=${requestId}`;
 
     try {
         await resend.emails.send({
             from: fromAddress,
             to: buyer.email,
-            subject: `Action Required: Your sourcing request "${request.title}"`,
+            subject: `Action Required: Your sourcing request "${requestTitle}"`,
             html: `
                 <div style="font-family: sans-serif; line-height: 1.5;">
                     <h1>Hi ${buyer.name},</h1>
-                    <p>Your sourcing request, <strong>${request.title}</strong>, could not be approved at this time.</p>
+                    <p>Your sourcing request, <strong>${requestTitle}</strong>, could not be approved at this time.</p>
                     <p style="color: #555;">Reason provided by our admin team:</p>
                     <p style="font-style: italic; border-left: 3px solid #dc3545; padding-left: 10px;">"${reason}"</p>
                     <p>Please review your request, make the necessary corrections, and re-submit for approval.</p>
