@@ -1273,7 +1273,7 @@ export async function updateSourcingRequestStatus(
     try {
         const requestSnap = await getDocClient(requestRef);
         if (requestSnap.exists()) {
-            const request = convertTimestamps(requestSnap.data()) as SourcingRequest;
+            const request = { id: requestSnap.id, ...convertTimestamps(requestSnap.data()) } as SourcingRequest;
             const buyer = await getUserClient(request.buyerId);
             
             if (buyer) {
