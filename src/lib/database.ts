@@ -75,7 +75,7 @@ export async function getUser(userId: string): Promise<User | null> {
     if (userData.subscriptionPlanId) {
         const planRef = adminDb.collection('subscriptionPlans').doc(userData.subscriptionPlanId);
         const planSnap = await planRef.get();
-        if (planSnap.exists()) {
+        if (planSnap.exists) {
             userData.subscriptionPlan = { id: planSnap.id, ...planSnap.data() } as SubscriptionPlan;
         }
     }
