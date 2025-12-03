@@ -237,7 +237,10 @@ export type Offer = {
   id: string;
   productId: string;
   quantity: number;
-  pricePerUnit: number;
+  price: {
+    baseAmount: number;
+    baseCurrency: string;
+  };
   notes?: string;
   status: 'pending' | 'accepted' | 'declined' | 'withdrawn';
   sellerId: string;

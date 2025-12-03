@@ -21,6 +21,8 @@ import { format } from 'date-fns';
 import { useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { revalidateOffers } from "@/app/actions";
+import { useCurrency } from "@/contexts/currency-context";
+import { convertPrice } from "@/lib/currency";
 
 interface OfferCardProps {
   offerId: string;
@@ -30,6 +32,7 @@ interface OfferCardProps {
 export function OfferCard({ offerId, currentUserId }: OfferCardProps) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { currency, rates } = useCurrency();
   const [offer, setOffer] = useState<Offer | null>(null);
   const [loading, setLoading] = useState(true);
   const [isProcessing, startTransition] = useTransition();
@@ -105,8 +108,13 @@ export function OfferCard({ offerId, currentUserId }: OfferCardProps) {
   }
 
   const isBuyer = currentUserId === offer.buyerId;
-  const totalPrice = (offer.quantity * offer.pricePerUnit).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-  const unitPrice = offer.pricePerUnit.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+  const isRatesLoaded = Object.keys(rates).length > 1;
+
+  const unitPrice = isRatesLoaded ? convertPrice(offer.price, currency, rates) : offer.price.baseAmount;
+  const totalPrice = unitPrice * offer.quantity;
+  
+  const formattedTotalPrice = new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(totalPrice);
+  const formattedUnitPrice = new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(unitPrice);
   
   const createdAtDate = offer.createdAt instanceof Date 
     ? offer.createdAt 
@@ -135,8 +143,11 @@ export function OfferCard({ offerId, currentUserId }: OfferCardProps) {
                 <Image src={offer.productImage} alt={offer.productTitle} width={64} height={64} className="rounded-md border object-cover aspect-square" />
                 <div className="flex-1">
                     <p className="font-semibold">{offer.productTitle}</p>
-                    <p className="text-sm text-muted-foreground">{offer.quantity.toLocaleString()} units @ {unitPrice} / unit</p>
-                    <p className="text-lg font-bold mt-1">{totalPrice} total</p>
+                    <p className="text-sm text-muted-foreground">{offer.quantity.toLocaleString()} units @ {formattedUnitPrice} / unit</p>
+                    <p className="text-lg font-bold mt-1">{formattedTotalPrice} total</p>
+                    {currency !== offer.price.baseCurrency && (
+                        <p className="text-xs text-muted-foreground">(Originally {new Intl.NumberFormat(undefined, { style: 'currency', currency: offer.price.baseCurrency }).format(offer.price.baseAmount)} per unit)</p>
+                    )}
                 </div>
             </div>
 

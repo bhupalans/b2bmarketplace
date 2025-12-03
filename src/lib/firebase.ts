@@ -902,7 +902,7 @@ export async function sendMessage(conversationId: string, senderId: string, text
 export async function createOffer(data: {
     productId: string;
     quantity: number;
-    pricePerUnit: number;
+    price: { baseAmount: number; baseCurrency: string };
     notes?: string;
     conversationId: string;
     buyerId: string;
@@ -915,8 +915,14 @@ export async function createOffer(data: {
     const product = productSnap.data() as Product;
 
     const newOfferData: Omit<Offer, 'id'> = {
-        ...data,
+        productId: data.productId,
+        quantity: data.quantity,
+        price: data.price,
+        notes: data.notes,
         status: 'pending',
+        sellerId: data.sellerId,
+        buyerId: data.buyerId,
+        conversationId: data.conversationId,
         createdAt: serverTimestamp() as Timestamp,
         updatedAt: serverTimestamp() as Timestamp,
         productTitle: product.title,

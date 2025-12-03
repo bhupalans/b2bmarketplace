@@ -23,10 +23,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "./ui/form";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
+import { useCurrency } from "@/contexts/currency-context";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 const offerSchema = z.object({
     quantity: z.coerce.number().min(1, 'Please enter a valid quantity.'),
-    pricePerUnit: z.coerce.number().min(0.01, 'Please enter a valid price.'),
+    price: z.object({
+        baseAmount: z.coerce.number().min(0.01, 'Please enter a valid price.'),
+        baseCurrency: z.string().min(3).max(3),
+    }),
     notes: z.string().max(500, 'Notes cannot exceed 500 characters.').optional(),
 });
 
@@ -42,12 +47,14 @@ export function CreateOfferDialog({ conversation, buyer }: CreateOfferDialogProp
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const { currency: sellerCurrency, rates } = useCurrency();
+  const availableCurrencies = Array.from(new Set(["USD", ...Object.keys(rates)]));
 
   const form = useForm<OfferFormData>({
     resolver: zodResolver(offerSchema),
     defaultValues: {
       quantity: 1,
-      pricePerUnit: '' as any,
+      price: { baseAmount: undefined, baseCurrency: sellerCurrency },
       notes: "",
     }
   });
@@ -89,7 +96,11 @@ export function CreateOfferDialog({ conversation, buyer }: CreateOfferDialogProp
     <Dialog open={open} onOpenChange={(isOpen) => {
         setOpen(isOpen);
         if (!isOpen) {
-            form.reset();
+            form.reset({
+                quantity: 1,
+                price: { baseAmount: undefined, baseCurrency: sellerCurrency },
+                notes: "",
+            });
         }
     }}>
       <DialogTrigger asChild>
@@ -107,7 +118,7 @@ export function CreateOfferDialog({ conversation, buyer }: CreateOfferDialogProp
         </DialogHeader>
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                         control={form.control}
                         name="quantity"
@@ -121,19 +132,36 @@ export function CreateOfferDialog({ conversation, buyer }: CreateOfferDialogProp
                             </FormItem>
                         )}
                     />
-                     <FormField
-                        control={form.control}
-                        name="pricePerUnit"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Price per Unit (USD)</FormLabel>
-                                <FormControl>
-                                    <Input type="number" step="0.01" placeholder="e.g., 9.50" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
+                    <div className="grid grid-cols-2 gap-2">
+                        <FormField
+                            control={form.control}
+                            name="price.baseAmount"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Price per Unit</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" step="0.01" placeholder="e.g., 9.50" {...field} value={field.value ?? ''}/>
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="price.baseCurrency"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Currency</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                            {availableCurrencies.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </FormItem>
+                            )}
+                        />
+                    </div>
                 </div>
                 <FormField
                     control={form.control}
