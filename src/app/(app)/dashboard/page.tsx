@@ -28,9 +28,11 @@ import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { useCurrency } from "@/contexts/currency-context";
+import { convertPrice } from "@/lib/currency";
 
 type DashboardData = {
-  totalRevenue: number;
+  totalRevenue: number; // This is now always in USD from the server
   acceptedOffersCount: number;
   totalProducts: number;
   productsWithOfferCounts: (Product & { offerCount: number })[];
@@ -38,6 +40,7 @@ type DashboardData = {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { currency, rates } = useCurrency();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -92,11 +95,11 @@ export default function DashboardPage() {
     )
   }
 
-
+  const convertedRevenue = convertPrice({ baseAmount: data?.totalRevenue || 0, baseCurrency: 'USD' }, currency, rates);
   const formattedRevenue = new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "USD",
-  }).format(data?.totalRevenue || 0);
+    currency: currency,
+  }).format(convertedRevenue);
   
   const chartData = data?.productsWithOfferCounts
     .filter(p => p.offerCount > 0)

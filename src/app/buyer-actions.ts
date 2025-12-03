@@ -4,6 +4,23 @@
 import { adminDb } from '@/lib/firebase-admin';
 import { Offer, SourcingRequest } from '@/lib/types';
 
+// A simplified, server-side rates object. In a real-world app, this would be
+// fetched periodically and cached from an API.
+const rates: { [key: string]: number } = {
+  USD: 1,
+  EUR: 0.92,
+  INR: 83.45,
+  GBP: 0.79,
+  CAD: 1.37,
+  AUD: 1.51,
+  JPY: 157.25,
+};
+
+const convertToUSD = (amount: number, currency: string) => {
+    const rate = rates[currency] || 1; // Default to 1 if rate is not found
+    return amount / rate;
+}
+
 export async function getBuyerDashboardData(buyerId: string) {
   try {
     const requestsSnapshot = await adminDb.collection("sourcingRequests").where("buyerId", "==", buyerId).get();
@@ -14,28 +31,35 @@ export async function getBuyerDashboardData(buyerId: string) {
 
     let totalSpend = 0;
     acceptedOffers.forEach(offer => {
-        totalSpend += offer.quantity * offer.pricePerUnit;
+        const usdValue = convertToUSD(offer.price.baseAmount, offer.price.baseCurrency);
+        totalSpend += offer.quantity * usdValue;
     });
 
-    const statusCounts = sourcingRequests.reduce((acc, req) => {
-        acc[req.status] = (acc[req.status] || 0) + 1;
-        return acc;
-    }, {} as Record<SourcingRequest['status'], number>);
+    const statusCounts: Record<SourcingRequest['status'], number> = {
+      pending: 0,
+      active: 0,
+      closed: 0,
+      expired: 0,
+    };
+    sourcingRequests.forEach(req => {
+        if (statusCounts.hasOwnProperty(req.status)) {
+            statusCounts[req.status]++;
+        }
+    });
     
     const chartData = [
-        { status: 'Active', count: statusCounts.active || 0 },
-        { status: 'Pending', count: statusCounts.pending || 0 },
-        { status: 'Closed', count: statusCounts.closed || 0 },
-        { status: 'Expired', count: statusCounts.expired || 0 },
+        { status: 'Active', count: statusCounts.active },
+        { status: 'Pending', count: statusCounts.pending },
+        { status: 'Closed', count: statusCounts.closed },
+        { status: 'Expired', count: statusCounts.expired },
     ];
-
 
     return {
       success: true,
       data: {
         totalRequests: sourcingRequests.length,
-        activeRequests: statusCounts.active || 0,
-        totalSpend,
+        activeRequests: statusCounts.active,
+        totalSpend, // This is now always in USD
         acceptedOffersCount: acceptedOffers.length,
         requestStatusData: chartData,
       }
@@ -45,5 +69,3 @@ export async function getBuyerDashboardData(buyerId: string) {
     return { success: false, error: error.message };
   }
 }
-
-    
