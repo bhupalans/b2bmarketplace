@@ -6,7 +6,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'fire
 import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate, VerificationTemplate, VerificationField, SourcingRequest, Question, Answer, AppNotification, SubscriptionPlan, PaymentGateway, SubscriptionInvoice, BrandingSettings } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { moderateMessageContent } from '@/ai/flows/moderate-message-content';
-import { sendQuestionAnsweredEmail, sendProductApprovedEmail, sendProductRejectedEmail, sendUserVerifiedEmail, sendUserRejectedEmail, sendSourcingRequestSubmittedEmail } from '@/services/email';
+import { sendQuestionAnsweredEmail, sendProductApprovedEmail, sendProductRejectedEmail, sendUserVerifiedEmail, sendUserRejectedEmail, sendSourcingRequestSubmittedEmail, sendSourcingRequestApprovedEmail, sendSourcingRequestRejectedEmail } from '@/services/email';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDL_o5j6RtqjCwFN5iTtvUj6nFfyDJaaxc",
@@ -1251,6 +1251,56 @@ export async function updateSourcingRequestClient(
     }
 
     return updatedRequest;
+}
+
+export async function updateSourcingRequestStatus(
+    requestId: string,
+    action: 'approve' | 'reject',
+    reason?: string
+): Promise<void> {
+    const requestRef = doc(db, 'sourcingRequests', requestId);
+    const updateData: { status: 'active' | 'closed'; rejectionReason?: string } = {
+        status: action === 'approve' ? 'active' : 'closed',
+    };
+
+    if (action === 'reject' && reason) {
+        updateData.rejectionReason = reason;
+    }
+    
+    await updateDoc(requestRef, updateData);
+
+    // Now handle notifications
+    try {
+        const requestSnap = await getDocClient(requestRef);
+        if (requestSnap.exists()) {
+            const request = convertTimestamps(requestSnap.data()) as SourcingRequest;
+            const buyer = await getUserClient(request.buyerId);
+            
+            if (buyer) {
+                if (action === 'approve') {
+                    await sendSourcingRequestApprovedEmail({ request, buyer });
+                } else if (action === 'reject') {
+                    await sendSourcingRequestRejectedEmail({
+                        request,
+                        buyer,
+                        reason: reason || "Your request did not meet our guidelines."
+                    });
+
+                    const notificationData = {
+                        userId: request.buyerId,
+                        message: `Your sourcing request "${request.title}" was rejected. Reason: ${reason}`,
+                        link: `/sourcing/my-requests`,
+                        read: false,
+                        createdAt: new Date().toISOString(),
+                    };
+                    await addDoc(collection(db, 'notifications'), notificationData);
+                }
+            }
+        }
+    } catch (notificationError) {
+        console.error("Failed to send sourcing request status notification:", notificationError);
+        // Don't re-throw, as the primary action (status update) succeeded.
+    }
 }
 
 export async function closeSourcingRequestClient(requestId: string): Promise<void> {

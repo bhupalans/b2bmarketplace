@@ -35,7 +35,7 @@ import { format } from 'date-fns';
 import { RejectionReasonDialog } from '@/components/rejection-reason-dialog';
 import { useCurrency } from '@/contexts/currency-context';
 import { convertPrice, convertPriceToUSD } from '@/lib/currency';
-import { updateSourcingRequestStatusAction } from '@/app/admin-sourcing-actions';
+import { updateSourcingRequestStatus } from '@/lib/firebase';
 
 interface AdminSourcingApprovalsClientPageProps {
     initialRequests: SourcingRequest[];
@@ -72,10 +72,7 @@ export function SourcingApprovalsClientPage({ initialRequests, initialUsers, ini
         }
 
         try {
-            const result = await updateSourcingRequestStatusAction(request.id, action, reason);
-            if (!result.success) {
-                throw new Error(result.error);
-            }
+            await updateSourcingRequestStatus(request.id, action, reason);
             
             setPendingRequests(prev => prev.filter(r => r.id !== request.id));
             toast({
