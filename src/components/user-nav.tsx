@@ -97,6 +97,14 @@ export function UserNav() {
                 </Link>
               </DropdownMenuItem>
             )}
+             {user.role === 'buyer' && (
+              <DropdownMenuItem asChild>
+                <Link href={`/buyers/${user.id}`}>
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Public Profile</span>
+                </Link>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem asChild>
               <Link href="/profile">
                 <Settings className="mr-2 h-4 w-4" />

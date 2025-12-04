@@ -136,6 +136,16 @@ export async function getSellerAndProductsClient(sellerId: string): Promise<{ se
   return { seller, products };
 }
 
+export async function getBuyerAndSourcingRequestsClient(buyerId: string): Promise<{ buyer: User; requests: SourcingRequest[] } | null> {
+    const buyer = await getUserClient(buyerId);
+    if (!buyer) {
+        return null;
+    }
+    const requests = await getSourcingRequestsClient({ buyerId, activeOnly: true });
+    return { buyer, requests };
+}
+
+
 export async function getCategoryPathClient(categoryId: string): Promise<Category[]> {
     const path: Category[] = [];
     let currentId: string | null = categoryId;
@@ -1228,28 +1238,29 @@ export async function createSourcingRequestClient(
     const newDocSnap = await getDocClient(docRef);
     const createdRequest = { id: docRef.id, ...convertTimestamps(newDocSnap.data()) } as SourcingRequest;
 
-    // Send email to admin, passing only primitive data
     await sendSourcingRequestSubmittedEmail({
       request: {
           id: createdRequest.id,
           title: createdRequest.title,
       },
-      buyer,
+      buyer: buyer,
       isUpdate: false
     });
     
     return createdRequest;
 }
 
-export async function getSourcingRequestsClient(filters?: { buyerId?: string }): Promise<SourcingRequest[]> {
+export async function getSourcingRequestsClient(filters?: { buyerId?: string; activeOnly?: boolean }): Promise<SourcingRequest[]> {
     const requestsRef = collection(db, "sourcingRequests");
     let q;
 
     if (filters?.buyerId) {
-        // This query fetches all requests for a specific buyer, regardless of status/expiry.
-        q = query(requestsRef, where("buyerId", "==", filters.buyerId), orderBy("createdAt", "desc"));
+        if (filters.activeOnly) {
+            q = query(requestsRef, where("buyerId", "==", filters.buyerId), where("status", "==", "active"), orderBy("createdAt", "desc"));
+        } else {
+            q = query(requestsRef, where("buyerId", "==", filters.buyerId), orderBy("createdAt", "desc"));
+        }
     } else {
-        // This is the public query for browsing active sourcing requests.
         q = query(requestsRef, where("status", "==", "active"), where("expiresAt", ">", new Date()), orderBy("expiresAt", "asc"));
     }
 
@@ -1284,7 +1295,6 @@ export async function updateSourcingRequestClient(
     const updatedDoc = await getDocClient(requestRef);
     const updatedRequest = { id: updatedDoc.id, ...convertTimestamps(updatedDoc.data()) } as SourcingRequest;
 
-    // Send email notification to admin about the update
     const buyer = await getUserClient(updatedRequest.buyerId);
     if (buyer) {
         await sendSourcingRequestSubmittedEmail({ request: {id: updatedRequest.id, title: updatedRequest.title}, buyer, isUpdate: true });
