@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { useParams, notFound } from 'next/navigation';
+import { useParams, notFound, useRouter } from 'next/navigation';
 import { SourcingRequest, User } from '@/lib/types';
 import { getSourcingRequestClient, getUserClient } from '@/lib/firebase';
 import { Loader2, MapPin, Calendar, Package, DollarSign, ShieldCheck, Building, Gem } from 'lucide-react';
@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { ContactBuyerDialog } from '@/components/contact-buyer-dialog';
 import { useCurrency } from '@/contexts/currency-context';
 import { convertPrice } from '@/lib/currency';
+import Link from 'next/link';
 
 export default function SourcingRequestDetailPage() {
   const params = useParams();
@@ -111,16 +112,18 @@ export default function SourcingRequestDetailPage() {
                     <CardTitle className="text-lg">About the Buyer</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="flex items-center gap-3">
-                        <Avatar className="h-12 w-12 border">
-                            <AvatarImage src={buyer.avatar} alt={buyer.name} />
-                            <AvatarFallback>{buyer.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                            <p className="font-semibold">{buyer.name}</p>
-                            {buyer.companyName && <p className="text-sm text-muted-foreground">{buyer.companyName}</p>}
+                    <Link href={`/buyers/${buyer.id}`} className="block hover:bg-muted/50 p-2 rounded-md -m-2">
+                        <div className="flex items-center gap-3">
+                            <Avatar className="h-12 w-12 border">
+                                <AvatarImage src={buyer.avatar} alt={buyer.name} />
+                                <AvatarFallback>{buyer.name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                                <p className="font-semibold group-hover:underline">{buyer.name}</p>
+                                {buyer.companyName && <p className="text-sm text-muted-foreground">{buyer.companyName}</p>}
+                            </div>
                         </div>
-                    </div>
+                    </Link>
                     <div className="flex flex-wrap gap-2 justify-center">
                         {isFeaturedBuyer && (
                              <Badge variant="secondary" className="border-yellow-600/50 text-yellow-700">
