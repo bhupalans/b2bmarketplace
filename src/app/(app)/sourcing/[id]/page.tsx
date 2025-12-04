@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, notFound } from 'next/navigation';
 import { SourcingRequest, User } from '@/lib/types';
 import { getSourcingRequestClient, getUserClient } from '@/lib/firebase';
-import { Loader2, MapPin, Calendar, Package, DollarSign, ShieldCheck, Building } from 'lucide-react';
+import { Loader2, MapPin, Calendar, Package, DollarSign, ShieldCheck, Building, Gem } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -65,6 +65,8 @@ export default function SourcingRequestDetailPage() {
   const expiresAtDate = typeof request.expiresAt === 'string' ? new Date(request.expiresAt) : request.expiresAt.toDate();
   const createdAtDate = typeof request.createdAt === 'string' ? new Date(request.createdAt) : request.createdAt.toDate();
   const buyerLocation = [buyer.address?.city, buyer.address?.country].filter(Boolean).join(', ');
+  const isFeaturedBuyer = buyer?.subscriptionPlan?.isFeatured && buyer?.subscriptionExpiryDate && new Date(buyer.subscriptionExpiryDate) > new Date();
+
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -119,11 +121,19 @@ export default function SourcingRequestDetailPage() {
                             {buyer.companyName && <p className="text-sm text-muted-foreground">{buyer.companyName}</p>}
                         </div>
                     </div>
-                    {buyer.verificationStatus === 'verified' && (
-                        <Badge variant="secondary" className="border-green-600/50 text-green-700 w-full justify-center">
-                            <ShieldCheck className="h-4 w-4 mr-2" /> Verified Buyer
-                        </Badge>
-                    )}
+                    <div className="flex flex-wrap gap-2 justify-center">
+                        {isFeaturedBuyer && (
+                             <Badge variant="secondary" className="border-yellow-600/50 text-yellow-700">
+                                <Gem className="h-3 w-3 mr-1" />
+                                Featured Buyer
+                            </Badge>
+                        )}
+                        {buyer.verificationStatus === 'verified' && (
+                            <Badge variant="secondary" className="border-green-600/50 text-green-700">
+                                <ShieldCheck className="h-3 w-3 mr-1" /> Verified Buyer
+                            </Badge>
+                        )}
+                    </div>
                      <div className="space-y-2 text-sm">
                         {buyer.businessType && (
                             <div className="flex items-center">
