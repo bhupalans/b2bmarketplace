@@ -19,12 +19,13 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
+  SidebarMenuBadge,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { UserNav } from "@/components/user-nav";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Collapsible,
   CollapsibleContent,
@@ -33,6 +34,8 @@ import {
 import { cn } from "@/lib/utils";
 import { AppFooter } from "@/components/app-footer";
 import { CurrencySwitcher } from "@/components/currency-switcher";
+import { streamConversations } from "@/lib/firebase";
+import { Conversation } from "@/lib/types";
 
 export function AppLayoutClient({ 
   children,
@@ -44,6 +47,21 @@ export function AppLayoutClient({
   const pathname = usePathname();
   const { user, firebaseUser, loading } = useAuth();
   const router = useRouter();
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+
+  useEffect(() => {
+    if (user) {
+        const unsubscribe = streamConversations(user.uid, setConversations);
+        return () => unsubscribe();
+    }
+  }, [user]);
+
+  const unreadMessagesCount = useMemo(() => {
+    if (!user) return 0;
+    return conversations.reduce((acc, conv) => {
+        return acc + (conv.unreadCounts?.[user.uid] || 0);
+    }, 0);
+  }, [conversations, user]);
 
   useEffect(() => {
     if (loading) return; // Wait until authentication status is resolved
@@ -193,6 +211,9 @@ export function AppLayoutClient({
                             <span className="sr-only">Messages</span>
                             </Link>
                         </SidebarMenuButton>
+                         {unreadMessagesCount > 0 && (
+                            <SidebarMenuBadge>{unreadMessagesCount}</SidebarMenuBadge>
+                         )}
                     </SidebarMenuItem>
                     <SidebarMenuItem>
                         <SidebarMenuButton

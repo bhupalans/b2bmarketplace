@@ -13,6 +13,7 @@ import { useParams } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
 export function ConversationList() {
   const { user, loading: authLoading } = useAuth();
@@ -84,30 +85,38 @@ export function ConversationList() {
           </div>
         ) : (
           <nav className="p-2 space-y-1">
-            {filteredConversations.map((conv) => (
-              <Link
-                key={conv.id}
-                href={`/messages/${conv.id}`}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:bg-accent hover:text-accent-foreground",
-                  activeConversationId === conv.id && "bg-accent text-accent-foreground"
-                )}
-              >
-                <Avatar className="h-10 w-10 border">
-                  <AvatarImage src={conv.otherParticipant?.avatar} alt={conv.otherParticipant?.name} />
-                  <AvatarFallback>{conv.otherParticipant?.name.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1 truncate">
-                  <p className="font-semibold text-foreground truncate">{conv.otherParticipant?.name}</p>
-                  <p className="text-sm truncate">{conv.lastMessage?.text || `About: ${conv.productTitle}`}</p>
-                </div>
-                 {conv.lastMessage?.timestamp && (
-                    <div className="text-xs text-muted-foreground self-start mt-1">
-                        {formatDistanceToNow(conv.lastMessage.timestamp.toDate(), { addSuffix: false })}
+            {filteredConversations.map((conv) => {
+                const unreadCount = conv.unreadCounts?.[user.id] || 0;
+                return (
+                <Link
+                    key={conv.id}
+                    href={`/messages/${conv.id}`}
+                    className={cn(
+                    "flex items-start gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:bg-accent hover:text-accent-foreground",
+                    activeConversationId === conv.id && "bg-accent text-accent-foreground"
+                    )}
+                >
+                    <Avatar className="h-10 w-10 border">
+                    <AvatarImage src={conv.otherParticipant?.avatar} alt={conv.otherParticipant?.name} />
+                    <AvatarFallback>{conv.otherParticipant?.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 truncate">
+                    <div className="flex justify-between items-center">
+                        <p className={cn("font-semibold text-foreground truncate", unreadCount > 0 && "font-bold")}>{conv.otherParticipant?.name}</p>
+                        {unreadCount > 0 && (
+                            <Badge className="h-5 shrink-0">{unreadCount}</Badge>
+                        )}
                     </div>
-                )}
-              </Link>
-            ))}
+                    <p className={cn("text-sm truncate", unreadCount > 0 && "font-bold text-foreground")}>{conv.lastMessage?.text || `About: ${conv.productTitle}`}</p>
+                    </div>
+                    {conv.lastMessage?.timestamp && (
+                        <div className="text-xs text-muted-foreground self-start mt-1">
+                            {formatDistanceToNow(conv.lastMessage.timestamp.toDate(), { addSuffix: false })}
+                        </div>
+                    )}
+                </Link>
+                )
+            })}
           </nav>
         )}
       </div>

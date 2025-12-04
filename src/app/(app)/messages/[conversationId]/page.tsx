@@ -5,18 +5,17 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
-import { getConversation, sendMessage, streamMessages, getSellerProductsClient } from "@/lib/firebase";
-import { Conversation, Message, User, Product } from "@/lib/types";
+import { getConversation, sendMessage, streamMessages, resetUnreadCount } from "@/lib/firebase";
+import { Conversation, Message, User } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Loader2, ArrowLeft, Gavel, Info } from "lucide-react";
+import { Send, Loader2, ArrowLeft, Gavel } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { formatDistanceToNow } from 'date-fns';
 import { OfferCard } from "@/components/offer-card";
 import { CreateOfferDialog } from "@/components/create-offer-dialog";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function ConversationPage() {
   const params = useParams();
@@ -64,6 +63,11 @@ export default function ConversationPage() {
         unsubscribeMessages = streamMessages(conversationId, (newMessages) => {
           setMessages(newMessages);
         });
+        
+        // Reset unread count when viewing a conversation
+        if (convData.conversation.unreadCounts?.[user.uid] > 0) {
+            resetUnreadCount(conversationId, user.uid);
+        }
 
       } catch (error) {
         console.error("Error fetching conversation data:", error);

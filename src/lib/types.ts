@@ -284,6 +284,9 @@ export type Conversation = {
         senderId: string;
         timestamp: Timestamp;
     } | null;
+    unreadCounts?: {
+        [userId: string]: number;
+    };
     // For client-side use
     otherParticipant?: User;
 }
