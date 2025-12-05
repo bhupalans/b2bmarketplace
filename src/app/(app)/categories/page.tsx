@@ -7,8 +7,8 @@ import { getCategoriesClient } from '@/lib/firebase';
 import { Loader2, Package } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
-import { Building } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import Image from 'next/image';
 
 interface CategoryTreeItem extends Category {
   children: CategoryTreeItem[];
@@ -38,15 +38,6 @@ const buildCategoryTree = (categories: Category[]): CategoryTreeItem[] => {
   return tree;
 };
 
-const iconMap: { [key: string]: React.ElementType } = {
-    "Industrial Supplies": Building,
-    "Raw Materials": Package,
-    "Electronics": Package,
-    "Beauty & Personal Care": Package,
-    "Agriculture": Package,
-};
-
-
 const SubCategoryLink = ({ category }: { category: Category }) => (
     <Link href={`/products?category=${category.id}`} className="block text-sm text-muted-foreground hover:text-primary hover:underline">
         {category.name}
@@ -54,20 +45,32 @@ const SubCategoryLink = ({ category }: { category: Category }) => (
 );
 
 const CategoryCard = ({ category }: { category: CategoryTreeItem }) => {
-    const Icon = iconMap[category.name] || Package;
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-3">
-                    <Icon className="h-6 w-6 text-primary" />
-                    <span>{category.name}</span>
-                </CardTitle>
+        <Card className="group flex flex-col overflow-hidden transition-all hover:shadow-lg">
+            <CardHeader className="p-0">
+                <Link href={`/products?category=${category.id}`} className="block">
+                    <div className="relative aspect-video w-full">
+                         <Image 
+                            src={category.imageUrl || "https://placehold.co/400x300"} 
+                            alt={category.name}
+                            fill
+                            className="object-cover transition-transform group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                        <CardTitle className="absolute bottom-4 left-4 text-primary-foreground text-lg">{category.name}</CardTitle>
+                    </div>
+                </Link>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-grow p-4">
                 <div className="space-y-2">
-                    {category.children.map(child => (
+                    {category.children.slice(0, 5).map(child => (
                         <SubCategoryLink key={child.id} category={child} />
                     ))}
+                    {category.children.length > 5 && (
+                        <Link href={`/products?category=${category.id}`} className="block text-sm text-primary hover:underline pt-1">
+                            More...
+                        </Link>
+                    )}
                 </div>
             </CardContent>
         </Card>
@@ -106,8 +109,8 @@ export default function AllCategoriesPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Array.from({length: 6}).map((_, i) => (
                 <Card key={i}>
-                    <CardHeader><Skeleton className="h-8 w-3/4" /></CardHeader>
-                    <CardContent className="space-y-2">
+                    <CardHeader className="p-0"><Skeleton className="aspect-video w-full" /></CardHeader>
+                    <CardContent className="p-4 space-y-2">
                         <Skeleton className="h-4 w-1/2" />
                         <Skeleton className="h-4 w-2/3" />
                         <Skeleton className="h-4 w-1/2" />
