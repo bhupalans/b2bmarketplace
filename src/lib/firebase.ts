@@ -646,7 +646,7 @@ export async function deleteVerificationTemplateClient(templateId: string): Prom
 // --- Category Client Functions ---
 
 export async function createOrUpdateCategoryClient(
-  categoryData: { name: string; parentId: string | null; status: 'active' | 'inactive', specTemplateId?: string | null, iconName?: string },
+  categoryData: { name: string; parentId: string | null; status: 'active' | 'inactive', specTemplateId?: string | null, imageUrl?: string | null },
   categoryId?: string | null
 ): Promise<Category> {
   const dataToSave: Partial<Category> & { updatedAt: Timestamp } = {

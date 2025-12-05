@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Category, Product, SourcingRequest } from "@/lib/types";
-import { ArrowRight, Search, Package, ShieldCheck, Globe, Handshake, icons } from "lucide-react";
+import { ArrowRight, Search, Package, ShieldCheck, Globe, Handshake } from "lucide-react";
 import { ProductCard } from "@/components/product-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import homePageImages from "@/lib/placeholder-images.json";
 import { formatDistanceToNow } from "date-fns";
 import { useCurrency } from "@/contexts/currency-context";
 import { convertPrice } from "@/lib/currency";
+import { cn } from "@/lib/utils";
 
 function SourcingRequestCard({ request }: { request: SourcingRequest }) {
     const { currency, rates } = useCurrency();
@@ -58,13 +59,21 @@ function SourcingRequestCard({ request }: { request: SourcingRequest }) {
 }
 
 const CategoryCard = ({ category }: { category: Category }) => {
-    // @ts-ignore
-    const LucideIcon = icons[category.iconName] || Package;
     return (
-        <Link href={`/products?category=${category.id}`} key={category.id}>
-            <Card className="group flex h-32 flex-col items-center justify-center p-4 text-center transition-all hover:bg-primary hover:text-primary-foreground hover:shadow-lg">
-                <LucideIcon className="h-8 w-8 text-primary transition-all group-hover:text-primary-foreground" />
-                <p className="mt-2 text-sm font-semibold">{category.name}</p>
+        <Link href={`/products?category=${category.id}`} key={category.id} className="group block">
+            <Card className="overflow-hidden transition-all group-hover:shadow-lg">
+                <div className="relative aspect-video">
+                    <Image 
+                        src={category.imageUrl || "https://placehold.co/400x300"} 
+                        alt={category.name}
+                        fill
+                        className="object-cover transition-transform group-hover:scale-105"
+                    />
+                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                </div>
+                 <div className="p-4">
+                    <h3 className="font-semibold text-foreground">{category.name}</h3>
+                </div>
             </Card>
         </Link>
     )
@@ -118,7 +127,7 @@ export function HomePageClient({ initialBranding, initialCategories, initialProd
                 <Link href="/categories">View All <ArrowRight className="ml-2 h-4 w-4" /></Link>
               </Button>
             </div>
-            <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+            <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-3">
               {loading ? Array.from({length: 6}).map((_, i) => <Skeleton key={i} className="h-32 w-full"/>) :
                categories.map(cat => <CategoryCard key={cat.id} category={cat} />)}
             </div>

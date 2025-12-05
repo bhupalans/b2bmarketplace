@@ -134,7 +134,7 @@ export type Category = {
   parentId: string | null;
   status: 'active' | 'inactive';
   specTemplateId?: string;
-  iconName?: string;
+  imageUrl?: string;
 };
 
 export type SpecTemplateField = {

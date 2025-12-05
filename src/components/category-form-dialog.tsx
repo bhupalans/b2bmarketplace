@@ -1,8 +1,8 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import React, { useState, useEffect, useTransition } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Category, SpecTemplate } from '@/lib/types';
@@ -27,11 +27,14 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Sparkles } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Skeleton } from './ui/skeleton';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import Link from 'next/link';
+import Image from 'next/image';
+import { generateImage } from '@/ai/flows/generate-image-flow';
+import { Separator } from './ui/separator';
 
 interface CategoryFormDialogProps {
   open: boolean;
@@ -53,14 +56,16 @@ const categoryNameExists = (name: string, parentId: string | null, allCategories
 export function CategoryFormDialog({ open, onOpenChange, categoryId, onSuccess, allCategories, specTemplates }: CategoryFormDialogProps) {
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
+  const [isGeneratingImage, startImageGeneration] = useTransition();
   const [isLoading, setIsLoading] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
 
   const categorySchema = z.object({
     name: z.string().min(2, 'Category name must be at least 2 characters.'),
     parentId: z.string().nullable(),
     status: z.enum(['active', 'inactive']),
     specTemplateId: z.string().optional().nullable(),
-    iconName: z.string().optional(),
+    imageUrl: z.string().optional().nullable(),
   }).refine(data => {
     return !categoryNameExists(data.name, data.parentId, allCategories, categoryId);
   }, {
@@ -75,9 +80,11 @@ export function CategoryFormDialog({ open, onOpenChange, categoryId, onSuccess, 
       parentId: null,
       status: 'active',
       specTemplateId: null,
-      iconName: '',
+      imageUrl: null,
     },
   });
+  
+  const watchedName = useWatch({ control: form.control, name: 'name' });
 
   useEffect(() => {
     const fetchCategory = () => {
@@ -90,12 +97,14 @@ export function CategoryFormDialog({ open, onOpenChange, categoryId, onSuccess, 
             parentId: category.parentId,
             status: category.status,
             specTemplateId: category.specTemplateId || null,
-            iconName: category.iconName || '',
+            imageUrl: category.imageUrl || null,
           });
+          setPreviewImageUrl(category.imageUrl || null);
         }
         setIsLoading(false);
       } else {
-        form.reset({ name: '', parentId: null, status: 'active', specTemplateId: null, iconName: '' });
+        form.reset({ name: '', parentId: null, status: 'active', specTemplateId: null, imageUrl: null });
+        setPreviewImageUrl(null);
       }
     };
 
@@ -109,8 +118,8 @@ export function CategoryFormDialog({ open, onOpenChange, categoryId, onSuccess, 
     try {
       const dataToSave = {
         ...values,
+        imageUrl: previewImageUrl, // Use the state which holds the generated image
         specTemplateId: values.specTemplateId || null,
-        iconName: values.iconName || undefined,
       };
 
       const savedCategory = await createOrUpdateCategoryClient(dataToSave, categoryId);
@@ -129,6 +138,24 @@ export function CategoryFormDialog({ open, onOpenChange, categoryId, onSuccess, 
       setIsSaving(false);
     }
   };
+
+  const handleGenerateImage = () => {
+    if (!watchedName) {
+        toast({ variant: 'destructive', title: 'Name Required', description: 'Please enter a category name first.'});
+        return;
+    }
+
+    startImageGeneration(async () => {
+        try {
+            const result = await generateImage({ prompt: `Professional, clean product photography representing the category: ${watchedName}. White background.` });
+            setPreviewImageUrl(result.imageUrl);
+            toast({ title: 'Image Generated!', description: 'A new image has been created for your category.' });
+        } catch (error) {
+            console.error("AI image generation failed:", error);
+            toast({ variant: 'destructive', title: 'Image Generation Failed', description: 'Could not generate an image. Please try again.' });
+        }
+    });
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -185,27 +212,28 @@ export function CategoryFormDialog({ open, onOpenChange, categoryId, onSuccess, 
                 </FormItem>
               )}
             />
-
-            <FormField
-              control={form.control}
-              name="iconName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Icon Name (Optional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., Factory" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    Enter a valid icon name from the{' '}
-                    <Link href="https://lucide.dev/icons/" target="_blank" className="text-primary underline">
-                      Lucide icon library
-                    </Link>
-                    . Use PascalCase (e.g., CircuitBoard).
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            
+            <Separator />
+             <div className="space-y-2">
+                <FormLabel>Category Image</FormLabel>
+                <div className="relative aspect-video w-full bg-muted rounded-md overflow-hidden border">
+                    {previewImageUrl ? (
+                        <Image src={previewImageUrl} alt={watchedName || 'Category Image'} fill className="object-cover"/>
+                    ) : (
+                        <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                            No Image
+                        </div>
+                    )}
+                </div>
+                 <Button type="button" onClick={handleGenerateImage} disabled={isGeneratingImage || !watchedName}>
+                    {isGeneratingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Sparkles className="mr-2 h-4 w-4"/>}
+                    {isGeneratingImage ? 'Generating...' : 'AI Generate Image'}
+                </Button>
+                <FormDescription>
+                    Uses the category name to generate a representative image.
+                </FormDescription>
+            </div>
+            <Separator />
 
             <FormField
               control={form.control}

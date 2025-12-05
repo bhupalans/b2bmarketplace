@@ -125,11 +125,11 @@ export const mockSpecTemplates: SpecTemplate[] = [
 
 
 export const mockCategories: Category[] = [
-  { id: 'cat-1', name: 'Industrial Supplies', parentId: null, status: 'active', iconName: 'Factory' },
-  { id: 'cat-2', name: 'Raw Materials', parentId: null, status: 'active', iconName: 'FlaskConical' },
-  { id: 'cat-3', name: 'Electronics', parentId: null, status: 'active', iconName: 'CircuitBoard' },
-  { id: 'cat-4', name: 'Beauty & Personal Care', parentId: null, status: 'active', iconName: 'SprayCan' },
-  { id: 'cat-5', name: 'Agriculture', parentId: null, status: 'active', iconName: 'Tractor' },
+  { id: 'cat-1', name: 'Industrial Supplies', parentId: null, status: 'active', imageUrl: 'https://picsum.photos/seed/industrial/400/300' },
+  { id: 'cat-2', name: 'Raw Materials', parentId: null, status: 'active', imageUrl: 'https://picsum.photos/seed/raw-materials/400/300' },
+  { id: 'cat-3', name: 'Electronics', parentId: null, status: 'active', imageUrl: 'https://picsum.photos/seed/electronics/400/300' },
+  { id: 'cat-4', name: 'Beauty & Personal Care', parentId: null, status: 'active', imageUrl: 'https://picsum.photos/seed/beauty/400/300' },
+  { id: 'cat-5', name: 'Agriculture', parentId: null, status: 'active', imageUrl: 'https://picsum.photos/seed/agriculture/400/300' },
 
   { id: 'cat-1-1', name: 'Mechanical Components', parentId: 'cat-1', status: 'active' },
   { id: 'cat-1-2', name: 'Conveying Systems', parentId: 'cat-1', status: 'active' },
