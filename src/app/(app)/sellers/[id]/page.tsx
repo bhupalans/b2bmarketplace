@@ -102,7 +102,7 @@ export default function SellerProfilePage() {
                 {seller.verificationStatus === 'verified' && (
                     <Badge variant="secondary" className="border-green-600/50 text-green-700">
                         <CheckCircle className="h-3 w-3 mr-1" />
-                        Verified
+                        Verified Seller
                     </Badge>
                 )}
             </div>

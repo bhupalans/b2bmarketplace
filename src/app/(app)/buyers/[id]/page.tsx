@@ -103,7 +103,7 @@ export default function BuyerProfilePage() {
                 {buyer.verificationStatus === 'verified' && (
                     <Badge variant="secondary" className="border-green-600/50 text-green-700">
                         <ShieldCheck className="h-3 w-3 mr-1" />
-                        Verified
+                        Verified Buyer
                     </Badge>
                 )}
             </div>

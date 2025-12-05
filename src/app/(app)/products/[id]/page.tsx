@@ -302,13 +302,13 @@ export default function ProductDetailPage() {
                      {isFeaturedSeller && (
                         <Badge variant="secondary" className="ml-2 border-yellow-600/50 text-yellow-700">
                             <Gem className="h-3 w-3 mr-1" />
-                            Featured
+                            Featured Seller
                         </Badge>
                     )}
                      {seller.verificationStatus === 'verified' && (
                         <Badge variant="secondary" className="ml-2 border-green-600/50 text-green-700">
                             <CheckCircle className="h-3 w-3 mr-1" />
-                            Verified
+                            Verified Seller
                         </Badge>
                     )}
                   </CardDescription>
