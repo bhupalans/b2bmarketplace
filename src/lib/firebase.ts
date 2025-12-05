@@ -3,7 +3,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc as getDocClient, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError, setDoc, increment } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject, uploadString } from 'firebase/storage';
 import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate, VerificationTemplate, VerificationField, SourcingRequest, Question, Answer, AppNotification, SubscriptionPlan, PaymentGateway, SubscriptionInvoice, BrandingSettings } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { moderateMessageContent } from '@/ai/flows/moderate-message-content';
@@ -649,8 +649,20 @@ export async function createOrUpdateCategoryClient(
   categoryData: { name: string; parentId: string | null; status: 'active' | 'inactive', specTemplateId?: string | null, imageUrl?: string | null },
   categoryId?: string | null
 ): Promise<Category> {
-  const dataToSave: Partial<Category> & { updatedAt: Timestamp } = {
+
+  let finalImageUrl = categoryData.imageUrl;
+
+  // Check if the imageUrl is a new base64 encoded image from AI
+  if (finalImageUrl && finalImageUrl.startsWith('data:image/')) {
+    const storageRef = ref(storage, `category-images/${uuidv4()}.png`);
+    // 'data_url' is the correct format for uploadString with base64 data URIs
+    await uploadString(storageRef, finalImageUrl, 'data_url');
+    finalImageUrl = await getDownloadURL(storageRef);
+  }
+
+  const dataToSave: Partial<Category> & { updatedAt: Timestamp, imageUrl?: string | null } = {
     ...categoryData,
+    imageUrl: finalImageUrl,
     updatedAt: Timestamp.now(),
   };
 
