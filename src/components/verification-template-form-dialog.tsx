@@ -134,7 +134,7 @@ export function VerificationTemplateFormDialog({ open, onOpenChange, templateId,
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{templateId ? 'Edit Verification Template' : 'Create New Verification Template'}</DialogTitle>
           <DialogDescription>
@@ -148,143 +148,145 @@ export function VerificationTemplateFormDialog({ open, onOpenChange, templateId,
                 <Skeleton className="h-10 w-full" />
             </div>
         ) : (
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Country</FormLabel>
-                   <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!templateId}>
-                      <FormControl>
-                          <SelectTrigger>
-                              <SelectValue placeholder="Select a country" />
-                          </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                          {countries.map(country => (
-                              <SelectItem key={country.value} value={country.value} disabled={allTemplates.some(t => t.id === country.value && t.id !== templateId)}>
-                                  {country.label}
-                              </SelectItem>
-                          ))}
-                      </SelectContent>
-                  </Select>
-                  <FormDescription>The 2-letter country code will be used as the template ID. Cannot be changed after creation.</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        <div className="flex-grow overflow-y-auto pr-6 -mr-6">
+            <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <FormField
+                control={form.control}
+                name="id"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Country</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!templateId}>
+                        <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a country" />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            {countries.map(country => (
+                                <SelectItem key={country.value} value={country.value} disabled={allTemplates.some(t => t.id === country.value && t.id !== templateId)}>
+                                    {country.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <FormDescription>The 2-letter country code will be used as the template ID. Cannot be changed after creation.</FormDescription>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
 
-            <div>
-              <FormLabel>Verification Fields</FormLabel>
-              <div className="mt-2 space-y-4">
-                {fields.map((field, index) => (
-                  <div key={field.id} className="flex items-start gap-3 rounded-md border p-4">
-                    <div className="flex-grow grid grid-cols-1 md:grid-cols-2 gap-4">
-                       <FormField
-                          control={form.control}
-                          name={`fields.${index}.label`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Field Label</FormLabel>
-                              <FormControl><Input placeholder="e.g., GSTN Number" {...field} /></FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                         <FormField
-                          control={form.control}
-                          name={`fields.${index}.name`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Field Name (Key)</FormLabel>
-                              <FormControl><Input placeholder="e.g., gstn" {...field} /></FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                         <FormField
-                          control={form.control}
-                          name={`fields.${index}.helperText`}
-                          render={({ field }) => (
-                            <FormItem className="col-span-1 md:col-span-2">
-                              <FormLabel>Helper Text</FormLabel>
-                              <FormControl><Textarea placeholder="Short description shown below the field" {...field} /></FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                         <FormField
-                          control={form.control}
-                          name={`fields.${index}.validationRegex`}
-                          render={({ field }) => (
-                            <FormItem className="col-span-1 md:col-span-2">
-                              <FormLabel>Validation Regex (Optional)</FormLabel>
-                              <FormControl><Input placeholder="e.g., ^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$" {...field} /></FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <div className="flex items-center gap-4">
-                            <FormField
-                              control={form.control}
-                              name={`fields.${index}.required`}
-                              render={({ field }) => (
+                <div>
+                <FormLabel>Verification Fields</FormLabel>
+                <div className="mt-2 space-y-4">
+                    {fields.map((field, index) => (
+                    <div key={field.id} className="flex items-start gap-3 rounded-md border p-4">
+                        <div className="flex-grow grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                            control={form.control}
+                            name={`fields.${index}.label`}
+                            render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Requirement</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select requirement level" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            <SelectItem value="always">Always Required</SelectItem>
-                                            <SelectItem value="international">Required for International Exporters</SelectItem>
-                                            <SelectItem value="never">Not Required</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                <FormLabel>Field Label</FormLabel>
+                                <FormControl><Input placeholder="e.g., GSTN Number" {...field} /></FormControl>
+                                <FormMessage />
                                 </FormItem>
-                              )}
+                            )}
                             />
+                            <FormField
+                            control={form.control}
+                            name={`fields.${index}.name`}
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Field Name (Key)</FormLabel>
+                                <FormControl><Input placeholder="e.g., gstn" {...field} /></FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                            />
+                            <FormField
+                            control={form.control}
+                            name={`fields.${index}.helperText`}
+                            render={({ field }) => (
+                                <FormItem className="col-span-1 md:col-span-2">
+                                <FormLabel>Helper Text</FormLabel>
+                                <FormControl><Textarea placeholder="Short description shown below the field" {...field} /></FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                            />
+                            <FormField
+                            control={form.control}
+                            name={`fields.${index}.validationRegex`}
+                            render={({ field }) => (
+                                <FormItem className="col-span-1 md:col-span-2">
+                                <FormLabel>Validation Regex (Optional)</FormLabel>
+                                <FormControl><Input placeholder="e.g., ^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$" {...field} /></FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                            />
+                            <div className="flex items-center gap-4">
+                                <FormField
+                                control={form.control}
+                                name={`fields.${index}.required`}
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Requirement</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select requirement level" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="always">Always Required</SelectItem>
+                                                <SelectItem value="international">Required for International Exporters</SelectItem>
+                                                <SelectItem value="never">Not Required</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </FormItem>
+                                )}
+                                />
+                            </div>
                         </div>
+                        <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => remove(index)}
+                        disabled={fields.length <= 1}
+                        className="mt-1"
+                        >
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Remove field</span>
+                        </Button>
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => remove(index)}
-                      disabled={fields.length <= 1}
-                      className="mt-1"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      <span className="sr-only">Remove field</span>
-                    </Button>
-                  </div>
-                ))}
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="mt-4"
-                onClick={() => append({ name: '', label: '', type: 'text', required: 'always', validationRegex: '', helperText: '' })}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Field
-              </Button>
-            </div>
+                    ))}
+                </div>
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-4"
+                    onClick={() => append({ name: '', label: '', type: 'text', required: 'always', validationRegex: '', helperText: '' })}
+                >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Field
+                </Button>
+                </div>
 
-            <DialogFooter>
-              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={isSaving}>Cancel</Button>
-              <Button type="submit" disabled={isSaving}>
-                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save Template
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+                <DialogFooter className="sticky bottom-0 bg-background py-4 -mx-6 px-6 border-t">
+                <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={isSaving}>Cancel</Button>
+                <Button type="submit" disabled={isSaving}>
+                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save Template
+                </Button>
+                </DialogFooter>
+            </form>
+            </Form>
+        </div>
         )}
       </DialogContent>
     </Dialog>

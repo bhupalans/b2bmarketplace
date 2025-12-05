@@ -171,7 +171,7 @@ export function SubscriptionPlanFormDialog({ open, onOpenChange, planId, onSucce
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{planId ? 'Edit Plan' : 'Create New Plan'}</DialogTitle>
           <DialogDescription>
@@ -185,6 +185,7 @@ export function SubscriptionPlanFormDialog({ open, onOpenChange, planId, onSucce
             <Skeleton className="h-10 w-full" />
           </div>
         ) : (
+          <div className="flex-grow overflow-y-auto pr-6 -mr-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <FormField
@@ -426,7 +427,7 @@ export function SubscriptionPlanFormDialog({ open, onOpenChange, planId, onSucce
                 )}
               />
 
-              <DialogFooter>
+              <DialogFooter className="sticky bottom-0 bg-background py-4 -mx-6 px-6 border-t">
                 <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={isSaving}>Cancel</Button>
                 <Button type="submit" disabled={isSaving}>
                   {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -435,6 +436,7 @@ export function SubscriptionPlanFormDialog({ open, onOpenChange, planId, onSucce
               </DialogFooter>
             </form>
           </Form>
+          </div>
         )}
       </DialogContent>
     </Dialog>

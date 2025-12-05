@@ -159,7 +159,7 @@ export function CategoryFormDialog({ open, onOpenChange, categoryId, onSuccess, 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{categoryId ? 'Edit Category' : 'Create New Category'}</DialogTitle>
           <DialogDescription>
@@ -173,136 +173,138 @@ export function CategoryFormDialog({ open, onOpenChange, categoryId, onSuccess, 
                 <Skeleton className="h-10 w-full" />
             </div>
         ) : (
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Category Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., Mechanical Components" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="parentId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Parent Category</FormLabel>
-                  <Select onValueChange={(value) => field.onChange(value === 'null' ? null : value)} value={field.value ?? 'null'}>
+        <div className="flex-grow overflow-y-auto pr-6 -mr-6">
+            <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Category Name</FormLabel>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a parent category" />
-                      </SelectTrigger>
+                        <Input placeholder="e.g., Mechanical Components" {...field} />
                     </FormControl>
-                    <SelectContent>
-                      <SelectItem value="null">-- No Parent (Root Category) --</SelectItem>
-                      {allCategories.filter(c => c.id !== categoryId).map((c) => ( // Prevent self-parenting
-                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <Separator />
-             <div className="space-y-2">
-                <FormLabel>Category Image</FormLabel>
-                <div className="relative aspect-video w-full bg-muted rounded-md overflow-hidden border">
-                    {previewImageUrl ? (
-                        <Image src={previewImageUrl} alt={watchedName || 'Category Image'} fill className="object-cover"/>
-                    ) : (
-                        <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                            No Image
-                        </div>
-                    )}
-                </div>
-                 <Button type="button" onClick={handleGenerateImage} disabled={isGeneratingImage || !watchedName}>
-                    {isGeneratingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Sparkles className="mr-2 h-4 w-4"/>}
-                    {isGeneratingImage ? 'Generating...' : 'AI Generate Image'}
-                </Button>
-                <FormDescription>
-                    Uses the category name to generate a representative image.
-                </FormDescription>
-            </div>
-            <Separator />
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
 
-            <FormField
-              control={form.control}
-              name="specTemplateId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Specification Template</FormLabel>
-                  <Select onValueChange={(value) => field.onChange(value === 'null' ? null : value)} value={field.value ?? 'null'}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a template (optional)" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                        <SelectItem value="null">-- No Template --</SelectItem>
-                        {specTemplates.map((t) => (
-                            <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                <FormField
+                control={form.control}
+                name="parentId"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Parent Category</FormLabel>
+                    <Select onValueChange={(value) => field.onChange(value === 'null' ? null : value)} value={field.value ?? 'null'}>
+                        <FormControl>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select a parent category" />
+                        </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                        <SelectItem value="null">-- No Parent (Root Category) --</SelectItem>
+                        {allCategories.filter(c => c.id !== categoryId).map((c) => ( // Prevent self-parenting
+                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                         ))}
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>
-                    Assign a set of required specifications for products in this category.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem className="space-y-3">
-                  <FormLabel>Status</FormLabel>
-                  <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      className="flex space-x-4"
-                    >
-                      <FormItem className="flex items-center space-x-2">
+                        </SelectContent>
+                    </Select>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+                
+                <Separator />
+                <div className="space-y-2">
+                    <FormLabel>Category Image</FormLabel>
+                    <div className="relative aspect-video w-full bg-muted rounded-md overflow-hidden border">
+                        {previewImageUrl ? (
+                            <Image src={previewImageUrl} alt={watchedName || 'Category Image'} fill className="object-cover"/>
+                        ) : (
+                            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                                No Image
+                            </div>
+                        )}
+                    </div>
+                    <Button type="button" onClick={handleGenerateImage} disabled={isGeneratingImage || !watchedName}>
+                        {isGeneratingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Sparkles className="mr-2 h-4 w-4"/>}
+                        {isGeneratingImage ? 'Generating...' : 'AI Generate Image'}
+                    </Button>
+                    <FormDescription>
+                        Uses the category name to generate a representative image.
+                    </FormDescription>
+                </div>
+                <Separator />
+
+                <FormField
+                control={form.control}
+                name="specTemplateId"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Specification Template</FormLabel>
+                    <Select onValueChange={(value) => field.onChange(value === 'null' ? null : value)} value={field.value ?? 'null'}>
                         <FormControl>
-                          <RadioGroupItem value="active" id="status-active" />
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select a template (optional)" />
+                        </SelectTrigger>
                         </FormControl>
-                        <FormLabel htmlFor="status-active" className="font-normal">Active</FormLabel>
-                      </FormItem>
-                      <FormItem className="flex items-center space-x-2">
-                        <FormControl>
-                          <RadioGroupItem value="inactive" id="status-inactive" />
-                        </FormControl>
-                        <FormLabel htmlFor="status-inactive" className="font-normal">Inactive</FormLabel>
-                      </FormItem>
-                    </RadioGroup>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                        <SelectContent>
+                            <SelectItem value="null">-- No Template --</SelectItem>
+                            {specTemplates.map((t) => (
+                                <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <FormDescription>
+                        Assign a set of required specifications for products in this category.
+                    </FormDescription>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+                
+                <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                    <FormItem className="space-y-3">
+                    <FormLabel>Status</FormLabel>
+                    <FormControl>
+                        <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="flex space-x-4"
+                        >
+                        <FormItem className="flex items-center space-x-2">
+                            <FormControl>
+                            <RadioGroupItem value="active" id="status-active" />
+                            </FormControl>
+                            <FormLabel htmlFor="status-active" className="font-normal">Active</FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-2">
+                            <FormControl>
+                            <RadioGroupItem value="inactive" id="status-inactive" />
+                            </FormControl>
+                            <FormLabel htmlFor="status-inactive" className="font-normal">Inactive</FormLabel>
+                        </FormItem>
+                        </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
 
 
-            <DialogFooter>
-              <Button type="button" variant="ghost" onClick={onOpenChange} disabled={isSaving}>Cancel</Button>
-              <Button type="submit" disabled={isSaving}>
-                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save Category
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+                <DialogFooter className="sticky bottom-0 bg-background py-4 -mx-6 px-6 border-t">
+                <Button type="button" variant="ghost" onClick={onOpenChange} disabled={isSaving}>Cancel</Button>
+                <Button type="submit" disabled={isSaving}>
+                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save Category
+                </Button>
+                </DialogFooter>
+            </form>
+            </Form>
+        </div>
         )}
       </DialogContent>
     </Dialog>

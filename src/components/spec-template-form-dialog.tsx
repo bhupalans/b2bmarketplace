@@ -146,7 +146,7 @@ export function SpecTemplateFormDialog({ open, onOpenChange, templateId, onSucce
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{templateId ? 'Edit Template' : 'Create New Template'}</DialogTitle>
           <DialogDescription>
@@ -160,132 +160,134 @@ export function SpecTemplateFormDialog({ open, onOpenChange, templateId, onSucce
                 <Skeleton className="h-10 w-full" />
             </div>
         ) : (
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Template Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., Standard Widget Specs" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        <div className="flex-grow overflow-y-auto pr-6 -mr-6">
+            <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Template Name</FormLabel>
+                    <FormControl>
+                        <Input placeholder="e.g., Standard Widget Specs" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
 
-            <div>
-              <FormLabel>Specification Fields</FormLabel>
-              <div className="mt-2 space-y-3">
-                {fields.map((field, index) => (
-                  <div key={field.id} className="flex items-start gap-2">
-                    <FormField
-                      control={form.control}
-                      name={`fields.${index}.name`}
-                      render={({ field }) => (
-                        <FormItem className="flex-grow">
-                          <FormControl>
-                            <Input placeholder={`Field Name (e.g., Material)`} {...field} />
-                          </FormControl>
-                           <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button type="button" variant="ghost" size="icon">
-                                <Settings className="h-4 w-4" />
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-80">
-                            <div className="grid gap-4">
-                                <div className="space-y-2">
-                                    <h4 className="font-medium leading-none">Configure Field</h4>
-                                    <p className="text-sm text-muted-foreground">
-                                       Set the input type for this field.
-                                    </p>
-                                </div>
-                                <div className="grid gap-2">
-                                    <FormField
-                                        control={form.control}
-                                        name={`fields.${index}.type`}
-                                        render={({ field: typeField }) => (
-                                            <FormItem>
-                                                <FormLabel>Input Type</FormLabel>
-                                                <Select onValueChange={typeField.onChange} defaultValue={typeField.value}>
-                                                    <FormControl>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Select input type" />
-                                                        </SelectTrigger>
-                                                    </FormControl>
-                                                    <SelectContent>
-                                                        <SelectItem value="text">Text</SelectItem>
-                                                        <SelectItem value="select">Select (Dropdown)</SelectItem>
-                                                        <SelectItem value="radio">Radio Group</SelectItem>
-                                                        <SelectItem value="switch">Switch (Toggle)</SelectItem>
-                                                        <SelectItem value="checkbox">Checkbox Group</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </FormItem>
-                                        )}
-                                    />
-                                     {(form.watch(`fields.${index}.type`) === 'select' || form.watch(`fields.${index}.type`) === 'radio' || form.watch(`fields.${index}.type`) === 'checkbox') && (
-                                         <FormField
+                <div>
+                <FormLabel>Specification Fields</FormLabel>
+                <div className="mt-2 space-y-3">
+                    {fields.map((field, index) => (
+                    <div key={field.id} className="flex items-start gap-2">
+                        <FormField
+                        control={form.control}
+                        name={`fields.${index}.name`}
+                        render={({ field }) => (
+                            <FormItem className="flex-grow">
+                            <FormControl>
+                                <Input placeholder={`Field Name (e.g., Material)`} {...field} />
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                        />
+                        
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button type="button" variant="ghost" size="icon">
+                                    <Settings className="h-4 w-4" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-80">
+                                <div className="grid gap-4">
+                                    <div className="space-y-2">
+                                        <h4 className="font-medium leading-none">Configure Field</h4>
+                                        <p className="text-sm text-muted-foreground">
+                                        Set the input type for this field.
+                                        </p>
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <FormField
                                             control={form.control}
-                                            name={`fields.${index}.options`}
-                                            render={({ field: optionsField }) => (
+                                            name={`fields.${index}.type`}
+                                            render={({ field: typeField }) => (
                                                 <FormItem>
-                                                    <FormLabel>Options</FormLabel>
-                                                    <FormControl>
-                                                        <Textarea placeholder="Enter comma-separated values, e.g., Red,Green,Blue" {...optionsField} />
-                                                    </FormControl>
-                                                    <FormMessage />
+                                                    <FormLabel>Input Type</FormLabel>
+                                                    <Select onValueChange={typeField.onChange} defaultValue={typeField.value}>
+                                                        <FormControl>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Select input type" />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            <SelectItem value="text">Text</SelectItem>
+                                                            <SelectItem value="select">Select (Dropdown)</SelectItem>
+                                                            <SelectItem value="radio">Radio Group</SelectItem>
+                                                            <SelectItem value="switch">Switch (Toggle)</SelectItem>
+                                                            <SelectItem value="checkbox">Checkbox Group</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
                                                 </FormItem>
                                             )}
                                         />
-                                     )}
+                                        {(form.watch(`fields.${index}.type`) === 'select' || form.watch(`fields.${index}.type`) === 'radio' || form.watch(`fields.${index}.type`) === 'checkbox') && (
+                                            <FormField
+                                                control={form.control}
+                                                name={`fields.${index}.options`}
+                                                render={({ field: optionsField }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Options</FormLabel>
+                                                        <FormControl>
+                                                            <Textarea placeholder="Enter comma-separated values, e.g., Red,Green,Blue" {...optionsField} />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        </PopoverContent>
-                    </Popover>
+                            </PopoverContent>
+                        </Popover>
 
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="icon"
-                      onClick={() => remove(index)}
-                      disabled={fields.length <= 1}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      <span className="sr-only">Remove field</span>
-                    </Button>
-                  </div>
-                ))}
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="mt-3"
-                onClick={() => append({ name: '', type: 'text', options: '' })}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Field
-              </Button>
-            </div>
+                        <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        onClick={() => remove(index)}
+                        disabled={fields.length <= 1}
+                        >
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Remove field</span>
+                        </Button>
+                    </div>
+                    ))}
+                </div>
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => append({ name: '', type: 'text', options: '' })}
+                >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Field
+                </Button>
+                </div>
 
-            <DialogFooter>
-              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={isSaving}>Cancel</Button>
-              <Button type="submit" disabled={isSaving}>
-                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save Template
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+                <DialogFooter className="sticky bottom-0 bg-background py-4 -mx-6 px-6 border-t">
+                <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={isSaving}>Cancel</Button>
+                <Button type="submit" disabled={isSaving}>
+                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save Template
+                </Button>
+                </DialogFooter>
+            </form>
+            </Form>
+        </div>
         )}
       </DialogContent>
     </Dialog>
