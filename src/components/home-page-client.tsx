@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Category, Product, SourcingRequest } from "@/lib/types";
-import { ArrowRight, Search, Building, Package, ShieldCheck, Globe, Handshake } from "lucide-react";
+import { ArrowRight, Search, Package, ShieldCheck, Globe, Handshake, icons } from "lucide-react";
 import { ProductCard } from "@/components/product-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -57,13 +57,19 @@ function SourcingRequestCard({ request }: { request: SourcingRequest }) {
     )
 }
 
-const iconMap: { [key: string]: React.ElementType } = {
-    "Industrial Supplies": Building,
-    "Raw Materials": Package,
-    "Electronics": Package,
-    "Beauty & Personal Care": Package,
-    "Agriculture": Package,
+const CategoryCard = ({ category }: { category: Category }) => {
+    // @ts-ignore
+    const LucideIcon = icons[category.iconName] || Package;
+    return (
+        <Link href={`/products?category=${category.id}`} key={category.id}>
+            <Card className="group flex h-32 flex-col items-center justify-center p-4 text-center transition-all hover:bg-primary hover:text-primary-foreground hover:shadow-lg">
+                <LucideIcon className="h-8 w-8 text-primary transition-all group-hover:text-primary-foreground" />
+                <p className="mt-2 text-sm font-semibold">{category.name}</p>
+            </Card>
+        </Link>
+    )
 };
+
 
 // Client Component to handle state and interactions
 export function HomePageClient({ initialBranding, initialCategories, initialProducts, initialRequests }: {
@@ -114,17 +120,7 @@ export function HomePageClient({ initialBranding, initialCategories, initialProd
             </div>
             <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
               {loading ? Array.from({length: 6}).map((_, i) => <Skeleton key={i} className="h-32 w-full"/>) :
-               categories.map(cat => {
-                   const Icon = iconMap[cat.name] || Package;
-                   return (
-                    <Link href={`/products?category=${cat.id}`} key={cat.id}>
-                        <Card className="group flex h-32 flex-col items-center justify-center p-4 text-center transition-all hover:bg-primary hover:text-primary-foreground">
-                            <Icon className="h-8 w-8 text-primary transition-all group-hover:text-primary-foreground" />
-                            <p className="mt-2 text-sm font-semibold">{cat.name}</p>
-                        </Card>
-                    </Link>
-                   )
-               })}
+               categories.map(cat => <CategoryCard key={cat.id} category={cat} />)}
             </div>
           </section>
 

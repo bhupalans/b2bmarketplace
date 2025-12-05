@@ -646,17 +646,17 @@ export async function deleteVerificationTemplateClient(templateId: string): Prom
 // --- Category Client Functions ---
 
 export async function createOrUpdateCategoryClient(
-  categoryData: { name: string; parentId: string | null; status: 'active' | 'inactive', specTemplateId?: string | null },
+  categoryData: { name: string; parentId: string | null; status: 'active' | 'inactive', specTemplateId?: string | null, iconName?: string },
   categoryId?: string | null
 ): Promise<Category> {
-  const dataToSave = {
+  const dataToSave: Partial<Category> & { updatedAt: Timestamp } = {
     ...categoryData,
     updatedAt: Timestamp.now(),
   };
 
   if (categoryId) {
     const categoryRef = doc(db, 'categories', categoryId);
-    await updateDoc(categoryRef, dataToSave);
+    await updateDoc(categoryRef, dataToSave as any);
     const updatedDoc = await getDocClient(categoryRef);
     return { id: categoryId, ...updatedDoc.data() } as Category;
   } else {

@@ -31,6 +31,7 @@ import { Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Skeleton } from './ui/skeleton';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+import Link from 'next/link';
 
 interface CategoryFormDialogProps {
   open: boolean;
@@ -59,6 +60,7 @@ export function CategoryFormDialog({ open, onOpenChange, categoryId, onSuccess, 
     parentId: z.string().nullable(),
     status: z.enum(['active', 'inactive']),
     specTemplateId: z.string().optional().nullable(),
+    iconName: z.string().optional(),
   }).refine(data => {
     return !categoryNameExists(data.name, data.parentId, allCategories, categoryId);
   }, {
@@ -73,6 +75,7 @@ export function CategoryFormDialog({ open, onOpenChange, categoryId, onSuccess, 
       parentId: null,
       status: 'active',
       specTemplateId: null,
+      iconName: '',
     },
   });
 
@@ -87,11 +90,12 @@ export function CategoryFormDialog({ open, onOpenChange, categoryId, onSuccess, 
             parentId: category.parentId,
             status: category.status,
             specTemplateId: category.specTemplateId || null,
+            iconName: category.iconName || '',
           });
         }
         setIsLoading(false);
       } else {
-        form.reset({ name: '', parentId: null, status: 'active', specTemplateId: null });
+        form.reset({ name: '', parentId: null, status: 'active', specTemplateId: null, iconName: '' });
       }
     };
 
@@ -103,10 +107,10 @@ export function CategoryFormDialog({ open, onOpenChange, categoryId, onSuccess, 
   const onSubmit = async (values: z.infer<typeof categorySchema>) => {
     setIsSaving(true);
     try {
-      // Ensure specTemplateId is either a string or null, not an empty string.
       const dataToSave = {
         ...values,
         specTemplateId: values.specTemplateId || null,
+        iconName: values.iconName || undefined,
       };
 
       const savedCategory = await createOrUpdateCategoryClient(dataToSave, categoryId);
@@ -177,6 +181,27 @@ export function CategoryFormDialog({ open, onOpenChange, categoryId, onSuccess, 
                       ))}
                     </SelectContent>
                   </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="iconName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Icon Name (Optional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Factory" {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    Enter a valid icon name from the{' '}
+                    <Link href="https://lucide.dev/icons/" target="_blank" className="text-primary underline">
+                      Lucide icon library
+                    </Link>
+                    . Use PascalCase (e.g., CircuitBoard).
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

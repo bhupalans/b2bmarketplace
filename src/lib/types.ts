@@ -132,8 +132,9 @@ export type Category = {
   id: string;
   name:string;
   parentId: string | null;
-  status: 'active' | 'inactive'; // New field for enabling/disabling
-  specTemplateId?: string;       // New field to link to a SpecTemplate
+  status: 'active' | 'inactive';
+  specTemplateId?: string;
+  iconName?: string;
 };
 
 export type SpecTemplateField = {
