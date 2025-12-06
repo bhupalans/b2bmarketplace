@@ -86,8 +86,11 @@
 
 @layer utilities {
   @keyframes fade-in-out {
-    0%, 100% { opacity: 0; }
-    25%, 75% { opacity: 1; }
+    0% { opacity: 0; }
+    6% { opacity: 1; }
+    25% { opacity: 1; }
+    31% { opacity: 0; }
+    100% { opacity: 0; }
   }
 
   .animate-fade-in-out {
