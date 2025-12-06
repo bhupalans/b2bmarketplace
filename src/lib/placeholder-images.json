@@ -1,22 +1,22 @@
 {
   "hero": [
     {
-      "src": "https://picsum.photos/seed/homepageHero/1280/800",
+      "src": "/images/Image4.jpg",
       "alt": "A modern factory with robotics and workers",
       "hint": "factory robotics"
     },
     {
-      "src": "https://picsum.photos/seed/shipping/1280/800",
+      "src": "/images/Image1.jpg",
       "alt": "A large cargo ship with shipping containers",
       "hint": "cargo ship"
     },
     {
-      "src": "https://picsum.photos/seed/warehouse/1280/800",
+      "src": "/images/Image2.jpg",
       "alt": "A vast and organized warehouse with shelves of goods",
       "hint": "warehouse shelves"
     },
     {
-      "src": "https://picsum.photos/seed/agriculture/1280/800",
+      "src": "/images/Image3.jpg",
       "alt": "A tractor working in a large agricultural field",
       "hint": "tractor field"
     }
