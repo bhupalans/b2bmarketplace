@@ -75,8 +75,13 @@ export default function ProductsPage() {
   
   useEffect(() => {
     const categoryIdFromUrl = searchParams.get('category');
+    const searchTermFromUrl = searchParams.get('search');
+    
     if (categoryIdFromUrl) {
       setSelectedCategoryId(categoryIdFromUrl);
+    }
+    if (searchTermFromUrl) {
+      setSearchTerm(searchTermFromUrl);
     }
   }, [searchParams]);
 
@@ -280,3 +285,5 @@ export default function ProductsPage() {
     </div>
   );
 }
+
+    

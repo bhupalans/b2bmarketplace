@@ -1,9 +1,10 @@
 
 "use client";
 
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, FormEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Category, Product, SourcingRequest } from "@/lib/types";
@@ -86,10 +87,19 @@ export function HomePageClient({ initialBranding, initialCategories, initialProd
     initialProducts: Product[],
     initialRequests: SourcingRequest[],
 }) {
-    const [categories, setCategories] = useState<Category[]>(initialCategories);
-    const [products, setProducts] = useState<Product[]>(initialProducts);
-    const [requests, setRequests] = useState<SourcingRequest[]>(initialRequests);
-    const [loading, setLoading] = useState(false); // Data is pre-fetched, so initial load is false
+    const router = useRouter();
+    const [searchTerm, setSearchTerm] = useState("");
+    const [categories] = useState<Category[]>(initialCategories);
+    const [products] = useState<Product[]>(initialProducts);
+    const [requests] = useState<SourcingRequest[]>(initialRequests);
+    const [loading] = useState(false); // Data is pre-fetched, so initial load is false
+
+    const handleSearch = (e: FormEvent) => {
+        e.preventDefault();
+        if (searchTerm.trim()) {
+            router.push(`/products?search=${encodeURIComponent(searchTerm.trim())}`);
+        }
+    };
 
 
     return (
@@ -118,10 +128,15 @@ export function HomePageClient({ initialBranding, initialCategories, initialProd
               <p className="mt-4 text-lg text-primary-foreground/80">
                 {initialBranding.subhead}
               </p>
-              <div className="relative mx-auto mt-8 max-w-md">
+              <form onSubmit={handleSearch} className="relative mx-auto mt-8 max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input placeholder="Search for products..." className="w-full rounded-full bg-background/90 py-6 pl-10 text-foreground" />
-              </div>
+                <Input 
+                    placeholder="Search for products..." 
+                    className="w-full rounded-full bg-background/90 py-6 pl-10 text-foreground" 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </form>
             </div>
           </section>
 
@@ -203,3 +218,5 @@ export function HomePageClient({ initialBranding, initialCategories, initialProd
         </div>
       );
 }
+
+    
