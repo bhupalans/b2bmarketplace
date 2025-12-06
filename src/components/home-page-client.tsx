@@ -15,9 +15,6 @@ import homePageImages from "@/lib/placeholder-images.json";
 import { formatDistanceToNow } from "date-fns";
 import { useCurrency } from "@/contexts/currency-context";
 import { convertPrice } from "@/lib/currency";
-import { cn } from "@/lib/utils";
-import Autoplay from "embla-carousel-autoplay";
-import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 
 function SourcingRequestCard({ request }: { request: SourcingRequest }) {
     const { currency, rates } = useCurrency();
@@ -93,35 +90,26 @@ export function HomePageClient({ initialBranding, initialCategories, initialProd
     const [products, setProducts] = useState<Product[]>(initialProducts);
     const [requests, setRequests] = useState<SourcingRequest[]>(initialRequests);
     const [loading, setLoading] = useState(false); // Data is pre-fetched, so initial load is false
-    const autoplayPlugin = useRef(Autoplay({ delay: 5000, stopOnInteraction: true }));
 
 
     return (
         <div className="space-y-12 md:space-y-20">
           {/* Hero Section */}
           <section className="relative -mx-4 sm:-mx-6 flex h-[60vh] max-h-[600px] min-h-[400px] items-center justify-center text-center">
-            <Carousel 
-                className="absolute inset-0 w-full h-full"
-                plugins={[autoplayPlugin.current]}
-                opts={{ loop: true }}
-            >
-                <CarouselContent className="-ml-0">
-                    {homePageImages.hero.map((image, index) => (
-                        <CarouselItem key={index} className="pl-0">
-                             <div className="relative h-full w-full">
-                                <Image
-                                    src={image.src}
-                                    alt={image.alt}
-                                    fill
-                                    className="object-cover"
-                                    priority={index === 0}
-                                    data-ai-hint={image.hint}
-                                />
-                            </div>
-                        </CarouselItem>
-                    ))}
-                </CarouselContent>
-            </Carousel>
+            
+            {homePageImages.hero.map((image, index) => (
+                <div
+                    key={index}
+                    className="absolute inset-0 h-full w-full bg-cover bg-center animate-fade-in-out"
+                    style={{ 
+                        backgroundImage: `url(${image.src})`,
+                        animationDelay: `${index * 5}s`,
+                        animationDuration: '20s'
+                    }}
+                    data-ai-hint={image.hint}
+                />
+            ))}
+
             <div className="absolute inset-0 z-10 bg-black/50" />
             <div className="relative z-20 mx-auto max-w-2xl text-primary-foreground px-4">
               <h1 className="text-4xl font-bold tracking-tight md:text-6xl">
