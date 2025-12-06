@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useTransition } from 'react';
+import React, { useState, useEffect, useTransition, useRef } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2, Sparkles, Upload } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Skeleton } from './ui/skeleton';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
@@ -59,6 +59,7 @@ export function CategoryFormDialog({ open, onOpenChange, categoryId, onSuccess, 
   const [isGeneratingImage, startImageGeneration] = useTransition();
   const [isLoading, setIsLoading] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const categorySchema = z.object({
     name: z.string().min(2, 'Category name must be at least 2 characters.'),
@@ -157,6 +158,17 @@ export function CategoryFormDialog({ open, onOpenChange, categoryId, onSuccess, 
     });
   }
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewImageUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col">
@@ -226,12 +238,25 @@ export function CategoryFormDialog({ open, onOpenChange, categoryId, onSuccess, 
                             </div>
                         )}
                     </div>
-                    <Button type="button" onClick={handleGenerateImage} disabled={isGeneratingImage || !watchedName}>
-                        {isGeneratingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Sparkles className="mr-2 h-4 w-4"/>}
-                        {isGeneratingImage ? 'Generating...' : 'AI Generate Image'}
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button type="button" onClick={() => fileInputRef.current?.click()} variant="outline">
+                            <Upload className="mr-2 h-4 w-4" />
+                            Browse...
+                        </Button>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileChange}
+                            className="hidden"
+                            accept="image/png, image/jpeg, image/webp"
+                        />
+                        <Button type="button" onClick={handleGenerateImage} disabled={isGeneratingImage || !watchedName}>
+                            {isGeneratingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Sparkles className="mr-2 h-4 w-4"/>}
+                            {isGeneratingImage ? 'Generating...' : 'AI Generate Image'}
+                        </Button>
+                    </div>
                     <FormDescription>
-                        Uses the category name to generate a representative image.
+                        Upload a custom image or use AI to generate one based on the category name.
                     </FormDescription>
                 </div>
                 <Separator />
