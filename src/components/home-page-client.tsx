@@ -100,8 +100,7 @@ export function HomePageClient({ initialBranding, initialCategories, initialProd
         <div className="space-y-12 md:space-y-20">
           {/* Hero Section */}
           <section className="relative -mx-4 sm:-mx-6 flex h-[60vh] max-h-[600px] min-h-[400px] items-center justify-center text-center">
-            <div className="absolute inset-0 z-10 bg-black/50" />
-             <Carousel 
+            <Carousel 
                 className="absolute inset-0 w-full h-full"
                 plugins={[autoplayPlugin.current]}
                 opts={{ loop: true }}
@@ -123,6 +122,7 @@ export function HomePageClient({ initialBranding, initialCategories, initialProd
                     ))}
                 </CarouselContent>
             </Carousel>
+            <div className="absolute inset-0 z-10 bg-black/50" />
             <div className="relative z-20 mx-auto max-w-2xl text-primary-foreground px-4">
               <h1 className="text-4xl font-bold tracking-tight md:text-6xl">
                 {initialBranding.headline}
