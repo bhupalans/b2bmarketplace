@@ -1230,21 +1230,26 @@ export async function getPendingSourcingRequestsClient(): Promise<SourcingReques
 
 
 export async function createSourcingRequestClient(
-    requestData: Omit<SourcingRequest, 'id' | 'buyerId' | 'buyerName' | 'buyerCountry' | 'status' | 'createdAt' | 'targetPrice'> & { targetPrice?: { baseAmount: number; baseCurrency: string; } },
+    requestData: Omit<SourcingRequest, 'id' | 'buyerId' | 'buyerName' | 'buyerCountry' | 'status' | 'createdAt'>,
     buyer: User
 ): Promise<SourcingRequest> {
     if (!buyer.address?.country) {
         throw new Error("Please complete your primary business address in your profile before posting a request.");
     }
     
+    const dataToSave: Partial<SourcingRequest> = { ...requestData };
+    if (!dataToSave.targetPrice) {
+        dataToSave.targetPrice = null as any;
+    }
+    
     const newRequestData: Omit<SourcingRequest, 'id'> = {
-        ...requestData,
+        ...dataToSave,
         buyerId: buyer.uid,
         buyerName: buyer.companyName || buyer.name,
         buyerCountry: buyer.address.country,
         status: 'pending',
         createdAt: serverTimestamp() as Timestamp,
-    };
+    } as Omit<SourcingRequest, 'id'>;
     
     const docRef = await addDoc(collection(db, "sourcingRequests"), newRequestData);
     const newDocSnap = await getDocClient(docRef);
@@ -1301,6 +1306,9 @@ export async function updateSourcingRequestClient(
         status: 'pending', // Re-submit for review on edit
         updatedAt: serverTimestamp(),
     };
+     if (!dataToUpdate.targetPrice) {
+        dataToUpdate.targetPrice = null as any;
+    }
     
     await updateDoc(requestRef, dataToUpdate);
 

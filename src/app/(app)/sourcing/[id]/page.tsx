@@ -95,12 +95,14 @@ export default function SourcingRequestDetailPage() {
                         <div className="font-medium flex items-center gap-2"><Package className="h-4 w-4 text-muted-foreground" /> Required Quantity</div>
                         <div>{request.quantity.toLocaleString()} {request.quantityUnit}</div>
 
-                        {request.targetPrice?.baseAmount && (
-                            <>
-                                <div className="font-medium flex items-center gap-2"><DollarSign className="h-4 w-4 text-muted-foreground" /> Target Price ({currency})</div>
-                                <div>~{new Intl.NumberFormat(undefined, {style: 'currency', currency}).format(convertPrice(request.targetPrice, currency, rates))} / {request.quantityUnit.slice(0,-1)}</div>
-                            </>
-                        )}
+                        <div className="font-medium flex items-center gap-2"><DollarSign className="h-4 w-4 text-muted-foreground" /> Target Price ({currency})</div>
+                        <div>
+                            {request.targetPrice?.baseAmount ? (
+                                `~${new Intl.NumberFormat(undefined, {style: 'currency', currency}).format(convertPrice(request.targetPrice, currency, rates))} / ${request.quantityUnit.slice(0,-1)}`
+                            ) : (
+                                <span className="text-muted-foreground italic">Negotiable</span>
+                            )}
+                        </div>
                     </div>
                      <p className="text-base whitespace-pre-wrap leading-relaxed">{request.description}</p>
                 </CardContent>

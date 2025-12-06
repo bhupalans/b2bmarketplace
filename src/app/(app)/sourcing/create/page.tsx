@@ -165,10 +165,13 @@ function CreateSourcingRequestForm() {
       try {
         const expiresAt = add(new Date(), { days: values.expiresInDays });
         
-        const requestData = {
-            ...values,
-            expiresAt,
+        // This is the fix. We explicitly handle the optional price.
+        const requestData: any = { ...values };
+        if (!values.targetPrice?.baseAmount) {
+            requestData.targetPrice = null;
         }
+
+        requestData.expiresAt = expiresAt;
         
         if (isEditMode) {
             await updateSourcingRequestClient(requestId, requestData);
@@ -334,7 +337,7 @@ function CreateSourcingRequestForm() {
                             <FormItem>
                             <FormLabel>Target Price per Unit ({currency})</FormLabel>
                             <FormControl>
-                                <Input type="number" step="0.01" placeholder="Optional" {...field} value={field.value || ''} />
+                                <Input type="number" step="0.01" placeholder="Optional (leave blank if TBD)" {...field} value={field.value || ''} />
                             </FormControl>
                             <FormDescription>Your ideal price, if you have one.</FormDescription>
                             <FormMessage />
