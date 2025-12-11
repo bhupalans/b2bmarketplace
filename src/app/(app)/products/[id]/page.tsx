@@ -188,7 +188,7 @@ export default async function ProductDetailPage({ params }: Props) {
                       <div className="relative aspect-square w-full">
                         <Image
                           src={imgSrc}
-                          alt={`${product.title} - view ${index + 1}`}
+                          alt={`${product.title} - image ${index + 1} of ${product.images.length}`}
                           fill
                           className="object-cover"
                           data-ai-hint="product image"
@@ -201,7 +201,7 @@ export default async function ProductDetailPage({ params }: Props) {
                     <div className="relative aspect-square w-full">
                       <Image
                         src="https://placehold.co/600x600"
-                        alt="Product image placeholder"
+                        alt={`Placeholder image for ${product.title}`}
                         fill
                         className="object-cover"
                         data-ai-hint="placeholder image"
@@ -217,7 +217,7 @@ export default async function ProductDetailPage({ params }: Props) {
           {product.specifications && product.specifications.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>Technical Specifications</CardTitle>
+                <h2 className="text-2xl font-semibold leading-none tracking-tight">Technical Specifications</h2>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -264,7 +264,7 @@ export default async function ProductDetailPage({ params }: Props) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Questions &amp; Answers</CardTitle>
+          <h2 className="text-2xl font-semibold leading-none tracking-tight">Questions &amp; Answers</h2>
         </CardHeader>
         <CardContent className="space-y-6">
           <QuestionArea
@@ -277,7 +277,7 @@ export default async function ProductDetailPage({ params }: Props) {
       {sellerProducts.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>More Products From This Seller</CardTitle>
+            <h2 className="text-2xl font-semibold leading-none tracking-tight">More Products From This Seller</h2>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -292,7 +292,7 @@ export default async function ProductDetailPage({ params }: Props) {
       {similarProducts.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Similar Products in This Category</CardTitle>
+            <h2 className="text-2xl font-semibold leading-none tracking-tight">Similar Products in This Category</h2>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
