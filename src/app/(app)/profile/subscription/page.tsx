@@ -202,12 +202,24 @@ export default function SubscriptionPage() {
                         <CardContent className="flex-grow space-y-3">
                             <ul className="space-y-2">
                                 {user.role === 'seller' ? (
-                                    <PlanFeature>{formatLimit(plan.productLimit)} Product Listings</PlanFeature>
+                                    <>
+                                        <PlanFeature>{formatLimit(plan.productLimit)} Product Listings</PlanFeature>
+                                        {plan.price > 0 
+                                            ? <PlanFeature>Initiate conversations with buyers</PlanFeature>
+                                            : <PlanFeature>Respond to buyer inquiries</PlanFeature>
+                                        }
+                                    </>
                                 ) : (
-                                    <PlanFeature>{formatLimit(plan.sourcingRequestLimit)} Sourcing Requests</PlanFeature>
+                                    <>
+                                        <PlanFeature>{formatLimit(plan.sourcingRequestLimit)} Sourcing Requests</PlanFeature>
+                                        {plan.price > 0
+                                            ? <PlanFeature>Receive direct quotes from sellers</PlanFeature>
+                                            : <PlanFeature>Receive quotes via product pages</PlanFeature>
+                                        }
+                                    </>
                                 )}
                                 <PlanFeature>{plan.hasAnalytics ? 'Advanced Analytics' : 'Basic Analytics'}</PlanFeature>
-                                {plan.isFeatured && <PlanFeature>Featured Badge</PlanFeature>}
+                                {plan.isFeatured && <PlanFeature>Featured Badge on Profile</PlanFeature>}
                             </ul>
                         </CardContent>
                         <CardFooter>
