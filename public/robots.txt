@@ -1,0 +1,18 @@
+User-agent: *
+Disallow: /admin/
+Disallow: /profile/
+Disallow: /messages/
+Disallow: /login
+Disallow: /signup
+Disallow: /seed-database
+
+# Disallow server action entry points from being crawled
+Disallow: /actions
+Disallow: /admin-actions
+Disallow: /admin-data-actions
+Disallow: /admin-debug-actions
+Disallow: /user-actions
+Disallow: /buyer-actions
+Disallow: /seller-actions
+
+Sitemap: https://b2b-marketplace-udg1v.web.app/sitemap.xml
