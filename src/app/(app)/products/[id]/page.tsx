@@ -1,26 +1,27 @@
-
-"use client";
-
-import React, { useState, useEffect } from "react";
-import Image from "next/image";
-import Link from "next/link";
-import { notFound, useParams } from "next/navigation";
-import { getProductAndSellerClient, getQuestionsForProductClient } from "@/lib/firebase";
+import React from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { getProduct, getUser, getCategoryPath } from '@/lib/database';
+import {
+  getQuestionsForProductClient,
+  getProductsClient,
+} from '@/lib/firebase';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+} from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
   TableCell,
   TableRow,
-} from "@/components/ui/table";
+} from '@/components/ui/table';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -28,126 +29,90 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
+} from '@/components/ui/breadcrumb';
 import {
   Carousel,
   CarouselContent,
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
-} from "@/components/ui/carousel";
-import { Product, User, Category, Question } from "@/lib/types";
-import { getCategoryPathClient } from "@/lib/firebase";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useCurrency } from "@/contexts/currency-context";
-import { CheckCircle, Loader2, Globe, Package, Clock, Tag, Gem } from "lucide-react";
-import { RequestQuoteDialog } from "@/components/request-quote-dialog";
-import { Separator } from "@/components/ui/separator";
-import { ProductCard } from "@/components/product-card";
-import { QuestionForm } from "@/components/question-form";
-import { QuestionItem } from "@/components/question-item";
-import { useAuth } from "@/contexts/auth-context";
-import { convertPrice } from "@/lib/currency";
+} from '@/components/ui/carousel';
+import { Product, User } from '@/lib/types';
+import { CheckCircle, Globe, Package, Clock, Tag, Gem } from 'lucide-react';
+import { RequestQuoteDialog } from '@/components/request-quote-dialog';
+import { Separator } from '@/components/ui/separator';
+import { ProductCard } from '@/components/product-card';
+import { ProductDetailsClient } from './product-details-client';
+import { Metadata, ResolvingMetadata } from 'next';
 
-type ProductData = {
-  product: Product;
-  seller: User | null;
-  similarProducts: Product[];
-  sellerProducts: Product[];
+type Props = {
+  params: { id: string };
+};
+
+// This function generates dynamic metadata for each product page.
+export async function generateMetadata(
+  { params }: Props,
+  parent: ResolvingMetadata
+): Promise<Metadata> {
+  const product = await getProduct(params.id);
+
+  if (!product) {
+    return {
+      title: 'Product Not Found',
+    };
+  }
+
+  // optionally access and extend (rather than replace) parent metadata
+  const previousImages = (await parent).openGraph?.images || [];
+
+  return {
+    title: `${product.title}`,
+    description: product.description.substring(0, 160),
+    openGraph: {
+      title: product.title,
+      description: product.description.substring(0, 160),
+      images: [
+        {
+          url: product.images[0],
+          width: 600,
+          height: 600,
+          alt: product.title,
+        },
+        ...previousImages,
+      ],
+    },
+  };
 }
 
-export default function ProductDetailPage() {
-  const params = useParams();
+export default async function ProductDetailPage({ params }: Props) {
   const { id } = params;
-  const { user: currentUser } = useAuth();
-  const { currency, rates } = useCurrency();
 
-  const [productData, setProductData] = useState<ProductData | null>(null);
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [categoryPath, setCategoryPath] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
-  useEffect(() => {
-    async function fetchData() {
-      if (typeof id !== 'string') return;
-      
-      try {
-        setLoading(true);
-        const [data, fetchedQuestions] = await Promise.all([
-          getProductAndSellerClient(id as string),
-          getQuestionsForProductClient(id as string)
-        ]);
+  const product = await getProduct(id);
 
-        if (!data) {
-          setError("Product not found.");
-          return;
-        }
-        setProductData(data);
-        setQuestions(fetchedQuestions);
-        
-        if (data.product.categoryId) {
-            const path = await getCategoryPathClient(data.product.categoryId);
-            setCategoryPath(path);
-        }
-      } catch (e: any) {
-        console.error("Failed to fetch product data:", e);
-        setError("Failed to load product details.");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchData();
-  }, [id]);
-
-  const onQuestionSubmitted = (newQuestion: Question) => {
-    setQuestions(prev => [newQuestion, ...prev]);
-  };
-  
-  const onAnswerSubmitted = (answeredQuestion: Question) => {
-    setQuestions(prev => prev.map(q => q.id === answeredQuestion.id ? answeredQuestion : q));
-  }
-  
-  const getStockLabel = (stock?: string) => {
-    switch(stock) {
-        case 'in_stock': return 'In Stock';
-        case 'out_of_stock': return 'Out of Stock';
-        case 'made_to_order': return 'Made to Order';
-        default: return 'N/A';
-    }
-  }
-
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-full">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-  
-  if (error) {
-     return <div className="text-center py-10">{error}</div>;
-  }
-
-  if (!productData) {
+  if (!product || product.status !== 'approved') {
     notFound();
   }
 
-  const { product, seller, similarProducts, sellerProducts } = productData;
+  const seller = product.sellerId ? await getUser(product.sellerId) : null;
+  const categoryPath = await getCategoryPath(product.categoryId);
+  const questions = await getQuestionsForProductClient(id);
 
-  const formattedPrice = new Intl.NumberFormat(undefined, {
-    style: "currency",
-    currency: currency,
-  }).format(convertPrice(product.price, currency, rates));
-  
+  // Fetch similar and seller products (still uses client functions for now for simplicity)
+  const allProducts = await getProductsClient();
+  const similarProducts = allProducts
+    .filter((p) => p.categoryId === product.categoryId && p.id !== product.id)
+    .slice(0, 3);
+  const sellerProducts = seller
+    ? allProducts
+        .filter((p) => p.sellerId === seller.id && p.id !== product.id)
+        .slice(0, 3)
+    : [];
+    
   const isFeaturedSeller = seller?.subscriptionPlan?.isFeatured && seller?.subscriptionExpiryDate && new Date(seller.subscriptionExpiryDate) > new Date();
-
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
-       <Breadcrumb>
+      <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
@@ -161,7 +126,9 @@ export default function ProductDetailPage() {
                 {index === categoryPath.length - 1 ? (
                   <BreadcrumbPage>{cat.name}</BreadcrumbPage>
                 ) : (
-                  <span className="cursor-not-allowed">{cat.name}</span>
+                   <BreadcrumbLink asChild>
+                    <Link href={`/products?category=${cat.id}`}>{cat.name}</Link>
+                  </BreadcrumbLink>
                 )}
               </BreadcrumbItem>
             </React.Fragment>
@@ -170,8 +137,8 @@ export default function ProductDetailPage() {
       </Breadcrumb>
       <div className="grid gap-8 md:grid-cols-2">
         <div className="space-y-8">
-           <Card className="overflow-hidden">
-             <Carousel className="w-full">
+          <Card className="overflow-hidden">
+            <Carousel className="w-full">
               <CarouselContent>
                 {Array.isArray(product.images) && product.images.length > 0 ? (
                   product.images.map((imgSrc, index) => (
@@ -204,7 +171,7 @@ export default function ProductDetailPage() {
               <CarouselPrevious className="absolute left-4" />
               <CarouselNext className="absolute right-4" />
             </Carousel>
-           </Card>
+          </Card>
           {product.specifications && product.specifications.length > 0 && (
             <Card>
               <CardHeader>
@@ -219,12 +186,21 @@ export default function ProductDetailPage() {
                         <TableCell>
                           {spec.value.includes(',') ? (
                             <div className="flex flex-wrap gap-1">
-                              {spec.value.split(',').map(v => v.trim()).map(val => (
-                                <Badge key={val} variant="secondary">{val}</Badge>
-                              ))}
+                              {spec.value
+                                .split(',')
+                                .map((v) => v.trim())
+                                .map((val) => (
+                                  <Badge key={val} variant="secondary">
+                                    {val}
+                                  </Badge>
+                                ))}
                             </div>
+                          ) : spec.value === 'true' ? (
+                            'Yes'
+                          ) : spec.value === 'false' ? (
+                            'No'
                           ) : (
-                            spec.value === 'true' ? 'Yes' : spec.value === 'false' ? 'No' : spec.value
+                            spec.value
                           )}
                         </TableCell>
                       </TableRow>
@@ -237,146 +213,54 @@ export default function ProductDetailPage() {
         </div>
 
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-3xl">{product.title}</CardTitle>
-               <CardDescription className="pt-2">
-                 <p className="text-3xl font-bold text-primary">
-                  {formattedPrice}
-                </p>
-                 <p className="text-sm text-muted-foreground mt-1">per {product.moqUnit}</p>
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="space-y-2 text-sm">
-                   <div className="flex items-center text-muted-foreground">
-                      <Tag className="mr-2 h-4 w-4" />
-                      Minimum Order: <span className="font-semibold text-foreground ml-1">{product.moq} {product.moqUnit}</span>
-                   </div>
-                   <div className="flex items-center text-muted-foreground">
-                      <Package className="mr-2 h-4 w-4" />
-                      Availability: 
-                      <Badge 
-                        variant={product.stockAvailability === 'in_stock' ? 'default' : 'secondary'} 
-                        className="ml-1"
-                      >
-                        {getStockLabel(product.stockAvailability)}
-                      </Badge>
-                   </div>
-                   <div className="flex items-center text-muted-foreground">
-                      <Clock className="mr-2 h-4 w-4" />
-                      Lead Time: <span className="font-semibold text-foreground ml-1">{product.leadTime}</span>
-                   </div>
-                   <div className="flex items-center text-muted-foreground">
-                      <Globe className="mr-2 h-4 w-4" />
-                      Country of Origin: <span className="font-semibold text-foreground ml-1">{product.countryOfOrigin}</span>
-                   </div>
-                   {product.sku && (
-                    <div className="flex items-center text-muted-foreground">
-                        SKU: <span className="font-semibold text-foreground ml-1">{product.sku}</span>
-                    </div>
-                   )}
-                </div>
-
-              <Separator />
-
-              <p className="text-muted-foreground whitespace-pre-wrap">
-                {product.description}
-              </p>
-            </CardContent>
-          </Card>
-
-          {seller && (
-            <Card>
-              <CardHeader className="flex flex-row items-center gap-4 space-y-0">
-                <Avatar className="h-12 w-12 border">
-                  <AvatarImage src={seller.avatar} alt={seller.name} />
-                  <AvatarFallback>{seller.name.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <CardTitle className="text-base">Sold By</CardTitle>
-                  <CardDescription>
-                    <Link href={`/sellers/${seller.id}`} className="text-lg font-semibold text-foreground hover:underline">
-                      {seller.name}
-                    </Link>
-                     {isFeaturedSeller && (
-                        <Badge variant="secondary" className="ml-2 border-yellow-600/50 text-yellow-700">
-                            <Gem className="h-3 w-3 mr-1" />
-                            Featured Seller
-                        </Badge>
-                    )}
-                     {seller.verificationStatus === 'verified' && (
-                        <Badge variant="secondary" className="ml-2 border-green-600/50 text-green-700">
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                            Verified Seller
-                        </Badge>
-                    )}
-                  </CardDescription>
-                </div>
-              </CardHeader>
-              <CardContent>
-                 <RequestQuoteDialog product={product} seller={seller} />
-              </CardContent>
-            </Card>
-          )}
+            <ProductDetailsClient
+              product={product}
+              seller={seller}
+            />
         </div>
       </div>
-      
-       <Card>
+
+      <Card>
         <CardHeader>
-            <CardTitle>Questions &amp; Answers</CardTitle>
+          <CardTitle>Questions &amp; Answers</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-            <QuestionForm
-                productId={product.id}
-                onQuestionSubmitted={onQuestionSubmitted}
-            />
-            <Separator />
-            <div className="space-y-4">
-                {questions.length > 0 ? (
-                    questions.map(q => 
-                        <QuestionItem 
-                            key={q.id} 
-                            question={q} 
-                            onAnswerSubmitted={onAnswerSubmitted}
-                            currentSellerId={product.sellerId}
-                        />)
-                ) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">No questions have been asked yet. Be the first!</p>
-                )}
-            </div>
+          <ProductDetailsClient.QuestionArea
+            initialQuestions={questions}
+            product={product}
+          />
         </CardContent>
       </Card>
-      
-      {sellerProducts.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>More Products From This Seller</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {sellerProducts.map((p) => (
-                  <ProductCard key={p.id} product={p} />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
-        {similarProducts.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Similar Products in This Category</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {similarProducts.map((p) => (
-                  <ProductCard key={p.id} product={p} />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+      {sellerProducts.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>More Products From This Seller</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {sellerProducts.map((p) => (
+                <ProductCard key={p.id} product={p} />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {similarProducts.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Similar Products in This Category</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {similarProducts.map((p) => (
+                <ProductCard key={p.id} product={p} />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
