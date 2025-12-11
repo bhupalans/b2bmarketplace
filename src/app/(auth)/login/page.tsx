@@ -8,7 +8,7 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import Link from "next/link";
-import { Building } from "lucide-react";
+import Image from "next/image";
 import { getBrandingSettings } from "@/lib/database";
 
 export default async function LoginPage() {
@@ -19,7 +19,8 @@ export default async function LoginPage() {
     <Card className="w-full max-w-sm">
       <CardHeader className="space-y-1 text-center">
         <div className="flex justify-center">
-          <Building className="h-8 w-8 text-primary" />
+          {/* <Building className="h-8 w-8 text-primary" /> */}
+          <Image src="/Veloglobal.png" alt="Company Logo" width={48} height={48} />
         </div>
         <CardTitle className="text-2xl">{companyName}</CardTitle>
         <CardDescription>Welcome back! Sign in to your account.</CardDescription>

@@ -1,3 +1,4 @@
+
 import { UserAuthForm } from "@/components/user-auth-form";
 import {
   Card,
@@ -7,14 +8,15 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import Link from "next/link";
-import { Building } from "lucide-react";
+import Image from "next/image";
 
 export default function SignupPage() {
   return (
     <Card className="w-full max-w-sm">
       <CardHeader className="space-y-1 text-center">
         <div className="flex justify-center">
-          <Building className="h-8 w-8 text-primary" />
+          {/* <Building className="h-8 w-8 text-primary" /> */}
+          <Image src="/Veloglobal.png" alt="Company Logo" width={48} height={48} />
         </div>
         <CardTitle className="text-2xl">Create an account</CardTitle>
         <CardDescription>
