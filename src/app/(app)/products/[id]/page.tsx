@@ -111,7 +111,50 @@ export default async function ProductDetailPage({ params }: Props) {
     
   const isFeaturedSeller = seller?.subscriptionPlan?.isFeatured && seller?.subscriptionExpiryDate && new Date(seller.subscriptionExpiryDate) > new Date();
 
+  const getAvailability = () => {
+    switch (product.stockAvailability) {
+      case 'in_stock':
+        return 'https://schema.org/InStock';
+      case 'out_of_stock':
+        return 'https://schema.org/OutOfStock';
+      case 'made_to_order':
+        return 'https://schema.org/InStock'; // Made to order implies it can be supplied
+      default:
+        return undefined;
+    }
+  };
+
+
+  const productSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.title,
+    description: product.description,
+    image: product.images[0],
+    sku: product.sku,
+    brand: {
+        '@type': 'Brand',
+        name: seller?.companyName || seller?.name
+    },
+    offers: {
+        '@type': 'Offer',
+        price: product.price.baseAmount,
+        priceCurrency: product.price.baseCurrency,
+        availability: getAvailability(),
+        seller: {
+            '@type': 'Organization',
+            name: seller?.companyName || seller?.name
+        }
+    }
+  };
+
+
   return (
+    <>
+    <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
+    />
     <div className="mx-auto max-w-4xl space-y-8">
       <Breadcrumb>
         <BreadcrumbList>
@@ -263,5 +306,6 @@ export default async function ProductDetailPage({ params }: Props) {
         </Card>
       )}
     </div>
+    </>
   );
 }
