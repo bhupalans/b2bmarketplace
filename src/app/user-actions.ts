@@ -55,15 +55,18 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
 
     // --- Verification Logic ---
     // This logic determines if a re-verification is needed.
-    const requiresReverification = (
-        originalUser.address?.country !== data.address?.country ||
-        originalUser.companyName !== data.companyName ||
-        !areDetailsEqual(originalUser.verificationDetails, data.verificationDetails)
-    );
+    // CRITICAL FIX: Only trigger re-verification if the user is currently 'verified'.
+    if (originalUser.verificationStatus === 'verified') {
+        const requiresReverification = (
+            originalUser.address?.country !== data.address?.country ||
+            originalUser.companyName !== data.companyName ||
+            !areDetailsEqual(originalUser.verificationDetails, data.verificationDetails)
+        );
 
-    if (requiresReverification) {
-        dataToUpdate.verificationStatus = 'pending';
-        dataToUpdate.verified = false;
+        if (requiresReverification) {
+            dataToUpdate.verificationStatus = 'pending';
+            dataToUpdate.verified = false;
+        }
     }
     
     // Always update verificationDetails, as they are part of the form.
