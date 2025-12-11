@@ -10,6 +10,8 @@ import { getUser } from "@/lib/database";
 import { CURRENCY_MAP } from "@/lib/geography-data";
 import { parse } from 'accept-language-parser';
 
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://b2btest.veloglobal.in';
+
 async function getDefaultCurrency(): Promise<string> {
     try {
         // 1. Check for logged-in user's profile setting (highest priority)
@@ -55,6 +57,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const branding = await getBrandingSettings();
   const companyName = branding.companyName || "B2B Marketplace";
   const subhead = branding.subhead || "Connect with verified suppliers and source products globally.";
+  const logoUrl = `${BASE_URL}/Veloglobal.png`;
   
   return {
     title: {
@@ -62,6 +65,22 @@ export async function generateMetadata(): Promise<Metadata> {
       template: `%s | ${companyName}`,
     },
     description: subhead,
+    openGraph: {
+      title: `${companyName} - The Global B2B Sourcing Platform`,
+      description: subhead,
+      url: BASE_URL,
+      siteName: companyName,
+      images: [
+        {
+          url: logoUrl,
+          width: 48,
+          height: 48,
+          alt: `${companyName} Logo`,
+        },
+      ],
+      locale: 'en_US',
+      type: 'website',
+    },
   };
 }
 
