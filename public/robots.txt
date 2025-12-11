@@ -16,5 +16,5 @@ Disallow: /buyer-actions
 Disallow: /seller-actions
 
 # Add your production domain here
-Sitemap: https://your-custom-domain.com/sitemap.xml
+Sitemap: https://b2btest.veloglobal.in/sitemap.xml
 Sitemap: https://b2b-marketplace-udg1v.web.app/sitemap.xml
