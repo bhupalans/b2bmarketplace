@@ -213,8 +213,8 @@ export default function SubscriptionPage() {
                                     <>
                                         <PlanFeature>{formatLimit(plan.sourcingRequestLimit)} Sourcing Requests</PlanFeature>
                                         {plan.price > 0
-                                            ? <PlanFeature>Receive direct quotes from sellers</PlanFeature>
-                                            : <PlanFeature>Receive quotes via product pages</PlanFeature>
+                                            ? <PlanFeature>Interact directly with Sellers</PlanFeature>
+                                            : <PlanFeature>Respond to Inquiries</PlanFeature>
                                         }
                                     </>
                                 )}

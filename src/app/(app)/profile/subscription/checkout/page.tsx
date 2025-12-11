@@ -128,6 +128,7 @@ function CheckoutPageContent() {
             return (
                 <>
                     <PlanFeature>{formatLimit(plan.productLimit)} Product Listings</PlanFeature>
+                    <PlanFeature>Initiate conversations with buyers</PlanFeature>
                     <PlanFeature>{plan.hasAnalytics ? 'Seller Analytics Dashboard' : 'Basic Analytics'}</PlanFeature>
                 </>
             );
@@ -136,6 +137,7 @@ function CheckoutPageContent() {
              return (
                 <>
                     <PlanFeature>{formatLimit(plan.sourcingRequestLimit)} Sourcing Requests</PlanFeature>
+                    <PlanFeature>Interact directly with Sellers</PlanFeature>
                     <PlanFeature>{plan.hasAnalytics ? 'Buyer Analytics Dashboard' : 'Basic Analytics'}</PlanFeature>
                 </>
             );
@@ -143,7 +145,7 @@ function CheckoutPageContent() {
         return null;
     }
 
-    const regionalPrice = user.address?.country ? plan.pricing?.find(p => p.country === user.address?.country) : undefined;
+    const regionalPrice = user.address?.country ? plan.pricing?.find(p => p.country === user.address.country) : undefined;
     const displayPrice = regionalPrice ? regionalPrice.price : plan.price;
     const displayCurrency = regionalPrice ? regionalPrice.currency : plan.currency;
     const formattedTotalPrice = new Intl.NumberFormat('en-US', {
