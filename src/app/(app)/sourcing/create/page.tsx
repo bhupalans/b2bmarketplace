@@ -71,6 +71,10 @@ function CreateSourcingRequestForm() {
   const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
   const [loadingInitialData, setLoadingInitialData] = useState(true);
 
+  const [selectedParentCategory, setSelectedParentCategory] = useState<string | null>(null);
+  const [parentCategories, setParentCategories] = useState<Category[]>([]);
+  const [subCategories, setSubCategories] = useState<Category[]>([]);
+
   const isEditMode = !!requestId;
 
   const form = useForm<SourcingRequestFormData>({
@@ -87,6 +91,14 @@ function CreateSourcingRequestForm() {
   });
 
   useEffect(() => {
+    if (selectedParentCategory) {
+        setSubCategories(categories.filter(c => c.parentId === selectedParentCategory));
+    } else {
+        setSubCategories([]);
+    }
+  }, [selectedParentCategory, categories]);
+
+  useEffect(() => {
     if (!user) return;
 
     async function fetchData() {
@@ -97,6 +109,7 @@ function CreateSourcingRequestForm() {
                 getSubscriptionPlansClient(),
             ]);
             setCategories(cats);
+            setParentCategories(cats.filter(c => !c.parentId));
             setSourcingRequests(reqs);
             setSubscriptionPlans(plans);
 
@@ -106,6 +119,11 @@ function CreateSourcingRequestForm() {
                     const expiresAt = new Date(requestToEdit.expiresAt as string);
                     const createdAt = new Date(requestToEdit.createdAt as string);
                     const expiresInDays = differenceInDays(expiresAt, createdAt);
+
+                    const productCategory = cats.find(c => c.id === requestToEdit.categoryId);
+                    if (productCategory?.parentId) {
+                        setSelectedParentCategory(productCategory.parentId);
+                    }
 
                     form.reset({
                         ...requestToEdit,
@@ -154,6 +172,11 @@ function CreateSourcingRequestForm() {
     return { limit: effectiveLimit, canPost: canPostResult };
 
   }, [user, sourcingRequests, subscriptionPlans, isEditMode]);
+
+  const handleParentCategoryChange = (parentId: string) => {
+    setSelectedParentCategory(parentId);
+    form.setValue('categoryId', ''); // Reset sub-category when parent changes
+  };
 
   const onSubmit = (values: SourcingRequestFormData) => {
     if (!user || user.role !== 'buyer') {
@@ -254,28 +277,45 @@ function CreateSourcingRequestForm() {
                     )}
                 />
 
-                <FormField
-                    control={form.control}
-                    name="categoryId"
-                    render={({ field }) => (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormItem>
                         <FormLabel>Category</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
+                        <Select onValueChange={handleParentCategoryChange} value={selectedParentCategory ?? ''}>
+                            <FormControl>
                             <SelectTrigger>
-                            <SelectValue placeholder="Select the most relevant product category" />
+                                <SelectValue placeholder="Select a main category" />
                             </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                            {categories.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                            </FormControl>
+                            <SelectContent>
+                            {parentCategories.map((c) => (
+                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                             ))}
-                        </SelectContent>
+                            </SelectContent>
                         </Select>
-                        <FormMessage />
                     </FormItem>
-                    )}
-                />
+                    <FormField
+                        control={form.control}
+                        name="categoryId"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Sub-category</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value} disabled={!selectedParentCategory}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select a sub-category" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {subCategories.map((c) => (
+                                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                </div>
 
                 <FormField
                     control={form.control}
@@ -392,3 +432,5 @@ export default function CreateSourcingRequestPage() {
         </Suspense>
     )
 }
+
+    
