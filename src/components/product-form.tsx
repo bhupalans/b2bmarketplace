@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "./ui/button";
-import { Loader2, Trash2, UploadCloud } from "lucide-react";
+import { Loader2, Trash2, UploadCloud, Sparkles } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -45,6 +45,7 @@ import { Switch } from "./ui/switch";
 import { Checkbox } from "./ui/checkbox";
 import { countries } from "@/lib/geography-data";
 import { useCurrency } from "@/contexts/currency-context";
+import { enhanceProductDescriptionAction } from "@/app/seller-actions";
 
 const MAX_IMAGES = 5;
 
@@ -98,6 +99,7 @@ type ProductFormDialogProps = {
 const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, categories, specTemplates }: ProductFormDialogProps) => {
   const { toast } = useToast();
   const [isSaving, startSavingTransition] = useTransition();
+  const [isEnhancing, startEnhancingTransition] = useTransition();
   const { firebaseUser } = useAuth();
   const { currency, rates } = useCurrency();
   
@@ -262,6 +264,30 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
     }
   }, [watchedNewImageFiles]);
   
+  const handleEnhanceDescription = () => {
+    const title = form.getValues('title');
+    const description = form.getValues('description');
+
+    if (!title || !description) {
+      toast({
+        variant: 'destructive',
+        title: 'Missing Information',
+        description: 'Please provide a title and a basic description before enhancing with AI.',
+      });
+      return;
+    }
+
+    startEnhancingTransition(async () => {
+      const result = await enhanceProductDescriptionAction(title, description);
+      if (result.success) {
+        form.setValue('description', result.enhancedDescription, { shouldValidate: true, shouldDirty: true });
+        toast({ title: 'Description Enhanced!', description: 'The product description has been updated with AI.' });
+      } else {
+        toast({ variant: 'destructive', title: 'Enhancement Failed', description: result.error });
+      }
+    });
+  };
+
   const onSubmit = (values: ProductFormData) => {
     startSavingTransition(async () => {
       if (!firebaseUser || !firebaseUser.uid) {
@@ -367,9 +393,15 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
                     name="description"
                     render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Product Description</FormLabel>
+                        <div className="flex items-center justify-between">
+                            <FormLabel>Product Description</FormLabel>
+                            <Button type="button" variant="outline" size="sm" onClick={handleEnhanceDescription} disabled={isEnhancing}>
+                                {isEnhancing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Sparkles className="mr-2 h-4 w-4"/>}
+                                Enhance with AI
+                            </Button>
+                        </div>
                         <FormControl>
-                        <Textarea placeholder="Describe your product in detail..." {...field} value={field.value ?? ''} />
+                        <Textarea placeholder="Describe your product in detail..." {...field} value={field.value ?? ''} rows={8} />
                         </FormControl>
                         <FormMessage />
                     </FormItem>

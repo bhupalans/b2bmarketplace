@@ -4,6 +4,7 @@
 import { adminDb } from '@/lib/firebase-admin';
 import { Offer, Product } from '@/lib/types';
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
+import { enhanceProductDescription as enhanceDescriptionFlow } from '@/ai/flows/enhance-product-description-flow';
 
 // A simplified, server-side rates object. In a real-world app, this would be
 // fetched periodically and cached from an API.
@@ -84,4 +85,20 @@ async function getSellerProducts(sellerId: string): Promise<any[]> {
         };
         return { id: doc.id, ...serializableData };
     });
+}
+
+export async function enhanceProductDescriptionAction(
+  title: string,
+  description: string
+): Promise<{ success: true; enhancedDescription: string } | { success: false; error: string }> {
+  if (!title || !description) {
+    return { success: false, error: 'Product title and description are required.' };
+  }
+  try {
+    const result = await enhanceDescriptionFlow({ title, description });
+    return { success: true, enhancedDescription: result.enhancedDescription };
+  } catch (error: any) {
+    console.error('AI description enhancement failed:', error);
+    return { success: false, error: 'Failed to generate a new description from AI.' };
+  }
 }
