@@ -125,7 +125,7 @@ export function ProductDetailsClient({ product, seller }: ProductDetailsClientPr
   );
 }
 
-function QuestionArea({ initialQuestions, product }: { initialQuestions: Question[], product: Product }) {
+export function QuestionArea({ initialQuestions, product }: { initialQuestions: Question[], product: Product }) {
   const [questions, setQuestions] = useState(initialQuestions);
   const { user } = useAuth();
 
@@ -165,5 +165,3 @@ function QuestionArea({ initialQuestions, product }: { initialQuestions: Questio
     </>
   );
 }
-
-ProductDetailsClient.QuestionArea = QuestionArea;

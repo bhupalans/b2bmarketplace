@@ -1,3 +1,4 @@
+
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -42,7 +43,7 @@ import { CheckCircle, Globe, Package, Clock, Tag, Gem } from 'lucide-react';
 import { RequestQuoteDialog } from '@/components/request-quote-dialog';
 import { Separator } from '@/components/ui/separator';
 import { ProductCard } from '@/components/product-card';
-import { ProductDetailsClient } from './product-details-client';
+import { ProductDetailsClient, QuestionArea } from './product-details-client';
 import { Metadata, ResolvingMetadata } from 'next';
 
 type Props = {
@@ -225,7 +226,7 @@ export default async function ProductDetailPage({ params }: Props) {
           <CardTitle>Questions &amp; Answers</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          <ProductDetailsClient.QuestionArea
+          <QuestionArea
             initialQuestions={questions}
             product={product}
           />
