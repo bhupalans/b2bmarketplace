@@ -13,9 +13,12 @@ import { add } from 'date-fns';
 import { createSubscriptionInvoice } from '@/services/invoicing';
 import { getPlanAndUser } from '@/lib/database';
 
-type ProfileUpdateData = Omit<User, 'id' | 'uid' | 'email' | 'role' | 'avatar' | 'memberSince' | 'username' | 'subscriptionPlan'>;
+type ProfileUpdateData = Omit<User, 'id' | 'uid' | 'email' | 'role' | 'avatar' | 'memberSince' | 'username' | 'subscriptionPlan'> & {
+    newAvatarFile?: File;
+};
 
-export async function updateUserProfile(userId: string, data: ProfileUpdateData): Promise<{ success: true; user: User } | { success: false; error: string }> {
+
+export async function updateUserProfile(userId: string, data: ProfileUpdateData, newAvatarFile?: File): Promise<{ success: true; user: User } | { success: false; error: string }> {
   // AGGRESSIVE VALIDATION
   if (!userId || typeof userId !== 'string' || userId.trim() === '') {
     const errorMsg = `Critical Error: User ID is missing or invalid. Cannot update profile. Received: '${userId}'`;
@@ -50,12 +53,35 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
         shippingAddress: data.shippingAddress || null,
         billingAddress: data.billingAddress || null,
         billingSameAsShipping: data.billingSameAsShipping || false,
+        verificationDetails: data.verificationDetails || {},
         updatedAt: new Date().toISOString(),
     };
 
+    if (newAvatarFile) {
+        const bucket = adminStorage.bucket();
+        // Overwrite the user's previous avatar to save space
+        const filePath = `avatars/${userId}/avatar.png`;
+        const buffer = Buffer.from(await newAvatarFile.arrayBuffer());
+        
+        await bucket.file(filePath).save(buffer, {
+            metadata: { contentType: newAvatarFile.type }
+        });
+
+        // Make the file publicly readable
+        await bucket.file(filePath).makePublic();
+
+        // Construct the public URL
+        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+        dataToUpdate.avatar = publicUrl;
+    }
+
     // --- Verification Logic ---
-    // This logic determines if a re-verification is needed.
+    // Start with the existing verification status.
+    dataToUpdate.verificationStatus = originalUser.verificationStatus || 'unverified';
+    dataToUpdate.verified = originalUser.verified || false;
+
     // CRITICAL FIX: Only trigger re-verification if the user is currently 'verified'.
+    // If they are 'pending' or 'rejected', edits should not change this status automatically.
     if (originalUser.verificationStatus === 'verified') {
         const requiresReverification = (
             originalUser.address?.country !== data.address?.country ||
@@ -69,9 +95,6 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
         }
     }
     
-    // Always update verificationDetails, as they are part of the form.
-    dataToUpdate.verificationDetails = data.verificationDetails || {};
-
     await userRef.update(dataToUpdate);
     
     const updatedUserSnap = await userRef.get();
