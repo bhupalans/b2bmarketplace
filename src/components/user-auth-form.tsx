@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import Link from "next/link";
 
 interface UserAuthFormProps extends React.HTMLAttributes<HTMLDivElement> {
   mode: "login" | "signup";
@@ -222,7 +223,17 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
             name="password"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Password</FormLabel>
+                <div className="flex items-center justify-between">
+                  <FormLabel>Password</FormLabel>
+                  {mode === 'login' && (
+                    <Link
+                      href="/forgot-password"
+                      className="text-sm font-medium text-muted-foreground hover:text-primary"
+                    >
+                      Forgot password?
+                    </Link>
+                  )}
+                </div>
                 <FormControl>
                   <Input
                     type="password"
