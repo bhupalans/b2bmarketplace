@@ -4,7 +4,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building, Home, PanelLeft, Loader2, LayoutDashboard, Package, Shield, FileText, FolderTree, MessageSquare, Handshake, Gem, List, ShieldCheck, Bug, Receipt } from "lucide-react";
+import { Building, Home, PanelLeft, Loader2, LayoutDashboard, Package, Shield, FileText, FolderTree, MessageSquare, Handshake, Gem, List, ShieldCheck, Bug, Receipt, MailWarning } from "lucide-react";
 import {
   SidebarProvider,
   Sidebar,
@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/button";
 import { UserNav } from "@/components/user-nav";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   Collapsible,
   CollapsibleContent,
@@ -36,6 +36,52 @@ import { AppFooter } from "@/components/app-footer";
 import { CurrencySwitcher } from "@/components/currency-switcher";
 import { streamConversations } from "@/lib/firebase";
 import { Conversation } from "@/lib/types";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
+import { sendEmailVerification } from "firebase/auth";
+
+function EmailVerificationBanner() {
+  const { firebaseUser } = useAuth();
+  const [isSending, startResendTransition] = useTransition();
+  const { toast } = useToast();
+
+  const handleResend = () => {
+    if (!firebaseUser) return;
+
+    startResendTransition(async () => {
+      try {
+        await sendEmailVerification(firebaseUser);
+        toast({
+          title: "Verification Email Sent",
+          description: "Please check your inbox (and spam folder).",
+        });
+      } catch (error) {
+        console.error("Failed to resend verification email:", error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Could not send verification email. Please try again later.",
+        });
+      }
+    });
+  };
+
+  if (firebaseUser?.emailVerified) {
+    return null;
+  }
+  
+  return (
+      <Alert className="rounded-none border-x-0 border-t-0 border-b border-yellow-300 bg-yellow-100/80 text-yellow-900 dark:border-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-100 [&>svg]:text-yellow-600 dark:[&>svg]:text-yellow-300">
+        <MailWarning className="h-4 w-4" />
+        <AlertDescription className="flex items-center justify-between">
+          <span>Please verify your email address to get full access.</span>
+          <Button variant="link" onClick={handleResend} disabled={isSending} className="text-yellow-900 dark:text-yellow-100 h-auto p-0">
+             {isSending ? <Loader2 className="h-4 w-4 animate-spin"/> : 'Resend Email'}
+          </Button>
+        </AlertDescription>
+      </Alert>
+  )
+}
 
 export function AppLayoutClient({ 
   children,
@@ -401,6 +447,7 @@ export function AppLayoutClient({
                 <UserNav />
               </div>
             </header>
+            {firebaseUser && <EmailVerificationBanner />}
             <main className="flex-1 p-4 sm:p-6">{children}</main>
             <AppFooter companyName={companyName} />
         </div>
@@ -408,3 +455,5 @@ export function AppLayoutClient({
     </SidebarProvider>
   );
 }
+
+    

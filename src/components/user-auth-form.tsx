@@ -8,6 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import {
   createUserWithEmailAndPassword,
+  sendEmailVerification,
   signInWithEmailAndPassword,
 } from "firebase/auth";
 import { doc, setDoc, Timestamp } from "firebase/firestore";
@@ -118,9 +119,11 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
 
         await setDoc(doc(db, "users", user.uid), userProfile);
         
+        await sendEmailVerification(user);
+        
         toast({
           title: "Account Created",
-          description: "You have been successfully signed up.",
+          description: "Please check your inbox to verify your email address.",
         });
         
       } else { // Login mode
@@ -355,3 +358,5 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
     </div>
   );
 }
+
+    

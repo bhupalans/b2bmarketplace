@@ -324,3 +324,5 @@ export type AppNotification = {
   read: boolean;
   createdAt: string;
 };
+
+    
