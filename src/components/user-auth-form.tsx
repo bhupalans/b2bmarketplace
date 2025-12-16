@@ -90,7 +90,7 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
           name: signupValues.name,
           email: signupValues.email,
           role: signupValues.role,
-          avatar: `https://i.pravatar.cc/150?u=${user.uid}`,
+          avatar: '', // Set avatar to empty string instead of random URL
           username: signupValues.name.toLowerCase().replace(/\s+/g, '') + Math.floor(Math.random() * 1000),
           verificationStatus: 'unverified',
           createdAt: new Date().toISOString(),

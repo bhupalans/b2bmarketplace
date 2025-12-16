@@ -5,7 +5,7 @@ import React, { useTransition, useEffect, useState, useMemo } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { User, VerificationTemplate, SubscriptionPlan } from "@/lib/types";
+import { User, VerificationTemplate } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Form,

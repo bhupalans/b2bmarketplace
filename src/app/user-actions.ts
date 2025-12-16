@@ -13,12 +13,10 @@ import { add } from 'date-fns';
 import { createSubscriptionInvoice } from '@/services/invoicing';
 import { getPlanAndUser } from '@/lib/database';
 
-type ProfileUpdateData = Omit<User, 'id' | 'uid' | 'email' | 'role' | 'avatar' | 'memberSince' | 'username' | 'subscriptionPlan'> & {
-    newAvatarFile?: File;
-};
+type ProfileUpdateData = Omit<User, 'id' | 'uid' | 'email' | 'role' | 'avatar' | 'memberSince' | 'username' | 'subscriptionPlan'>;
 
 
-export async function updateUserProfile(userId: string, data: ProfileUpdateData, newAvatarFile?: File): Promise<{ success: true; user: User } | { success: false; error: string }> {
+export async function updateUserProfile(userId: string, data: ProfileUpdateData): Promise<{ success: true; user: User } | { success: false; error: string }> {
   // AGGRESSIVE VALIDATION
   if (!userId || typeof userId !== 'string' || userId.trim() === '') {
     const errorMsg = `Critical Error: User ID is missing or invalid. Cannot update profile. Received: '${userId}'`;
@@ -56,24 +54,6 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData,
         verificationDetails: data.verificationDetails || {},
         updatedAt: new Date().toISOString(),
     };
-
-    if (newAvatarFile) {
-        const bucket = adminStorage.bucket();
-        // Overwrite the user's previous avatar to save space
-        const filePath = `avatars/${userId}/avatar.png`;
-        const buffer = Buffer.from(await newAvatarFile.arrayBuffer());
-        
-        await bucket.file(filePath).save(buffer, {
-            metadata: { contentType: newAvatarFile.type }
-        });
-
-        // Make the file publicly readable
-        await bucket.file(filePath).makePublic();
-
-        // Construct the public URL
-        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
-        dataToUpdate.avatar = publicUrl;
-    }
 
     // --- Verification Logic ---
     // Start with the existing verification status.
