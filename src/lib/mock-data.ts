@@ -9,14 +9,12 @@ export const mockUsers: Record<string, User> = {
     id: 'user-1',
     name: 'Alice Buyer',
     email: 'alice@example.com',
-    avatar: 'https://i.pravatar.cc/150?u=user-1',
     role: 'buyer',
   },
   'user-2': {
     id: 'user-2',
     name: 'Bob\'s Manufacturing Co.',
     email: 'contact@bob-mfg.com',
-    avatar: 'https://i.pravatar.cc/150?u=user-2',
     role: 'seller',
     businessType: 'Manufacturer',
     location: 'Detroit, USA',
@@ -28,7 +26,6 @@ export const mockUsers: Record<string, User> = {
     id: 'user-3',
     name: 'Charlie Global Trading',
     email: 'sales@charlie-global.com',
-    avatar: 'https://i.pravatar.cc/150?u=user-3',
     role: 'seller',
     businessType: 'Trading Company',
     location: 'Singapore',
@@ -40,7 +37,6 @@ export const mockUsers: Record<string, User> = {
       id: 'system',
       name: 'System',
       email: '',
-      avatar: '',
       role: 'admin'
   }
 };
@@ -343,7 +339,7 @@ export const mockOffers: Record<string, Offer> = {
     id: 'offer-1',
     productId: 'prod-1',
     quantity: 500,
-    pricePerUnit: 1100,
+    price: { baseAmount: 1100, baseCurrency: 'USD' },
     notes: 'Bulk discount applied. Delivery within 14 business days.',
     status: 'pending',
     sellerId: 'user-2',

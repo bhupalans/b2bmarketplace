@@ -13,7 +13,7 @@ export type User = {
   name: string; // This can now be the person's name, or a fallback.
   email: string;
   username?: string;
-  avatar: string;
+  avatar?: string; // Avatar is now optional
   role: 'buyer' | 'seller' | 'admin';
   createdAt?: string;
   

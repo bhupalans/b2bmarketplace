@@ -41,7 +41,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               email: fbUser.email || 'no-email@provided.com',
               name: nameFromEmail,
               role: 'buyer',
-              avatar: `https://i.pravatar.cc/150?u=${fbUser.uid}`,
+              avatar: '', // No default avatar
               username: nameFromEmail + Math.floor(Math.random() * 1000),
               verificationStatus: 'unverified',
               createdAt: Timestamp.now().toDate().toISOString(),

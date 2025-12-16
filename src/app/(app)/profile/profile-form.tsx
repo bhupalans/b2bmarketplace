@@ -73,8 +73,6 @@ const baseProfileSchema = z.object({
   businessType: z.enum(["Manufacturer", "Distributor", "Trading Company", "Agent"]).optional(),
   exportScope: z.array(z.string()).optional(),
   verificationDetails: z.record(z.string()).optional(),
-  // This is added to represent the full user object but will be stripped out before submission
-  subscriptionPlan: z.custom<SubscriptionPlan>().optional(),
 });
 
 
@@ -226,12 +224,24 @@ export function ProfileForm({ user }: ProfileFormProps) {
       useMemo(() => {
         return baseProfileSchema.superRefine((data, ctx) => {
             if (user.role === 'seller') {
-                if (!data.companyName) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Company name is required.", path: ['companyName']});
-                if (!data.phoneNumber) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Business phone number is required.", path: ['phoneNumber']});
-                if (!data.companyDescription || data.companyDescription.length < 10) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Company description must be at least 10 characters.", path: ['companyDescription']});
-                if (!data.taxId) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Tax ID / VAT number is required.", path: ['taxId']});
-                if (!data.businessType) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "You must select a business type.", path: ['businessType']});
-                if (!data.exportScope || data.exportScope.length === 0) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Please select at least one export scope.", path: ['exportScope']});
+                if (!data.companyName || data.companyName.trim().length === 0) {
+                    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Company name is required.", path: ['companyName']});
+                }
+                if (!data.phoneNumber || data.phoneNumber.trim().length === 0) {
+                    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Business phone number is required.", path: ['phoneNumber']});
+                }
+                if (!data.companyDescription || data.companyDescription.trim().length < 10) {
+                    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Company description must be at least 10 characters.", path: ['companyDescription']});
+                }
+                if (!data.taxId || data.taxId.trim().length === 0) {
+                    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Tax ID / VAT number is required.", path: ['taxId']});
+                }
+                if (!data.businessType) {
+                    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "You must select a business type.", path: ['businessType']});
+                }
+                if (!data.exportScope || data.exportScope.length === 0) {
+                    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Please select at least one export scope.", path: ['exportScope']});
+                }
             }
             if (user.role === 'buyer') {
                  if (!data.shippingAddress) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Shipping address is required.", path: ['shippingAddress'] });
@@ -248,7 +258,6 @@ export function ProfileForm({ user }: ProfileFormProps) {
                 if (field.required === 'always') {
                   isRequired = true;
                 } else if (field.required === 'international') {
-                  // The same scope field is used for both sellers and buyers now.
                   isRequired = data.exportScope?.includes('international') ?? false;
                 }
 
@@ -280,7 +289,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
       }, [user.role, activeTemplate])
     ),
     defaultValues: {
-      ...user, // This will spread all properties from the user object
+      ...user,
       name: user.name || "",
       companyName: user.companyName || "",
       phoneNumber: user.phoneNumber || "",
@@ -373,15 +382,11 @@ export function ProfileForm({ user }: ProfileFormProps) {
         return;
     }
     
-    // Create a clean copy of the data to send to the server
     const dataToSubmit: any = {...values};
 
     if (dataToSubmit.billingSameAsShipping) {
       dataToSubmit.billingAddress = dataToSubmit.shippingAddress;
     }
-
-    // CRITICAL FIX: Remove the complex subscriptionPlan object before sending
-    delete dataToSubmit.subscriptionPlan;
 
     startTransition(async () => {
       const result = await updateUserProfile(firebaseUser.uid, dataToSubmit);
@@ -870,4 +875,3 @@ export function ProfileForm({ user }: ProfileFormProps) {
     </Form>
   );
 }
-
