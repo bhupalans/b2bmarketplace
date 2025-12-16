@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,6 +42,7 @@ export function RequestQuoteDialog({ product, seller }: RequestQuoteDialogProps)
   const { user, firebaseUser, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -110,7 +111,7 @@ export function RequestQuoteDialog({ product, seller }: RequestQuoteDialogProps)
   if (!firebaseUser || user?.role !== 'buyer') {
     return (
       <Button asChild className="w-full">
-        <Link href="/login">Log in as Buyer to Request Quote</Link>
+        <Link href={`/login?redirect=${pathname}`}>Log in as Buyer to Request Quote</Link>
       </Button>
     );
   }

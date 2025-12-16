@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { addQuestionToProduct } from '@/lib/firebase';
 import { Question } from '@/lib/types';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 const questionSchema = z.object({
   text: z.string().min(10, 'Question must be at least 10 characters.').max(500, 'Question cannot exceed 500 characters.'),
@@ -29,6 +30,7 @@ interface QuestionFormProps {
 export function QuestionForm({ productId, onQuestionSubmitted }: QuestionFormProps) {
   const { user, firebaseUser } = useAuth();
   const { toast } = useToast();
+  const pathname = usePathname();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<QuestionFormData>({
@@ -63,7 +65,7 @@ export function QuestionForm({ productId, onQuestionSubmitted }: QuestionFormPro
   if (!user) {
     return (
         <div className="text-sm text-center text-muted-foreground p-4 border-dashed border-2 rounded-md">
-            <Link href="/login" className="text-primary font-semibold hover:underline">Log in as a buyer</Link> to ask a question.
+            <Link href={`/login?redirect=${pathname}`} className="text-primary font-semibold hover:underline">Log in as a buyer</Link> to ask a question.
         </div>
     );
   }

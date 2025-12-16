@@ -112,8 +112,8 @@ export function AppLayoutClient({
   useEffect(() => {
     if (loading) return; // Wait until authentication status is resolved
 
-    const authRoutes = ['/login', '/signup', '/seed-database'];
-    if (firebaseUser && authRoutes.includes(pathname)) {
+    const authRoutes = ['/login', '/signup', '/seed-database', '/forgot-password'];
+    if (firebaseUser && authRoutes.some(p => pathname.startsWith(p))) {
         router.push('/');
         return;
     }
@@ -143,8 +143,9 @@ export function AppLayoutClient({
     // If a route requires authentication (has a role assigned)
     if (requiredRole) {
         if (!firebaseUser) {
-            // If user is not logged in, redirect to login
-            router.push('/login');
+            // If user is not logged in, redirect to login with a redirect parameter
+            const redirectUrl = `/login?redirect=${encodeURIComponent(pathname)}`;
+            router.push(redirectUrl);
             return;
         }
         
@@ -455,5 +456,3 @@ export function AppLayoutClient({
     </SidebarProvider>
   );
 }
-
-    

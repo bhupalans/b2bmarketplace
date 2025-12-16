@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -68,6 +68,8 @@ const signupSchema = z.object({
 
 export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get("redirect");
   const { toast } = useToast();
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
 
@@ -112,7 +114,7 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
           companyName: signupValues.companyName,
           email: signupValues.email,
           role: signupValues.role,
-          avatar: '', // Set avatar to empty string instead of random URL
+          avatar: '',
           verificationStatus: 'unverified',
           createdAt: new Date().toISOString(),
         };
@@ -144,7 +146,7 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
           description: "You have successfully signed in.",
         });
       }
-      router.push("/");
+      router.push(redirectUrl || "/");
     } catch (error: any) {
       console.error("Authentication Error:", error.code, error.message);
       
@@ -358,5 +360,3 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
     </div>
   );
 }
-
-    
