@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -68,10 +68,20 @@ const signupSchema = z.object({
 
 export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const redirectUrl = searchParams.get("redirect");
   const { toast } = useToast();
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
+  const [redirectUrl, setRedirectUrl] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    // This runs only on the client, after the component mounts
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const redirect = params.get("redirect");
+      if (redirect) {
+        setRedirectUrl(redirect);
+      }
+    }
+  }, []);
 
   const form = useForm({
     resolver: zodResolver(mode === 'login' ? loginSchema : signupSchema),
