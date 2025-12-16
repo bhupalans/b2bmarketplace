@@ -36,6 +36,7 @@ import {
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
+import Image from "next/image";
 
 interface UserAuthFormProps extends React.HTMLAttributes<HTMLDivElement> {
   mode: "login" | "signup";
@@ -50,11 +51,17 @@ const loginSchema = z.object({
 
 const signupSchema = z.object({
   name: z.string().min(1, { message: "Full name is required."}),
+  username: z.string().min(3, { message: "Username must be at least 3 characters."}).regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores.'),
+  companyName: z.string().min(1, { message: "Company name is required." }),
   email: z.string().email({ message: "Please enter a valid email." }),
   password: z
     .string()
     .min(6, { message: "Password must be at least 6 characters." }),
+  confirmPassword: z.string(),
   role: z.enum(["buyer", "seller"]),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
 });
 
 
@@ -68,8 +75,11 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
     defaultValues: {
       loginId: "",
       name: "",
+      username: "",
+      companyName: "",
       email: "",
       password: "",
+      confirmPassword: "",
       role: "buyer",
     },
   });
@@ -79,6 +89,14 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
     try {
       if (mode === "signup") {
         const signupValues = values as z.infer<typeof signupSchema>;
+
+        const existingUser = await findUserByUsername(signupValues.username);
+        if (existingUser) {
+            form.setError("username", { type: "manual", message: "This username is already taken." });
+            setIsLoading(false);
+            return;
+        }
+
         const userCredential = await createUserWithEmailAndPassword(
           auth,
           signupValues.email,
@@ -89,10 +107,11 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
         const userProfile: Omit<User, "id"> = {
           uid: user.uid,
           name: signupValues.name,
+          username: signupValues.username.toLowerCase(),
+          companyName: signupValues.companyName,
           email: signupValues.email,
           role: signupValues.role,
           avatar: '', // Set avatar to empty string instead of random URL
-          username: signupValues.name.toLowerCase().replace(/\s+/g, '') + Math.floor(Math.random() * 1000),
           verificationStatus: 'unverified',
           createdAt: new Date().toISOString(),
         };
@@ -163,6 +182,40 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
                   <FormControl>
                     <Input
                       placeholder="e.g., Jane Doe"
+                      disabled={isLoading}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+             <FormField
+              control={form.control}
+              name="username"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Username</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="e.g., janedoe"
+                      disabled={isLoading}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="companyName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Company Name</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="e.g., Acme Inc."
                       disabled={isLoading}
                       {...field}
                     />
@@ -246,6 +299,26 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
               </FormItem>
             )}
           />
+           {mode === "signup" && (
+            <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Confirm Password</FormLabel>
+                    <FormControl>
+                    <Input
+                        type="password"
+                        placeholder="••••••••"
+                        disabled={isLoading}
+                        {...field}
+                    />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+           )}
           {mode === "signup" && (
             <FormField
               control={form.control}
