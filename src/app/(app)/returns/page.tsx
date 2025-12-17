@@ -10,23 +10,29 @@ export default function ReturnsPolicyPage() {
           <CardDescription>Last Updated: {new Date().toLocaleDateString()}</CardDescription>
         </CardHeader>
         <CardContent className="prose prose-lg dark:prose-invert">
-          <h2>1. General Policy</h2>
+          <h2>1. Scope of This Policy</h2>
           <p>
-            This is a placeholder for your Cancellation and Refund Policy. You must replace this content with your actual business policies. This text is for demonstration purposes only and carries no legal weight.
+            This policy outlines the general guidelines for cancellations and refunds on our B2B Marketplace. It is crucial to understand that our platform facilitates transactions between independent Buyers and Sellers.
           </p>
-          <h2>2. Subscription Services</h2>
+          <h2>2. Platform Subscription Fees</h2>
           <p>
-            This section should detail the terms of your subscription services. For example, subscriptions may be billed on a monthly or annual basis. You can cancel your subscription at any time from your account dashboard. Cancellations will take effect at the end of the current billing cycle.
+            This section applies to fees paid directly to our platform for subscription plans (e.g., Seller Pro, Buyer Premium).
           </p>
-          <h2>3. Refunds</h2>
+          <ul>
+            <li><strong>No Automatic Renewal:</strong> Our yearly subscription plans are for a fixed term and are paid via a one-time fee. They do not automatically renew.</li>
+            <li><strong>Cancellations:</strong> Since subscriptions do not auto-renew, no cancellation action is necessary. Your premium access will simply expire at the end of your paid term.</li>
+            <li><strong>Refunds:</strong> All subscription fees paid to the platform are final and non-refundable.</li>
+          </ul>
+          <h2>3. Transactions Between Buyers and Sellers</h2>
           <p>
-            Specify your refund policy. For instance, "We do not offer refunds for partial subscription periods or unused services. Once a payment is made, it is non-refundable." Or, you might offer a pro-rated refund under certain circumstances. Be clear and specific.
+            This section applies to the actual purchase of goods between users of the platform.
           </p>
-          <h2>4. Disputes Between Buyers and Sellers</h2>
-          <p>
-            As a B2B marketplace, transactions for goods occur directly between buyers and sellers. Our platform is not a party to these transactions. Therefore, all cancellations, returns, and refunds for products purchased must be handled directly between the buyer and the seller according to the seller's individual policies. We encourage both parties to communicate clearly and resolve any disputes amicably.
-          </p>
-          <h2>5. Changes to This Policy</h2>
+           <ul>
+            <li><strong>Seller's Responsibility:</strong> Each Seller is responsible for creating, communicating, and managing their own individual policy for order cancellations, returns, and refunds. This policy should be made clear to the Buyer before a transaction is completed.</li>
+            <li><strong>Buyer's Responsibility:</strong> Buyers are responsible for reading and understanding the Seller's specific policies before committing to a purchase.</li>
+            <li><strong>Disputes:</strong> Our platform is not a party to the transaction for goods. Therefore, all disputes regarding returns, cancellations, refunds, or product warranties must be resolved directly between the Buyer and the Seller. We do not mediate these disputes or process refunds on behalf of users.</li>
+          </ul>
+          <h2>4. Changes to This Policy</h2>
           <p>
             We reserve the right to modify this cancellation and refund policy at any time, so please review it frequently. Changes and clarifications will take effect immediately upon their posting on the website.
           </p>
