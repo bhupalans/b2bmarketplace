@@ -12,16 +12,16 @@ export default function ShippingPolicyPage() {
         <CardContent className="prose prose-lg dark:prose-invert">
           <h2>1. Marketplace Shipping Policy</h2>
           <p>
-            This is a placeholder Shipping Policy. Please note that our B2B Marketplace is a platform that connects buyers and sellers. We do not directly handle, ship, or take responsibility for the shipping of products.
+            Please note that our B2B Marketplace is a platform that connects buyers and sellers. We do not own, stock, handle, or ship any products listed on the site. All shipping and logistics are arranged and managed directly between the buyer and the seller.
           </p>
           <h2>2. Seller's Responsibility</h2>
           <p>
-            All shipping and logistics are the sole responsibility of the seller. Each seller is expected to define and display their own shipping policy on their product listings or seller profile. This should include, but is not limited to:
+            All sellers on our platform are responsible for defining and displaying their own shipping policy. When purchasing a product, it is the buyer's responsibility to review the seller's terms. A comprehensive shipping policy provided by a seller should include:
           </p>
           <ul>
             <li>Shipping methods offered (e.g., Sea Freight, Air Freight, Courier).</li>
             <li>Estimated lead and delivery times.</li>
-            <li>Shipping costs and who is responsible for them (e.g., FOB, CIF).</li>
+            <li>Shipping costs and who is responsible for them (e.g., FOB, CIF, DDP).</li>
             <li>Information on tracking and insurance.</li>
             <li>Policies regarding customs, duties, and taxes.</li>
           </ul>
