@@ -31,7 +31,7 @@ export default function TermsAndConditionsPage() {
             <strong>3.3. User Roles:</strong> The platform offers distinct "Buyer" and "Seller" roles. These roles have different permissions and capabilities. You agree to use the platform only in a manner consistent with your designated role.
           </p>
 
-          <h2>4. Seller and Buyer Verification</h2>
+          <h2>4. User Verification</h2>
           <p>
             Our platform offers a verification process where users may submit business documents. A "Verified" status indicates only that a user has completed this process. It is not an endorsement, guarantee, or warranty of the user's identity, credibility, quality, or reliability. We strongly encourage all users to conduct their own due diligence before entering into any transaction.
           </p>
@@ -41,13 +41,10 @@ export default function TermsAndConditionsPage() {
             <strong>5.1. Fees:</strong> Access to certain premium features for Buyers and Sellers requires an active, paid subscription. All subscription fees are for the use of the platform's features and are separate from any costs associated with the purchase of goods.
           </p>
           <p>
-            <strong>5.2. Billing & Renewal:</strong> Subscriptions are billed on a recurring basis (e.g., yearly). Your subscription will automatically renew at the end of each billing cycle unless you cancel it.
+            <strong>5.2. Billing & Term:</strong> Subscriptions are for a fixed term (e.g., one year) and are paid via a one-time fee. Your subscription does not automatically renew. Upon expiration, your account will revert to the free plan, and you will need to purchase a new subscription to regain access to premium features.
           </p>
           <p>
-            <strong>5.3. Cancellation:</strong> You may cancel your subscription renewal at any time through your profile dashboard. Your access to premium features will continue until the end of your current paid term.
-          </p>
-          <p>
-            <strong>5.4. Refunds:</strong> Subscription fees are non-refundable. We do not provide refunds or credits for partially used subscription periods.
+            <strong>5.3. Cancellations & Refunds:</strong> Subscription payments are non-refundable. Since subscriptions do not automatically renew, no cancellation is necessary. Your premium access will continue until the end of your paid term.
           </p>
 
           <h2>6. User Content and Code of Conduct</h2>
