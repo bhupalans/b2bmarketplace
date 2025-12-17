@@ -24,9 +24,9 @@ export function AppFooter({ companyName }: { companyName: string }) {
           <div>
             <h4 className="font-semibold mb-2">For Sellers</h4>
              <div className="space-y-1">
-                <Link href="/profile/subscription" className="text-sm text-muted-foreground hover:text-primary">Subscription Plans</Link>
+                <Link href="/sourcing" className="text-sm text-muted-foreground hover:text-primary">Browse Sourcing Requests</Link>
                  <br />
-                <Link href="/signup" className="text-sm text-muted-foreground hover:text-primary">Create an Account</Link>
+                <Link href="/my-products" className="text-sm text-muted-foreground hover:text-primary">My Products</Link>
             </div>
           </div>
           <div>
