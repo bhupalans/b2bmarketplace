@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -38,6 +39,7 @@ import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import Image from "next/image";
+import { Checkbox } from "./ui/checkbox";
 
 interface UserAuthFormProps extends React.HTMLAttributes<HTMLDivElement> {
   mode: "login" | "signup";
@@ -60,6 +62,9 @@ const signupSchema = z.object({
     .min(6, { message: "Password must be at least 6 characters." }),
   confirmPassword: z.string(),
   role: z.enum(["buyer", "seller"]),
+  terms: z.boolean().refine((val) => val === true, {
+    message: "You must accept the terms and conditions.",
+  }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match",
   path: ["confirmPassword"],
@@ -94,6 +99,7 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
       password: "",
       confirmPassword: "",
       role: "buyer",
+      terms: false,
     },
   });
   
@@ -335,31 +341,70 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
             />
            )}
           {mode === "signup" && (
-            <FormField
-              control={form.control}
-              name="role"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>I am a...</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    disabled={isLoading}
-                  >
+            <>
+              <FormField
+                control={form.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>I am a...</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      disabled={isLoading}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select your role" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="buyer">Buyer</SelectItem>
+                        <SelectItem value="seller">Seller</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="terms"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 pt-2">
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select your role" />
-                      </SelectTrigger>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        disabled={isLoading}
+                      />
                     </FormControl>
-                    <SelectContent>
-                      <SelectItem value="buyer">Buyer</SelectItem>
-                      <SelectItem value="seller">Seller</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="text-sm font-normal text-muted-foreground">
+                        I agree to the{" "}
+                        <Link
+                          href="/terms"
+                          target="_blank"
+                          className="underline hover:text-primary"
+                        >
+                          Terms and Conditions
+                        </Link>{" "}
+                        and{" "}
+                        <Link
+                          href="/privacy"
+                          target="_blank"
+                          className="underline hover:text-primary"
+                        >
+                          Privacy Policy
+                        </Link>
+                        .
+                      </FormLabel>
+                      <FormMessage />
+                    </div>
+                  </FormItem>
+                )}
+              />
+            </>
           )}
           <Button disabled={isLoading} className="w-full">
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
