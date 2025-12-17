@@ -95,6 +95,19 @@ export type User = {
   renewalCancelled?: boolean;
 };
 
+export type CallbackRequest = {
+  id: string;
+  userId?: string;
+  name: string;
+  companyName: string;
+  role: 'buyer' | 'seller';
+  country: string;
+  phoneNumber: string;
+  preferredTime: string;
+  createdAt: Timestamp | string;
+  status: 'pending' | 'contacted';
+}
+
 export type SubscriptionInvoice = {
   id: string;
   userId: string;
@@ -324,5 +337,3 @@ export type AppNotification = {
   read: boolean;
   createdAt: string;
 };
-
-    

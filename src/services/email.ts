@@ -1,12 +1,12 @@
 
-
 'use server';
 
 import { Resend } from 'resend';
-import { User, Product, Question, SubscriptionInvoice, SourcingRequest } from '@/lib/types';
+import { User, Product, Question, SubscriptionInvoice, SourcingRequest, CallbackRequest } from '@/lib/types';
 import { format } from 'date-fns';
 
 const fromAddress = 'B2B Marketplace <notifications@b2btest.veloglobal.in>';
+const adminEmail = 'admin@b2b.com';
 
 // Helper function to initialize Resend and check for API key
 function getResend() {
@@ -17,12 +17,40 @@ function getResend() {
     return new Resend(process.env.RESEND_API_KEY);
 }
 
+export async function sendCallbackRequestEmail(requestData: Omit<CallbackRequest, 'id'>) {
+    const resend = getResend();
+    if (!resend) return;
+
+    try {
+        await resend.emails.send({
+            from: fromAddress,
+            to: adminEmail,
+            subject: `New Callback Request from ${requestData.name}`,
+            html: `
+                <div style="font-family: sans-serif; line-height: 1.5;">
+                    <h1>New Callback Request Received</h1>
+                    <p>A user has requested a callback from the contact page.</p>
+                    <ul>
+                        <li><strong>Name:</strong> ${requestData.name}</li>
+                        <li><strong>Company:</strong> ${requestData.companyName}</li>
+                        <li><strong>Role:</strong> ${requestData.role}</li>
+                        <li><strong>Country:</strong> ${requestData.country}</li>
+                        <li><strong>Phone:</strong> ${requestData.phoneNumber}</li>
+                        <li><strong>Preferred Time:</strong> ${requestData.preferredTime}</li>
+                    </ul>
+                </div>
+            `
+        });
+        console.log(`Callback request email sent for ${requestData.name}`);
+    } catch (error) {
+        console.error(`Failed to send callback request email:`, error);
+    }
+}
+
 export async function sendSourcingRequestSubmittedEmail({ request, buyer, isUpdate = false }: { request: { id: string, title: string }, buyer: User, isUpdate?: boolean }) {
     const resend = getResend();
     if (!resend) return;
 
-    // This email should go to the admin
-    const adminEmail = 'admin@b2b.com';
     const adminApprovalUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/admin/sourcing-approvals`;
 
     try {
