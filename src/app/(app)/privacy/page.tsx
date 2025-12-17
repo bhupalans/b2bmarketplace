@@ -1,5 +1,4 @@
 
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function PrivacyPolicyPage() {
@@ -13,39 +12,71 @@ export default function PrivacyPolicyPage() {
         <CardContent className="prose prose-lg dark:prose-invert max-w-full">
           <h2>1. Introduction</h2>
           <p>
-            This is a placeholder Privacy Policy. You should replace this text with your own policy. This placeholder is not legally binding. It is crucial to consult with a legal professional to draft a privacy policy that complies with all applicable laws and regulations for your business and jurisdiction.
+            Welcome to our B2B Marketplace. We are committed to protecting your privacy and handling your data in an open and transparent manner. This privacy policy sets out how we collect, use, and protect your personal information in connection with your use of our platform.
           </p>
           
           <h2>2. Information We Collect</h2>
-          <h3>2.1 Information You Provide</h3>
-          <p>We collect personal information you provide directly to us when you create an account, update your profile, or communicate with us. This may include your name, email address, phone number, company details, and any other information you choose to provide.</p>
+          <p>We collect information to provide and improve our services. The type of information we collect depends on how you use our platform.</p>
+
+          <h3>2.1 Information You Provide to Us</h3>
+          <ul>
+            <li><strong>Account Information:</strong> When you register, we collect your full name, email address, company name, desired username, and your role (Buyer or Seller).</li>
+            <li><strong>Profile Information:</strong> To build your profile, you may provide additional details such as your business address, shipping and billing addresses, phone number, job title, company website, company description, and tax/VAT ID.</li>
+            <li><strong>Verification Documents:</strong> If you choose to undergo our verification process, we collect the documents you upload, which may include business registration certificates, proof of address (like utility bills), and government-issued photo IDs. These are stored securely.</li>
+            <li><strong>Communications:</strong> We collect the content of messages, questions, answers, and quote requests that you send and receive through our platform's messaging system.</li>
+          </ul>
 
           <h3>2.2 Information We Collect Automatically</h3>
-          <p>When you access or use our Services, we automatically collect certain information, including:</p>
           <ul>
-              <li><strong>Log Information:</strong> We log information about your use of the Services, including the type of browser you use, access times, pages viewed, and your IP address.</li>
-              <li><strong>IP Address and Geolocation:</strong> We use your IP address to infer your approximate location. We use a third-party service, ip-api.com, to determine your country from your IP address. This is used solely for the purpose of setting a default currency to enhance your browsing experience.</li>
+            <li><strong>Log and Usage Data:</strong> Like most websites, we collect information that your browser sends whenever you visit our site. This may include your IP address, browser type, pages you visit, and the time and date of your visit.</li>
+            <li><strong>GeoIP Information:</strong> For anonymous users, we use your IP address to perform a one-time lookup via a third-party service (ip-api.com) to determine your country. We use this solely to set a default currency and for regional pricing to enhance your browsing experience. We do not store this specific location data.</li>
+            <li><strong>Cookies and Similar Technologies:</strong> We use cookies to operate and administer our site. See our "Cookies and Tracking Technologies" section for more details.</li>
           </ul>
 
-          <h2>3. Cookies and Tracking Technologies</h2>
-          <p>We use various technologies to collect information, and this may include sending cookies to your computer or mobile device.</p>
+          <h2>3. How We Use Your Information</h2>
+          <p>We use the information we collect for the following purposes:</p>
           <ul>
-              <li><strong>What are cookies?</strong> Cookies are small data files stored on your hard drive or in device memory that help us improve our Services and your experience.</li>
-              <li><strong>Essential Cookies:</strong> Some cookies are strictly necessary for the site to function, such as the session cookie used to keep you logged in. These are created when you perform an explicit action like logging into your account.</li>
-              <li><strong>Preference Cookies:</strong> We use other non-essential cookies to remember your preferences, such as the state of the sidebar (expanded or collapsed). We will only set these cookies if you provide your consent via our cookie consent banner.</li>
+            <li>To operate, maintain, and improve our platform and services.</li>
+            <li>To create and manage your account, and to verify your identity.</li>
+            <li>To facilitate communications and transactions between buyers and sellers.</li>
+            <li>To process your subscription payments through our third-party payment gateways (Stripe and Razorpay) and to generate invoices.</li>
+            <li>To personalize your experience, such as by displaying prices in your local currency.</li>
+            <li>To send you important transactional emails, such as security notices, payment confirmations, and notifications about activity on your account (e.g., new messages or answered questions).</li>
+            <li>To monitor for and prevent fraudulent or prohibited activity, including the use of AI tools to moderate content.</li>
           </ul>
 
-          <h2>4. How We Use Collected Information</h2>
+          <h2>4. How We Share Your Information</h2>
+          <p>We do not sell or rent your personal information to third parties for their marketing purposes. We only share information in the following circumstances:</p>
+          <ul>
+            <li><strong>With Other Platform Users:</strong> To facilitate trade, some of your information is shared publicly on your profile page. This includes your name, company name, country, verification status, and featured status.</li>
+            <li><strong>With Service Providers:</strong> We share information with third-party vendors and service providers who perform services on our behalf. This includes:
+              <ul>
+                <li>Payment processors (Stripe, Razorpay) to handle subscription payments.</li>
+                <li>Cloud hosting and database providers (Google Cloud / Firebase) to store your data securely.</li>
+                <li>Email delivery services (Resend) to send you transactional emails.</li>
+                <li>AI service providers (Google AI / Genkit) to moderate user-generated content.</li>
+              </ul>
+            </li>
+            <li><strong>For Legal Reasons:</strong> We may disclose your information if required to do so by law or in response to a valid request from a law enforcement or governmental authority.</li>
+          </ul>
+          
+          <h2>5. Cookies and Tracking Technologies</h2>
+          <ul>
+              <li><strong>Essential Cookies:</strong> These are strictly necessary for the site to function, such as the session cookie used to keep you logged in. They are created when you log into your account.</li>
+              <li><strong>Preference Cookies:</strong> We may use other non-essential cookies to remember your preferences, such as the state of the sidebar (expanded or collapsed). We will only set these cookies if you provide your consent via our cookie consent banner. You can manage your preferences at any time.</li>
+          </ul>
+
+          <h2>6. Data Security</h2>
           <p>
-            Explain the purposes for which you collect and use personal information. This may include to improve customer service, to personalize user experience, to process payments, to send periodic emails, etc.
+            We take reasonable technical and administrative measures to protect your personal information from loss, misuse, and unauthorized access. Verification documents are stored in a secure cloud environment with restricted access. However, no internet transmission is ever completely secure, and we cannot guarantee the absolute security of your data.
           </p>
-          <h2>5. Sharing Your Personal Information</h2>
+          
+          <h2>7. Your Rights and Choices</h2>
+          <p>You have certain rights regarding your personal information. You can review and update most of your profile information at any time by logging into your account and visiting your profile page. You can also manage your cookie preferences via the consent banner.</p>
+
+          <h2>8. Changes to This Policy</h2>
           <p>
-            Clarify your policy on selling, trading, or renting users' personal identification information to others. Detail the circumstances under which you might share aggregated demographic information not linked to any personal identification information with your business partners, trusted affiliates, and advertisers. Specifically mention any third-party services you use, like the GeoIP provider.
-          </p>
-          <h2>6. Your Acceptance of These Terms</h2>
-          <p>
-            By using this Site, you signify your acceptance of this policy. If you do not agree to this policy, please do not use our Site. Your continued use of the Site following the posting of changes to this policy will be deemed your acceptance of those changes.
+            We may update this privacy policy from time to time. We will notify you of any changes by posting the new privacy policy on this page and updating the "Last Updated" date.
           </p>
         </CardContent>
       </Card>
