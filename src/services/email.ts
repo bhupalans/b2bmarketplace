@@ -6,7 +6,7 @@ import { User, Product, Question, SubscriptionInvoice, SourcingRequest, Callback
 import { format } from 'date-fns';
 
 const fromAddress = 'B2B Marketplace <notifications@b2btest.veloglobal.in>';
-const adminEmail = 'admin@b2b.com';
+const adminEmail = ['admin@b2b.com', 'bhupalans@gmail.com'];
 
 // Helper function to initialize Resend and check for API key
 function getResend() {
