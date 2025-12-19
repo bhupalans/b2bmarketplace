@@ -17,6 +17,38 @@ function getResend() {
     return new Resend(process.env.RESEND_API_KEY);
 }
 
+export async function sendSubscriptionReminderEmail({ user, daysRemaining }: { user: User, daysRemaining: number }) {
+    const resend = getResend();
+    if (!resend || !user.email) return;
+
+    const renewUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/profile/subscription`;
+
+    try {
+        await resend.emails.send({
+            from: fromAddress,
+            to: user.email,
+            subject: `Your B2B Marketplace subscription is expiring in ${daysRemaining} days`,
+            html: `
+                <div style="font-family: sans-serif; line-height: 1.5;">
+                    <h1>Hi ${user.name},</h1>
+                    <p>This is a reminder that your subscription plan, <strong>${user.subscriptionPlan?.name || 'Your Plan'}</strong>, is set to expire in ${daysRemaining} day(s).</p>
+                    <p>To ensure uninterrupted access to your premium features and benefits, please renew your subscription at your earliest convenience.</p>
+                    <p>
+                        <a href="${renewUrl}" style="display: inline-block; padding: 10px 15px; background-color: #007bff; color: #ffffff; text-decoration: none; border-radius: 5px;">
+                            Renew Your Subscription Now
+                        </a>
+                    </p>
+                    <p><small>If you have already renewed your plan, please disregard this email.</small></p>
+                </div>
+            `
+        });
+        console.log(`Subscription reminder email sent to ${user.email} for ${daysRemaining} days.`);
+    } catch (error) {
+        console.error(`Failed to send subscription reminder email to ${user.email}:`, error);
+    }
+}
+
+
 export async function sendCallbackRequestEmail(requestData: Omit<CallbackRequest, 'id'>) {
     const resend = getResend();
     if (!resend) return;
