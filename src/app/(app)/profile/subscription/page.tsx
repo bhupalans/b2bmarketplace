@@ -5,14 +5,16 @@ import React, { useState, useEffect, useTransition, useMemo } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { getSubscriptionPlansClient, getSourcingRequestsClient, getSellerProductsClient } from '@/lib/firebase';
 import { SubscriptionPlan, User, SourcingRequest, Product } from '@/lib/types';
-import { Loader2, CheckCircle, Star } from 'lucide-react';
+import { Loader2, CheckCircle, Star, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { format } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 import { manageSubscriptionRenewal } from '@/app/user-actions';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import Link from 'next/link';
 
 const PlanFeature = ({ children }: { children: React.ReactNode }) => (
     <li className="flex items-center gap-2">
@@ -132,6 +134,10 @@ export default function SubscriptionPage() {
     const hasActiveSubscription = user.subscriptionExpiryDate && new Date(user.subscriptionExpiryDate) > new Date();
     const isCancelled = hasActiveSubscription && user.renewalCancelled;
     
+    const daysUntilExpiry = user.subscriptionExpiryDate ? differenceInDays(new Date(user.subscriptionExpiryDate), new Date()) : null;
+    const showExpirationWarning = hasActiveSubscription && !isCancelled && daysUntilExpiry !== null && daysUntilExpiry <= 30;
+
+    
     return (
         <div className="max-w-5xl mx-auto space-y-8">
             <div>
@@ -141,6 +147,19 @@ export default function SubscriptionPage() {
                 </p>
             </div>
             
+             {showExpirationWarning && (
+                <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Your Subscription is Expiring Soon!</AlertTitle>
+                    <AlertDescription>
+                        Your plan will expire in {daysUntilExpiry} day(s). Renew now to maintain access to premium features.
+                        <Button asChild variant="link" className="p-0 h-auto ml-1 text-destructive hover:text-destructive/80">
+                            <Link href={`/profile/subscription/checkout?planId=${user.subscriptionPlanId}`}>Renew Now</Link>
+                        </Button>
+                    </AlertDescription>
+                </Alert>
+            )}
+
             {currentPlan && (
                 <Card>
                     <CardHeader>
@@ -149,7 +168,7 @@ export default function SubscriptionPage() {
                             {isCancelled ? (
                                 `Your plan was cancelled and is set to expire on ${format(new Date(user.subscriptionExpiryDate!), 'PPP')}.`
                             ) : hasActiveSubscription ? (
-                                `Your plan is active and your next renew is on ${format(new Date(user.subscriptionExpiryDate!), 'PPP')}.`
+                                `Your plan is active and renews on ${format(new Date(user.subscriptionExpiryDate!), 'PPP')}.`
                             ) : (
                                 "You are currently on the Free plan."
                             )}
@@ -226,7 +245,10 @@ export default function SubscriptionPage() {
                             {isCurrentFreePlan ? (
                                 <Button disabled className="w-full">Current Plan</Button>
                             ) : isCurrentPaidPlan && !isCancelled ? (
-                                <Button disabled className="w-full">Current Plan</Button>
+                                <Button onClick={handleCancelSubscription} variant="destructive" className="w-full" disabled={isCancelling}>
+                                    {isCancelling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Cancel Renewal
+                                </Button>
                             ) : isCurrentPaidPlan && isCancelled ? (
                                 <Button onClick={handleReactivateSubscription} className="w-full" disabled={isReactivating}>
                                     {isReactivating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

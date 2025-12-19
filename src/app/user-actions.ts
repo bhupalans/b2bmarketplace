@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { firestore } from 'firebase-admin';
 import Stripe from 'stripe';
 import { areDetailsEqual } from '@/lib/utils';
-import { add } from 'date-fns';
+import { add, isFuture } from 'date-fns';
 import { createSubscriptionInvoice } from '@/services/invoicing';
 import { getPlanAndUser } from '@/lib/database';
 
@@ -212,7 +212,10 @@ export async function confirmStripePayment(
     
     const { plan, user } = await getPlanAndUser(planId, userId);
     const userRef = adminDb.collection('users').doc(userId);
-    const expiryDate = add(new Date(), { years: 1 });
+    
+    const currentExpiry = user.subscriptionExpiryDate ? new Date(user.subscriptionExpiryDate) : new Date();
+    const renewalBaseDate = isFuture(currentExpiry) ? currentExpiry : new Date();
+    const expiryDate = add(renewalBaseDate, { years: 1 });
 
     const batch = adminDb.batch();
 
