@@ -31,6 +31,7 @@ export default function SubscriptionPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [isCancelling, startCancelTransition] = useTransition();
+    const [isSwitchingToFree, startSwitchToFreeTransition] = useTransition();
     const [isReactivating, startReactivateTransition] = useTransition();
     const { toast } = useToast();
     
@@ -68,12 +69,26 @@ export default function SubscriptionPage() {
         }
         fetchData();
     }, [user, authLoading, toast]);
+
+    const handleDowngradeToFree = () => {
+        if (!user || !user.subscriptionPlanId) return;
+
+        startSwitchToFreeTransition(async () => {
+            const result = await manageSubscriptionRenewal(user.uid, 'cancel');
+            if (result.success) {
+                toast({ title: "Plan Changed", description: "You have been switched to the Free plan. Your previous plan will remain active until its expiry date." });
+                await revalidateUser();
+            } else {
+                toast({ variant: 'destructive', title: "Action Failed", description: result.error });
+            }
+        });
+    }
     
     const handleSelectPlan = (plan: SubscriptionPlan) => {
         if (!firebaseUser) return;
         
         if (plan.price === 0) {
-            handleCancelSubscription();
+            handleDowngradeToFree();
         } else {
              router.push(`/profile/subscription/checkout?planId=${plan.id}`);
         }
@@ -255,8 +270,8 @@ export default function SubscriptionPage() {
                                     Reactivate
                                 </Button>
                             ) : (
-                                <Button onClick={() => handleSelectPlan(plan)} className="w-full" disabled={isCancelling || isReactivating || (plan.price > 0 && isCancelled)}>
-                                     {isCancelling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                <Button onClick={() => handleSelectPlan(plan)} className="w-full" disabled={isCancelling || isReactivating || isSwitchingToFree || (plan.price > 0 && isCancelled)}>
+                                     {isSwitchingToFree && plan.price === 0 && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     {plan.price > 0 ? 'Upgrade Plan' : 'Switch to Free'}
                                 </Button>
                             )}
