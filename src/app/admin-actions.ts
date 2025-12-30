@@ -13,10 +13,10 @@ export async function getActiveSubscribers(): Promise<User[]> {
     const planMap = new Map(plansSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as SubscriptionPlan]));
 
     const usersRef = adminDb.collection('users');
-    // This is the efficient query. It fetches only users who have a subscription that has not expired.
-    const q = usersRef
-        .where('subscriptionPlanId', '!=', null)
-        .where('subscriptionExpiryDate', '>', Timestamp.now());
+    
+    // CORRECTED QUERY: Fetch users with an expiry date in the future.
+    // We cannot use a '!=' query on one field and a range query on another.
+    const q = usersRef.where('subscriptionExpiryDate', '>', Timestamp.now());
     
     const usersSnapshot = await q.get();
 
@@ -24,14 +24,17 @@ export async function getActiveSubscribers(): Promise<User[]> {
         return [];
     }
 
-    const subscribers = usersSnapshot.docs.map(doc => {
-        const user = { id: doc.id, uid: doc.id, ...doc.data() } as User;
-        // Join the plan data onto the user object
-        if (user.subscriptionPlanId && planMap.has(user.subscriptionPlanId)) {
-            user.subscriptionPlan = planMap.get(user.subscriptionPlanId);
-        }
-        return user;
-    });
+    const subscribers = usersSnapshot.docs
+        .map(doc => ({ id: doc.id, uid: doc.id, ...doc.data() } as User))
+        // Filter in code to ensure a plan ID exists, which the previous '!=' query was trying to do.
+        .filter(user => !!user.subscriptionPlanId) 
+        .map(user => {
+            // Join the plan data onto the user object
+            if (user.subscriptionPlanId && planMap.has(user.subscriptionPlanId)) {
+                user.subscriptionPlan = planMap.get(user.subscriptionPlanId);
+            }
+            return user;
+        });
     
     // Helper function to serialize Firestore Timestamps to ISO strings
     const serializeTimestamps = (data: any): any => {
