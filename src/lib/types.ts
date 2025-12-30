@@ -93,6 +93,7 @@ export type User = {
   stripeCustomerId?: string;
   subscriptionExpiryDate?: string;
   renewalCancelled?: boolean;
+  lastReminderSent?: string; // New field to track reminders
 };
 
 export type CallbackRequest = {
