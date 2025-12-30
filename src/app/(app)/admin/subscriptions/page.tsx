@@ -26,8 +26,18 @@ export default function SubscriptionsPage() {
             getSubscriptionPlansClient(),
             getUsersClient(),
         ]);
+        
+        const planMap = new Map(fetchedPlans.map(p => [p.id, p]));
+        
+        const usersWithPlans = fetchedUsers.map(u => {
+            if (u.subscriptionPlanId && planMap.has(u.subscriptionPlanId)) {
+                return { ...u, subscriptionPlan: planMap.get(u.subscriptionPlanId) };
+            }
+            return u;
+        });
+
         setPlans(fetchedPlans);
-        setUsers(fetchedUsers);
+        setUsers(usersWithPlans);
       } catch (error) {
         console.error("Failed to fetch subscription data:", error);
       } finally {

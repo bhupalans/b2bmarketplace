@@ -130,7 +130,7 @@ const SubscribersTable = ({ users }: { users: User[] }) => {
     const { toast } = useToast();
 
     const activeSubscribers = useMemo(() => {
-        return users.filter(u => u.subscriptionPlanId && u.subscriptionExpiryDate && new Date(u.subscriptionExpiryDate) > new Date())
+        return users.filter(u => u.subscriptionPlanId && u.subscriptionExpiryDate && new Date(u.subscriptionExpiryDate as string) > new Date())
             .sort((a,b) => new Date(a.subscriptionExpiryDate as string).getTime() - new Date(b.subscriptionExpiryDate as string).getTime());
     }, [users]);
     
@@ -199,6 +199,7 @@ const SubscribersTable = ({ users }: { users: User[] }) => {
                                 />
                              </TableHead>
                              <TableHead>User</TableHead>
+                             <TableHead>Role</TableHead>
                              <TableHead>Plan</TableHead>
                              <TableHead>Expires On</TableHead>
                              <TableHead>Days Remaining</TableHead>
@@ -219,6 +220,7 @@ const SubscribersTable = ({ users }: { users: User[] }) => {
                                         />
                                     </TableCell>
                                     <TableCell>{user.name} ({user.email})</TableCell>
+                                    <TableCell><Badge variant="outline" className="capitalize">{user.role}</Badge></TableCell>
                                     <TableCell>{user.subscriptionPlan?.name || 'N/A'}</TableCell>
                                     <TableCell>{user.subscriptionExpiryDate ? format(new Date(user.subscriptionExpiryDate as string), 'PPP') : 'N/A'}</TableCell>
                                     <TableCell>
@@ -232,7 +234,7 @@ const SubscribersTable = ({ users }: { users: User[] }) => {
                             })
                         ) : (
                              <TableRow>
-                                <TableCell colSpan={6} className="h-24 text-center">
+                                <TableCell colSpan={7} className="h-24 text-center">
                                 No active subscribers found.
                                 </TableCell>
                             </TableRow>
