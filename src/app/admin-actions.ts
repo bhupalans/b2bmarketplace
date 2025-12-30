@@ -2,11 +2,54 @@
 'use server';
 
 import { adminDb } from "@/lib/firebase-admin";
-import { User, Message, BrandingSettings } from "@/lib/types";
+import { User, Message, BrandingSettings, SubscriptionPlan } from "@/lib/types";
 import { format } from 'date-fns';
 import { Timestamp } from "firebase-admin/firestore";
 import { getUsersByIds } from "@/lib/database";
 import { revalidatePath } from 'next/cache';
+
+export async function getActiveSubscribers(): Promise<User[]> {
+    const plansSnapshot = await adminDb.collection('subscriptionPlans').get();
+    const planMap = new Map(plansSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as SubscriptionPlan]));
+
+    const usersRef = adminDb.collection('users');
+    // This is the efficient query. It fetches only users who have a subscription that has not expired.
+    const q = usersRef
+        .where('subscriptionPlanId', '!=', null)
+        .where('subscriptionExpiryDate', '>', Timestamp.now());
+    
+    const usersSnapshot = await q.get();
+
+    if (usersSnapshot.empty) {
+        return [];
+    }
+
+    const subscribers = usersSnapshot.docs.map(doc => {
+        const user = { id: doc.id, uid: doc.id, ...doc.data() } as User;
+        // Join the plan data onto the user object
+        if (user.subscriptionPlanId && planMap.has(user.subscriptionPlanId)) {
+            user.subscriptionPlan = planMap.get(user.subscriptionPlanId);
+        }
+        return user;
+    });
+    
+    // Helper function to serialize Firestore Timestamps to ISO strings
+    const serializeTimestamps = (data: any): any => {
+        if (!data) return data;
+        if (data instanceof Timestamp) return data.toDate().toISOString();
+        if (Array.isArray(data)) return data.map(serializeTimestamps);
+        if (typeof data === 'object') {
+            const res: { [key: string]: any } = {};
+            for (const key in data) {
+                res[key] = serializeTimestamps(data[key]);
+            }
+            return res;
+        }
+        return data;
+    };
+
+    return serializeTimestamps(subscribers);
+}
 
 export async function downloadConversationAction(conversationId: string) {
     if (!conversationId) {

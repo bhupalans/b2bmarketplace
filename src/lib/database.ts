@@ -75,7 +75,7 @@ export async function getUser(userId: string): Promise<User | null> {
     if (userData.subscriptionPlanId) {
         const planRef = adminDb.collection('subscriptionPlans').doc(userData.subscriptionPlanId);
         const planSnap = await planRef.get();
-        if (planSnap.exists) {
+        if (planSnap.exists()) {
             userData.subscriptionPlan = { id: planSnap.id, ...planSnap.data() } as SubscriptionPlan;
         }
     }
@@ -83,6 +83,33 @@ export async function getUser(userId: string): Promise<User | null> {
     const user = { id: userSnap.id, uid: userSnap.id, ...userData };
     return serializeTimestamps(user);
 }
+
+export async function getActiveSubscribers(): Promise<User[]> {
+    const plansSnapshot = await adminDb.collection('subscriptionPlans').get();
+    const planMap = new Map(plansSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as SubscriptionPlan]));
+
+    const usersRef = adminDb.collection('users');
+    const q = usersRef
+        .where('subscriptionPlanId', '!=', null)
+        .where('subscriptionExpiryDate', '>', Timestamp.now());
+    
+    const usersSnapshot = await q.get();
+
+    if (usersSnapshot.empty) {
+        return [];
+    }
+
+    const subscribers = usersSnapshot.docs.map(doc => {
+        const user = { id: doc.id, uid: doc.id, ...doc.data() } as User;
+        if (user.subscriptionPlanId && planMap.has(user.subscriptionPlanId)) {
+            user.subscriptionPlan = planMap.get(user.subscriptionPlanId);
+        }
+        return user;
+    });
+
+    return serializeTimestamps(subscribers);
+}
+
 
 export async function getUsers(): Promise<User[]> {
     const snapshot = await adminDb.collection("users").get();

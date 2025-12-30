@@ -7,11 +7,12 @@ import { Loader2 } from 'lucide-react';
 import { SubscriptionPlan, User } from '@/lib/types';
 import { getSubscriptionPlansClient, getUsersClient } from '@/lib/firebase';
 import { SubscriptionsClientPage } from './client-page';
+import { getActiveSubscribers } from '@/app/admin-actions';
 
 export default function SubscriptionsPage() {
   const { user } = useAuth();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
+  const [subscribers, setSubscribers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,22 +23,13 @@ export default function SubscriptionsPage() {
       }
       try {
         setLoading(true);
-        const [fetchedPlans, fetchedUsers] = await Promise.all([
+        const [fetchedPlans, fetchedSubscribers] = await Promise.all([
             getSubscriptionPlansClient(),
-            getUsersClient(),
+            getActiveSubscribers(),
         ]);
         
-        const planMap = new Map(fetchedPlans.map(p => [p.id, p]));
-        
-        const usersWithPlans = fetchedUsers.map(u => {
-            if (u.subscriptionPlanId && planMap.has(u.subscriptionPlanId)) {
-                return { ...u, subscriptionPlan: planMap.get(u.subscriptionPlanId) };
-            }
-            return u;
-        });
-
         setPlans(fetchedPlans);
-        setUsers(usersWithPlans);
+        setSubscribers(fetchedSubscribers);
       } catch (error) {
         console.error("Failed to fetch subscription data:", error);
       } finally {
@@ -66,5 +58,5 @@ export default function SubscriptionsPage() {
     );
   }
 
-  return <SubscriptionsClientPage initialPlans={plans} initialUsers={users} />;
+  return <SubscriptionsClientPage initialPlans={plans} initialUsers={subscribers} />;
 }
