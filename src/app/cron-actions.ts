@@ -23,7 +23,7 @@ export async function sendSubscriptionReminders(userIds: string[]) {
   const today = new Date();
 
   // Define the reminder tiers in days. A reminder is sent if the expiry is within this many days.
-  const reminderTiers = [1, 3, 7, 15, 30];
+  const reminderTiers = [1, 2, 3, 4, 5, 6, 7, 15, 20, 25, 30];
 
   try {
     const userMap = await getUsersByIds(userIds);
@@ -57,12 +57,12 @@ export async function sendSubscriptionReminders(userIds: string[]) {
             console.log(`Skipping user ${userId}: not within any reminder tier (days left: ${daysRemaining}).`);
             continue;
         }
+        
+        const lastReminderTier = user.lastReminderTier || Number.MAX_SAFE_INTEGER;
 
-        const lastReminderDate = user.lastReminderSent ? new Date(user.lastReminderSent) : null;
-
-        // Prevent sending more than one reminder per day to the same user.
-        if (lastReminderDate && differenceInDays(today, lastReminderDate) < 1) {
-            console.log(`Skipping user ${userId}: reminder already sent recently.`);
+        // If the user's last reminder was for the same or a more urgent tier, skip.
+        if (lastReminderTier <= applicableTier) {
+            console.log(`Skipping user ${userId}: a reminder for tier ${lastReminderTier} or more urgent has already been sent.`);
             continue;
         }
 
@@ -70,7 +70,7 @@ export async function sendSubscriptionReminders(userIds: string[]) {
       
         await sendSubscriptionReminderEmail({ user, daysRemaining });
         
-        // Update the user document to log that a reminder was sent.
+        // Update the user document to log that a reminder was sent for this tier.
         await adminDb.collection('users').doc(userId).update({ 
             lastReminderSent: new Date().toISOString(),
             lastReminderTier: applicableTier,
