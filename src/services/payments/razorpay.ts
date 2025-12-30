@@ -9,6 +9,7 @@ import { SubscriptionPlan, User } from '@/lib/types';
 import { getPlanAndUser } from '@/lib/database';
 import { add, isFuture } from 'date-fns';
 import { createSubscriptionInvoice } from '@/services/invoicing';
+import { firestore } from 'firebase-admin';
 
 export async function createRazorpayOrder({ planId, userId }: { planId: string, userId: string }): Promise<{ success: true; order: any, user: User, plan: SubscriptionPlan } | { success: false, error: string }> {
 
@@ -89,7 +90,7 @@ export async function verifyRazorpayPayment({
             const userRef = adminDb.collection('users').doc(userId);
             await userRef.update({ 
                 subscriptionPlanId: planId,
-                subscriptionExpiryDate: expiryDate, // Store as Timestamp
+                subscriptionExpiryDate: firestore.Timestamp.fromDate(expiryDate), // Save as Timestamp
                 renewalCancelled: false, // Ensure renewal is active on new purchase
             });
 

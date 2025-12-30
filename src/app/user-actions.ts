@@ -221,7 +221,7 @@ export async function confirmStripePayment(
 
     batch.update(userRef, {
       subscriptionPlanId: planId,
-      subscriptionExpiryDate: expiryDate, // Store as Timestamp
+      subscriptionExpiryDate: firestore.Timestamp.fromDate(expiryDate), // Save as Timestamp
       renewalCancelled: false, // Ensure renewal is active on new purchase
     });
     

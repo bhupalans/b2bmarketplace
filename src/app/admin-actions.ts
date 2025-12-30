@@ -13,21 +13,29 @@ export async function getActiveSubscribers(): Promise<User[]> {
     const planMap = new Map(plansSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as SubscriptionPlan]));
 
     const usersRef = adminDb.collection('users');
-    
-    // CORRECTED QUERY: Fetch users with an expiry date in the future.
-    // We cannot use a '!=' query on one field and a range query on another.
-    const q = usersRef.where('subscriptionExpiryDate', '>', Timestamp.now());
-    
-    const usersSnapshot = await q.get();
+    // Fetch all users temporarily to handle inconsistent date formats (string vs. Timestamp).
+    // This is less scalable but more robust for the current data state.
+    const usersSnapshot = await usersRef.get();
 
     if (usersSnapshot.empty) {
         return [];
     }
 
+    const now = new Date();
+
     const subscribers = usersSnapshot.docs
         .map(doc => ({ id: doc.id, uid: doc.id, ...doc.data() } as User))
-        // Filter in code to ensure a plan ID exists, which the previous '!=' query was trying to do.
-        .filter(user => !!user.subscriptionPlanId) 
+        .filter(user => {
+            if (!user.subscriptionPlanId || !user.subscriptionExpiryDate) {
+                return false;
+            }
+            // Handle both Timestamp and ISO string formats for expiry date
+            const expiryDate = user.subscriptionExpiryDate instanceof Timestamp 
+                ? user.subscriptionExpiryDate.toDate() 
+                : new Date(user.subscriptionExpiryDate);
+            
+            return expiryDate > now;
+        })
         .map(user => {
             // Join the plan data onto the user object
             if (user.subscriptionPlanId && planMap.has(user.subscriptionPlanId)) {
@@ -41,7 +49,7 @@ export async function getActiveSubscribers(): Promise<User[]> {
         if (!data) return data;
         if (data instanceof Timestamp) return data.toDate().toISOString();
         if (Array.isArray(data)) return data.map(serializeTimestamps);
-        if (typeof data === 'object') {
+        if (typeof data === 'object' && !(data instanceof Date)) {
             const res: { [key: string]: any } = {};
             for (const key in data) {
                 res[key] = serializeTimestamps(data[key]);
