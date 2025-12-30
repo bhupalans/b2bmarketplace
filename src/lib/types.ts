@@ -91,9 +91,10 @@ export type User = {
   subscriptionPlanId?: string;
   subscriptionPlan?: SubscriptionPlan; // Denormalized plan data for client-side use
   stripeCustomerId?: string;
-  subscriptionExpiryDate?: string;
+  subscriptionExpiryDate?: Timestamp | string; // Can be a Timestamp or ISO string
   renewalCancelled?: boolean;
-  lastReminderSent?: string; // New field to track reminders
+  lastReminderSent?: string;
+  lastReminderTier?: number;
 };
 
 export type CallbackRequest = {

@@ -221,7 +221,7 @@ export async function confirmStripePayment(
 
     batch.update(userRef, {
       subscriptionPlanId: planId,
-      subscriptionExpiryDate: expiryDate.toISOString(),
+      subscriptionExpiryDate: expiryDate, // Store as Timestamp
       renewalCancelled: false, // Ensure renewal is active on new purchase
     });
     

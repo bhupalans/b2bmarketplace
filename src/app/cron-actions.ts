@@ -3,8 +3,9 @@
 
 import { adminDb } from '@/lib/firebase-admin';
 import { User } from '@/lib/types';
-import { startOfDay, endOfDay, addDays, differenceInDays } from 'date-fns';
+import { startOfDay, addDays, differenceInDays } from 'date-fns';
 import { sendSubscriptionReminderEmail } from '@/services/email';
+import { Timestamp } from 'firebase-admin/firestore';
 
 /**
  * This function is intended to be run by a scheduled job (e.g., a cron job via Cloud Scheduler) once per day.
@@ -14,16 +15,18 @@ export async function sendSubscriptionReminders() {
   console.log('Starting daily subscription reminder check...');
   let totalEmailsSent = 0;
 
-  const today = startOfDay(new Date());
+  const today = new Date();
+  const thirtyDaysFromNow = addDays(today, 30);
 
   // Define the reminder tiers in days.
   const reminderTiers = [1, 3, 7, 15, 30];
 
   try {
-    // Query for all users whose subscriptions expire between tomorrow and the next 30 days.
+    // Query for all users whose subscriptions expire between now and the next 30 days.
+    // This uses proper Timestamp objects for comparison.
     const expiringSoonQuery = adminDb.collection('users')
-      .where('subscriptionExpiryDate', '>', today.toISOString())
-      .where('subscriptionExpiryDate', '<=', addDays(today, 30).toISOString())
+      .where('subscriptionExpiryDate', '>', Timestamp.fromDate(today))
+      .where('subscriptionExpiryDate', '<=', Timestamp.fromDate(thirtyDaysFromNow))
       .where('renewalCancelled', '!=', true);
 
     const snapshot = await expiringSoonQuery.get();
@@ -38,35 +41,42 @@ export async function sendSubscriptionReminders() {
     for (const doc of snapshot.docs) {
       const user = { id: doc.id, ...doc.data() } as User & { lastReminderSent?: string };
       
-      // Skip if user has no email or expiry date
       if (!user.email || !user.subscriptionExpiryDate) {
           continue;
       }
       
-      const expiryDate = startOfDay(new Date(user.subscriptionExpiryDate));
+      const expiryDate = new Date(user.subscriptionExpiryDate);
       const daysRemaining = differenceInDays(expiryDate, today);
 
-      // Determine which reminder tier the user falls into.
+      // Determine the correct reminder tier.
       let applicableTier: number | null = null;
       for (const tier of reminderTiers) {
-        if (daysRemaining <= tier) {
+        if (daysRemaining < tier) {
           applicableTier = tier;
-          break; // Stop at the first (smallest) applicable tier
+          break;
         }
       }
 
+      if (applicableTier === null && daysRemaining > 0) {
+        // Handle the case for exactly 30 days
+        if (daysRemaining <= 30) applicableTier = 30;
+      }
+
       if (applicableTier === null) {
-          continue; // User's expiration is not within a reminder window today.
+          continue;
       }
       
-      // Check if a reminder for this tier has already been sent recently.
-      // This simple check prevents re-sending the same tier reminder.
-      // A more robust solution might store which tier was sent, but this is effective.
-      const lastReminderDate = user.lastReminderSent ? startOfDay(new Date(user.lastReminderSent)) : null;
+      const lastReminderDate = user.lastReminderSent ? new Date(user.lastReminderSent) : null;
 
-      // Check if a reminder has already been sent today
+      // Check if a reminder was already sent today.
       if (lastReminderDate && differenceInDays(today, lastReminderDate) < 1) {
-          console.log(`Skipping email for ${user.email}, reminder already sent today.`);
+          console.log(`Skipping email for ${user.email}, reminder already sent recently.`);
+          continue;
+      }
+      
+      // Check if a reminder for this specific tier has already been sent
+      if (user.lastReminderTier && user.lastReminderTier <= applicableTier) {
+          console.log(`Skipping email for ${user.email}, tier ${applicableTier} reminder already sent.`);
           continue;
       }
 
@@ -74,8 +84,10 @@ export async function sendSubscriptionReminders() {
       
       await sendSubscriptionReminderEmail({ user, daysRemaining });
       
-      // Update the user document with the date of the last reminder sent
-      await doc.ref.update({ lastReminderSent: today.toISOString() });
+      await doc.ref.update({ 
+          lastReminderSent: new Date().toISOString(),
+          lastReminderTier: applicableTier,
+      });
       
       totalEmailsSent++;
     }
