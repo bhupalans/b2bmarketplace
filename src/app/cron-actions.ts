@@ -2,7 +2,7 @@
 'use server';
 
 import { adminDb } from '@/lib/firebase-admin';
-import { User } from '@/lib/types';
+import { User, SubscriptionPlan } from '@/lib/types';
 import { startOfDay, addDays, differenceInDays } from 'date-fns';
 import { sendSubscriptionReminderEmail } from '@/services/email';
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
@@ -28,6 +28,10 @@ export async function sendSubscriptionReminders(userIds: string[]) {
   try {
     const userMap = await getUsersByIds(userIds);
     
+    // Fetch all plans to avoid multiple DB calls inside the loop
+    const plansSnapshot = await adminDb.collection('subscriptionPlans').get();
+    const planMap = new Map(plansSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as SubscriptionPlan]));
+    
     for (const userId of userIds) {
         const user = userMap.get(userId);
         
@@ -36,6 +40,14 @@ export async function sendSubscriptionReminders(userIds: string[]) {
           continue;
         }
         
+        // Attach the full plan object to the user object
+        if (user.subscriptionPlanId && planMap.has(user.subscriptionPlanId)) {
+          user.subscriptionPlan = planMap.get(user.subscriptionPlanId);
+        } else {
+          console.log(`Skipping user ${userId}: could not find their subscription plan.`);
+          continue;
+        }
+
         const expiryDate = new Date(user.subscriptionExpiryDate as string);
         if (expiryDate < today) {
             console.log(`Skipping user ${userId}: subscription already expired.`);
