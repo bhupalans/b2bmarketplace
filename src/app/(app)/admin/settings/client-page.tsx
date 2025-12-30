@@ -17,11 +17,10 @@ import { Form, FormField, FormItem, FormLabel, FormMessage, FormDescription, For
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { saveProductUpdateRulesClient } from '@/lib/firebase';
-import { Loader2, Clock } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { PaymentGateway, BrandingSettings } from '@/lib/types';
 import { PaymentGatewaySettings } from './payment-gateway-settings';
 import { BrandingSettingsForm } from './branding-settings';
-import { sendSubscriptionReminders } from '@/app/cron-actions';
 
 const productFields = [
     { id: 'priceUSD', label: 'Price (USD)' },
@@ -48,7 +47,6 @@ interface SettingsClientPageProps {
 export function SettingsClientPage({ initialRules, initialPaymentGateways, initialBranding }: SettingsClientPageProps) {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
-  const [isSendingReminders, startSendingReminders] = useTransition();
 
   const form = useForm<SettingsFormData>({
     resolver: zodResolver(settingsSchema),
@@ -74,28 +72,6 @@ export function SettingsClientPage({ initialRules, initialPaymentGateways, initi
       }
     });
   };
-  
-  const handleSendReminders = () => {
-    startSendingReminders(async () => {
-      try {
-        const result = await sendSubscriptionReminders();
-        if (result.success) {
-          toast({
-            title: 'Action Complete',
-            description: result.message,
-          });
-        } else {
-          throw new Error(result.error);
-        }
-      } catch (error: any) {
-        toast({
-          variant: 'destructive',
-          title: 'Action Failed',
-          description: error.message || 'Could not send reminders.',
-        });
-      }
-    });
-  };
 
   return (
     <div className="space-y-6">
@@ -105,28 +81,6 @@ export function SettingsClientPage({ initialRules, initialPaymentGateways, initi
         </div>
 
         <BrandingSettingsForm initialBranding={initialBranding} />
-
-        <Card>
-            <CardHeader>
-                <CardTitle>Manual Actions</CardTitle>
-                <CardDescription>
-                    Trigger backend processes manually. Use these if automated systems fail.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="flex items-center justify-between rounded-lg border p-4">
-                    <div>
-                        <h3 className="font-semibold">Subscription Reminders</h3>
-                        <p className="text-sm text-muted-foreground">Check for upcoming subscription expiries and send reminder emails to users.</p>
-                    </div>
-                    <Button onClick={handleSendReminders} disabled={isSendingReminders}>
-                        {isSendingReminders && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        <Clock className="mr-2 h-4 w-4" />
-                        Send Reminders
-                    </Button>
-                </div>
-            </CardContent>
-        </Card>
 
         <Card>
             <CardHeader>

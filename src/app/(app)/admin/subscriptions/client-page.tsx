@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useTransition } from 'react';
 import {
   Card,
   CardContent,
@@ -11,8 +11,8 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, MoreHorizontal, Edit, Trash2 } from "lucide-react";
-import { SubscriptionPlan } from '@/lib/types';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, Mail } from "lucide-react";
+import { SubscriptionPlan, User } from '@/lib/types';
 import {
   Table,
   TableBody,
@@ -32,9 +32,14 @@ import { SubscriptionPlanFormDialog } from '@/components/subscription-plan-form-
 import { DeleteConfirmationDialog } from '@/components/delete-confirmation-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { deleteSubscriptionPlanClient } from '@/lib/firebase';
+import { sendSubscriptionReminders } from '@/app/cron-actions';
+import { Loader2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { format, differenceInDays } from 'date-fns';
 
 interface SubscriptionsClientPageProps {
   initialPlans: SubscriptionPlan[];
+  initialUsers: User[];
 }
 
 const PlanTable = ({ 
@@ -119,8 +124,128 @@ const PlanTable = ({
   );
 }
 
+const SubscribersTable = ({ users }: { users: User[] }) => {
+    const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+    const [isSending, startSendTransition] = useTransition();
+    const { toast } = useToast();
 
-export function SubscriptionsClientPage({ initialPlans }: SubscriptionsClientPageProps) {
+    const activeSubscribers = useMemo(() => {
+        return users.filter(u => u.subscriptionPlanId && u.subscriptionExpiryDate && new Date(u.subscriptionExpiryDate) > new Date())
+            .sort((a,b) => new Date(a.subscriptionExpiryDate as string).getTime() - new Date(b.subscriptionExpiryDate as string).getTime());
+    }, [users]);
+    
+    const isAllSelected = activeSubscribers.length > 0 && selectedUserIds.length === activeSubscribers.length;
+
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedUserIds(activeSubscribers.map(u => u.id));
+        } else {
+            setSelectedUserIds([]);
+        }
+    };
+
+    const handleSelectUser = (userId: string, checked: boolean) => {
+        if (checked) {
+            setSelectedUserIds(prev => [...prev, userId]);
+        } else {
+            setSelectedUserIds(prev => prev.filter(id => id !== userId));
+        }
+    };
+    
+    const handleSendReminders = () => {
+        if (selectedUserIds.length === 0) return;
+        startSendTransition(async () => {
+            const result = await sendSubscriptionReminders(selectedUserIds);
+             if (result.success) {
+                toast({
+                    title: "Action Complete",
+                    description: result.message
+                });
+                setSelectedUserIds([]);
+            } else {
+                toast({
+                    variant: "destructive",
+                    title: "Action Failed",
+                    description: result.error
+                });
+            }
+        });
+    }
+
+    return (
+        <Card>
+            <CardHeader className="flex-row items-center justify-between">
+                <div>
+                    <CardTitle>Active Subscribers</CardTitle>
+                    <CardDescription>
+                        {activeSubscribers.length} user(s) with an active subscription plan.
+                    </CardDescription>
+                </div>
+                <Button onClick={handleSendReminders} disabled={selectedUserIds.length === 0 || isSending}>
+                    {isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    <Mail className="mr-2 h-4 w-4" />
+                    Send Reminder(s)
+                </Button>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                             <TableHead className="w-[50px]">
+                                <Checkbox
+                                    checked={isAllSelected}
+                                    onCheckedChange={handleSelectAll}
+                                    aria-label="Select all rows"
+                                />
+                             </TableHead>
+                             <TableHead>User</TableHead>
+                             <TableHead>Plan</TableHead>
+                             <TableHead>Expires On</TableHead>
+                             <TableHead>Days Remaining</TableHead>
+                             <TableHead>Last Reminder</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {activeSubscribers.length > 0 ? (
+                            activeSubscribers.map(user => {
+                                const daysRemaining = user.subscriptionExpiryDate ? differenceInDays(new Date(user.subscriptionExpiryDate as string), new Date()) : 0;
+                                return (
+                                <TableRow key={user.id}>
+                                    <TableCell>
+                                         <Checkbox
+                                            checked={selectedUserIds.includes(user.id)}
+                                            onCheckedChange={(checked) => handleSelectUser(user.id, !!checked)}
+                                            aria-label={`Select row for ${user.name}`}
+                                        />
+                                    </TableCell>
+                                    <TableCell>{user.name} ({user.email})</TableCell>
+                                    <TableCell>{user.subscriptionPlan?.name || 'N/A'}</TableCell>
+                                    <TableCell>{user.subscriptionExpiryDate ? format(new Date(user.subscriptionExpiryDate as string), 'PPP') : 'N/A'}</TableCell>
+                                    <TableCell>
+                                        <Badge variant={daysRemaining <= 7 ? 'destructive' : daysRemaining <= 30 ? 'secondary' : 'outline'}>
+                                            {daysRemaining}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>{user.lastReminderSent ? format(new Date(user.lastReminderSent), 'PPP') : 'Never'}</TableCell>
+                                </TableRow>
+                                )
+                            })
+                        ) : (
+                             <TableRow>
+                                <TableCell colSpan={6} className="h-24 text-center">
+                                No active subscribers found.
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    );
+};
+
+
+export function SubscriptionsClientPage({ initialPlans, initialUsers }: SubscriptionsClientPageProps) {
   const [plans, setPlans] = useState<SubscriptionPlan[]>(initialPlans);
   const [isFormOpen, setFormOpen] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
@@ -198,15 +323,15 @@ export function SubscriptionsClientPage({ initialPlans }: SubscriptionsClientPag
         </Button>
       </div>
 
-      <Tabs defaultValue="seller">
+      <Tabs defaultValue="plans">
         <TabsList className="grid w-full grid-cols-2 max-w-sm">
-          <TabsTrigger value="seller">Seller Plans</TabsTrigger>
-          <TabsTrigger value="buyer">Buyer Plans</TabsTrigger>
+          <TabsTrigger value="plans">Manage Plans</TabsTrigger>
+          <TabsTrigger value="subscribers">Subscribers</TabsTrigger>
         </TabsList>
-        <TabsContent value="seller">
+        <TabsContent value="plans" className="space-y-6">
             <Card>
                 <CardHeader>
-                    <CardTitle>Plans for Sellers</CardTitle>
+                    <CardTitle>Seller Plans</CardTitle>
                     <CardDescription>
                         You have {sellerPlans.length} plan(s) defined for sellers.
                     </CardDescription>
@@ -215,11 +340,9 @@ export function SubscriptionsClientPage({ initialPlans }: SubscriptionsClientPag
                     <PlanTable plans={sellerPlans} onEdit={handleEdit} onDelete={handleDeleteInitiate} />
                 </CardContent>
             </Card>
-        </TabsContent>
-         <TabsContent value="buyer">
             <Card>
                 <CardHeader>
-                    <CardTitle>Plans for Buyers</CardTitle>
+                    <CardTitle>Buyer Plans</CardTitle>
                     <CardDescription>
                        You have {buyerPlans.length} plan(s) defined for buyers.
                     </CardDescription>
@@ -228,6 +351,9 @@ export function SubscriptionsClientPage({ initialPlans }: SubscriptionsClientPag
                     <PlanTable plans={buyerPlans} onEdit={handleEdit} onDelete={handleDeleteInitiate} />
                 </CardContent>
             </Card>
+        </TabsContent>
+         <TabsContent value="subscribers">
+            <SubscribersTable users={initialUsers} />
         </TabsContent>
       </Tabs>
 

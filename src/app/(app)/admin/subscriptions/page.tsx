@@ -4,13 +4,14 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { Loader2 } from 'lucide-react';
-import { SubscriptionPlan } from '@/lib/types';
-import { getSubscriptionPlansClient } from '@/lib/firebase';
+import { SubscriptionPlan, User } from '@/lib/types';
+import { getSubscriptionPlansClient, getUsersClient } from '@/lib/firebase';
 import { SubscriptionsClientPage } from './client-page';
 
 export default function SubscriptionsPage() {
   const { user } = useAuth();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,10 +22,14 @@ export default function SubscriptionsPage() {
       }
       try {
         setLoading(true);
-        const fetchedPlans = await getSubscriptionPlansClient();
+        const [fetchedPlans, fetchedUsers] = await Promise.all([
+            getSubscriptionPlansClient(),
+            getUsersClient(),
+        ]);
         setPlans(fetchedPlans);
+        setUsers(fetchedUsers);
       } catch (error) {
-        console.error("Failed to fetch subscription plans:", error);
+        console.error("Failed to fetch subscription data:", error);
       } finally {
         setLoading(false);
       }
@@ -51,5 +56,5 @@ export default function SubscriptionsPage() {
     );
   }
 
-  return <SubscriptionsClientPage initialPlans={plans} />;
+  return <SubscriptionsClientPage initialPlans={plans} initialUsers={users} />;
 }
