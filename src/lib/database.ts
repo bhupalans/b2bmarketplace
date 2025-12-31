@@ -75,7 +75,7 @@ export async function getUser(userId: string): Promise<User | null> {
     if (userData.subscriptionPlanId) {
         const planRef = adminDb.collection('subscriptionPlans').doc(userData.subscriptionPlanId);
         const planSnap = await planRef.get();
-        if (planSnap.exists()) {
+        if (planSnap.exists) {
             userData.subscriptionPlan = { id: planSnap.id, ...planSnap.data() } as SubscriptionPlan;
         }
     }
@@ -89,23 +89,51 @@ export async function getActiveSubscribers(): Promise<User[]> {
     const planMap = new Map(plansSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as SubscriptionPlan]));
 
     const usersRef = adminDb.collection('users');
-    const q = usersRef
-        .where('subscriptionPlanId', '!=', null)
-        .where('subscriptionExpiryDate', '>', Timestamp.now());
-    
-    const usersSnapshot = await q.get();
+    // Fetch all users temporarily to handle inconsistent date formats (string vs. Timestamp).
+    // This is less scalable but more robust for the current data state.
+    const usersSnapshot = await usersRef.get();
 
     if (usersSnapshot.empty) {
         return [];
     }
 
-    const subscribers = usersSnapshot.docs.map(doc => {
-        const user = { id: doc.id, uid: doc.id, ...doc.data() } as User;
-        if (user.subscriptionPlanId && planMap.has(user.subscriptionPlanId)) {
-            user.subscriptionPlan = planMap.get(user.subscriptionPlanId);
+    const now = new Date();
+
+    const subscribers = usersSnapshot.docs
+        .map(doc => ({ id: doc.id, uid: doc.id, ...doc.data() } as User))
+        .filter(user => {
+            if (!user.subscriptionPlanId || !user.subscriptionExpiryDate) {
+                return false;
+            }
+            // Handle both Timestamp and ISO string formats for expiry date
+            const expiryDate = user.subscriptionExpiryDate instanceof Timestamp 
+                ? user.subscriptionExpiryDate.toDate() 
+                : new Date(user.subscriptionExpiryDate);
+            
+            return expiryDate > now;
+        })
+        .map(user => {
+            // Join the plan data onto the user object
+            if (user.subscriptionPlanId && planMap.has(user.subscriptionPlanId)) {
+                user.subscriptionPlan = planMap.get(user.subscriptionPlanId);
+            }
+            return user;
+        });
+    
+    // Helper function to serialize Firestore Timestamps to ISO strings
+    const serializeTimestamps = (data: any): any => {
+        if (!data) return data;
+        if (data instanceof Timestamp) return data.toDate().toISOString();
+        if (Array.isArray(data)) return data.map(serializeTimestamps);
+        if (typeof data === 'object' && !(data instanceof Date)) {
+            const res: { [key: string]: any } = {};
+            for (const key in data) {
+                res[key] = serializeTimestamps(data[key]);
+            }
+            return res;
         }
-        return user;
-    });
+        return data;
+    };
 
     return serializeTimestamps(subscribers);
 }
