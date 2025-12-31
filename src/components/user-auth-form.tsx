@@ -1,5 +1,5 @@
 
-"use client";
+'use client';
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
@@ -40,6 +40,7 @@ import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import Image from "next/image";
 import { Checkbox } from "./ui/checkbox";
+import { PasswordStrengthIndicator } from "./password-strength-indicator";
 
 interface UserAuthFormProps extends React.HTMLAttributes<HTMLDivElement> {
   mode: "login" | "signup";
@@ -59,7 +60,7 @@ const signupSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email." }),
   password: z
     .string()
-    .min(6, { message: "Password must be at least 6 characters." }),
+    .min(8, { message: "Password must be at least 8 characters." }),
   confirmPassword: z.string(),
   role: z.enum(["buyer", "seller"]),
   terms: z.boolean().refine((val) => val === true, {
@@ -103,6 +104,8 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
     },
   });
   
+  const watchedPassword = form.watch("password");
+
   async function onSubmit(values: z.infer<typeof loginSchema> | z.infer<typeof signupSchema>) {
     setIsLoading(true);
     try {
@@ -321,24 +324,27 @@ export function UserAuthForm({ className, mode, ...props }: UserAuthFormProps) {
             )}
           />
            {mode === "signup" && (
-            <FormField
-                control={form.control}
-                name="confirmPassword"
-                render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Confirm Password</FormLabel>
-                    <FormControl>
-                    <Input
-                        type="password"
-                        placeholder="••••••••"
-                        disabled={isLoading}
-                        {...field}
-                    />
-                    </FormControl>
-                    <FormMessage />
-                </FormItem>
-                )}
-            />
+            <>
+              <PasswordStrengthIndicator password={watchedPassword} />
+              <FormField
+                  control={form.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                  <FormItem>
+                      <FormLabel>Confirm Password</FormLabel>
+                      <FormControl>
+                      <Input
+                          type="password"
+                          placeholder="••••••••"
+                          disabled={isLoading}
+                          {...field}
+                      />
+                      </FormControl>
+                      <FormMessage />
+                  </FormItem>
+                  )}
+              />
+            </>
            )}
           {mode === "signup" && (
             <>
