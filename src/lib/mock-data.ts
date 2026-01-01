@@ -101,62 +101,6 @@ export const mockVerificationTemplates: VerificationTemplate[] = [
     }
 ];
 
-export const mockSpecTemplates: SpecTemplate[] = [
-  {
-    id: 'spec-template-tractors',
-    name: 'Tractor Specifications',
-    fields: [
-      { name: 'Brand Name', type: 'text' },
-      { name: 'Model', type: 'text' },
-      { name: 'Country of Origin', type: 'text' },
-      { name: 'Engine Power (HP)', type: 'text' },
-      { name: 'Drive Type', type: 'select', options: ['2-Wheel Drive (2WD)', '4-Wheel Drive (4WD)'] },
-      { name: 'Transmission Type', type: 'select', options: ['Manual', 'Hydrostatic', 'CVT (Continuously Variable Transmission)'] },
-      { name: 'PTO (Power Take-off)', type: 'switch' },
-      { name: 'PTO Speed (RPM)', type: 'text' },
-      { name: 'Hydraulic Capacity (L/min)', type: 'text' },
-    ]
-  }
-];
-
-
-export const mockCategories: Category[] = [
-  { id: 'cat-1', name: 'Industrial Supplies', parentId: null, status: 'active', imageUrl: 'https://picsum.photos/seed/industrial/400/300' },
-  { id: 'cat-2', name: 'Raw Materials', parentId: null, status: 'active', imageUrl: 'https://picsum.photos/seed/raw-materials/400/300' },
-  { id: 'cat-3', name: 'Electronics', parentId: null, status: 'active', imageUrl: 'https://picsum.photos/seed/electronics/400/300' },
-  { id: 'cat-4', name: 'Beauty & Personal Care', parentId: null, status: 'active', imageUrl: 'https://picsum.photos/seed/beauty/400/300' },
-  { id: 'cat-5', name: 'Agriculture', parentId: null, status: 'active', imageUrl: 'https://picsum.photos/seed/agriculture/400/300' },
-
-  { id: 'cat-1-1', name: 'Mechanical Components', parentId: 'cat-1', status: 'active' },
-  { id: 'cat-1-2', name: 'Conveying Systems', parentId: 'cat-1', status: 'active' },
-
-  { id: 'cat-2-1', name: 'Textiles', parentId: 'cat-2', status: 'active' },
-  { id: 'cat-2-2', name: 'Metals & Alloys', parentId: 'cat-2', status: 'active' },
-  
-  { id: 'cat-3-1', name: 'Electronic Components', parentId: 'cat-3', status: 'active' },
-
-  { id: 'cat-4-1', name: 'Hair Care & Styling', parentId: 'cat-4', status: 'active' },
-  
-  { id: 'cat-5-1', name: 'Farming Equipment & Machinery', parentId: 'cat-5', status: 'active' },
-  { id: 'cat-5-2', name: 'Fertilizers & Soil Amendments', parentId: 'cat-5', status: 'active' },
-
-
-  { id: 'cat-1-1-1', name: 'Widgets', parentId: 'cat-1-1', status: 'active' },
-  { id: 'cat-1-1-2', name: 'Gears & Cogs', parentId: 'cat-1-1', status: 'active' },
-  { id: 'cat-1-2-1', name: 'Belt Conveyors', parentId: 'cat-1-2', status: 'active' },
-
-  { id: 'cat-2-1-1', name: 'Cotton', parentId: 'cat-2-1', status: 'active' },
-  { id: 'cat-2-2-1', name: 'Titanium', parentId: 'cat-2-2', status: 'active' },
-
-  { id: 'cat-3-1-1', name: 'Printed Circuit Boards (PCBs)', parentId: 'cat-3-1', status: 'active' },
-
-  { id: 'cat-4-1-1', name: 'Wigs & Hairpieces', parentId: 'cat-4-1', status: 'active' },
-  
-  { id: 'cat-5-1-1', name: 'Tractors', parentId: 'cat-5-1', status: 'active', specTemplateId: 'spec-template-tractors' },
-  { id: 'cat-5-1-2', name: 'Harvesters', parentId: 'cat-5-1', status: 'active' },
-  { id: 'cat-5-2-1', name: 'Organic Fertilizers', parentId: 'cat-5-2', status: 'active' },
-];
-
 export const mockProducts: Omit<Product, 'priceUSD'>[] = [
   {
     id: 'prod-1',
