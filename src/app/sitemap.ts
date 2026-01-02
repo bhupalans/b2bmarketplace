@@ -3,7 +3,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { Product, User, Category, SourcingRequest } from '@/lib/types';
 import { Timestamp } from 'firebase-admin/firestore';
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://vbuysell.com';
 
 // Helper function to serialize Firestore Timestamps
 function serializeTimestamps(data: any): any {
