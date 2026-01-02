@@ -17,12 +17,12 @@ export default function ContactPage() {
           <div>
             <strong>General & Support Inquiries:</strong>
             <br />
-            Email: support@example.com
+            Email: bhupalans@gmail.com
           </div>
            <div>
             <strong>Business Inquiries:</strong>
             <br />
-            Email: business@example.com
+            Email: bhupalans@gmail.com
           </div>
           <p>
             Our office hours are Monday to Friday, 9:00 AM to 5:00 PM (EST). We strive to respond to all inquiries within 24 business hours.
