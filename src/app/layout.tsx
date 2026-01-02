@@ -10,7 +10,7 @@ import { getUser } from "@/lib/database";
 import { CURRENCY_MAP } from "@/lib/geography-data";
 import { parse } from 'accept-language-parser';
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://b2btest.veloglobal.in';
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://vbuysell.com';
 
 async function getDefaultCurrency(): Promise<string> {
     try {
