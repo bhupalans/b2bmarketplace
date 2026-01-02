@@ -16,7 +16,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { auth, getNotificationsClient } from "@/lib/firebase";
 import { AppNotification } from "@/lib/types";
 import { signOut } from "firebase/auth";
-import { CreditCard, LogOut, Settings, User, LayoutDashboard, Package, MessageSquare, ShieldCheck, FileText, Handshake, Bell, Gem, List, Receipt } from "lucide-react";
+import { CreditCard, LogOut, Settings, User, LayoutDashboard, Package, MessageSquare, ShieldCheck, FileText, Handshake, Bell, Gem, List, Receipt, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
@@ -69,11 +69,13 @@ export function UserNav() {
       </Button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-            <Avatar className="h-9 w-9">
+          <Button variant="ghost" className="relative h-10 px-3 flex items-center gap-2">
+            <Avatar className="h-8 w-8">
               {user.avatar && <AvatarImage src={user.avatar} alt={user.name} />}
-              <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+              <AvatarFallback className="bg-black text-white">{user.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
             </Avatar>
+            <span className="hidden md:inline">{user.name}</span>
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-56" align="end" forceMount>
