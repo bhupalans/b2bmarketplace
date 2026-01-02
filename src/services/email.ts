@@ -5,7 +5,7 @@ import { Resend } from 'resend';
 import { User, Product, Question, SubscriptionInvoice, SourcingRequest, CallbackRequest } from '@/lib/types';
 import { format } from 'date-fns';
 
-const fromAddress = 'B2B Marketplace <notifications@b2btest.veloglobal.in>';
+const fromAddress = 'B2B Marketplace <notifications@b2b.vbuysell.com>';
 const adminEmail = ['admin@b2b.com', 'bhupalans@gmail.com'];
 
 // Helper function to initialize Resend and check for API key
