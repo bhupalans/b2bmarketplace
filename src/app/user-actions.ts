@@ -3,7 +3,7 @@
 'use server';
 
 import { adminDb, adminStorage, adminAuth } from '@/lib/firebase-admin';
-import { User, VerificationTemplate, SubscriptionPlan } from '@/lib/types';
+import { User, VerificationTemplate, SubscriptionPlan, Offer } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 import { v4 as uuidv4 } from 'uuid';
 import { firestore } from 'firebase-admin';
@@ -11,7 +11,8 @@ import Stripe from 'stripe';
 import { areDetailsEqual } from '@/lib/utils';
 import { add, isFuture } from 'date-fns';
 import { createSubscriptionInvoice } from '@/services/invoicing';
-import { getPlanAndUser } from '@/lib/database';
+import { getPlanAndUser, getUser } from '@/lib/database';
+import { sendOfferAcceptedEmail } from '@/services/email';
 
 type ProfileUpdateData = Omit<User, 'id' | 'uid' | 'email' | 'role' | 'avatar' | 'memberSince' | 'username' | 'subscriptionPlan'>;
 
@@ -275,4 +276,76 @@ export async function manageSubscriptionRenewal(
     console.error(`Error trying to ${action} subscription for user ${userId}:`, error);
     return { success: false, error: `Could not ${action} subscription.` };
   }
+}
+
+export async function processAcceptedOffer(offerId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+        const offerSnap = await adminDb.collection('offers').doc(offerId).get();
+        if (!offerSnap.exists) {
+            throw new Error("Offer not found.");
+        }
+        const offer = offerSnap.data() as Offer;
+
+        if (offer.status !== 'accepted') {
+            console.warn(`processAcceptedOffer called for an offer that is not accepted. Status: ${offer.status}`);
+            return { success: true }; // Not an error, just nothing to do.
+        }
+
+        const [buyer, seller] = await Promise.all([
+            getUser(offer.buyerId),
+            getUser(offer.sellerId)
+        ]);
+
+        if (!buyer || !seller) {
+            throw new Error("Could not retrieve buyer or seller profiles.");
+        }
+
+        const contactCardMessage = `
+            <b>Offer Accepted!</b><br/>
+            Here is the contact information to finalize your transaction:<br/><br/>
+            <b>Seller Details:</b><br/>
+            Name: ${seller.name}<br/>
+            Company: ${seller.companyName || 'N/A'}<br/>
+            Email: ${seller.email}<br/>
+            Phone: ${seller.phoneNumber || 'N/A'}<br/><br/>
+            <b>Buyer Details:</b><br/>
+            Name: ${buyer.name}<br/>
+            Company: ${buyer.companyName || 'N/A'}<br/>
+            Email: ${buyer.email}<br/>
+            Phone: ${buyer.phoneNumber || 'N/A'}
+        `;
+
+        // Send the contact card message as the system
+        const messageRef = adminDb.collection('conversations').doc(offer.conversationId).collection('messages').doc();
+        const conversationRef = adminDb.collection('conversations').doc(offer.conversationId);
+        
+        const batch = adminDb.batch();
+
+        batch.set(messageRef, {
+            conversationId: offer.conversationId,
+            senderId: 'system',
+            text: contactCardMessage,
+            timestamp: firestore.FieldValue.serverTimestamp(),
+            isQuoteRequest: true, // Use this flag to render HTML
+        });
+
+        // Also update the last message in the conversation
+        batch.update(conversationRef, {
+            'lastMessage.text': 'Contact information has been shared.',
+            'lastMessage.senderId': 'system',
+            'lastMessage.timestamp': firestore.FieldValue.serverTimestamp(),
+        });
+        
+        await batch.commit();
+
+        // Send email notifications
+        await sendOfferAcceptedEmail({ buyer, seller, offer });
+        
+        revalidatePath(`/messages/${offer.conversationId}`);
+
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error processing accepted offer on server:", error);
+        return { success: false, error: 'Failed to process the accepted offer on the server.' };
+    }
 }

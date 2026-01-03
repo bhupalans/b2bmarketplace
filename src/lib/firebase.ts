@@ -8,6 +8,7 @@ import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation,
 import { v4 as uuidv4 } from 'uuid';
 import { moderateMessageContent } from '@/ai/flows/moderate-message-content';
 import { sendQuestionAnsweredEmail, sendProductApprovedEmail, sendProductRejectedEmail, sendUserVerifiedEmail, sendUserRejectedEmail, sendSourcingRequestSubmittedEmail, sendSourcingRequestApprovedEmail, sendSourcingRequestRejectedEmail, sendOfferAcceptedEmail } from '@/services/email';
+import { processAcceptedOffer } from '@/app/user-actions';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDL_o5j6RtqjCwFN5iTtvUj6nFfyDJaaxc",
@@ -1048,34 +1049,14 @@ export async function updateOfferStatusClient(
         } 
     });
 
-    // If the offer is accepted, trigger the contact information exchange
+    // If the offer is accepted, call the server action to handle the rest
     if (status === 'accepted') {
-        const [buyer, seller] = await Promise.all([
-            getUserClient(offer.buyerId),
-            getUserClient(offer.sellerId)
-        ]);
-
-        if (buyer && seller) {
-            const contactCardMessage = `
-                <b>Offer Accepted!</b><br/>
-                Here is the contact information to finalize your transaction:<br/><br/>
-                <b>Seller Details:</b><br/>
-                Name: ${seller.name}<br/>
-                Company: ${seller.companyName || 'N/A'}<br/>
-                Email: ${seller.email}<br/>
-                Phone: ${seller.phoneNumber || 'N/A'}<br/><br/>
-                <b>Buyer Details:</b><br/>
-                Name: ${buyer.name}<br/>
-                Company: ${buyer.companyName || 'N/A'}<br/>
-                Email: ${buyer.email}<br/>
-                Phone: ${buyer.phoneNumber || 'N/A'}
-            `;
-            await sendMessage(offer.conversationId, 'system', contactCardMessage, { isContactCard: true });
-            
-            // Also send an email to both parties
-            await sendOfferAcceptedEmail({ buyer, seller, offer });
-        } else {
-            console.error("Could not fetch buyer or seller to exchange contact information.");
+        try {
+            await processAcceptedOffer(offerId);
+        } catch (error) {
+            console.error("Failed to trigger server-side offer processing:", error);
+            // The client-side part is done, but we should log this failure.
+            // The user will see the "accepted" status but may not get the contact card/email.
         }
     }
 }

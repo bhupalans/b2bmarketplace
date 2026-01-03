@@ -22,14 +22,14 @@ export async function sendOfferAcceptedEmail({ buyer, seller, offer }: { buyer: 
     const resend = getResend();
     if (!resend) return;
 
-    const productUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/products/${offer.productId}`;
     const messageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/messages/${offer.conversationId}`;
+    const formattedPrice = new Intl.NumberFormat('en-US', { style: 'currency', currency: offer.price.baseCurrency }).format(offer.price.baseAmount * offer.quantity);
 
     const commonHtml = `
         <p>You have a new agreement on the B2B Marketplace!</p>
         <p><strong>Product:</strong> ${offer.productTitle}</p>
         <p><strong>Quantity:</strong> ${offer.quantity.toLocaleString()}</p>
-        <p><strong>Total Price:</strong> ${new Intl.NumberFormat('en-US', { style: 'currency', currency: offer.price.baseCurrency }).format(offer.price.baseAmount * offer.quantity)}</p>
+        <p><strong>Total Price:</strong> ${formattedPrice}</p>
         <p>You can now proceed with finalizing payment and shipping arrangements. Contact information has been shared in your conversation on the platform.</p>
         <p>
             <a href="${messageUrl}" style="display: inline-block; padding: 10px 15px; background-color: #28a745; color: #ffffff; text-decoration: none; border-radius: 5px;">
@@ -48,7 +48,7 @@ export async function sendOfferAcceptedEmail({ buyer, seller, offer }: { buyer: 
                 <div style="font-family: sans-serif; line-height: 1.5;">
                     <h1>Hi ${buyer.name},</h1>
                     <p>You have accepted the offer from ${seller.name}. Here are their contact details to proceed:</p>
-                    <ul>
+                    <ul style="list-style-type: none; padding: 0;">
                         <li><strong>Name:</strong> ${seller.name}</li>
                         <li><strong>Company:</strong> ${seller.companyName || 'N/A'}</li>
                         <li><strong>Email:</strong> ${seller.email}</li>
@@ -73,7 +73,7 @@ export async function sendOfferAcceptedEmail({ buyer, seller, offer }: { buyer: 
                 <div style="font-family: sans-serif; line-height: 1.5;">
                     <h1>Hi ${seller.name},</h1>
                     <p>${buyer.name} has accepted your offer. Here are their contact details to proceed:</p>
-                    <ul>
+                    <ul style="list-style-type: none; padding: 0;">
                         <li><strong>Name:</strong> ${buyer.name}</li>
                         <li><strong>Company:</strong> ${buyer.companyName || 'N/A'}</li>
                         <li><strong>Email:</strong> ${buyer.email}</li>
