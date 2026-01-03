@@ -218,7 +218,7 @@ export async function sendSourcingRequestRejectedEmail({ requestId, requestTitle
     const resend = getResend();
     if (!resend || !buyer.email) return;
 
-    const editRequestUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/sourcing/create?id=${requestId}`;
+    const editRequestUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/sourcing/create`;
 
     try {
         await resend.emails.send({
@@ -231,10 +231,10 @@ export async function sendSourcingRequestRejectedEmail({ requestId, requestTitle
                     <p>Your sourcing request, <strong>${requestTitle}</strong>, could not be approved at this time.</p>
                     <p style="color: #555;">Reason provided by our admin team:</p>
                     <p style="font-style: italic; border-left: 3px solid #dc3545; padding-left: 10px;">"${reason}"</p>
-                    <p>Please review your request, make the necessary corrections, and re-submit for approval.</p>
+                    <p>Your current status is closed, you may delete the existing request and Recreate a new sourcing request and submit for approval.</p>
                     <p>
                         <a href="${editRequestUrl}" style="display: inline-block; padding: 10px 15px; background-color: #007bff; color: #ffffff; text-decoration: none; border-radius: 5px;">
-                            Edit Your Request
+                            Post a Sourcing Request
                         </a>
                     </p>
                 </div>
