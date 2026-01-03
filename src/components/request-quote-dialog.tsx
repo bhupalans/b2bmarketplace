@@ -25,6 +25,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "./ui/form";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
+import { moderateMessageContent } from "@/ai/flows/moderate-message-content";
 
 const quoteSchema = z.object({
     quantity: z.coerce.number().min(1, 'Please enter a valid quantity.'),
@@ -74,8 +75,10 @@ export function RequestQuoteDialog({ product, seller }: RequestQuoteDialogProps)
             productTitle: product.title,
             productImage: product.images[0] || '',
         });
+
+        const moderationResult = await moderateMessageContent({ message: values.requirements });
         
-        const formattedMessage = `<b>New Quote Request</b><br/><b>Product:</b> ${product.title}<br/><b>Quantity:</b> ${values.quantity}<br/><br/><b>Buyer's Message:</b><br/>${values.requirements}`;
+        const formattedMessage = `<b>New Quote Request</b><br/><b>Product:</b> ${product.title}<br/><b>Quantity:</b> ${values.quantity}<br/><br/><b>Buyer's Message:</b><br/>${moderationResult.modifiedMessage}`;
         await sendMessage(conversationId, user.uid, formattedMessage, { isQuoteRequest: true });
 
         toast({
