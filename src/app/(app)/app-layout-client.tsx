@@ -47,6 +47,22 @@ function EmailVerificationBanner() {
   const [resendCooldown, setResendCooldown] = useState(0);
 
   useEffect(() => {
+    // Proactively start cooldown for brand new users.
+    if (firebaseUser) {
+      const metadata = firebaseUser.metadata;
+      const creationTime = new Date(metadata.creationTime || 0).getTime();
+      const lastSignInTime = new Date(metadata.lastSignInTime || 0).getTime();
+
+      // If the account was created in the last 60 seconds, start a cooldown
+      // to prevent immediate resend clicks from failing.
+      if (Math.abs(lastSignInTime - creationTime) < 60000) {
+        setResendCooldown(60);
+      }
+    }
+  }, [firebaseUser]);
+
+
+  useEffect(() => {
     let timer: NodeJS.Timeout;
     if (resendCooldown > 0) {
       timer = setTimeout(() => {
@@ -67,7 +83,7 @@ function EmailVerificationBanner() {
           description: "Please check your inbox (and spam folder).",
         });
         setResendCooldown(60); // Start 60-second cooldown
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to resend verification email:", error);
         toast({
           variant: "destructive",
