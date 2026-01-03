@@ -7,7 +7,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject, uploadStrin
 import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate, VerificationTemplate, VerificationField, SourcingRequest, Question, Answer, AppNotification, SubscriptionPlan, PaymentGateway, SubscriptionInvoice, BrandingSettings } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { moderateMessageContent } from '@/ai/flows/moderate-message-content';
-import { sendQuestionAnsweredEmail, sendProductApprovedEmail, sendProductRejectedEmail, sendUserVerifiedEmail, sendUserRejectedEmail, sendSourcingRequestSubmittedEmail, sendSourcingRequestApprovedEmail, sendSourcingRequestRejectedEmail } from '@/services/email';
+import { sendQuestionAnsweredEmail, sendProductApprovedEmail, sendProductRejectedEmail, sendUserVerifiedEmail, sendUserRejectedEmail, sendSourcingRequestSubmittedEmail, sendSourcingRequestApprovedEmail, sendSourcingRequestRejectedEmail, sendOfferAcceptedEmail } from '@/services/email';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDL_o5j6RtqjCwFN5iTtvUj6nFfyDJaaxc",
@@ -866,9 +866,10 @@ export function streamMessages(conversationId: string, callback: (messages: Mess
     return unsubscribe;
 }
 
-export async function sendMessage(conversationId: string, senderId: string, text: string, options?: { offerId?: string; isQuoteRequest?: boolean, offerStatusUpdate?: OfferStatusUpdate }): Promise<void> {
+export async function sendMessage(conversationId: string, senderId: string, text: string, options?: { offerId?: string; isQuoteRequest?: boolean, offerStatusUpdate?: OfferStatusUpdate, isContactCard?: boolean }): Promise<void> {
     let modifiedMessage = text;
-    if (!options?.isQuoteRequest && !options?.offerStatusUpdate) {
+    // Don't moderate special messages
+    if (!options?.isQuoteRequest && !options?.offerStatusUpdate && !options?.isContactCard) {
         try {
             const result = await moderateMessageContent({ message: text });
             modifiedMessage = result.modifiedMessage;
@@ -901,8 +902,8 @@ export async function sendMessage(conversationId: string, senderId: string, text
     if (options?.offerId) {
         newMessage.offerId = options.offerId;
     }
-    if (options?.isQuoteRequest) {
-        newMessage.isQuoteRequest = true;
+    if (options?.isQuoteRequest || options?.isContactCard) {
+        newMessage.isQuoteRequest = true; // Use same flag to render HTML
     }
     if (options?.offerStatusUpdate) {
         newMessage.offerStatusUpdate = options.offerStatusUpdate;
@@ -913,7 +914,10 @@ export async function sendMessage(conversationId: string, senderId: string, text
         lastMessageText = "An offer was sent.";
     } else if (options?.offerStatusUpdate) {
         lastMessageText = `Offer ${options.offerStatusUpdate.status}.`;
+    } else if (options?.isContactCard) {
+        lastMessageText = "Contact information has been shared.";
     }
+
 
     const lastMessageUpdate = {
         lastMessage: {
@@ -1035,7 +1039,7 @@ export async function updateOfferStatusClient(
         updatedAt: serverTimestamp(),
     });
     
-    // Send a notification message to the chat
+    // Send a system message to the chat confirming the status update
     const notificationText = `I have ${status} the offer for "${offer.productTitle}".`;
     await sendMessage(offer.conversationId, currentUserId, notificationText, { 
         offerStatusUpdate: { 
@@ -1043,6 +1047,37 @@ export async function updateOfferStatusClient(
             status: status 
         } 
     });
+
+    // If the offer is accepted, trigger the contact information exchange
+    if (status === 'accepted') {
+        const [buyer, seller] = await Promise.all([
+            getUserClient(offer.buyerId),
+            getUserClient(offer.sellerId)
+        ]);
+
+        if (buyer && seller) {
+            const contactCardMessage = `
+                <b>Offer Accepted!</b><br/>
+                Here is the contact information to finalize your transaction:<br/><br/>
+                <b>Seller Details:</b><br/>
+                Name: ${seller.name}<br/>
+                Company: ${seller.companyName || 'N/A'}<br/>
+                Email: ${seller.email}<br/>
+                Phone: ${seller.phoneNumber || 'N/A'}<br/><br/>
+                <b>Buyer Details:</b><br/>
+                Name: ${buyer.name}<br/>
+                Company: ${buyer.companyName || 'N/A'}<br/>
+                Email: ${buyer.email}<br/>
+                Phone: ${buyer.phoneNumber || 'N/A'}
+            `;
+            await sendMessage(offer.conversationId, 'system', contactCardMessage, { isContactCard: true });
+            
+            // Also send an email to both parties
+            await sendOfferAcceptedEmail({ buyer, seller, offer });
+        } else {
+            console.error("Could not fetch buyer or seller to exchange contact information.");
+        }
+    }
 }
 
 export async function sendQuoteForSourcingRequest(data: {

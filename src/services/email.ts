@@ -1,8 +1,9 @@
 
+
 'use server';
 
 import { Resend } from 'resend';
-import { User, Product, Question, SubscriptionInvoice, SourcingRequest, CallbackRequest } from '@/lib/types';
+import { User, Product, Question, SubscriptionInvoice, SourcingRequest, CallbackRequest, Offer } from '@/lib/types';
 import { format } from 'date-fns';
 
 const fromAddress = 'B2B Marketplace <notifications@b2b.vbuysell.com>';
@@ -16,6 +17,78 @@ function getResend() {
     }
     return new Resend(process.env.RESEND_API_KEY);
 }
+
+export async function sendOfferAcceptedEmail({ buyer, seller, offer }: { buyer: User, seller: User, offer: Offer }) {
+    const resend = getResend();
+    if (!resend) return;
+
+    const productUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/products/${offer.productId}`;
+    const messageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/messages/${offer.conversationId}`;
+
+    const commonHtml = `
+        <p>You have a new agreement on the B2B Marketplace!</p>
+        <p><strong>Product:</strong> ${offer.productTitle}</p>
+        <p><strong>Quantity:</strong> ${offer.quantity.toLocaleString()}</p>
+        <p><strong>Total Price:</strong> ${new Intl.NumberFormat('en-US', { style: 'currency', currency: offer.price.baseCurrency }).format(offer.price.baseAmount * offer.quantity)}</p>
+        <p>You can now proceed with finalizing payment and shipping arrangements. Contact information has been shared in your conversation on the platform.</p>
+        <p>
+            <a href="${messageUrl}" style="display: inline-block; padding: 10px 15px; background-color: #28a745; color: #ffffff; text-decoration: none; border-radius: 5px;">
+                View Conversation
+            </a>
+        </p>
+    `;
+
+    // Email to Buyer
+    try {
+        await resend.emails.send({
+            from: fromAddress,
+            to: buyer.email,
+            subject: `Offer Accepted: You have a new deal with ${seller.name}`,
+            html: `
+                <div style="font-family: sans-serif; line-height: 1.5;">
+                    <h1>Hi ${buyer.name},</h1>
+                    <p>You have accepted the offer from ${seller.name}. Here are their contact details to proceed:</p>
+                    <ul>
+                        <li><strong>Name:</strong> ${seller.name}</li>
+                        <li><strong>Company:</strong> ${seller.companyName || 'N/A'}</li>
+                        <li><strong>Email:</strong> ${seller.email}</li>
+                        <li><strong>Phone:</strong> ${seller.phoneNumber || 'N/A'}</li>
+                    </ul>
+                    ${commonHtml}
+                </div>
+            `
+        });
+        console.log(`Offer accepted email sent to buyer ${buyer.email}`);
+    } catch (error) {
+        console.error(`Failed to send offer accepted email to buyer ${buyer.email}:`, error);
+    }
+
+    // Email to Seller
+    try {
+        await resend.emails.send({
+            from: fromAddress,
+            to: seller.email,
+            subject: `Offer Accepted: ${buyer.name} accepted your offer!`,
+            html: `
+                <div style="font-family: sans-serif; line-height: 1.5;">
+                    <h1>Hi ${seller.name},</h1>
+                    <p>${buyer.name} has accepted your offer. Here are their contact details to proceed:</p>
+                    <ul>
+                        <li><strong>Name:</strong> ${buyer.name}</li>
+                        <li><strong>Company:</strong> ${buyer.companyName || 'N/A'}</li>
+                        <li><strong>Email:</strong> ${buyer.email}</li>
+                        <li><strong>Phone:</strong> ${buyer.phoneNumber || 'N/A'}</li>
+                    </ul>
+                    ${commonHtml}
+                </div>
+            `
+        });
+        console.log(`Offer accepted email sent to seller ${seller.email}`);
+    } catch (error) {
+        console.error(`Failed to send offer accepted email to seller ${seller.email}:`, error);
+    }
+}
+
 
 export async function sendSubscriptionReminderEmail({ user, daysRemaining }: { user: User, daysRemaining: number }) {
     const resend = getResend();
