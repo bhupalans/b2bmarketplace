@@ -44,9 +44,20 @@ function EmailVerificationBanner() {
   const { firebaseUser } = useAuth();
   const [isSending, startResendTransition] = useTransition();
   const { toast } = useToast();
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (resendCooldown > 0) {
+      timer = setTimeout(() => {
+        setResendCooldown(resendCooldown - 1);
+      }, 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
 
   const handleResend = () => {
-    if (!firebaseUser) return;
+    if (!firebaseUser || resendCooldown > 0) return;
 
     startResendTransition(async () => {
       try {
@@ -55,6 +66,7 @@ function EmailVerificationBanner() {
           title: "Verification Email Sent",
           description: "Please check your inbox (and spam folder).",
         });
+        setResendCooldown(60); // Start 60-second cooldown
       } catch (error) {
         console.error("Failed to resend verification email:", error);
         toast({
@@ -70,13 +82,16 @@ function EmailVerificationBanner() {
     return null;
   }
   
+  const isButtonDisabled = isSending || resendCooldown > 0;
+  
   return (
       <Alert className="rounded-none border-x-0 border-t-0 border-b border-yellow-300 bg-yellow-100/80 text-yellow-900 dark:border-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-100 [&>svg]:text-yellow-600 dark:[&>svg]:text-yellow-300">
         <MailWarning className="h-4 w-4" />
         <AlertDescription className="flex items-center justify-between">
           <span>Please verify your email address to get full access.</span>
-          <Button variant="link" onClick={handleResend} disabled={isSending} className="text-yellow-900 dark:text-yellow-100 h-auto p-0">
-             {isSending ? <Loader2 className="h-4 w-4 animate-spin"/> : 'Resend Email'}
+          <Button variant="link" onClick={handleResend} disabled={isButtonDisabled} className="text-yellow-900 dark:text-yellow-100 h-auto p-0">
+             {isSending ? <Loader2 className="h-4 w-4 animate-spin"/> : 
+              resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Email'}
           </Button>
         </AlertDescription>
       </Alert>
