@@ -39,6 +39,7 @@ import { Conversation } from "@/lib/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { sendEmailVerification } from "firebase/auth";
+import { SupportChatbot } from "@/components/support-chatbot";
 
 function EmailVerificationBanner() {
   const { firebaseUser } = useAuth();
@@ -481,6 +482,7 @@ export function AppLayoutClient({
             </header>
             {firebaseUser && <EmailVerificationBanner />}
             <main className="flex-1 p-4 sm:p-6">{children}</main>
+            <SupportChatbot />
             <AppFooter companyName={companyName} />
         </div>
       </SidebarInset>
