@@ -57,7 +57,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const branding = await getBrandingSettings();
   const companyName = branding.companyName || "B2B Marketplace";
   const subhead = branding.subhead || "Connect with verified suppliers and source products globally.";
-  const bannerUrl = `${BASE_URL}/images/Image1.jpg`; // Use a larger, more appropriate image
+  const logoUrl = `${BASE_URL}/Veloglobal.png`;
   
   return {
     title: {
@@ -72,10 +72,10 @@ export async function generateMetadata(): Promise<Metadata> {
       siteName: companyName,
       images: [
         {
-          url: bannerUrl,
-          width: 1200,
-          height: 630,
-          alt: `A large cargo ship representing global trade for ${companyName}`,
+          url: logoUrl,
+          width: 48,
+          height: 48,
+          alt: `${companyName} Logo`,
         },
       ],
       locale: 'en_US',
