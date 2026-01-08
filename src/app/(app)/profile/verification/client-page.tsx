@@ -124,6 +124,10 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
   const [addressProofType, setAddressProofType] = useState<AddressProofType>('statement');
   const TOTAL_STEPS = 3;
 
+  if (!user) {
+    return null;
+  }
+
   const activeTemplate = useMemo(() => {
     const country = user.address?.country;
     if (!country) return null;
