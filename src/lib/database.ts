@@ -3,7 +3,7 @@
 'use server';
 
 import { adminDb } from "./firebase-admin";
-import { Product, Category, User, Message, Conversation, Offer, SubscriptionPlan, BrandingSettings, VerificationTemplate } from "./types";
+import { Product, Category, User, Message, Conversation, Offer, SubscriptionPlan, BrandingSettings } from "./types";
 import { mockCategories, mockProducts } from "./mock-data";
 import { firestore, firestore as adminFirestore } from "firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
@@ -43,17 +43,6 @@ export async function getBrandingSettings(): Promise<BrandingSettings> {
         return docSnap.data() as BrandingSettings;
     }
     return {}; // Return empty object if not found
-}
-
-export async function getVerificationTemplates(): Promise<VerificationTemplate[]> {
-    const snapshot = await adminDb.collection("verificationTemplates").get();
-    if (snapshot.empty) {
-        return [];
-    }
-    return snapshot.docs.map(doc => {
-      const template = { id: doc.id, ...doc.data() } as VerificationTemplate;
-      return serializeTimestamps(template);
-    });
 }
 
 export async function getProduct(productId: string): Promise<Product | null> {

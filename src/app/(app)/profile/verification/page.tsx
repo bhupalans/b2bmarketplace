@@ -35,8 +35,11 @@ export default function VerificationPage() {
           setLoading(false);
       }
     }
-    fetchTemplates();
-  }, [user, toast]);
+    
+    if (!authLoading) {
+      fetchTemplates();
+    }
+  }, [user, authLoading, toast]);
 
   if (authLoading || loading) {
     return (
