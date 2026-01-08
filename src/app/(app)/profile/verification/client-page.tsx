@@ -23,6 +23,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { Progress } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import Image from 'next/image';
 
 interface VerificationClientPageProps {
   user: User;
@@ -224,7 +225,7 @@ export function VerificationClientPage({ user, verificationTemplates }: Verifica
 
             const token = await firebaseUser.getIdToken();
             const result = await submitVerificationDocuments(formData, token);
-
+            
             if (result.success) {
                 updateUserContext(result.updatedUser);
                 setFileUploads({});
@@ -232,6 +233,7 @@ export function VerificationClientPage({ user, verificationTemplates }: Verifica
             } else {
                 toast({ variant: 'destructive', title: 'Submission Failed', description: result.error || 'An unknown error occurred.' });
             }
+
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Submission Error', description: error.message || 'An unexpected error occurred.' });
         }
