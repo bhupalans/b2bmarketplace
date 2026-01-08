@@ -24,6 +24,7 @@ import { Progress } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 
 interface VerificationClientPageProps {
   user: User;
@@ -115,6 +116,7 @@ const ExistingFileDisplay: React.FC<{
 
 export function VerificationClientPage({ user, verificationTemplates }: VerificationClientPageProps) {
   const { updateUserContext, firebaseUser } = useAuth();
+  const router = useRouter();
   const [fileUploads, setFileUploads] = useState<FileUploadState>({});
   const [isSubmitting, startSubmitTransition] = useTransition();
   const { toast } = useToast();
@@ -227,9 +229,8 @@ export function VerificationClientPage({ user, verificationTemplates }: Verifica
             const result = await submitVerificationDocuments(formData, token);
             
             if (result.success) {
-                updateUserContext(result.updatedUser);
-                setFileUploads({});
-                toast({ title: 'Verification Submitted', description: 'Your documents are now pending review.' });
+                toast({ title: 'Verification Submitted', description: 'Your documents are now pending review. The page will now refresh.' });
+                router.refresh();
             } else {
                 toast({ variant: 'destructive', title: 'Submission Failed', description: result.error || 'An unknown error occurred.' });
             }

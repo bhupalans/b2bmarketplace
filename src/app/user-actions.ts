@@ -175,7 +175,7 @@ export async function submitVerificationDocuments(formData: FormData, token: str
     }
     
     // revalidatePath('/profile/verification');
-   // revalidatePath('/profile');
+    // revalidatePath('/profile');
 
     const updatedUserSnap = await userRef.get();
     const updatedUser = { id: updatedUserSnap.id, uid: userId, ...updatedUserSnap.data() } as User;
