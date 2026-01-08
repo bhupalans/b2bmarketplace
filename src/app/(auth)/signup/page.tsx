@@ -15,8 +15,9 @@ export default function SignupPage() {
     <Card className="w-full max-w-sm">
       <CardHeader className="space-y-1 text-center">
         <div className="flex justify-center">
-          {/* <Building className="h-8 w-8 text-primary" /> */}
-          <Image src="/Veloglobal.png" alt="Company Logo" width={48} height={48} />
+        <Link href="/">
+            <Image src="/Veloglobal.png" alt="Company Logo" width={48} height={48} />
+          </Link>
         </div>
         <CardTitle className="text-2xl">Create an account</CardTitle>
         <CardDescription>
