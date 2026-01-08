@@ -112,8 +112,8 @@ const ExistingFileDisplay: React.FC<{
 );
 
 
-export function VerificationClientPage({ user: initialUser, verificationTemplates }: VerificationClientPageProps) {
-  const { user, updateUserContext, firebaseUser } = useAuth();
+export function VerificationClientPage({ user, verificationTemplates }: VerificationClientPageProps) {
+  const { updateUserContext, firebaseUser } = useAuth();
   const [fileUploads, setFileUploads] = useState<FileUploadState>({});
   const [isSubmitting, startSubmitTransition] = useTransition();
   const { toast } = useToast();
@@ -225,7 +225,7 @@ export function VerificationClientPage({ user: initialUser, verificationTemplate
             const token = await firebaseUser.getIdToken();
             const result = await submitVerificationDocuments(formData, token);
 
-            if (result.success && result.updatedUser) {
+            if (result.success) {
                 updateUserContext(result.updatedUser);
                 setFileUploads({});
                 toast({ title: 'Verification Submitted', description: 'Your documents are now pending review.' });
