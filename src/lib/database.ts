@@ -68,18 +68,18 @@ export async function getUser(userId: string): Promise<User | null> {
     const userSnap = await userRef.get();
     if (!userSnap.exists) return null;
     
-    const userData = userSnap.data() as User;
+    const userData = userSnap.data() as Omit<User, 'id'>;
 
     // If the user has a subscription, fetch the plan details
     if (userData.subscriptionPlanId) {
         const planRef = adminDb.collection('subscriptionPlans').doc(userData.subscriptionPlanId);
         const planSnap = await planRef.get();
-        if (planSnap.exists()) {
+        if (planSnap.exists) {
             userData.subscriptionPlan = { id: planSnap.id, ...planSnap.data() } as SubscriptionPlan;
         }
     }
 
-    const user = { id: userSnap.id, uid: userSnap.id, ...userData };
+    const user = { id: userSnap.id, ...userData } as User;
     return serializeTimestamps(user);
 }
 
@@ -167,7 +167,7 @@ export async function getUsersByIds(userIds: string[]): Promise<Map<string, User
         const snapshot = await usersRef.where(firestore.FieldPath.documentId(), 'in', chunk).get();
 
         snapshot.forEach(doc => {
-            const user = { id: doc.id, uid: doc.id, ...doc.data() } as User;
+            const user = { id: doc.id, ...doc.data() } as User;
             userMap.set(doc.id, serializeTimestamps(user));
         });
     }
@@ -183,7 +183,7 @@ export async function findUserByUsername(username: string): Promise<User | null>
         return null;
     }
     const userDoc = snapshot.docs[0];
-    const user = { id: userDoc.id, uid: userDoc.id, ...userDoc.data() } as User;
+    const user = { id: userDoc.id, ...userDoc.data() } as User;
     return serializeTimestamps(user);
 }
 
