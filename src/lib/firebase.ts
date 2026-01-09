@@ -646,14 +646,19 @@ export async function createOrUpdateCategoryClient(
     finalImageUrl = await getDownloadURL(storageRef);
   }
 
-  const dataToSave: Partial<Omit<Category, 'id'>> & { updatedAt: Timestamp } = {
+  const dataToSave: Partial<Omit<Category, 'id' | 'specTemplateId' | 'imageUrl'>> & { updatedAt: Timestamp, specTemplateId?: string, imageUrl?: string } = {
     name: categoryData.name,
     parentId: categoryData.parentId,
     status: categoryData.status,
-    specTemplateId: categoryData.specTemplateId || undefined,
-    imageUrl: finalImageUrl || undefined, // Ensure null becomes undefined
     updatedAt: Timestamp.now(),
   };
+
+  if (categoryData.specTemplateId) {
+    dataToSave.specTemplateId = categoryData.specTemplateId;
+  }
+  if (finalImageUrl) {
+    dataToSave.imageUrl = finalImageUrl;
+  }
 
   if (categoryId) {
     const categoryRef = doc(db, 'categories', categoryId);
@@ -1567,3 +1572,5 @@ export async function getInvoicesForUserClient(userId: string): Promise<Subscrip
 
 
 export { app, auth, db, storage };
+
+    
