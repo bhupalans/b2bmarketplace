@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { Product } from "./types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -19,4 +20,28 @@ export const areDetailsEqual = (d1?: { [key: string]: string }, d2?: { [key: str
         if (details1[key] !== details2[key]) return false;
     }
     return true;
+};
+
+// Helper function to compare arrays of specifications
+export const areSpecificationsEqual = (
+  specs1?: Product['specifications'],
+  specs2?: Product['specifications']
+): boolean => {
+  const s1 = specs1 || [];
+  const s2 = specs2 || [];
+
+  if (s1.length !== s2.length) {
+    return false;
+  }
+
+  // Create maps for efficient lookups, ignoring order.
+  const map1 = new Map(s1.map(spec => [spec.name, spec.value]));
+
+  for (const spec of s2) {
+    if (map1.get(spec.name) !== spec.value) {
+      return false;
+    }
+  }
+
+  return true;
 };
