@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { moderateMessageContent } from '@/ai/flows/moderate-message-content';
 import { sendQuestionAnsweredEmail, sendProductApprovedEmail, sendProductRejectedEmail, sendUserVerifiedEmail, sendUserRejectedEmail, sendSourcingRequestSubmittedEmail, sendSourcingRequestApprovedEmail, sendSourcingRequestRejectedEmail, sendOfferAcceptedEmail } from '@/services/email';
 import { processAcceptedOffer } from '@/app/user-actions';
-import { areDetailsEqual } from './utils';
+import { areDetailsEqual, areSpecificationsEqual } from './utils';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDL_o5j6RtqjCwFN5iTtvUj6nFfyDJaaxc",
@@ -439,7 +439,7 @@ export async function createOrUpdateProductClient(
             changedFields.push('images');
         }
 
-        const requiresReview = changedFields.some(field => !autoApprovalRules.includes(field));
+        const requiresReview = changedFields.some(field => !autoApprovalRules.includes(field as string));
         
         if (requiresReview) {
             finalStatus = 'pending';
