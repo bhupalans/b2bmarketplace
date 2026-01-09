@@ -197,7 +197,6 @@ export async function getUsersClient(): Promise<User[]> {
     return {
       id: docSnap.id,
       ...data,
-      uid: docSnap.id,
     } as User;
   });
   return userList;
@@ -317,7 +316,7 @@ export async function updateProductStatus(
 
                   await sendProductRejectedEmail({ 
                       seller, 
-                      product: serializableProduct as Product, 
+                      product: serializableProduct, 
                       reason: reason || "Your product did not meet our listing guidelines. Please review and resubmit." 
                   });
               }
@@ -671,9 +670,9 @@ export async function createOrUpdateCategoryClient(
     finalImageUrl = await getDownloadURL(storageRef);
   }
 
-  const dataToSave: Partial<Category> & { updatedAt: Timestamp, imageUrl?: string | null } = {
+  const dataToSave: Partial<Category> & { updatedAt: Timestamp } = {
     ...categoryData,
-    imageUrl: finalImageUrl,
+    imageUrl: finalImageUrl || undefined, // Ensure null becomes undefined
     updatedAt: Timestamp.now(),
   };
 
