@@ -4,7 +4,6 @@
 
 import { adminDb } from "./firebase-admin";
 import { Product, Category, User, Message, Conversation, Offer, SubscriptionPlan, BrandingSettings } from "./types";
-import { mockCategories, mockProducts } from "./mock-data";
 import { firestore, firestore as adminFirestore } from "firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
 
