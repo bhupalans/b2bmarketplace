@@ -99,7 +99,7 @@ export async function getActiveSubscribers(): Promise<User[]> {
     const now = new Date();
 
     const subscribers = usersSnapshot.docs
-        .map(doc => ({ id: doc.id, uid: doc.id, ...doc.data() } as User))
+        .map(doc => ({ id: doc.id, ...doc.data() } as User))
         .filter(user => {
             if (!user.subscriptionPlanId || !user.subscriptionExpiryDate) {
                 return false;
@@ -107,7 +107,7 @@ export async function getActiveSubscribers(): Promise<User[]> {
             // Handle both Timestamp and ISO string formats for expiry date
             const expiryDate = user.subscriptionExpiryDate instanceof Timestamp 
                 ? user.subscriptionExpiryDate.toDate() 
-                : new Date(user.subscriptionExpiryDate);
+                : new Date(user.subscriptionExpiryDate as string);
             
             return expiryDate > now;
         })
@@ -299,7 +299,7 @@ export async function getPlanAndUser(planId: string, userId: string): Promise<{ 
     const userData = userSnap.data();
 
     const plan = { id: planSnap.id, ...planData } as SubscriptionPlan;
-    const user = {uid: userSnap.id, id: userSnap.id, ...userData} as User;
+    const user = {id: userSnap.id, ...userData} as User;
 
     return {
         plan: serializeTimestamps(plan),
