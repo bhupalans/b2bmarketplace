@@ -197,7 +197,7 @@ export async function getUsersClient(): Promise<User[]> {
     return {
       id: docSnap.id,
       ...data,
-      uid: docSnap.id, // ensure uid is set from the doc id
+      uid: docSnap.id,
     } as User;
   });
   return userList;
@@ -301,14 +301,23 @@ export async function updateProductStatus(
               if (status === 'approved') {
                   await sendProductApprovedEmail({ seller, product });
               } else if (status === 'rejected') {
+                  const toSafeDate = (value: string | Timestamp | undefined): Date | undefined => {
+                    if (!value) return undefined;
+                    if (value instanceof Timestamp) {
+                        return value.toDate();
+                    }
+                    return new Date(value);
+                  };
+                  
                   const serializableProduct = {
                     ...product,
-                    createdAt: product.createdAt ? new Date(product.createdAt).toISOString() : undefined,
-                    updatedAt: product.updatedAt ? new Date(product.updatedAt).toISOString() : undefined,
+                    createdAt: toSafeDate(product.createdAt)?.toISOString(),
+                    updatedAt: toSafeDate(product.updatedAt)?.toISOString(),
                   };
+
                   await sendProductRejectedEmail({ 
                       seller, 
-                      product: serializableProduct, 
+                      product: serializableProduct as Product, 
                       reason: reason || "Your product did not meet our listing guidelines. Please review and resubmit." 
                   });
               }
