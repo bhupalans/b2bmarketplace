@@ -442,9 +442,10 @@ export async function createOrUpdateProductClient(
 
           let isEqual = false;
           if (key === 'price') {
-             isEqual = originalValue?.baseAmount === submittedValue?.baseAmount && originalValue?.baseCurrency === submittedValue?.baseCurrency;
+             isEqual = (originalValue as Product['price'])?.baseAmount === (submittedValue as Product['price'])?.baseAmount && 
+                       (originalValue as Product['price'])?.baseCurrency === (submittedValue as Product['price'])?.baseCurrency;
           } else if (key === 'specifications') {
-             isEqual = areSpecificationsEqual(originalValue, submittedValue as any);
+             isEqual = areSpecificationsEqual(originalValue as Product['specifications'], submittedValue as Product['specifications']);
           } else {
              const normalizedOriginal = (originalValue === null || originalValue === undefined) ? "" : originalValue;
              const normalizedSubmitted = (submittedValue === null || submittedValue === undefined) ? "" : submittedValue;
