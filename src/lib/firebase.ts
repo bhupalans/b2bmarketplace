@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { moderateMessageContent } from '@/ai/flows/moderate-message-content';
 import { sendQuestionAnsweredEmail, sendProductApprovedEmail, sendProductRejectedEmail, sendUserVerifiedEmail, sendUserRejectedEmail, sendSourcingRequestSubmittedEmail, sendSourcingRequestApprovedEmail, sendSourcingRequestRejectedEmail, sendOfferAcceptedEmail } from '@/services/email';
 import { processAcceptedOffer } from '@/app/user-actions';
+import { areDetailsEqual } from './utils';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDL_o5j6RtqjCwFN5iTtvUj6nFfyDJaaxc",
@@ -317,7 +318,7 @@ export async function updateProductStatus(
 
                   await sendProductRejectedEmail({ 
                       seller, 
-                      product: serializableProduct, 
+                      product: serializableProduct as any,
                       reason: reason || "Your product did not meet our listing guidelines. Please review and resubmit." 
                   });
               }
@@ -372,32 +373,6 @@ async function deleteImages(urls: string[]): Promise<void> {
 
     await Promise.all(deletePromises);
 }
-
-// Deep comparison function for specifications array. It is robust to key order.
-function areSpecificationsEqual(
-  specs1: { name: string; value: string }[] | undefined,
-  specs2: { name: string; value: string }[] | undefined
-): boolean {
-  const s1 = specs1 || [];
-  const s2 = specs2 || [];
-
-  if (s1.length !== s2.length) {
-    return false;
-  }
-  
-  // Sort both arrays by name to ensure consistent order for comparison
-  const sortedS1 = [...s1].sort((a, b) => a.name.localeCompare(b.name));
-  const sortedS2 = [...s2].sort((a, b) => a.name.localeCompare(b.name));
-
-  for (let i = 0; i < sortedS1.length; i++) {
-    if (sortedS1[i].name !== sortedS2[i].name || sortedS1[i].value !== sortedS2[i].value) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
 
 // This function is the new, robust implementation for creating/updating products.
 export async function createOrUpdateProductClient(
@@ -741,14 +716,14 @@ export async function findOrCreateConversation(data: {
 
 
   const querySnapshot = await getDocs(conversationQuery);
-  let existingConversation: (Conversation & { id: string }) | null = null;
+  let existingConversation: Conversation | null = null;
 
   const otherParticipantId = hasProduct ? data.sellerId : data.buyerId;
 
   querySnapshot.forEach(docSnap => {
-      const conv = docSnap.data() as Conversation;
-      if (conv.participantIds.includes(otherParticipantId)) {
-          existingConversation = { id: docSnap.id, ...conv };
+      const convData = docSnap.data();
+      if (convData.participantIds.includes(otherParticipantId)) {
+          existingConversation = { id: docSnap.id, ...convData } as Conversation;
       }
   });
   
