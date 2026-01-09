@@ -278,6 +278,15 @@ export async function getSellerProductsClient(sellerId: string): Promise<Product
     });
 }
 
+// Helper function to safely convert a value to a Date object
+const toSafeDate = (value: string | Timestamp | undefined): Date | undefined => {
+    if (!value) return undefined;
+    if (value instanceof Timestamp) {
+        return value.toDate();
+    }
+    return new Date(value);
+};
+
 // Client-side function to update product status, to be secured by Firestore rules
 export async function updateProductStatus(
   productId: string,
@@ -300,14 +309,6 @@ export async function updateProductStatus(
               if (status === 'approved') {
                   await sendProductApprovedEmail({ seller, product });
               } else if (status === 'rejected') {
-                  const toSafeDate = (value: string | Timestamp | undefined): Date | undefined => {
-                    if (!value) return undefined;
-                    if (value instanceof Timestamp) {
-                        return value.toDate();
-                    }
-                    return new Date(value);
-                  };
-                  
                   const serializableProduct = {
                     ...product,
                     createdAt: toSafeDate(product.createdAt)?.toISOString(),
@@ -670,8 +671,11 @@ export async function createOrUpdateCategoryClient(
     finalImageUrl = await getDownloadURL(storageRef);
   }
 
-  const dataToSave: Partial<Category> & { updatedAt: Timestamp } = {
-    ...categoryData,
+  const dataToSave: Partial<Omit<Category, 'id'>> & { updatedAt: Timestamp } = {
+    name: categoryData.name,
+    parentId: categoryData.parentId,
+    status: categoryData.status,
+    specTemplateId: categoryData.specTemplateId || undefined,
     imageUrl: finalImageUrl || undefined, // Ensure null becomes undefined
     updatedAt: Timestamp.now(),
   };
