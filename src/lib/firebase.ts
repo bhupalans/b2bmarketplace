@@ -12,7 +12,7 @@ import { processAcceptedOffer } from '@/app/user-actions';
 import { areDetailsEqual, areSpecificationsEqual } from './utils';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDL_o5j6RtqjCwFN5iTtvUj6nFfyDJaaxc",
+  apiKey: "Enter your API key",
   authDomain: "b2b-marketplace-udg1v.firebaseapp.com",
   projectId: "b2b-marketplace-udg1v",
   storageBucket: "b2b-marketplace-udg1v.firebasestorage.app",
