@@ -25,7 +25,7 @@ export default function ContactPage() {
             Email: business@vbuysell.com
           </div>
           <p>
-            Our office hours are Monday to Friday, 9:00 AM to 5:00 PM (EST). We strive to respond to all inquiries within 24 business hours.
+            Our office hours are Monday to Friday, 9:00 AM to 5:00 PM (IST). We strive to respond to all inquiries within 24 business hours.
           </p>
           <div className="not-prose border-t pt-6">
             <h3 className="text-xl font-semibold mb-2">Need to speak with someone?</h3>
