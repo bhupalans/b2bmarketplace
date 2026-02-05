@@ -1,4 +1,4 @@
-
+import ProductImageCarousel from '@/components/product/ProductImageCarousel';
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -55,7 +55,8 @@ export async function generateMetadata(
   { params }: Props,
   parent: ResolvingMetadata
 ): Promise<Metadata> {
-  const product = await getProduct(params.id);
+  const { id } = await params;
+  const product = await getProduct(id);
 
   if (!product) {
     return {
@@ -104,6 +105,8 @@ export async function generateMetadata(
   // optionally access and extend (rather than replace) parent metadata
   const previousImages = (await parent).openGraph?.images || [];
 
+
+
   return {
     title: `${product.title}`,
     description: product.description.substring(0, 160),
@@ -127,7 +130,7 @@ export async function generateMetadata(
 }
 
 export default async function ProductDetailPage({ params }: Props) {
-  const { id } = params;
+  const { id } = await params;
 
   const product = await getProduct(id);
 
@@ -152,6 +155,10 @@ export default async function ProductDetailPage({ params }: Props) {
     
   const isFeaturedSeller = seller?.subscriptionPlan?.isFeatured && seller?.subscriptionExpiryDate && new Date(seller.subscriptionExpiryDate) > new Date();
 
+  //const [open, setOpen] = useState(false);
+  //const [activeImage, setActiveImage] = useState<string | null>(null);
+
+	
   return (
     <div className="mx-auto max-w-4xl space-y-8">
       <Breadcrumb>
@@ -179,41 +186,16 @@ export default async function ProductDetailPage({ params }: Props) {
       </Breadcrumb>
       <div className="grid gap-8 md:grid-cols-2">
         <div className="space-y-8">
-          <Card className="overflow-hidden">
-            <Carousel className="w-full">
-              <CarouselContent>
-                {Array.isArray(product.images) && product.images.length > 0 ? (
-                  product.images.map((imgSrc, index) => (
-                    <CarouselItem key={index}>
-                      <div className="relative aspect-square w-full">
-                        <Image
-                          src={imgSrc}
-                          alt={`${product.title} - image ${index + 1} of ${product.images.length}`}
-                          fill
-                          className="object-cover"
-                          data-ai-hint="product image"
-                        />
-                      </div>
-                    </CarouselItem>
-                  ))
-                ) : (
-                  <CarouselItem>
-                    <div className="relative aspect-square w-full">
-                      <Image
-                        src="https://placehold.co/600x600"
-                        alt={`Placeholder image for ${product.title}`}
-                        fill
-                        className="object-cover"
-                        data-ai-hint="placeholder image"
-                      />
-                    </div>
-                  </CarouselItem>
-                )}
-              </CarouselContent>
-              <CarouselPrevious className="absolute left-4" />
-              <CarouselNext className="absolute right-4" />
-            </Carousel>
-          </Card>
+
+
+	<Card className="overflow-hidden">
+  <ProductImageCarousel
+    images={Array.isArray(product.images) ? product.images : []}
+    title={product.title}
+  />
+</Card>
+
+          
           {product.specifications && product.specifications.length > 0 && (
             <Card>
               <CardHeader>
@@ -303,6 +285,7 @@ export default async function ProductDetailPage({ params }: Props) {
           </CardContent>
         </Card>
       )}
+  
     </div>
   );
 }

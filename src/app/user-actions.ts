@@ -36,25 +36,46 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
     }
 
     const originalUser = userSnap.data() as User;
+
+
+	
+	const dataToUpdate: { [key: string]: any } = {
+  // fields common to both buyer and seller
+  name: data.name,
+  phoneNumber: data.phoneNumber,
+  address: data.address,
+  updatedAt: new Date().toISOString(),
+};
+
+// SELLER-SPECIFIC FIELDS
+if (originalUser.role === 'seller') {
+  if ('companyName' in data) dataToUpdate.companyName = data.companyName;
+  if ('companyDescription' in data) dataToUpdate.companyDescription = data.companyDescription;
+  if ('taxId' in data) dataToUpdate.taxId = data.taxId;
+  if ('businessType' in data) dataToUpdate.businessType = data.businessType;
+  if ('exportScope' in data) dataToUpdate.exportScope = data.exportScope;
+  if ('verificationDetails' in data) dataToUpdate.verificationDetails = data.verificationDetails;
+}
+
+// BUYER-SPECIFIC FIELDS
+if (originalUser.role === 'buyer') {
+  if ('jobTitle' in data) dataToUpdate.jobTitle = data.jobTitle;
+  if ('companyWebsite' in data) dataToUpdate.companyWebsite = data.companyWebsite;
+  if ('shippingAddress' in data) dataToUpdate.shippingAddress = data.shippingAddress;
+
+  if ('billingSameAsShipping' in data) {
+    dataToUpdate.billingSameAsShipping = data.billingSameAsShipping;
+
+    if (data.billingSameAsShipping) {
+      dataToUpdate.billingAddress = data.shippingAddress;
+    } else if ('billingAddress' in data) {
+      dataToUpdate.billingAddress = data.billingAddress;
+    }
+  }
+}
+
     
-    // Explicitly construct the object with only the fields we want to update.
-    const dataToUpdate: { [key: string]: any } = {
-        name: data.name,
-        companyName: data.companyName || null,
-        phoneNumber: data.phoneNumber || null,
-        jobTitle: data.jobTitle || null,
-        companyWebsite: data.companyWebsite || null,
-        companyDescription: data.companyDescription || null,
-        taxId: data.taxId || null,
-        businessType: data.businessType || null,
-        exportScope: data.exportScope || [],
-        address: data.address || null,
-        shippingAddress: data.shippingAddress || null,
-        billingAddress: data.billingAddress || null,
-        billingSameAsShipping: data.billingSameAsShipping || false,
-        verificationDetails: data.verificationDetails || {},
-        updatedAt: new Date().toISOString(),
-    };
+
 
     // --- Verification Logic ---
     // Start with the existing verification status.

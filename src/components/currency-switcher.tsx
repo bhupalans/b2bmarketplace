@@ -1,60 +1,116 @@
 "use client";
 
+import { getCurrencyName } from "@/lib/currency-utils";
+import * as React from "react";
+//import Image from "next/image";
 import { useCurrency } from "@/contexts/currency-context";
+import { CURRENCY_MAP } from "@/lib/geography-data";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { currencyDetails } from "@/lib/currency-data";
-import { cn } from "@/lib/utils";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { ChevronDown } from "lucide-react";
 
-export function CurrencySwitcher() {
-  const { currency, setCurrency, rates } = useCurrency();
-  // Ensure we only show currencies for which we have rates.
-  const availableCurrencies = Array.from(new Set(["USD", ...Object.keys(rates)]));
-
-  // Component to display the selected currency in the trigger button.
-  const SelectedCurrencyDisplay = () => {
-    const details = currencyDetails[currency];
-    if (!details) {
-      return <span>{currency}</span>;
+// ------------------------------
+// 1. Build reverse map: currency -> country
+// ------------------------------
+const currencyToCountryMap: Record<string, string> = Object.entries(CURRENCY_MAP)
+  .reduce((acc, [countryCode, currencyCode]) => {
+    if (!acc[currencyCode]) {
+      acc[currencyCode] = countryCode.toLowerCase();
     }
-    return (
-      <div className="flex items-center gap-2">
-        <span role="img" aria-label={details.name}>{details.flag}</span>
-        <span>{currency}</span>
-      </div>
-    );
-  };
+    return acc;
+  }, {} as Record<string, string>);
+
+// ------------------------------
+// 2. Explicit overrides for shared/global currencies
+// ------------------------------
+const OVERRIDE_CURRENCY_TO_COUNTRY: Record<string, string> = {
+  USD: "us",
+  EUR: "eu",
+  GBP: "gb",
+};
+
+function getCountryCodeFromCurrency(currency: string): string {
+  return (
+    OVERRIDE_CURRENCY_TO_COUNTRY[currency] ??
+    currencyToCountryMap[currency] ??
+    "un" // fallback
+  );
+}
+
+// ------------------------------
+// 4. Selected value renderer (header)
+// ------------------------------
+function SelectedCurrencyDisplay({ currency }: { currency: string }) {
+  const countryCode = getCountryCodeFromCurrency(currency);
 
   return (
-    <Select value={currency} onValueChange={setCurrency}>
-      <SelectTrigger className="w-[150px]">
-        <SelectValue asChild>
-           <SelectedCurrencyDisplay />
-        </SelectValue>
-      </SelectTrigger>
-      <SelectContent>
-        {availableCurrencies.sort().map((c) => {
-          const details = currencyDetails[c];
-          // By placing the currency code directly inside SelectItem and then styling the rest,
-          // we allow the browser's native typeahead to function correctly.
+    <div className="flex items-center gap-2">
+      <img
+  	src={`https://flagcdn.com/w20/${countryCode}.png`}
+  	alt={currency}
+  	width={20}
+  	height={15}
+  	className="rounded-sm object-cover"
+  	loading="lazy"
+       />
+
+      <span className="text-sm font-medium">{currency}</span>
+    </div>
+  );
+}
+
+// ------------------------------
+// 5. Main CurrencySwitcher component
+// ------------------------------
+export function CurrencySwitcher() {
+  const { currency, setCurrency, rates } = useCurrency();
+
+  const currencies = React.useMemo(() => {
+    return Object.keys(rates).sort();
+  }, [rates]);
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm" className="gap-2">
+          <SelectedCurrencyDisplay currency={currency} />
+          <ChevronDown className="h-4 w-4 opacity-60" />
+        </Button>
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent className="w-80 max-h-[60vh] overflow-y-auto">
+        {currencies.map((code) => {
+          const countryCode = getCountryCodeFromCurrency(code);
+          //const name = currencyNames[code] ?? code;
+
           return (
-            <SelectItem key={c} value={c}>
-              <div className="flex items-center gap-3">
-                 <span className={cn("w-6 text-center", !details && "invisible")}>{details?.flag}</span>
-                 <span className="font-semibold">{c}</span>
-                 {details?.name && (
-                   <span className="text-muted-foreground text-xs">- {details.name}</span>
-                 )}
-              </div>
-            </SelectItem>
-          )
+            <DropdownMenuItem
+              key={code}
+              onClick={() => setCurrency(code)}
+              className="flex items-center gap-3"
+            >
+              <img
+                src={`https://flagcdn.com/w20/${countryCode}.png`}
+                alt={code}
+                width={20}
+                height={15}
+                className="rounded-sm object-cover shrink-0"
+              />
+
+              <span className="w-12 font-medium">{code}</span>
+
+              <span className="text-sm text-muted-foreground truncate">
+                {getCurrencyName(code)}
+              </span>
+            </DropdownMenuItem>
+          );
         })}
-      </SelectContent>
-    </Select>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
