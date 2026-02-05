@@ -50,6 +50,8 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
 // SELLER-SPECIFIC FIELDS
 if (originalUser.role === 'seller') {
   if ('companyName' in data) dataToUpdate.companyName = data.companyName;
+  if ('phoneNumber' in data) dataToUpdate.phoneNumber = data.phoneNumber;
+  if ('address' in data) dataToUpdate.address = data.address;
   if ('companyDescription' in data) dataToUpdate.companyDescription = data.companyDescription;
   if ('taxId' in data) dataToUpdate.taxId = data.taxId;
   if ('businessType' in data) dataToUpdate.businessType = data.businessType;
@@ -60,8 +62,14 @@ if (originalUser.role === 'seller') {
 // BUYER-SPECIFIC FIELDS
 if (originalUser.role === 'buyer') {
   if ('jobTitle' in data) dataToUpdate.jobTitle = data.jobTitle;
+  if ('companyDescription' in data) dataToUpdate.companyDescription = data.companyDescription;
   if ('companyWebsite' in data) dataToUpdate.companyWebsite = data.companyWebsite;
+  if ('address' in data) dataToUpdate.address = data.address;
   if ('shippingAddress' in data) dataToUpdate.shippingAddress = data.shippingAddress;
+  if ('taxId' in data) dataToUpdate.taxId = data.taxId;
+  if ('businessType' in data) dataToUpdate.businessType = data.businessType;
+  if ('exportScope' in data) dataToUpdate.exportScope = data.exportScope;
+  if ('verificationDetails' in data) dataToUpdate.verificationDetails = data.verificationDetails;
 
   if ('billingSameAsShipping' in data) {
     dataToUpdate.billingSameAsShipping = data.billingSameAsShipping;
