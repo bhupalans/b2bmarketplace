@@ -107,6 +107,7 @@ if (originalUser.role === 'buyer') {
     
     await userRef.update(dataToUpdate);
     
+/*
     const updatedUserSnap = await userRef.get();
     const updatedUser = { id: updatedUserSnap.id, ...updatedUserSnap.data() } as User;
 
@@ -114,6 +115,30 @@ if (originalUser.role === 'buyer') {
     revalidatePath(`/sellers/${userId}`);
 
     return { success: true, user: updatedUser };
+*/
+
+const updatedUserSnap = await userRef.get();
+const rawUserData = updatedUserSnap.data() as any;
+
+const updatedUser: User = {
+  id: updatedUserSnap.id,
+  ...rawUserData,
+
+  // 🔑 Convert Firestore Timestamp → serializable values
+  subscriptionExpiryDate: rawUserData.subscriptionExpiryDate
+    ? rawUserData.subscriptionExpiryDate.toDate().toISOString()
+    : null,
+
+  // (Optional safety if these exist)
+  createdAt: rawUserData.createdAt?.toDate?.().toISOString() ?? rawUserData.createdAt ?? null,
+  updatedAt: rawUserData.updatedAt?.toDate?.().toISOString() ?? rawUserData.updatedAt ?? null,
+};
+
+revalidatePath('/profile');
+revalidatePath(`/sellers/${userId}`);
+
+return { success: true, user: updatedUser };
+
     
   } catch (error: any) {
     console.error(`--- DEBUG: updateUserProfile CRASHED for user ${userId} ---`);
