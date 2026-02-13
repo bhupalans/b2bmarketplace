@@ -233,7 +233,7 @@ export function AppLayoutClient({
               >
                 <Link href="/">
                   <Home />
-                  <span className="sr-only">Home</span>
+                  <span>Home</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -246,7 +246,7 @@ export function AppLayoutClient({
               >
                 <Link href="/products">
                   <Package />
-                  <span className="sr-only">Products</span>
+                  <span>Products</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -259,7 +259,7 @@ export function AppLayoutClient({
               >
                 <Link href="/categories">
                   <FolderTree />
-                  <span className="sr-only">Categories</span>
+                  <span>Categories</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -272,7 +272,7 @@ export function AppLayoutClient({
               >
                 <Link href="/sourcing">
                   <Handshake />
-                  <span className="sr-only">Sourcing Requests</span>
+                  <span>Sourcing Requests</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -287,7 +287,7 @@ export function AppLayoutClient({
                         >
                             <Link href="/messages">
                             <MessageSquare />
-                            <span className="sr-only">Messages</span>
+                            <span>Messages</span>
                             </Link>
                         </SidebarMenuButton>
                          {unreadMessagesCount > 0 && (
@@ -302,7 +302,7 @@ export function AppLayoutClient({
                         >
                             <Link href="/profile/verification">
                             <ShieldCheck />
-                            <span className="sr-only">Verification</span>
+                            <span>Verification</span>
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -314,7 +314,7 @@ export function AppLayoutClient({
                         >
                             <Link href="/profile/invoices">
                             <Receipt />
-                            <span className="sr-only">Invoices</span>
+                            <span>Invoices</span>
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -330,7 +330,7 @@ export function AppLayoutClient({
                   >
                     <Link href="/dashboard">
                       <LayoutDashboard />
-                      <span className="sr-only">Dashboard</span>
+                      <span>Dashboard</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -342,7 +342,7 @@ export function AppLayoutClient({
                   >
                     <Link href="/my-products">
                       <Package />
-                      <span className="sr-only">My Products</span>
+                      <span>My Products</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -393,7 +393,7 @@ export function AppLayoutClient({
                                 tooltip="Admin"
                             >
                                 <Shield />
-                                <span className="sr-only">Admin</span>
+                                <span>Admin</span>
                             </SidebarMenuButton>
                         </CollapsibleTrigger>
                         <CollapsibleContent asChild>
