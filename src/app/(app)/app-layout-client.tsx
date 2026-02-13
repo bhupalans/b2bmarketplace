@@ -358,7 +358,7 @@ export function AppLayoutClient({
                               tooltip="Sourcing Tools"
                           >
                               <FileText />
-                              <span className="sr-only">Sourcing Tools</span>
+                              <span>Sourcing Tools</span>
                           </SidebarMenuButton>
                       </CollapsibleTrigger>
                       <CollapsibleContent asChild>
