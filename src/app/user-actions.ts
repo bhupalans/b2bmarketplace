@@ -233,7 +233,8 @@ export async function submitVerificationDocuments(formData: FormData, token: str
 
     const updatedUserSnap = await userRef.get();
     const updatedUser = { id: updatedUserSnap.id, uid: userId, ...updatedUserSnap.data() } as User;
-    return { success: true, updatedUser };
+    //return { success: true, updatedUser };
+    return { success: true };
 
   } catch(error: any) {
     console.error("Error submitting verification docs:", error);
