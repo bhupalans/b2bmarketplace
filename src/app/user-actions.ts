@@ -62,6 +62,7 @@ if (originalUser.role === 'seller') {
 // BUYER-SPECIFIC FIELDS
 if (originalUser.role === 'buyer') {
   if ('jobTitle' in data) dataToUpdate.jobTitle = data.jobTitle;
+  if ('companyName' in data) dataToUpdate.companyName = data.companyName;
   if ('companyDescription' in data) dataToUpdate.companyDescription = data.companyDescription;
   if ('companyWebsite' in data) dataToUpdate.companyWebsite = data.companyWebsite;
   if ('address' in data) dataToUpdate.address = data.address;
