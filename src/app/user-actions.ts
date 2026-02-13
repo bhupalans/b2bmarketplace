@@ -150,7 +150,7 @@ return { success: true, user: updatedUser };
   }
 }
 
-export async function submitVerificationDocuments(formData: FormData, token: string): Promise<{ success: true; updatedUser: User } | { success: false; error: string }> {
+export async function submitVerificationDocuments(formData: FormData, token: string): Promise<{ success: true } | { success: false; error: string }> {
   try {
     if (!token) {
       throw new Error('Not authenticated');
