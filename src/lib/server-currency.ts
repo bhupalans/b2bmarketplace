@@ -1,7 +1,7 @@
 let cachedRates: any = null;
 let lastFetchTime = 0;
 
-async function getFxRates() {
+export async function getFxRates() {
   const now = Date.now();
 
   // Cache for 1 hour

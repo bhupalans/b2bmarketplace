@@ -1,7 +1,6 @@
 
 'use server';
 
-import { convertToUSD } from '@/lib/server-currency';
 import { adminDb } from '@/lib/firebase-admin';
 import { Offer, Product } from '@/lib/types';
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
@@ -21,21 +20,11 @@ export async function getSellerDashboardData(sellerId: string) {
     let totalRevenue = 0;
     const acceptedOffers = offers.filter(offer => offer.status === 'accepted');
     
-for (const offer of acceptedOffers) {
-  const priceObject = offer.price || { baseAmount: offer.pricePerUnit || 0, baseCurrency: 'USD' };
-
-  if (priceObject.baseAmount > 0 && priceObject.baseCurrency) {
-    const totalOriginal = priceObject.baseAmount * (offer.quantity || 0);
-
-    const totalConverted = await convertToUSD(
-      totalOriginal,
-      priceObject.baseCurrency
-    );
-
-    totalRevenue += totalConverted;
-  }
-}
-
+    for (const offer of acceptedOffers) {
+  		if (offer.pricing?.usd?.total) {
+    			totalRevenue += offer.pricing.usd.total;
+  		}
+    }
 
     const offerCountsByProductId = new Map<string, number>();
     offers.forEach(offer => {

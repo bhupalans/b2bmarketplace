@@ -1,7 +1,6 @@
 
 'use server';
 
-import { convertToUSD } from '@/lib/server-currency';
 import { adminDb } from '@/lib/firebase-admin';
 import { Offer, SourcingRequest } from '@/lib/types';
 
@@ -19,21 +18,11 @@ export async function getBuyerDashboardData(buyerId: string) {
 
     let totalSpend = 0;
 	
-   for (const offer of acceptedOffers) {
-   		const priceObject = offer.price || { baseAmount: offer.pricePerUnit || 0, baseCurrency: 'USD' };
-
-  		if (priceObject.baseAmount > 0 && priceObject.baseCurrency) {
-    			const totalOriginal = priceObject.baseAmount * (offer.quantity || 0);
-
-    			const totalConverted = await convertToUSD(
-      			totalOriginal,
-      			priceObject.baseCurrency
-    			);
-
-    		totalSpend += totalConverted;
+    for (const offer of acceptedOffers) {
+  		if (offer.pricing?.usd?.total) {
+    			totalSpend += offer.pricing.usd.total;
   		}
-   }
-
+    }
 
     const statusCounts: Record<SourcingRequest['status'], number> = {
       pending: 0,

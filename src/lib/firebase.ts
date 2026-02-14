@@ -8,7 +8,7 @@ import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation,
 import { v4 as uuidv4 } from 'uuid';
 import { moderateMessageContent } from '@/ai/flows/moderate-message-content';
 import { sendQuestionAnsweredEmail, sendProductApprovedEmail, sendProductRejectedEmail, sendUserVerifiedEmail, sendUserRejectedEmail, sendSourcingRequestSubmittedEmail, sendSourcingRequestApprovedEmail, sendSourcingRequestRejectedEmail, sendOfferAcceptedEmail } from '@/services/email';
-import { processAcceptedOffer } from '@/app/user-actions';
+//import { processAcceptedOffer } from '@/app/user-actions';
 import { areDetailsEqual, areSpecificationsEqual } from './utils';
 
 const firebaseConfig = {

@@ -2,6 +2,8 @@
 
 'use server';
 
+import { convertToUSD } from '@/lib/server-currency';
+import { getFxRates } from '@/lib/server-currency';
 import { adminDb, adminStorage, adminAuth } from '@/lib/firebase-admin';
 import { User, VerificationTemplate, SubscriptionPlan, Offer } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
@@ -151,7 +153,7 @@ return { success: true, user: updatedUser };
   }
 }
 
-export async function submitVerificationDocuments(formData: FormData, token: string): Promise<{ success: true } | { success: false; error: string }> {
+export async function submitVerificationDocuments(formData: FormData, token: string): Promise<{ success: true; updatedUser: User } | { success: false; error: string }> {
   try {
     if (!token) {
       throw new Error('Not authenticated');
@@ -234,7 +236,6 @@ export async function submitVerificationDocuments(formData: FormData, token: str
 
     const updatedUserSnap = await userRef.get();
     const updatedUser = { id: updatedUserSnap.id, uid: userId, ...updatedUserSnap.data() } as User;
-    //return { success: true, updatedUser };
     return { success: true };
 
   } catch(error: any) {
@@ -334,6 +335,30 @@ export async function manageSubscriptionRenewal(
   }
 }
 
+
+// 1️⃣ Accept Offer Action (entry point from client)
+export async function acceptOfferAction(offerId: string) {
+  console.log("SERVER ACTION: acceptOfferAction triggered");
+
+    try {
+        const offerRef = adminDb.collection('offers').doc(offerId);
+
+        await offerRef.update({
+            status: 'accepted',
+            updatedAt: firestore.FieldValue.serverTimestamp(),
+        });
+
+        await processAcceptedOffer(offerId);
+
+        return { success: true };
+
+    } catch (error: any) {
+        console.error("Error accepting offer:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+
 export async function processAcceptedOffer(offerId: string): Promise<{ success: boolean; error?: string }> {
     try {
         const offerSnap = await adminDb.collection('offers').doc(offerId).get();
@@ -342,10 +367,51 @@ export async function processAcceptedOffer(offerId: string): Promise<{ success: 
         }
         const offer = offerSnap.data() as Offer;
 
-        if (offer.status !== 'accepted') {
-            console.warn(`processAcceptedOffer called for an offer that is not accepted. Status: ${offer.status}`);
-            return { success: true }; // Not an error, just nothing to do.
+	if (offer.status !== 'accepted') {
+    console.warn(`Offer not accepted yet. Current status: ${offer.status}`);
+} else {
+    // ===============================
+    // Freeze USD value at acceptance
+    // ===============================
+
+    if (!offer.pricing?.usd?.total) {
+        const priceObject = offer.price || {
+            baseAmount: offer.pricePerUnit || 0,
+            baseCurrency: 'USD'
+        };
+
+        const quantity = offer.quantity || 0;
+
+        if (priceObject.baseAmount > 0 && quantity > 0) {
+            const totalOriginal = priceObject.baseAmount * quantity;
+
+            const usdTotal = await convertToUSD(
+                totalOriginal,
+                priceObject.baseCurrency
+            );
+
+            const rates = await getFxRates();
+            const rateUsed = rates[priceObject.baseCurrency];
+
+            await adminDb.collection('offers').doc(offerId).update({
+                pricing: {
+                    original: {
+                        amountPerUnit: priceObject.baseAmount,
+                        currency: priceObject.baseCurrency
+                    },
+                    quantity,
+                    usd: {
+                        total: usdTotal
+                    },
+                    exchangeRateUsed: rateUsed,
+                    convertedAt: firestore.FieldValue.serverTimestamp()
+                }
+            });
         }
+    }
+}
+
+
 
         const [buyer, seller] = await Promise.all([
             getUser(offer.buyerId),

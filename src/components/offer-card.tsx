@@ -4,6 +4,7 @@
 import React, { useEffect, useState, useTransition } from "react";
 import { Offer } from "@/lib/types";
 import { getOfferClient, updateOfferStatusClient } from "@/lib/firebase";
+import { acceptOfferAction } from "@/app/user-actions";
 import {
   Card,
   CardContent,
@@ -56,28 +57,37 @@ export function OfferCard({ offerId, currentUserId }: OfferCardProps) {
   }, [offerId]);
 
   const handleStatusUpdate = (status: 'accepted' | 'declined') => {
-    if (!user) return;
-    startTransition(async () => {
-        try {
-            await updateOfferStatusClient(offerId, status, user.uid);
-            toast({
-                title: `Offer ${status}`,
-                description: `You have successfully ${status} the offer.`,
-            });
-            // Re-fetch the offer to get the latest status
-            const updatedOffer = await getOfferClient(offerId);
-            setOffer(updatedOffer);
-            await revalidateOffers(); // Revalidate path for server components if needed
-        } catch (error: any) {
-            console.error(`Error ${status} offer:`, error);
-            toast({
-                variant: 'destructive',
-                title: 'Action Failed',
-                description: error.message || 'An unknown error occurred.',
-            })
-        }
-    });
-  }
+  if (!user) return;
+
+  startTransition(async () => {
+    try {
+
+      if (status === 'accepted') {
+        await acceptOfferAction(offerId);
+      } else {
+        await updateOfferStatusClient(offerId, status, user.uid);
+      }
+
+      toast({
+        title: `Offer ${status}`,
+        description: `You have successfully ${status} the offer.`,
+      });
+
+      const updatedOffer = await getOfferClient(offerId);
+      setOffer(updatedOffer);
+      await revalidateOffers();
+
+    } catch (error: any) {
+      console.error(`Error ${status} offer:`, error);
+      toast({
+        variant: 'destructive',
+        title: 'Action Failed',
+        description: error.message || 'An unknown error occurred.',
+      });
+    }
+  });
+};
+
 
   if (loading) {
     return (
