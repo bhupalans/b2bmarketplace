@@ -1,28 +1,13 @@
 
 'use server';
 
+import { convertToUSD } from '@/lib/server-currency';
 import { adminDb } from '@/lib/firebase-admin';
 import { Offer, Product } from '@/lib/types';
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { enhanceProductDescription as enhanceDescriptionFlow } from '@/ai/flows/enhance-product-description-flow';
 
-// A simplified, server-side rates object. In a real-world app, this would be
-// fetched periodically and cached from an API.
-const rates: { [key: string]: number } = {
-  USD: 1,
-  EUR: 0.92,
-  INR: 83.45,
-  GBP: 0.79,
-  CAD: 1.37,
-  AUD: 1.51,
-  JPY: 157.25,
-};
 
-
-const convertToUSD = (amount: number, currency: string) => {
-    const rate = rates[currency] || 1; // Default to 1 if rate is not found
-    return amount / rate;
-}
 
 export async function getSellerDashboardData(sellerId: string) {
   try {
@@ -36,14 +21,21 @@ export async function getSellerDashboardData(sellerId: string) {
     let totalRevenue = 0;
     const acceptedOffers = offers.filter(offer => offer.status === 'accepted');
     
-    acceptedOffers.forEach(offer => {
-        // Handle both new and legacy offer price structures
-        const priceObject = offer.price || { baseAmount: offer.pricePerUnit || 0, baseCurrency: 'USD' };
-        if (priceObject.baseAmount > 0 && priceObject.baseCurrency) {
-          const usdValue = convertToUSD(priceObject.baseAmount, priceObject.baseCurrency);
-          totalRevenue += (offer.quantity || 0) * usdValue;
-        }
-    });
+for (const offer of acceptedOffers) {
+  const priceObject = offer.price || { baseAmount: offer.pricePerUnit || 0, baseCurrency: 'USD' };
+
+  if (priceObject.baseAmount > 0 && priceObject.baseCurrency) {
+    const totalOriginal = priceObject.baseAmount * (offer.quantity || 0);
+
+    const totalConverted = await convertToUSD(
+      totalOriginal,
+      priceObject.baseCurrency
+    );
+
+    totalRevenue += totalConverted;
+  }
+}
+
 
     const offerCountsByProductId = new Map<string, number>();
     offers.forEach(offer => {
