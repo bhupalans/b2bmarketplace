@@ -12,7 +12,7 @@ import { sendQuestionAnsweredEmail, sendProductApprovedEmail, sendProductRejecte
 import { areDetailsEqual, areSpecificationsEqual } from './utils';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAPZvlTpb4klPXdiT7dkg_QbZ_Ex_IebUM",
+  apiKey: "Enter API Here",
   authDomain: "vbuysell-dev.firebaseapp.com",
   projectId: "vbuysell-dev",
   storageBucket: "vbuysell-dev.firebasestorage.app",
