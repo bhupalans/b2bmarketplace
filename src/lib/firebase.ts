@@ -12,14 +12,13 @@ import { sendQuestionAnsweredEmail, sendProductApprovedEmail, sendProductRejecte
 import { areDetailsEqual, areSpecificationsEqual } from './utils';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAPZvlTpb4klPXdiT7dkg_QbZ_Ex_IebUM",
-  authDomain: "vbuysell-dev.firebaseapp.com",
-  projectId: "vbuysell-dev",
-  storageBucket: "vbuysell-dev.firebasestorage.app",
-  messagingSenderId: "278976679767",
-  appId: "1:278976679767:web:b8380d02064980c4eb7812"
+  apiKey: "AIzaSyDL_o5j6RtqjCwFN5iTtvUj6nFfyDJaaxc",
+  authDomain: "b2b-marketplace-udg1v.firebaseapp.com",
+  projectId: "b2b-marketplace-udg1v",
+  storageBucket: "b2b-marketplace-udg1v.firebasestorage.app",
+  messagingSenderId: "822558435203",
+  appId: "1:822558435203:web:82b5c0b7b72b730f2e78b6"
 };
-
 
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
