@@ -1,0 +1,46 @@
+# Settings to manage and configure a Firebase App Hosting backend.
+# https://firebase.google.com/docs/app-hosting/configure
+
+# Explicitly set the service account for the backend.
+# This can resolve token generation and permission issues.
+serviceAccount: 
+  id: firebase-app-hosting-compute@b2b-marketplace-udg1v.iam.gserviceaccount.com
+  # Add necessary roles to the service account.
+  # - firebase.serviceAccountUser: allows impersonation and token generation for Auth.
+  # - iam.serviceAccountTokenCreator: allows creating OAuth 2.0 access tokens for other Google APIs like Firestore.
+  # - roles/firebase.datastoreUser: allows the backend to read from and write to Firestore in Native Mode.
+  roles:
+    - firebase.serviceAccountUser
+    - iam.serviceAccountTokenCreator
+    - roles/firebase.datastoreUser
+
+# Build-time environment variables. These are available during the `next build` step.
+# Essential for NEXT_PUBLIC_ variables that need to be baked into the client-side bundle.
+buildConfig:
+  source: .
+  environmentVariables:
+    NEXT_PUBLIC_RAZORPAY_KEY_ID:
+      secret: razorpay-key-id
+
+# Runtime environment variables. These are available when the server is running.
+runConfig:
+  environmentVariables:
+    STRIPE_SECRET_KEY:
+      secret: stripe-secret-key
+    STRIPE_WEBHOOK_SECRET:
+      secret: stripe-webhook-secret
+    NEXT_PUBLIC_RAZORPAY_KEY_ID:
+      secret: razorpay-key-id
+    RAZORPAY_KEY_SECRET:
+      secret: razorpay-key-secret
+    RESEND_API_KEY:
+      secret: resend-api-key
+
+# Add required API services to be enabled for the backend.
+requiredAPIs:
+  - service: firestore.googleapis.com
+    reason: To allow the backend to access Firestore.
+  - service: identitytoolkit.googleapis.com
+    reason: To allow the backend to verify Firebase Auth tokens.
+  - service: firebasestorage.googleapis.com
+    reason: To allow the backend to use Firebase Storage for image uploads.

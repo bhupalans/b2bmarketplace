@@ -1,0 +1,142 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+  
+    // Helper functions for security rules
+    function isAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+    
+    function isRole(role) {
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
+    }
+
+    match /users/{userId} {
+      allow read;
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+    }
+    
+    match /products/{productId} {
+      // Public can read approved products
+      allow read: if resource.data.status == 'approved';
+      
+      // Seller can create a product for themselves
+      allow create: if isRole('seller') && request.resource.data.sellerId == request.auth.uid;
+      
+      // Admin can update status, owner can update if they are the seller
+      allow update: if isAdmin() || (isOwner(resource.data.sellerId) && isRole('seller'));
+      
+      // Admin or the original seller can delete
+      allow delete: if isAdmin() || isOwner(resource.data.sellerId);
+    }
+
+    match /products/{productId}/questions/{questionId} {
+        allow read: if true;
+        allow create: if isRole('buyer') && request.resource.data.buyerId == request.auth.uid;
+        allow update: if isRole('seller') && get(/databases/$(database)/documents/products/$(productId)).data.sellerId == request.auth.uid;
+    }
+
+    // Rules for Sourcing Requests
+    match /sourcingRequests/{requestId} {
+      // Allow read if request is active, user is an admin, or user is the owner.
+      allow read: if request.auth != null && (
+                    resource.data.status == 'active' ||
+                    isAdmin() ||
+                    isOwner(resource.data.buyerId)
+                  );
+
+      // Allow authenticated buyers to create requests for themselves, but only with a 'pending' status.
+      allow create: if request.auth != null &&
+                     request.resource.data.buyerId == request.auth.uid &&
+                     isRole('buyer') &&
+                     request.resource.data.status == 'pending';
+
+      // Allow updates under specific conditions for Admins and Buyers.
+      allow update: if request.auth != null && (
+        // ADMIN can approve/reject: they can only change 'status' and 'rejectionReason'.
+        (
+          isAdmin() &&
+          request.resource.data.keys().hasOnly(['status', 'rejectionReason'])
+        ) ||
+        // BUYER can edit their PENDING request: they can change content but NOT status.
+        (
+          isOwner(resource.data.buyerId) &&
+          resource.data.status == 'pending' &&
+          request.resource.data.status == resource.data.status && // Buyer cannot change status
+          request.resource.data.buyerId == resource.data.buyerId // Buyer cannot change owner
+        )
+      );
+      
+      // Allow the original buyer to delete their request, but only if it's pending.
+      allow delete: if isOwner(resource.data.buyerId) && resource.data.status == 'pending';
+    }
+    
+    match /categories/{categoryId} {
+        allow read: if true;
+        allow write: if isAdmin();
+    }
+    
+    match /specTemplates/{templateId} {
+        allow read: if true;
+        allow write: if isAdmin();
+    }
+    
+    match /verificationTemplates/{templateId} {
+        allow read: if true;
+        allow write: if isAdmin();
+    }
+    
+    match /subscriptionPlans/{planId} {
+        allow read: if true;
+        allow write: if isAdmin();
+    }
+
+    match /paymentGateways/{gatewayId} {
+        allow read: if true;
+        allow write: if isAdmin();
+    }
+    
+    match /callbackRequests/{requestId} {
+        allow create: if request.auth != null;
+        allow read, update, delete: if isAdmin();
+    }
+    
+    match /conversations/{conversationId} {
+      // Users can only access conversations they are a part of.
+      allow get: if request.auth != null && request.auth.uid in resource.data.participantIds;
+      allow list: if request.auth != null && request.auth.uid in resource.data.participantIds; // This is not how list works, need query-based rule
+      allow create: if request.auth != null && request.auth.uid in request.resource.data.participantIds;
+      allow update: if request.auth != null && request.auth.uid in resource.data.participantIds;
+    }
+    
+    match /conversations/{conversationId}/messages/{messageId} {
+       // Users can only access messages in conversations they are a part of.
+      allow read, write: if request.auth != null && get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds.hasAny([request.auth.uid]);
+    }
+    
+    match /offers/{offerId} {
+        allow read, create, update: if request.auth != null && (isOwner(request.resource.data.sellerId) || isOwner(request.resource.data.buyerId));
+    }
+    
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+        allow read, write: if request.auth != null && (isOwner(request.resource.data.userId) || isOwner(resource.data.userId));
+    }
+    
+    match /internal/{docId} {
+        allow read: if true;
+        allow write: if false; // Should only be written to by admin/trusted server process
+    }
+  }
+}

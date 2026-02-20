@@ -1,0 +1,24 @@
+{
+  "hero": [
+    {
+      "src": "/images/Image4.jpg",
+      "alt": "A modern factory with robotics and workers",
+      "hint": "factory robotics"
+    },
+    {
+      "src": "/images/Image1.jpg",
+      "alt": "A large cargo ship with shipping containers",
+      "hint": "cargo ship"
+    },
+    {
+      "src": "/images/Image2.jpg",
+      "alt": "A vast and organized warehouse with shelves of goods",
+      "hint": "warehouse shelves"
+    },
+    {
+      "src": "/images/Image3.jpg",
+      "alt": "A tractor working in a large agricultural field",
+      "hint": "tractor field"
+    }
+  ]
+}
