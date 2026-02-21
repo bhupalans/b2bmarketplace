@@ -5,7 +5,7 @@ import admin from 'firebase-admin';
 const appName = 'firebase-admin-app-b2b-marketplace';
 const storageBucket =
   process.env.FIREBASE_STORAGE_BUCKET ||
-  "vbuysell-dev.firebasestorage.app";
+  "b2b-marketplace-udg1v.firebasestorage.app";
 
 function getAdminApp() {
   // Reuse the app if already initialized
