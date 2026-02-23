@@ -147,6 +147,7 @@ export default function SubscriptionPage() {
     }
     
     const hasActiveSubscription = user.subscriptionExpiryDate && new Date(user.subscriptionExpiryDate) > new Date();
+    const isExpired = user.subscriptionExpiryDate && new Date(user.subscriptionExpiryDate) <= new Date();
     const isCancelled = hasActiveSubscription && user.renewalCancelled;
     
     const daysUntilExpiry = user.subscriptionExpiryDate ? differenceInDays(new Date(user.subscriptionExpiryDate), new Date()) : null;
@@ -174,6 +175,26 @@ export default function SubscriptionPage() {
                     </AlertDescription>
                 </Alert>
             )}
+
+	{isExpired && (
+  <Alert variant="destructive">
+    <AlertTitle>Your Subscription Has Expired</AlertTitle>
+    <AlertDescription>
+      Your plan expired on{" "}
+      {format(new Date(user.subscriptionExpiryDate!), "PPP")}.
+      Renew now to regain premium access.
+      <Button
+        asChild
+        variant="link"
+        className="p-0 h-auto ml-1 text-destructive"
+      >
+        <Link href={`/profile/subscription/checkout?planId=${user.subscriptionPlanId}`}>
+          Renew Now
+        </Link>
+      </Button>
+    </AlertDescription>
+  </Alert>
+)}
 
             {currentPlan && (
                 <Card>
