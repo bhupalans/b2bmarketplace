@@ -210,18 +210,18 @@ export default function SubscriptionPage() {
                             )}
                         </CardDescription>
                     </CardHeader>
-                    <CardContent>
-                         <p className="text-sm">
-                            {user.role === 'buyer'
-                                ? `You have posted ${usageCount} of ${formatLimit(currentPlan.sourcingRequestLimit)} sourcing requests.`
-                                : `You have listed ${usageCount} of ${formatLimit(currentPlan.productLimit)} products.`
-                            }
-                        </p>
-                    </CardContent>
+
+			<CardContent>
+  			<div className="text-sm space-y-1">
+    				<p>You have used {products.length} of{" "}{formatLimit(currentPlan.productLimit)} Product Listings.</p>
+    				<p>You have used {sourcingRequests.length} of{" "}{formatLimit(currentPlan.sourcingRequestLimit)} Sourcing Requests.</p>
+  			</div>
+			</CardContent>
+
                 </Card>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-20">
                 {plans.map(plan => {
                     const isCurrentPaidPlan = hasActiveSubscription && plan.id === currentPlan?.id;
                     const isCurrentFreePlan = !hasActiveSubscription && plan.price === 0;
@@ -238,8 +238,15 @@ export default function SubscriptionPage() {
 
                     const showFeaturedBadge = plan.isFeatured && plan.price > 0;
 
+const oppositeRole =
+  user.role === 'buyer' ? 'Seller' : 'Buyer';
+
+const oppositeRolePlural =
+  user.role === 'buyer' ? 'Sellers' : 'Buyers';
+
+
                     return (
-                    <Card key={plan.id} className={cn("flex flex-col", (isCurrentPaidPlan || isCurrentFreePlan) && !isCancelled && "ring-2 ring-primary")}>
+                    <Card key={plan.id} className={cn("flex flex-col transition-transform duration-200 hover:scale-[1.01]", (isCurrentPaidPlan || isCurrentFreePlan) && !isCancelled && "ring-2 ring-primary")}>
                         {showFeaturedBadge && (
                             <div className="bg-primary text-primary-foreground text-xs font-bold text-center py-1 rounded-t-lg flex items-center justify-center gap-1">
                                <Star className="h-3 w-3" /> Most Popular
@@ -255,26 +262,33 @@ export default function SubscriptionPage() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="flex-grow space-y-3">
-                            <ul className="space-y-2">
-                                {user.role === 'seller' ? (
-                                    <>
-                                        <PlanFeature>{formatLimit(plan.productLimit)} Product Listings</PlanFeature>
-                                        {plan.price > 0 
-                                            ? <PlanFeature>Initiate conversations with buyers</PlanFeature>
-                                            : <PlanFeature>Respond to buyer inquiries</PlanFeature>
-                                        }
-                                    </>
-                                ) : (
-                                    <>
-                                        <PlanFeature>{formatLimit(plan.sourcingRequestLimit)} Sourcing Requests</PlanFeature>
-                                        {plan.price > 0
-                                            ? <PlanFeature>Interact directly with Sellers</PlanFeature>
-                                            : <PlanFeature>Respond to Inquiries</PlanFeature>
-                                        }
-                                    </>
-                                )}
-                                <PlanFeature>{plan.hasAnalytics ? 'Advanced Analytics' : 'Basic Analytics'}</PlanFeature>
-                                {plan.isFeatured && <PlanFeature>Featured Badge on Profile</PlanFeature>}
+                            <ul className="space-y-3">
+				
+				<>
+  <PlanFeature>
+    {formatLimit(plan.productLimit)} Product Listings
+  </PlanFeature>
+
+  <PlanFeature>
+    {formatLimit(plan.sourcingRequestLimit)} Sourcing Requests
+  </PlanFeature>
+
+  <PlanFeature>
+    {plan.price > 0
+      ? `Initiate conversations with ${oppositeRolePlural}`
+      : `Respond to ${oppositeRole} inquiries`}
+  </PlanFeature>
+
+  {plan.price > 0 && plan.hasAnalytics && (
+    <PlanFeature>Advanced Analytics</PlanFeature>
+  )}
+
+  {plan.price > 0 && plan.isFeatured && (
+    <PlanFeature>Featured Badge on Profile</PlanFeature>
+  )}
+</>
+                               
+                                
                             </ul>
                         </CardContent>
                         <CardFooter>
