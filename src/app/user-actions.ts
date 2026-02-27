@@ -42,12 +42,15 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
 
 	
 	const dataToUpdate: { [key: string]: any } = {
-  // fields common to both buyer and seller
-  name: data.name,
-  phoneNumber: data.phoneNumber,
-  address: data.address,
-  updatedAt: new Date().toISOString(),
-};
+        // fields common to both buyer and seller
+         name: data.name,
+        phoneNumber: data.phoneNumber,
+        address: data.address,
+        updatedAt: new Date().toISOString(),
+    };
+    if ('avatar' in data) {
+        dataToUpdate.avatar = data.avatar;
+    }
 
 // SELLER-SPECIFIC FIELDS
 if (originalUser.role === 'seller') {

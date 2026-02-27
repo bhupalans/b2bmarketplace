@@ -41,6 +41,10 @@ import { useAuth } from "@/contexts/auth-context";
 import { getVerificationTemplatesClient } from "@/lib/firebase";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage } from "@/lib/firebase";
+
+
 
 const addressSchema = z.object({
     street: z.string().min(1, 'Street is required'),
@@ -60,6 +64,7 @@ const addressSchema = z.object({
 
 const baseProfileSchema = z.object({
   name: z.string().min(2, "Name is too short."),
+  avatar: z.string().optional(),
   companyName: z.string().optional(),
   phoneNumber: z.string().optional(),
   address: addressSchema,
@@ -201,6 +206,31 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const [verificationTemplates, setVerificationTemplates] = useState<VerificationTemplate[]>([]);
   const [activeTemplate, setActiveTemplate] = useState<VerificationTemplate | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false); 
+
+  const handleImageUpload = async (file: File) => {
+  if (!user?.id) return;
+
+  try {
+    setImageUploading(true);
+
+    const imageRef = ref(
+      storage,
+      `avatars/${user.id}/profile-${Date.now()}`
+    );
+
+    await uploadBytes(imageRef, file);
+    const url = await getDownloadURL(imageRef);
+
+    // Update form value only (not Firestore directly)
+    form.setValue("avatar", url, { shouldDirty: true });
+
+  } catch (err) {
+    console.error("Upload failed:", err);
+  } finally {
+    setImageUploading(false);
+  }
+};
 
   useEffect(() => {
     async function fetchTemplates() {
@@ -424,6 +454,53 @@ export function ProfileForm({ user }: ProfileFormProps) {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <fieldset disabled={!isEditing || isPending} className="space-y-6">
+        <Card>
+  <CardHeader>
+    <CardTitle>Profile Image</CardTitle>
+    <CardDescription>
+      Upload a profile photo or your company logo.
+    </CardDescription>
+  </CardHeader>
+  <CardContent>
+    <div className="flex items-center gap-6">
+
+      {/* Image Preview */}
+      {form.watch("avatar") ? (
+        <img
+          src={form.watch("avatar")}
+          alt="Profile"
+          className="w-24 h-24 rounded-xl object-cover border"
+        />
+      ) : (
+        <div className="w-24 h-24 rounded-xl border flex items-center justify-center text-muted-foreground">
+          No Image
+        </div>
+      )}
+
+      {/* Upload */}
+      <div className="space-y-2">
+        <Input
+          type="file"
+          accept="image/*"
+          disabled={!isEditing}
+          onChange={(e) => {
+            if (e.target.files?.[0]) {
+              handleImageUpload(e.target.files[0]);
+            }
+          }}
+        />
+
+        {imageUploading && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Uploading...
+          </div>
+        )}
+      </div>
+
+    </div>
+  </CardContent>
+</Card>
           <Card>
             <CardHeader>
               <CardTitle>Basic Information</CardTitle>
