@@ -103,7 +103,7 @@ export function HomePageClient({ initialBranding, initialCategories, initialProd
 
 
     return (
-        <div className="space-y-12 md:space-y-20">
+        <div className="space-y-10 md:space-y-14">
           {/* Hero Section */}
           <section className="relative -mx-4 sm:-mx-6 flex h-[60vh] max-h-[600px] min-h-[400px] items-center justify-center text-center">
             
@@ -140,6 +140,111 @@ export function HomePageClient({ initialBranding, initialCategories, initialProd
             </div>
           </section>
 
+          
+            {/* Why Choose VBuySell */}
+<section className="bg-muted/30 py-12">
+  <div className="mx-auto max-w-6xl px-4 sm:px-6 text-center">
+    
+    <h2 className="text-3xl font-bold">Why Choose VBuySell?</h2>
+    <p className="mt-3 text-muted-foreground max-w-2xl mx-auto">
+      Built for transparent, competitive global B2B sourcing.
+    </p>
+
+    <div className="mt-12 grid grid-cols-1 gap-10 md:grid-cols-4">
+      
+      <div className="space-y-3">
+        <ShieldCheck className="h-14 w-14 text-primary mx-auto" />
+        <h3 className="text-lg font-semibold">Verified Suppliers</h3>
+        <p className="text-sm text-muted-foreground">
+          Reduce sourcing risk by connecting with vetted suppliers.
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        <Handshake className="h-14 w-14 text-primary mx-auto" />
+        <h3 className="text-lg font-semibold">Competitive Offers</h3>
+        <p className="text-sm text-muted-foreground">
+          Multiple suppliers compete to win your order.
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        <Package className="h-14 w-14 text-primary mx-auto" />
+        <h3 className="text-lg font-semibold">No Middlemen</h3>
+        <p className="text-sm text-muted-foreground">
+          Negotiate directly without brokerage markups.
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        <Globe className="h-14 w-14 text-primary mx-auto" />
+        <h3 className="text-lg font-semibold">Global Reach</h3>
+        <p className="text-sm text-muted-foreground">
+          Access international buyers and sellers.
+        </p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+{/* How It Works */}
+<section className="mx-auto max-w-6xl px-4 sm:px-6 text-center pt-6 pb-12">
+  
+  <h2 className="text-3xl font-bold">How It Works</h2>
+  <p className="mt-3 text-muted-foreground">
+    Simple, transparent sourcing in three clear steps.
+  </p>
+
+  <div className="mt-12 grid grid-cols-1 gap-8 md:grid-cols-3">
+
+    {/* Step 1 */}
+    <div className="flex flex-col items-center">
+      <div className="relative">
+        <Image src="/illustrations/post.svg" alt="Post requirement" width={140} height={140}/>
+        <span className="absolute -top-2 -right-3 bg-primary text-white text-xs px-2 py-0.5 rounded-full">
+          1
+        </span>
+      </div>
+      <h3 className="mt-4 text-xl font-semibold">Post Requirement</h3>
+      <p className="mt-2 text-muted-foreground">
+        Describe your sourcing needs in detail.
+      </p>
+    </div>
+
+    {/* Step 2 */}
+    <div className="flex flex-col items-center">
+      <div className="relative">
+        <Image src="/illustrations/offer.svg" alt="Post requirement" width={140} height={140}/>
+        <span className="absolute -top-2 -right-3 bg-primary text-white text-xs px-2 py-0.5 rounded-full">
+          2
+        </span>
+      </div>
+      <h3 className="mt-4 text-xl font-semibold">Receive Offers</h3>
+      <p className="mt-2 text-muted-foreground">
+        Get competitive quotes directly from verified suppliers.
+      </p>
+    </div>
+
+    {/* Step 3 */}
+    <div className="flex flex-col items-center">
+      <div className="relative">
+        <Image src="/illustrations/deal.svg" alt="Post requirement" width={140} height={140}/>
+        <span className="absolute -top-2 -right-3 bg-primary text-white text-xs px-2 py-0.5 rounded-full">
+          3
+        </span>
+      </div>
+      <h3 className="mt-4 text-xl font-semibold">Choose & Deal</h3>
+      <p className="mt-2 text-muted-foreground">
+        Compare offers and close your deal confidently.
+      </p>
+    </div>
+
+  </div>
+</section>
+
+
           {/* Categories Section */}
           <section className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="flex items-center justify-between">
@@ -152,27 +257,6 @@ export function HomePageClient({ initialBranding, initialCategories, initialProd
               {loading ? Array.from({length: 6}).map((_, i) => <Skeleton key={i} className="h-32 w-full"/>) :
                categories.map(cat => <CategoryCard key={cat.id} category={cat} />)}
             </div>
-          </section>
-
-          {/* Why Choose Us Section */}
-          <section className="mx-auto max-w-6xl px-4 sm:px-6">
-              <div className="grid grid-cols-1 gap-8 md:grid-cols-3 text-center">
-                  <div className="flex flex-col items-center">
-                      <ShieldCheck className="h-12 w-12 text-primary"/>
-                      <h3 className="mt-4 text-xl font-semibold">Verified Suppliers</h3>
-                      <p className="mt-2 text-muted-foreground">Connect with trusted and vetted suppliers from around the world to ensure quality and reliability.</p>
-                  </div>
-                   <div className="flex flex-col items-center">
-                      <Handshake className="h-12 w-12 text-primary"/>
-                      <h3 className="mt-4 text-xl font-semibold">Direct Sourcing</h3>
-                      <p className="mt-2 text-muted-foreground">Post your specific needs and receive competitive quotes directly from interested sellers.</p>
-                  </div>
-                   <div className="flex flex-col items-center">
-                      <Globe className="h-12 w-12 text-primary"/>
-                      <h3 className="mt-4 text-xl font-semibold">Global Reach</h3>
-                      <p className="mt-2 text-muted-foreground">Expand your business horizons by accessing a vast network of international buyers and sellers.</p>
-                  </div>
-              </div>
           </section>
 
 
