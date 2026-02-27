@@ -27,7 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 
 
 export function UserNav() {
-  const { user, firebaseUser, updateUserContext } = useAuth();
+  const { user, loading, firebaseUser, updateUserContext } = useAuth();
   const router = useRouter();
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -114,10 +114,15 @@ export function UserNav() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="relative h-10 px-3 flex items-center gap-2">
-            <Avatar className="h-8 w-8">
-              {user.avatar && <AvatarImage src={user.avatar} alt={user.name} />}
-              <AvatarFallback className="bg-black text-white">{user.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-            </Avatar>
+		{loading ? (<div className="h-8 w-8 rounded-full bg-muted animate-pulse" />) : (
+  			<Avatar className="h-8 w-8">
+    				{user?.avatar ? (<AvatarImage src={user.avatar} alt={user.name} />
+    					) : (
+      				<AvatarFallback className="bg-black text-white">{user?.name?.split(' ').map(n => n[0]).join('')}
+      				</AvatarFallback>
+    				)}
+  			</Avatar>
+		)}
             <span className="hidden md:inline">{user.name}</span>
             <ChevronDown className="h-4 w-4 text-muted-foreground" />
           </Button>
