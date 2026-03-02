@@ -1,5 +1,4 @@
-
-
+﻿
 'use server';
 
 import Razorpay from 'razorpay';
@@ -10,6 +9,15 @@ import { getPlanAndUser } from '@/lib/database';
 import { add, isFuture } from 'date-fns';
 import { createSubscriptionInvoice } from '@/services/invoicing';
 import { firestore } from 'firebase-admin';
+import { Timestamp } from "firebase-admin/firestore";
+import { normalizeServerError } from '@/lib/server-error';
+
+const toDateValue = (value: string | Timestamp | null | undefined): Date | null => {
+    if (!value) return null;
+    if (value instanceof Timestamp) return value.toDate();
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
 
 export async function createRazorpayOrder({ planId, userId }: { planId: string, userId: string }): Promise<{ success: true; order: any, user: User, plan: SubscriptionPlan } | { success: false, error: string }> {
 
@@ -82,7 +90,7 @@ export async function verifyRazorpayPayment({
             // Signature is valid, now update the user's subscription
             const { plan, user } = await getPlanAndUser(planId, userId);
             
-            const currentExpiry = user.subscriptionExpiryDate ? new Date(user.subscriptionExpiryDate) : new Date();
+            const currentExpiry = toDateValue(user.subscriptionExpiryDate) ?? new Date();
             const renewalBaseDate = isFuture(currentExpiry) ? currentExpiry : new Date();
             const expiryDate = add(renewalBaseDate, { years: 1 });
 
@@ -121,6 +129,12 @@ export async function verifyRazorpayPayment({
 
     } catch(error: any) {
         console.error('Error verifying Razorpay payment:', error);
-        return { success: false, error: error.message || 'Payment verification failed on the server.' };
+        return {
+          success: false,
+          error: normalizeServerError(error, 'Payment verification failed on the server.'),
+        };
     }
 }
+
+
+

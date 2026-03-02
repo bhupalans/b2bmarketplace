@@ -5,21 +5,22 @@ import { FxAuditFilters } from './FxAuditFilters';
 export default async function FxAuditPage({
   searchParams,
 }: {
-  searchParams?: {
+  searchParams: Promise<{
     query?: string;
     currency?: string;
-  };
+  }>;
 }) {
+  const resolvedSearchParams = await searchParams;
 
   const offers = await getFxAuditData(
-    searchParams?.query,
-    searchParams?.currency
+    resolvedSearchParams?.query,
+    resolvedSearchParams?.currency
   );
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6">FX Audit History</h1>
 	
-      <FxAuditFilters searchParams={searchParams} />
+      <FxAuditFilters searchParams={resolvedSearchParams} />
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
   <table className="min-w-full text-sm">

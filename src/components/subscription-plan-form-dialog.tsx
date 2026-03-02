@@ -1,5 +1,4 @@
-
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect } from 'react';
 import { useForm, useWatch, useFieldArray } from 'react-hook-form';
@@ -152,7 +151,24 @@ export function SubscriptionPlanFormDialog({ open, onOpenChange, planId, onSucce
   const onSubmit = async (values: z.infer<typeof planSchema>) => {
     setIsSaving(true);
     try {
-      const savedPlan = await createOrUpdateSubscriptionPlanClient({ ...values, currency: values.currency.toUpperCase() }, planId);
+      const normalizedPricing: RegionalPrice[] = (values.pricing || []).map((p) => ({
+        country: p.country,
+        price: p.price,
+        currency: p.currency,
+      }));
+      const payload: Partial<Omit<SubscriptionPlan, 'id'>> = {
+        name: values.name,
+        price: values.price,
+        currency: values.currency.toUpperCase(),
+        pricing: normalizedPricing,
+        type: values.type,
+        productLimit: values.productLimit,
+        sourcingRequestLimit: values.sourcingRequestLimit,
+        hasAnalytics: values.hasAnalytics,
+        isFeatured: values.isFeatured,
+        status: values.status,
+      };
+      const savedPlan = await createOrUpdateSubscriptionPlanClient(payload, planId);
       toast({
         title: planId ? 'Plan Updated' : 'Plan Created',
         description: `The plan "${savedPlan.name}" has been saved.`,
@@ -442,3 +458,5 @@ export function SubscriptionPlanFormDialog({ open, onOpenChange, planId, onSucce
     </Dialog>
   );
 }
+
+

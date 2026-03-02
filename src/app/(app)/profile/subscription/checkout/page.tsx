@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useEffect, useState, Suspense } from 'react';
-import { useSearchParams, useRouter, notFound } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { getSubscriptionPlansClient, getActivePaymentGatewaysClient } from '@/lib/firebase';
 import { SubscriptionPlan, PaymentGateway, User } from '@/lib/types';
 import { CheckCircle, Loader2, AlertTriangle } from 'lucide-react';
@@ -41,7 +41,8 @@ function CheckoutPageContent() {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!planId) {
+        const invalidPlanId = !planId || planId === 'undefined' || planId === 'null';
+        if (invalidPlanId) {
             toast({ variant: 'destructive', title: 'Error', description: 'No subscription plan was selected.' });
             router.push('/profile/subscription');
             return;
@@ -64,7 +65,7 @@ function CheckoutPageContent() {
                 if (selectedPlan) {
                     setPlan(selectedPlan);
                 } else {
-                    notFound();
+                    setError('The selected subscription plan is invalid or no longer available.');
                 }
 
                 if (activeGateways.length > 0) {

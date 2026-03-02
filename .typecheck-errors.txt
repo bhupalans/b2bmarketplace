@@ -1,0 +1,264 @@
+
+> nextn@0.1.0 typecheck
+> tsc --noEmit
+
+src/app/(app)/admin/conversations/[conversationId]/page.tsx(33,7): error TS2322: Type '{ createdAt: string; lastMessage: { timestamp: string; text: string; senderId: string; }; id: string; participantIds: string[]; productId?: string; productTitle?: string; productImage?: string; ... 4 more ...; otherParticipant?: User; }' is not assignable to type 'SerializableConversation'.
+  Type '{ createdAt: string; lastMessage: { timestamp: string; text: string; senderId: string; }; id: string; participantIds: string[]; productId?: string; productTitle?: string; productImage?: string; ... 4 more ...; otherParticipant?: User; }' is not assignable to type '{ createdAt: string; lastMessage: Omit<Message, "timestamp"> & { timestamp: string; }; }'.
+    Types of property 'lastMessage' are incompatible.
+      Type '{ timestamp: string; text: string; senderId: string; }' is not assignable to type 'Omit<Message, "timestamp"> & { timestamp: string; }'.
+        Type '{ timestamp: string; text: string; senderId: string; }' is missing the following properties from type 'Omit<Message, "timestamp">': id, conversationId
+src/app/(app)/admin/conversations/layout.tsx(31,9): error TS2322: Type '{ createdAt: string; lastMessage: { timestamp: string; text: string; senderId: string; }; participants: User[]; id: string; participantIds: string[]; productId?: string; productTitle?: string; productImage?: string; ... 4 more ...; otherParticipant?: User; }[]' is not assignable to type 'SerializableConversation[]'.
+  Type '{ createdAt: string; lastMessage: { timestamp: string; text: string; senderId: string; }; participants: User[]; id: string; participantIds: string[]; productId?: string; productTitle?: string; ... 5 more ...; otherParticipant?: User; }' is not assignable to type 'SerializableConversation'.
+    Type '{ createdAt: string; lastMessage: { timestamp: string; text: string; senderId: string; }; participants: User[]; id: string; participantIds: string[]; productId?: string; productTitle?: string; ... 5 more ...; otherParticipant?: User; }' is not assignable to type '{ createdAt: string; lastMessage: Omit<Message, "timestamp"> & { timestamp: string; }; participants: User[]; }'.
+      Types of property 'lastMessage' are incompatible.
+        Type '{ timestamp: string; text: string; senderId: string; }' is not assignable to type 'Omit<Message, "timestamp"> & { timestamp: string; }'.
+          Type '{ timestamp: string; text: string; senderId: string; }' is missing the following properties from type 'Omit<Message, "timestamp">': id, conversationId
+src/app/(app)/admin/data-tools/page.tsx(81,41): error TS2339: Property 'message' does not exist on type '{ success: boolean; message: string; error?: undefined; } | { success: boolean; error: any; message?: undefined; } | { success: boolean; error: string; }'.
+  Property 'message' does not exist on type '{ success: boolean; error: string; }'.
+src/app/(app)/admin/settings/payment-gateway-form-dialog.tsx(95,69): error TS2345: Argument of type '{ name?: string; enabled?: boolean; logoUrl?: string; }' is not assignable to parameter of type 'Omit<PaymentGateway, "id">'.
+  Property 'name' is optional in type '{ name?: string; enabled?: boolean; logoUrl?: string; }' but required in type 'Omit<PaymentGateway, "id">'.
+src/app/(app)/app-layout-client.tsx(357,31): error TS2322: Type '"ghost"' is not assignable to type '"default" | "outline"'.
+src/app/(app)/app-layout-client.tsx(392,33): error TS2322: Type '"ghost"' is not assignable to type '"default" | "outline"'.
+src/app/(app)/buyers/[id]/page.tsx(83,108): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number | Date'.
+      Type 'Timestamp' is not assignable to type 'string | number | Date'.
+        Type 'Timestamp' is missing the following properties from type 'Date': toDateString, toTimeString, toLocaleDateString, toLocaleTimeString, and 36 more.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number'.
+      Type 'Timestamp' is not assignable to type 'string | number'.
+src/app/(app)/dashboard/fx-breakdown/page.tsx(2,25): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+src/app/(app)/dashboard/page.tsx(48,74): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number | Date'.
+      Type 'Timestamp' is not assignable to type 'string | number | Date'.
+        Type 'Timestamp' is missing the following properties from type 'Date': toDateString, toTimeString, toLocaleDateString, toLocaleTimeString, and 36 more.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number'.
+      Type 'Timestamp' is not assignable to type 'string | number'.
+src/app/(app)/my-products/page.tsx(115,102): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number | Date'.
+      Type 'Timestamp' is not assignable to type 'string | number | Date'.
+        Type 'Timestamp' is missing the following properties from type 'Date': toDateString, toTimeString, toLocaleDateString, toLocaleTimeString, and 36 more.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number'.
+      Type 'Timestamp' is not assignable to type 'string | number'.
+src/app/(app)/products/[id]/page.tsx(156,111): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number | Date'.
+      Type 'Timestamp' is not assignable to type 'string | number | Date'.
+        Type 'Timestamp' is missing the following properties from type 'Date': toDateString, toTimeString, toLocaleDateString, toLocaleTimeString, and 36 more.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number'.
+      Type 'Timestamp' is not assignable to type 'string | number'.
+src/app/(app)/products/[id]/product-details-client.tsx(79,14): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number | Date'.
+      Type 'Timestamp' is not assignable to type 'string | number | Date'.
+        Type 'Timestamp' is missing the following properties from type 'Date': toDateString, toTimeString, toLocaleDateString, toLocaleTimeString, and 36 more.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number'.
+      Type 'Timestamp' is not assignable to type 'string | number'.
+src/app/(app)/profile/profile-form.tsx(415,33): error TS2339: Property 'error' does not exist on type '{ success: true; user: User; } | { success: false; error: string; }'.
+  Property 'error' does not exist on type '{ success: true; user: User; }'.
+src/app/(app)/profile/subscription/checkout/confirm/page.tsx(42,44): error TS2339: Property 'error' does not exist on type '{ success: true; } | { success: false; error: string; }'.
+  Property 'error' does not exist on type '{ success: true; }'.
+src/app/(app)/profile/subscription/page.tsx(127,106): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number | Date'.
+      Type 'Timestamp' is not assignable to type 'string | number | Date'.
+        Type 'Timestamp' is missing the following properties from type 'Date': toDateString, toTimeString, toLocaleDateString, toLocaleTimeString, and 36 more.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number'.
+      Type 'Timestamp' is not assignable to type 'string | number'.
+src/app/(app)/profile/subscription/page.tsx(149,75): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number | Date'.
+      Type 'Timestamp' is not assignable to type 'string | number | Date'.
+        Type 'Timestamp' is missing the following properties from type 'Date': toDateString, toTimeString, toLocaleDateString, toLocaleTimeString, and 36 more.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number'.
+      Type 'Timestamp' is not assignable to type 'string | number'.
+src/app/(app)/profile/subscription/page.tsx(150,63): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number | Date'.
+      Type 'Timestamp' is not assignable to type 'string | number | Date'.
+        Type 'Timestamp' is missing the following properties from type 'Date': toDateString, toTimeString, toLocaleDateString, toLocaleTimeString, and 36 more.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number'.
+      Type 'Timestamp' is not assignable to type 'string | number'.
+src/app/(app)/profile/subscription/page.tsx(153,85): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number | Date'.
+      Type 'Timestamp' is not assignable to type 'string | number | Date'.
+        Type 'Timestamp' is missing the following properties from type 'Date': toDateString, toTimeString, toLocaleDateString, toLocaleTimeString, and 36 more.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number'.
+      Type 'Timestamp' is not assignable to type 'string | number'.
+src/app/(app)/profile/subscription/page.tsx(184,24): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number | Date'.
+      Type 'Timestamp' is not assignable to type 'string | number | Date'.
+        Type 'Timestamp' is missing the following properties from type 'Date': toDateString, toTimeString, toLocaleDateString, toLocaleTimeString, and 36 more.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number'.
+      Type 'Timestamp' is not assignable to type 'string | number'.
+src/app/(app)/profile/subscription/page.tsx(205,100): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number | Date'.
+      Type 'Timestamp' is not assignable to type 'string | number | Date'.
+        Type 'Timestamp' is missing the following properties from type 'Date': toDateString, toTimeString, toLocaleDateString, toLocaleTimeString, and 36 more.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number'.
+      Type 'Timestamp' is not assignable to type 'string | number'.
+src/app/(app)/profile/subscription/page.tsx(207,86): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number | Date'.
+      Type 'Timestamp' is not assignable to type 'string | number | Date'.
+        Type 'Timestamp' is missing the following properties from type 'Date': toDateString, toTimeString, toLocaleDateString, toLocaleTimeString, and 36 more.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number'.
+      Type 'Timestamp' is not assignable to type 'string | number'.
+src/app/(app)/profile/verification/client-page.tsx(235,97): error TS2339: Property 'error' does not exist on type '{ success: true; updatedUser: User; } | { success: false; error: string; }'.
+  Property 'error' does not exist on type '{ success: true; updatedUser: User; }'.
+src/app/(app)/sellers/[id]/page.tsx(83,111): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number | Date'.
+      Type 'Timestamp' is not assignable to type 'string | number | Date'.
+        Type 'Timestamp' is missing the following properties from type 'Date': toDateString, toTimeString, toLocaleDateString, toLocaleTimeString, and 36 more.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number'.
+      Type 'Timestamp' is not assignable to type 'string | number'.
+src/app/(app)/sourcing/[id]/page.tsx(69,108): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number | Date'.
+      Type 'Timestamp' is not assignable to type 'string | number | Date'.
+        Type 'Timestamp' is missing the following properties from type 'Date': toDateString, toTimeString, toLocaleDateString, toLocaleTimeString, and 36 more.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number'.
+      Type 'Timestamp' is not assignable to type 'string | number'.
+src/app/(app)/sourcing/create/page.tsx(159,102): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number | Date'.
+      Type 'Timestamp' is not assignable to type 'string | number | Date'.
+        Type 'Timestamp' is missing the following properties from type 'Date': toDateString, toTimeString, toLocaleDateString, toLocaleTimeString, and 36 more.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number'.
+      Type 'Timestamp' is not assignable to type 'string | number'.
+src/app/(app)/sourcing/dashboard/page.tsx(48,74): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number | Date'.
+      Type 'Timestamp' is not assignable to type 'string | number | Date'.
+        Type 'Timestamp' is missing the following properties from type 'Date': toDateString, toTimeString, toLocaleDateString, toLocaleTimeString, and 36 more.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number'.
+      Type 'Timestamp' is not assignable to type 'string | number'.
+src/app/admin-actions.ts(35,28): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number | Date'.
+      Type 'Timestamp' is not assignable to type 'string | number | Date'.
+        Type 'Timestamp' is missing the following properties from type 'Date': toDateString, toTimeString, toLocaleDateString, toLocaleTimeString, and 36 more.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number'.
+      Type 'Timestamp' is not assignable to type 'string | number'.
+src/app/admin-data-actions.ts(13,31): error TS2339: Property 'get' does not exist on type 'Promise<ReadonlyHeaders>'.
+src/app/admin-data-actions.ts(43,39): error TS2339: Property 'FieldValue' does not exist on type 'Firestore'.
+src/app/contact-actions.ts(21,31): error TS2339: Property 'get' does not exist on type 'Promise<ReadonlyRequestCookies>'.
+src/app/user-actions.ts(242,5): error TS2322: Type '{ success: true; }' is not assignable to type '{ success: true; updatedUser: User; } | { success: false; error: string; }'.
+  Property 'updatedUser' is missing in type '{ success: true; }' but required in type '{ success: true; updatedUser: User; }'.
+src/app/user-actions.ts(277,66): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number | Date'.
+      Type 'Timestamp' is not assignable to type 'string | number | Date'.
+        Type 'Timestamp' is missing the following properties from type 'Date': toDateString, toTimeString, toLocaleDateString, toLocaleTimeString, and 36 more.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number'.
+      Type 'Timestamp' is not assignable to type 'string | number'.
+src/components/callback-request-form.tsx(50,7): error TS2322: Type '"buyer" | "seller" | "admin"' is not assignable to type '"buyer" | "seller"'.
+  Type '"admin"' is not assignable to type '"buyer" | "seller"'.
+src/components/callback-request-form.tsx(60,52): error TS2345: Argument of type '{ name?: string; companyName?: string; role?: "buyer" | "seller"; phoneNumber?: string; country?: string; preferredTime?: string; }' is not assignable to parameter of type 'CallbackRequestData'.
+  Property 'name' is optional in type '{ name?: string; companyName?: string; role?: "buyer" | "seller"; phoneNumber?: string; country?: string; preferredTime?: string; }' but required in type 'CallbackRequestData'.
+src/components/category-form-dialog.tsx(126,64): error TS2345: Argument of type '{ imageUrl: string; specTemplateId: string; status?: "active" | "inactive"; name?: string; parentId?: string; }' is not assignable to parameter of type '{ name: string; parentId: string; status: "active" | "inactive"; specTemplateId?: string; imageUrl?: string; }'.
+  Property 'name' is optional in type '{ imageUrl: string; specTemplateId: string; status?: "active" | "inactive"; name?: string; parentId?: string; }' but required in type '{ name: string; parentId: string; status: "active" | "inactive"; specTemplateId?: string; imageUrl?: string; }'.
+src/components/contact-buyer-dialog.tsx(111,76): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number | Date'.
+      Type 'Timestamp' is not assignable to type 'string | number | Date'.
+        Type 'Timestamp' is missing the following properties from type 'Date': toDateString, toTimeString, toLocaleDateString, toLocaleTimeString, and 36 more.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number'.
+      Type 'Timestamp' is not assignable to type 'string | number'.
+src/components/create-offer-dialog.tsx(70,27): error TS2345: Argument of type '{ productId: string; conversationId: string; buyerId: string; sellerId: string; price?: { baseAmount?: number; baseCurrency?: string; }; quantity?: number; notes?: string; }' is not assignable to parameter of type '{ productId: string; quantity: number; price: { baseAmount: number; baseCurrency: string; }; notes?: string; conversationId: string; buyerId: string; sellerId: string; }'.
+  Property 'quantity' is optional in type '{ productId: string; conversationId: string; buyerId: string; sellerId: string; price?: { baseAmount?: number; baseCurrency?: string; }; quantity?: number; notes?: string; }' but required in type '{ productId: string; quantity: number; price: { baseAmount: number; baseCurrency: string; }; notes?: string; conversationId: string; buyerId: string; sellerId: string; }'.
+src/components/offer-card.tsx(66,42): error TS2554: Expected 1 arguments, but got 2.
+src/components/product-card.tsx(67,111): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number | Date'.
+      Type 'Timestamp' is not assignable to type 'string | number | Date'.
+        Type 'Timestamp' is missing the following properties from type 'Date': toDateString, toTimeString, toLocaleDateString, toLocaleTimeString, and 36 more.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number'.
+      Type 'Timestamp' is not assignable to type 'string | number'.
+src/components/product-form.tsx(286,90): error TS2339: Property 'error' does not exist on type '{ success: true; enhancedDescription: string; } | { success: false; error: string; }'.
+  Property 'error' does not exist on type '{ success: true; enhancedDescription: string; }'.
+src/components/product-form.tsx(307,11): error TS2345: Argument of type '{ description?: string; title?: string; price?: { baseAmount?: number; baseCurrency?: string; }; categoryId?: string; specifications?: { value?: string; name?: string; }[]; countryOfOrigin?: string; stockAvailability?: "in_stock" | ... 1 more ... | "made_to_order"; ... 4 more ...; existingImages?: string[]; }' is not assignable to parameter of type 'Omit<Product, "status" | "sellerId" | "createdAt" | "updatedAt" | "id" | "images" | "unansweredQuestions"> & { existingImages?: string[]; }'.
+  Type '{ description?: string; title?: string; price?: { baseAmount?: number; baseCurrency?: string; }; categoryId?: string; specifications?: { value?: string; name?: string; }[]; countryOfOrigin?: string; stockAvailability?: "in_stock" | ... 1 more ... | "made_to_order"; ... 4 more ...; existingImages?: string[]; }' is not assignable to type 'Omit<Product, "status" | "sellerId" | "createdAt" | "updatedAt" | "id" | "images" | "unansweredQuestions">'.
+    Property 'description' is optional in type '{ description?: string; title?: string; price?: { baseAmount?: number; baseCurrency?: string; }; categoryId?: string; specifications?: { value?: string; name?: string; }[]; countryOfOrigin?: string; stockAvailability?: "in_stock" | ... 1 more ... | "made_to_order"; ... 4 more ...; existingImages?: string[]; }' but required in type 'Omit<Product, "status" | "sellerId" | "createdAt" | "updatedAt" | "id" | "images" | "unansweredQuestions">'.
+src/components/razorpay-checkout-button.tsx(28,49): error TS2339: Property 'error' does not exist on type '{ success: true; order: any; user: User; plan: SubscriptionPlan; } | { success: false; error: string; }'.
+  Property 'error' does not exist on type '{ success: true; order: any; user: User; plan: SubscriptionPlan; }'.
+src/components/request-quote-dialog.tsx(122,73): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number | Date'.
+      Type 'Timestamp' is not assignable to type 'string | number | Date'.
+        Type 'Timestamp' is missing the following properties from type 'Date': toDateString, toTimeString, toLocaleDateString, toLocaleTimeString, and 36 more.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number'.
+      Type 'Timestamp' is not assignable to type 'string | number'.
+src/components/stripe-checkout-form.tsx(96,57): error TS2339: Property 'error' does not exist on type '{ success: true; clientSecret: string; } | { success: false; error: string; }'.
+  Property 'error' does not exist on type '{ success: true; clientSecret: string; }'.
+src/components/subscription-plan-form-dialog.tsx(155,68): error TS2345: Argument of type '{ currency: string; status?: "active" | "archived"; type?: "buyer" | "seller"; name?: string; price?: number; pricing?: { price?: number; currency?: string; country?: string; }[]; productLimit?: number; sourcingRequestLimit?: number; hasAnalytics?: boolean; isFeatured?: boolean; }' is not assignable to parameter of type 'Partial<Omit<SubscriptionPlan, "id">>'.
+  Types of property 'pricing' are incompatible.
+    Type '{ price?: number; currency?: string; country?: string; }[]' is not assignable to type 'RegionalPrice[]'.
+      Type '{ price?: number; currency?: string; country?: string; }' is not assignable to type 'RegionalPrice'.
+        Property 'country' is optional in type '{ price?: number; currency?: string; country?: string; }' but required in type 'RegionalPrice'.
+src/components/user-auth-form.tsx(96,7): error TS2353: Object literal may only specify known properties, and 'name' does not exist in type 'AsyncDefaultValues<{ password?: string; loginId?: string; }> | { password?: string; loginId?: string; }'.
+src/components/user-auth-form.tsx(117,27): error TS2345: Argument of type '"username"' is not assignable to parameter of type '"password" | "root" | `root.${string}` | "loginId"'.
+src/components/user-auth-form.tsx(202,15): error TS2322: Type '"name"' is not assignable to type '"password" | "loginId"'.
+src/components/user-auth-form.tsx(219,15): error TS2322: Type '"username"' is not assignable to type '"password" | "loginId"'.
+src/components/user-auth-form.tsx(236,15): error TS2322: Type '"companyName"' is not assignable to type '"password" | "loginId"'.
+src/components/user-auth-form.tsx(253,13): error TS2322: Type '"email"' is not assignable to type '"password" | "loginId"'.
+src/components/user-auth-form.tsx(331,19): error TS2322: Type '"confirmPassword"' is not assignable to type '"password" | "loginId"'.
+src/components/user-auth-form.tsx(353,17): error TS2322: Type '"role"' is not assignable to type '"password" | "loginId"'.
+src/components/user-auth-form.tsx(378,17): error TS2322: Type '"terms"' is not assignable to type '"password" | "loginId"'.
+src/components/user-auth-form.tsx(383,25): error TS2322: Type 'string' is not assignable to type 'CheckedState'.
+src/components/verification-template-form-dialog.tsx(118,76): error TS2345: Argument of type '{ countryName: string; fields: { validationRegex: string; helperText: string; type?: "text" | "file"; name?: string; required?: "always" | "international" | "never"; label?: string; }[]; }' is not assignable to parameter of type '{ countryName: string; fields: VerificationField[]; }'.
+  Types of property 'fields' are incompatible.
+    Type '{ validationRegex: string; helperText: string; type?: "text" | "file"; name?: string; required?: "always" | "international" | "never"; label?: string; }[]' is not assignable to type 'VerificationField[]'.
+      Type '{ validationRegex: string; helperText: string; type?: "text" | "file"; name?: string; required?: "always" | "international" | "never"; label?: string; }' is not assignable to type 'VerificationField'.
+        Property 'name' is optional in type '{ validationRegex: string; helperText: string; type?: "text" | "file"; name?: string; required?: "always" | "international" | "never"; label?: string; }' but required in type 'VerificationField'.
+src/contexts/auth-context.tsx(61,64): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number | Date'.
+      Type 'Timestamp' is not assignable to type 'string | number | Date'.
+        Type 'Timestamp' is missing the following properties from type 'Date': toDateString, toTimeString, toLocaleDateString, toLocaleTimeString, and 36 more.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number'.
+      Type 'Timestamp' is not assignable to type 'string | number'.
+src/lib/database-client.ts(10,10): error TS2305: Module '"./mock-data"' has no exported member 'mockCategories'.
+src/lib/firebase.ts(730,20): error TS2339: Property 'participantIds' does not exist on type 'unknown'.
+src/lib/firebase.ts(731,52): error TS2698: Spread types may only be created from object types.
+src/lib/firebase.ts(1048,19): error TS2304: Cannot find name 'processAcceptedOffer'.
+src/lib/mock-data.ts(8,3): error TS2741: Property 'uid' is missing in type '{ id: string; name: string; email: string; role: "buyer"; }' but required in type 'User'.
+src/lib/mock-data.ts(14,3): error TS2741: Property 'uid' is missing in type '{ id: string; name: string; email: string; role: "seller"; businessType: "Manufacturer"; location: string; memberSince: number; certifications: string[]; companyDescription: string; }' but required in type 'User'.
+src/lib/mock-data.ts(25,3): error TS2741: Property 'uid' is missing in type '{ id: string; name: string; email: string; role: "seller"; businessType: "Trading Company"; location: string; memberSince: number; certifications: string[]; companyDescription: string; }' but required in type 'User'.
+src/lib/mock-data.ts(36,3): error TS2741: Property 'uid' is missing in type '{ id: string; name: string; email: string; role: "admin"; }' but required in type 'User'.
+src/lib/mock-data.ts(282,3): error TS2739: Type '{ id: string; productId: string; quantity: number; price: { baseAmount: number; baseCurrency: string; }; notes: string; status: "pending"; sellerId: string; buyerId: string; conversationId: string; productTitle: string; productImage: string; }' is missing the following properties from type 'Offer': createdAt, updatedAt
+src/services/payments/razorpay.ts(85,74): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number | Date'.
+      Type 'Timestamp' is not assignable to type 'string | number | Date'.
+        Type 'Timestamp' is missing the following properties from type 'Date': toDateString, toTimeString, toLocaleDateString, toLocaleTimeString, and 36 more.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | Timestamp' is not assignable to parameter of type 'string | number'.
+      Type 'Timestamp' is not assignable to type 'string | number'.

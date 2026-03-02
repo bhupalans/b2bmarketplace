@@ -1,5 +1,4 @@
-
-"use client";
+﻿"use client";
 
 import React, { useEffect, useState, useTransition } from "react";
 import { Offer } from "@/lib/types";
@@ -63,7 +62,7 @@ export function OfferCard({ offerId, currentUserId }: OfferCardProps) {
     try {
 
       if (status === 'accepted') {
-        await acceptOfferAction(offerId, currency);
+        await acceptOfferAction(offerId);
       } else {
         await updateOfferStatusClient(offerId, status, user.uid);
       }
@@ -215,3 +214,5 @@ const formattedTotalPrice = new Intl.NumberFormat(undefined, {
     </div>
   );
 }
+
+

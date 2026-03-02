@@ -1,5 +1,4 @@
-
-"use client";
+﻿"use client";
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -93,7 +92,7 @@ export function StripeCheckoutForm({ plan, user }: { plan: SubscriptionPlan, use
                 if (paymentIntentResult.success) {
                     setClientSecret(paymentIntentResult.clientSecret);
                 } else {
-                    throw new Error(paymentIntentResult.error);
+                    throw new Error(('error' in paymentIntentResult && paymentIntentResult.error) ? paymentIntentResult.error : 'Failed to initialize payment intent.');
                 }
             } catch (err: any) {
                 setError(err.message);
@@ -126,3 +125,5 @@ export function StripeCheckoutForm({ plan, user }: { plan: SubscriptionPlan, use
         </div>
     );
 }
+
+

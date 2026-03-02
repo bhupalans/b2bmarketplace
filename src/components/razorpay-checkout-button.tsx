@@ -1,5 +1,4 @@
-
-"use client";
+﻿"use client";
 
 import React, { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
@@ -25,7 +24,7 @@ export function RazorpayCheckoutButton({ plan, user }: { plan: SubscriptionPlan,
             try {
                 const orderResult = await createRazorpayOrder({ planId: plan.id, userId: user.uid });
                 if (!orderResult.success) {
-                    throw new Error(orderResult.error);
+                    throw new Error(('error' in orderResult && orderResult.error) ? orderResult.error : 'Failed to create Razorpay order.');
                 }
 
                 const razorpayKeyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
@@ -93,3 +92,5 @@ export function RazorpayCheckoutButton({ plan, user }: { plan: SubscriptionPlan,
         </Button>
     );
 }
+
+

@@ -1,5 +1,4 @@
-
-
+﻿
 'use server';
 
 import { convertToUSD } from '@/lib/server-currency';
@@ -9,12 +8,21 @@ import { User, VerificationTemplate, SubscriptionPlan, Offer } from '@/lib/types
 import { revalidatePath } from 'next/cache';
 import { v4 as uuidv4 } from 'uuid';
 import { firestore } from 'firebase-admin';
+import { Timestamp } from "firebase-admin/firestore";
 import Stripe from 'stripe';
 import { areDetailsEqual } from '@/lib/utils';
 import { add, isFuture } from 'date-fns';
 import { createSubscriptionInvoice } from '@/services/invoicing';
 import { getPlanAndUser, getUser } from '@/lib/database';
 import { sendOfferAcceptedEmail } from '@/services/email';
+import { normalizeServerError } from '@/lib/server-error';
+
+const toDateValue = (value: string | Timestamp | null | undefined): Date | null => {
+  if (!value) return null;
+  if (value instanceof Timestamp) return value.toDate();
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
 
 type ProfileUpdateData = Omit<User, 'id' | 'uid' | 'email' | 'role' | 'avatar' | 'memberSince' | 'username' | 'subscriptionPlan'>;
 
@@ -42,12 +50,15 @@ export async function updateUserProfile(userId: string, data: ProfileUpdateData)
 
 	
 	const dataToUpdate: { [key: string]: any } = {
-  // fields common to both buyer and seller
-  name: data.name,
-  phoneNumber: data.phoneNumber,
-  address: data.address,
-  updatedAt: new Date().toISOString(),
-};
+        // fields common to both buyer and seller
+         name: data.name,
+        phoneNumber: data.phoneNumber,
+        address: data.address,
+        updatedAt: new Date().toISOString(),
+    };
+    if ('avatar' in data) {
+        dataToUpdate.avatar = data.avatar;
+    }
 
 // SELLER-SPECIFIC FIELDS
 if (originalUser.role === 'seller') {
@@ -127,10 +138,8 @@ const updatedUser: User = {
   id: updatedUserSnap.id,
   ...rawUserData,
 
-  // 🔑 Convert Firestore Timestamp → serializable values
-  subscriptionExpiryDate: rawUserData.subscriptionExpiryDate
-    ? rawUserData.subscriptionExpiryDate.toDate().toISOString()
-    : null,
+  // ðŸ”‘ Convert Firestore Timestamp â†’ serializable values
+  subscriptionExpiryDate: toDateValue(rawUserData.subscriptionExpiryDate)?.toISOString() ?? null,
 
   // (Optional safety if these exist)
   createdAt: rawUserData.createdAt?.toDate?.().toISOString() ?? rawUserData.createdAt ?? null,
@@ -148,7 +157,10 @@ return { success: true, user: updatedUser };
     console.error('--- DEBUG: Error Code:', error.code);
     console.error('--- DEBUG: Error Message:', error.message);
     
-    const errorMessage = error.message || 'Failed to update profile on the server. Please check the server logs.';
+    const errorMessage = normalizeServerError(
+      error,
+      'Failed to update profile on the server. Please check the server logs.'
+    );
     return { success: false, error: errorMessage };
   }
 }
@@ -236,11 +248,14 @@ export async function submitVerificationDocuments(formData: FormData, token: str
 
     const updatedUserSnap = await userRef.get();
     const updatedUser = { id: updatedUserSnap.id, uid: userId, ...updatedUserSnap.data() } as User;
-    return { success: true };
+    return { success: true, updatedUser };
 
   } catch(error: any) {
     console.error("Error submitting verification docs:", error);
-    return { success: false, error: error.message || "Failed to submit documents." };
+    return {
+      success: false,
+      error: normalizeServerError(error, "Failed to submit documents."),
+    };
   }
 }
 
@@ -270,20 +285,41 @@ export async function confirmStripePayment(
     
     const { plan, user } = await getPlanAndUser(planId, userId);
     const userRef = adminDb.collection('users').doc(userId);
-    
-    const currentExpiry = user.subscriptionExpiryDate ? new Date(user.subscriptionExpiryDate) : new Date();
-    const renewalBaseDate = isFuture(currentExpiry) ? currentExpiry : new Date();
-    const expiryDate = add(renewalBaseDate, { years: 1 });
+    const appliedUpdate = await adminDb.runTransaction(async (tx) => {
+      const latestUserSnap = await tx.get(userRef);
+      if (!latestUserSnap.exists) {
+        throw new Error('User not found during subscription confirmation.');
+      }
 
-    const batch = adminDb.batch();
+      const latestUser = latestUserSnap.data() as User & {
+        lastProcessedStripePaymentIntentId?: string;
+      };
 
-    batch.update(userRef, {
-      subscriptionPlanId: planId,
-      subscriptionExpiryDate: firestore.Timestamp.fromDate(expiryDate), // Save as Timestamp
-      renewalCancelled: false, // Ensure renewal is active on new purchase
+      // Idempotency guard: avoid extending subscription twice for the same Stripe payment.
+      if (latestUser.lastProcessedStripePaymentIntentId === paymentIntent.id) {
+        return { applied: false, expiryDate: toDateValue(latestUser.subscriptionExpiryDate) };
+      }
+
+      const currentExpiry = toDateValue(latestUser.subscriptionExpiryDate) ?? new Date();
+      const renewalBaseDate = isFuture(currentExpiry) ? currentExpiry : new Date();
+      const expiryDate = add(renewalBaseDate, { years: 1 });
+
+      tx.update(userRef, {
+        subscriptionPlanId: planId,
+        subscriptionExpiryDate: firestore.Timestamp.fromDate(expiryDate), // Save as Timestamp
+        renewalCancelled: false, // Ensure renewal is active on new purchase
+        lastProcessedStripePaymentIntentId: paymentIntent.id,
+      });
+
+      return { applied: true, expiryDate };
     });
-    
-    console.log(`Stripe Yearly: Successfully updated subscription for user ${userId} to plan ${planId}, expiring on ${expiryDate.toISOString()}.`);
+
+    if (!appliedUpdate.applied) {
+      console.log(`Stripe confirm skipped: payment intent ${paymentIntent.id} was already processed for user ${userId}.`);
+      return { success: true };
+    }
+
+    console.log(`Stripe Yearly: Successfully updated subscription for user ${userId} to plan ${planId}, expiring on ${appliedUpdate.expiryDate?.toISOString()}.`);
     
     // The invoice creation is now part of the same transaction
     await createSubscriptionInvoice({
@@ -297,8 +333,6 @@ export async function confirmStripePayment(
         }
     });
 
-    await batch.commit();
-
     revalidatePath('/profile/subscription');
     revalidatePath('/profile/invoices');
     revalidatePath('/(app)/layout'); // Revalidate layout to update user nav
@@ -307,7 +341,10 @@ export async function confirmStripePayment(
 
   } catch (error: any) {
     console.error('Error confirming Stripe payment:', error);
-    return { success: false, error: error.message || 'Failed to confirm payment on server.' };
+    return {
+      success: false,
+      error: normalizeServerError(error, 'Failed to confirm payment on server.'),
+    };
   }
 }
 
@@ -336,7 +373,7 @@ export async function manageSubscriptionRenewal(
 }
 
 
-// 1️⃣ Accept Offer Action (entry point from client)
+// 1ï¸âƒ£ Accept Offer Action (entry point from client)
 export async function acceptOfferAction(offerId: string) {
   console.log("SERVER ACTION: acceptOfferAction triggered");
 
@@ -354,7 +391,7 @@ export async function acceptOfferAction(offerId: string) {
 
     } catch (error: any) {
         console.error("Error accepting offer:", error);
-        return { success: false, error: error.message };
+        return { success: false, error: normalizeServerError(error, "Failed to accept offer.") };
     }
 }
 
@@ -375,7 +412,7 @@ export async function processAcceptedOffer(
     }
 
     // ===============================
-    // 🔹 FREEZE PRICING (ONLY ONCE)
+    // ðŸ”¹ FREEZE PRICING (ONLY ONCE)
     // ===============================
 
     if (!offer.pricing?.convertedAt) {
@@ -389,7 +426,7 @@ export async function processAcceptedOffer(
 
       const originalTotal = unit * quantity;
 
-      // Convert original → USD
+      // Convert original â†’ USD
       const usdTotal = await convertToUSD(originalTotal, originalCurrency);
       const usdUnit = usdTotal / quantity;
 
@@ -432,7 +469,7 @@ export async function processAcceptedOffer(
     }
 
     // ===============================
-    // 🔹 CONTACT CARD + EMAIL LOGIC
+    // ðŸ”¹ CONTACT CARD + EMAIL LOGIC
     // ===============================
 
     const [buyer, seller] = await Promise.all([
@@ -495,7 +532,11 @@ export async function processAcceptedOffer(
 
   } catch (error: any) {
     console.error("Error processing accepted offer:", error);
-    return { success: false, error: error.message };
+    return { success: false, error: normalizeServerError(error, "Failed to process accepted offer.") };
   }
 }
+
+
+
+
 

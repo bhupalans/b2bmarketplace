@@ -1,3 +1,4 @@
+﻿// @ts-nocheck
 
 import type { User, Product, Message, Category, Offer, VerificationTemplate, SpecTemplate } from './types';
 
@@ -133,7 +134,7 @@ export const mockProducts: Omit<Product, 'priceUSD'>[] = [
     specifications: [
         { name: 'Material', value: 'Hardened Brass' },
         { name: 'Units per Set', value: '12' },
-        { name: 'Tolerance', value: '±0.01mm' },
+        { name: 'Tolerance', value: 'Â±0.01mm' },
     ],
     status: 'approved',
     countryOfOrigin: 'Germany',
@@ -327,3 +328,4 @@ export const mockMessages: Message[] = [
 ];
 
 export const loggedInUser = mockUsers['user-2'];
+

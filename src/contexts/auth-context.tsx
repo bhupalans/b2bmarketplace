@@ -19,6 +19,26 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const toDateValue = (value: unknown): Date | null => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === "string" || typeof value === "number") {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  if (
+    typeof value === "object" &&
+    "toDate" in (value as Record<string, unknown>) &&
+    typeof (value as { toDate?: () => unknown }).toDate === "function"
+  ) {
+    const maybeDate = (value as { toDate: () => unknown }).toDate();
+    if (maybeDate instanceof Date && !Number.isNaN(maybeDate.getTime())) {
+      return maybeDate;
+    }
+  }
+  return null;
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -56,23 +76,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }
         }
         
-        if (userProfile) {
-            // Check for expired subscription
-            if (userProfile.subscriptionExpiryDate && new Date(userProfile.subscriptionExpiryDate) < new Date()) {
-                userProfile.subscriptionPlanId = undefined;
-                userProfile.subscriptionPlan = undefined;
-                userProfile.renewalCancelled = undefined;
-                // We don't write this back to the DB here, we just fix the client state.
-                // The backend should be the source of truth for enforcement.
-            }
-            // If the user has a subscription, fetch the plan details
-            else if (userProfile.subscriptionPlanId) {
-                const planRef = doc(db, 'subscriptionPlans', userProfile.subscriptionPlanId);
-                const planSnap = await getDoc(planRef);
-                if (planSnap.exists()) {
-                    const planData = convertTimestamps(planSnap.data());
-                    userProfile.subscriptionPlan = { id: planSnap.id, ...planData } as SubscriptionPlan;
-                }
+        if (userProfile?.subscriptionPlanId) {
+            // Keep plan ID/details even when expired so renewal flows can target the correct paid plan.
+            const planRef = doc(db, 'subscriptionPlans', userProfile.subscriptionPlanId);
+            const planSnap = await getDoc(planRef);
+            if (planSnap.exists()) {
+                const planData = convertTimestamps(planSnap.data());
+                userProfile.subscriptionPlan = { id: planSnap.id, ...planData } as SubscriptionPlan;
             }
         }
         
@@ -120,3 +130,4 @@ export const useAuth = () => {
 };
 
     
+

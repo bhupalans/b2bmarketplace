@@ -283,7 +283,8 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
         form.setValue('description', result.enhancedDescription, { shouldValidate: true, shouldDirty: true });
         toast({ title: 'Description Enhanced!', description: 'The product description has been updated with AI.' });
       } else {
-        toast({ variant: 'destructive', title: 'Enhancement Failed', description: result.error });
+        const errorMessage = 'error' in result ? result.error : 'AI enhancement failed.';
+        toast({ variant: 'destructive', title: 'Enhancement Failed', description: errorMessage });
       }
     });
   };
@@ -301,10 +302,30 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
       
       const { newImageFiles, ...productData } = values;
       const filesToUpload = newImageFiles ? Array.from(newImageFiles) : [];
+      const payload: Parameters<typeof createOrUpdateProductClient>[0] = {
+        title: productData.title,
+        description: productData.description,
+        price: {
+          baseAmount: Number(productData.price?.baseAmount ?? 0),
+          baseCurrency: productData.price?.baseCurrency ?? currency,
+        },
+        categoryId: productData.categoryId,
+        countryOfOrigin: productData.countryOfOrigin,
+        stockAvailability: productData.stockAvailability,
+        moq: productData.moq,
+        moqUnit: productData.moqUnit,
+        sku: productData.sku,
+        leadTime: productData.leadTime,
+        specifications: (productData.specifications ?? []).map((spec) => ({
+          name: spec.name ?? "",
+          value: spec.value ?? "",
+        })),
+        existingImages: productData.existingImages,
+      };
 
       try {
         const result = await createOrUpdateProductClient(
-          productData,
+          payload,
           filesToUpload,
           firebaseUser.uid,
           productId
@@ -824,3 +845,5 @@ const ProductFormDialogComponent = ({ open, onOpenChange, productId, onSuccess, 
 export const ProductFormDialog = memo(ProductFormDialogComponent);
 
     
+
+

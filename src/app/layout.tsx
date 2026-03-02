@@ -3,20 +3,23 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
 import Script from "next/script";
-import { getBrandingSettings } from "@/lib/database";
 import { cookies, headers } from 'next/headers';
-import { adminAuth } from "@/lib/firebase-admin";
-import { getUser } from "@/lib/database";
 import { CURRENCY_MAP } from "@/lib/geography-data";
-import { parse } from 'accept-language-parser';
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://vbuysell.com';
+export const dynamic = 'force-dynamic';
+const hasAdminCredentials =
+  !!process.env.GOOGLE_APPLICATION_CREDENTIALS ||
+  !!process.env.FIREBASE_PROJECT_ID ||
+  !!process.env.GCLOUD_PROJECT;
 
 async function getDefaultCurrency(): Promise<string> {
     try {
         // 1. Check for logged-in user's profile setting (highest priority)
         const session = (await cookies()).get('session')?.value;
-        if (session) {
+        if (session && hasAdminCredentials) {
+            const { adminAuth } = await import("@/lib/firebase-admin");
+            const { getUser } = await import("@/lib/database");
             const decodedToken = await adminAuth.verifySessionCookie(session, true);
             const user = await getUser(decodedToken.uid);
             // Check all relevant address fields for a country
@@ -54,9 +57,18 @@ async function getDefaultCurrency(): Promise<string> {
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  const branding = await getBrandingSettings();
-  const companyName = branding.companyName || "B2B Marketplace";
-  const subhead = branding.subhead || "Connect with verified suppliers and source products globally.";
+  let companyName = "B2B Marketplace";
+  let subhead = "Connect with verified suppliers and source products globally.";
+  if (hasAdminCredentials) {
+    try {
+    const { getBrandingSettings } = await import("@/lib/database");
+    const branding = await getBrandingSettings();
+    companyName = branding.companyName || companyName;
+    subhead = branding.subhead || subhead;
+    } catch {
+    // Keep defaults when server-side branding data is unavailable in this environment.
+    }
+  }
   const logoUrl = `${BASE_URL}/VBuySell.png`;
   
   return {

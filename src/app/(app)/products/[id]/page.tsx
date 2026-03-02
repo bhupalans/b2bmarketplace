@@ -3,8 +3,10 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getProduct, getUser, getCategoryPath } from '@/lib/database';
 import {
+  getCategoryPathClient,
+  getProductClient,
+  getUserClient,
   getQuestionsForProductClient,
   getProductsClient,
 } from '@/lib/firebase';
@@ -47,7 +49,27 @@ import { ProductDetailsClient, QuestionArea } from './product-details-client';
 import { Metadata, ResolvingMetadata } from 'next';
 
 type Props = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
+};
+
+const toDateValue = (value: unknown): Date | null => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === "string" || typeof value === "number") {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  if (
+    typeof value === "object" &&
+    "toDate" in (value as Record<string, unknown>) &&
+    typeof (value as { toDate?: () => unknown }).toDate === "function"
+  ) {
+    const maybeDate = (value as { toDate: () => unknown }).toDate();
+    if (maybeDate instanceof Date && !Number.isNaN(maybeDate.getTime())) {
+      return maybeDate;
+    }
+  }
+  return null;
 };
 
 // This function generates dynamic metadata for each product page.
@@ -56,7 +78,7 @@ export async function generateMetadata(
   parent: ResolvingMetadata
 ): Promise<Metadata> {
   const { id } = await params;
-  const product = await getProduct(id);
+  const product = await getProductClient(id);
 
   if (!product) {
     return {
@@ -64,7 +86,7 @@ export async function generateMetadata(
     };
   }
 
-  const seller = await getUser(product.sellerId);
+  const seller = product.sellerId ? await getUserClient(product.sellerId) : null;
 
   const getAvailability = () => {
     switch (product.stockAvailability) {
@@ -132,14 +154,14 @@ export async function generateMetadata(
 export default async function ProductDetailPage({ params }: Props) {
   const { id } = await params;
 
-  const product = await getProduct(id);
+  const product = await getProductClient(id);
 
   if (!product || product.status !== 'approved') {
     notFound();
   }
 
-  const seller = product.sellerId ? await getUser(product.sellerId) : null;
-  const categoryPath = await getCategoryPath(product.categoryId);
+  const seller = product.sellerId ? await getUserClient(product.sellerId) : null;
+  const categoryPath = await getCategoryPathClient(product.categoryId);
   const questions = await getQuestionsForProductClient(id);
 
   // Fetch similar and seller products (still uses client functions for now for simplicity)
@@ -153,7 +175,11 @@ export default async function ProductDetailPage({ params }: Props) {
         .slice(0, 3)
     : [];
     
-  const isFeaturedSeller = seller?.subscriptionPlan?.isFeatured && seller?.subscriptionExpiryDate && new Date(seller.subscriptionExpiryDate) > new Date();
+  const sellerSubscriptionExpiryDate = toDateValue(seller?.subscriptionExpiryDate);
+  const isFeaturedSeller =
+    !!seller?.subscriptionPlan?.isFeatured &&
+    !!sellerSubscriptionExpiryDate &&
+    sellerSubscriptionExpiryDate > new Date();
 
   //const [open, setOpen] = useState(false);
   //const [activeImage, setActiveImage] = useState<string | null>(null);
@@ -289,3 +315,6 @@ export default async function ProductDetailPage({ params }: Props) {
     </div>
   );
 }
+
+
+

@@ -1,5 +1,4 @@
-
-"use client";
+﻿"use client";
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -34,6 +33,26 @@ type QuoteFormData = z.infer<typeof quoteSchema>;
 interface ContactBuyerDialogProps {
   request: SourcingRequest;
   buyer: User;
+};
+
+const toDateValue = (value: unknown): Date | null => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === "string" || typeof value === "number") {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  if (
+    typeof value === "object" &&
+    "toDate" in (value as Record<string, unknown>) &&
+    typeof (value as { toDate?: () => unknown }).toDate === "function"
+  ) {
+    const maybeDate = (value as { toDate: () => unknown }).toDate();
+    if (maybeDate instanceof Date && !Number.isNaN(maybeDate.getTime())) {
+      return maybeDate;
+    }
+  }
+  return null;
 };
 
 export function ContactBuyerDialog({ request, buyer }: ContactBuyerDialogProps) {
@@ -108,7 +127,8 @@ export function ContactBuyerDialog({ request, buyer }: ContactBuyerDialogProps) 
     )
   }
   
-  const hasActiveSubscription = seller?.subscriptionExpiryDate && new Date(seller.subscriptionExpiryDate) > new Date();
+  const sellerSubscriptionExpiryDate = toDateValue(seller?.subscriptionExpiryDate);
+  const hasActiveSubscription = !!sellerSubscriptionExpiryDate && sellerSubscriptionExpiryDate > new Date();
   if (!hasActiveSubscription) {
       return (
           <Button asChild className="w-full">
@@ -162,3 +182,5 @@ export function ContactBuyerDialog({ request, buyer }: ContactBuyerDialogProps) 
     </Dialog>
   );
 }
+
+

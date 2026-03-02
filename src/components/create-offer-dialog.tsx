@@ -1,5 +1,4 @@
-
-"use client";
+﻿"use client";
 
 import { useState, useTransition } from "react";
 import { useAuth } from "@/contexts/auth-context";
@@ -66,13 +65,23 @@ export function CreateOfferDialog({ conversation, buyer }: CreateOfferDialogProp
     }
 
     startTransition(async () => {
+      const productId = conversation.productId;
+      if (!productId) {
+        toast({ variant: "destructive", title: "Missing Product", description: "This conversation is not linked to a product." });
+        return;
+      }
       try {
         await createOffer({
-          ...values,
-          productId: conversation.productId,
+          productId,
           conversationId: conversation.id,
           buyerId: buyer.uid,
           sellerId: seller.uid,
+          quantity: values.quantity,
+          price: {
+            baseAmount: values.price.baseAmount,
+            baseCurrency: values.price.baseCurrency,
+          },
+          notes: values.notes || undefined,
         });
 
         toast({
@@ -191,3 +200,5 @@ export function CreateOfferDialog({ conversation, buyer }: CreateOfferDialogProp
     </Dialog>
   );
 }
+
+

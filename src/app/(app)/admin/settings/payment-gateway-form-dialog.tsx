@@ -1,5 +1,4 @@
-
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
@@ -91,7 +90,12 @@ export function PaymentGatewayFormDialog({ open, onOpenChange, gatewayId, onSucc
   const onSubmit = async (values: z.infer<typeof gatewaySchema>) => {
     setIsSaving(true);
     try {
-      const {id, ...gatewayData} = values;
+      const id = values.id;
+      const gatewayData: Omit<PaymentGateway, 'id'> = {
+        name: values.name,
+        logoUrl: values.logoUrl,
+        enabled: values.enabled,
+      };
       const savedGateway = await createOrUpdatePaymentGatewayClient(gatewayData, id);
       toast({
         title: gatewayId ? 'Gateway Updated' : 'Gateway Created',
@@ -197,3 +201,5 @@ export function PaymentGatewayFormDialog({ open, onOpenChange, gatewayId, onSucc
     </Dialog>
   );
 }
+
+

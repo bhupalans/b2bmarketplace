@@ -1,4 +1,4 @@
-
+﻿
 "use client";
 
 import React, { useState, useEffect, useRef, useTransition } from "react";
@@ -18,7 +18,7 @@ import { useRouter } from "next/navigation";
 
 type SerializableConversation = Omit<import('@/lib/types').Conversation, 'createdAt' | 'lastMessage'> & {
     createdAt: string | null;
-    lastMessage: (Omit<Message, 'timestamp'> & { timestamp: string | null }) | null;
+    lastMessage: { timestamp: string | null; text: string; senderId: string } | null;
 };
 
 interface AdminMessageViewProps {
@@ -168,3 +168,4 @@ export function AdminMessageView({ conversation, initialParticipants }: AdminMes
     </div>
   );
 }
+

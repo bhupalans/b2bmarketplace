@@ -5,6 +5,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { Offer, Product } from '@/lib/types';
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { enhanceProductDescription as enhanceDescriptionFlow } from '@/ai/flows/enhance-product-description-flow';
+import { normalizeServerError } from '@/lib/server-error';
 
 
 
@@ -50,7 +51,7 @@ export async function getSellerDashboardData(sellerId: string) {
     };
   } catch (error: any) {
     console.error("Error fetching seller dashboard data:", error);
-    return { success: false, error: error.message };
+    return { success: false, error: normalizeServerError(error, "Failed to load seller dashboard data.") };
   }
 }
 

@@ -1,5 +1,4 @@
-
-"use client";
+﻿"use client";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -25,6 +24,26 @@ import { convertPrice } from "@/lib/currency";
 interface ProductCardProps {
   product: Product;
 }
+
+const toDateValue = (value: unknown): Date | null => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === "string" || typeof value === "number") {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  if (
+    typeof value === "object" &&
+    "toDate" in (value as Record<string, unknown>) &&
+    typeof (value as { toDate?: () => unknown }).toDate === "function"
+  ) {
+    const maybeDate = (value as { toDate: () => unknown }).toDate();
+    if (maybeDate instanceof Date && !Number.isNaN(maybeDate.getTime())) {
+      return maybeDate;
+    }
+  }
+  return null;
+};
 
 export function ProductCard({ product }: ProductCardProps) {
   const { currency, rates } = useCurrency();
@@ -64,7 +83,8 @@ export function ProductCard({ product }: ProductCardProps) {
     }).format(convertPrice(product.price, currency, rates));
   }, [currency, rates, product.price, ratesLoaded]);
   
-  const isFeaturedSeller = seller?.subscriptionPlan?.isFeatured && seller?.subscriptionExpiryDate && new Date(seller.subscriptionExpiryDate) > new Date();
+  const sellerSubscriptionExpiryDate = toDateValue(seller?.subscriptionExpiryDate);
+  const isFeaturedSeller = !!seller?.subscriptionPlan?.isFeatured && !!sellerSubscriptionExpiryDate && sellerSubscriptionExpiryDate > new Date();
 
   return (
     <Card className="flex h-full w-full flex-col overflow-hidden transition-all hover:shadow-lg">
@@ -129,3 +149,6 @@ export function ProductCard({ product }: ProductCardProps) {
     </Card>
   );
 }
+
+
+

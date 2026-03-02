@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/auth-context";
-import { Conversation, Message, User } from "@/lib/types";
+import { Conversation, User } from "@/lib/types";
 import { Loader2, User as UserIcon, Search, MessageSquare } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 
 type SerializableConversation = Omit<import('@/lib/types').Conversation, 'createdAt' | 'lastMessage'> & {
     createdAt: string | null;
-    lastMessage: (Omit<Message, 'timestamp'> & { timestamp: string | null }) | null;
+    lastMessage: { timestamp: string | null; text: string; senderId: string } | null;
     participants: User[];
 };
 

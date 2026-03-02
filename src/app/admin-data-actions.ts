@@ -1,16 +1,17 @@
-
-'use server';
+﻿'use server';
 
 import { adminAuth, adminDb, adminStorage } from "@/lib/firebase-admin";
 import { headers } from "next/headers";
 import { Product } from "@/lib/types";
+import { firestore as adminFirestore } from "firebase-admin";
+import { normalizeServerError } from "@/lib/server-error";
 
 // Helper function to check if the caller is an admin
 async function isAdmin() {
     // This is a basic check. For production, you'd want more robust security.
     // E.g. checking Firebase Auth custom claims.
     // For now, we'll check if the referer is from the admin section.
-    const referer = headers().get('referer');
+    const referer = (await headers()).get('referer');
     return referer?.includes('/admin');
 }
 
@@ -40,7 +41,7 @@ export async function migrateProductPrices() {
                         baseAmount: product.priceUSD,
                         baseCurrency: 'USD'
                     },
-                    priceUSD: adminDb.FieldValue.delete() // Remove the old field
+                    priceUSD: adminFirestore.FieldValue.delete() // Remove the old field
                 });
                 migratedCount++;
             }
@@ -56,7 +57,7 @@ export async function migrateProductPrices() {
 
     } catch (error: any) {
         console.error("Error migrating product prices:", error);
-        return { success: false, error: error.message };
+        return { success: false, error: normalizeServerError(error, "Failed to migrate product prices.") };
     }
 }
 
@@ -114,7 +115,7 @@ export async function clearAllProducts() {
 
     } catch (error: any) {
         console.error("Error clearing products:", error);
-        return { success: false, error: error.message };
+        return { success: false, error: normalizeServerError(error, "Failed to clear products.") };
     }
 }
 
@@ -178,7 +179,7 @@ export async function clearAllConversationsAndOffers() {
         return { success: true, message: 'All conversations, messages, and offers have been deleted.' };
     } catch (error: any) {
         console.error("Error clearing conversations and offers:", error);
-        return { success: false, error: error.message };
+        return { success: false, error: normalizeServerError(error, "Failed to clear conversations and offers.") };
     }
 }
 
@@ -222,6 +223,9 @@ export async function clearAllNonAdminUsers() {
 
     } catch (error: any) {
         console.error("Error clearing non-admin users:", error);
-        return { success: false, error: error.message };
+        return { success: false, error: normalizeServerError(error, "Failed to clear non-admin users.") };
     }
 }
+
+
+

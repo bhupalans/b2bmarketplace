@@ -1,5 +1,4 @@
-
-"use client";
+﻿"use client";
 
 import { notFound, useParams } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -31,6 +30,25 @@ import Link from "next/link";
 type SellerPageData = {
   seller: User;
   products: Product[];
+};
+const toDateValue = (value: unknown): Date | null => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === "string" || typeof value === "number") {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  if (
+    typeof value === "object" &&
+    "toDate" in (value as Record<string, unknown>) &&
+    typeof (value as { toDate?: () => unknown }).toDate === "function"
+  ) {
+    const maybeDate = (value as { toDate: () => unknown }).toDate();
+    if (maybeDate instanceof Date && !Number.isNaN(maybeDate.getTime())) {
+      return maybeDate;
+    }
+  }
+  return null;
 };
 
 export default function SellerProfilePage() {
@@ -80,7 +98,8 @@ export default function SellerProfilePage() {
 
   const { seller, products } = data;
   const isOwnProfile = user?.id === seller.id;
-  const isFeaturedSeller = seller?.subscriptionPlan?.isFeatured && seller?.subscriptionExpiryDate && new Date(seller.subscriptionExpiryDate) > new Date();
+  const subscriptionExpiryDate = toDateValue(seller.subscriptionExpiryDate);
+  const isFeaturedSeller = !!seller?.subscriptionPlan?.isFeatured && !!subscriptionExpiryDate && subscriptionExpiryDate > new Date();
 
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
@@ -203,3 +222,6 @@ export default function SellerProfilePage() {
     </div>
   );
 }
+
+
+

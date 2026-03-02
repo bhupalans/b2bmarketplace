@@ -8,6 +8,7 @@ import { SubscriptionPlan, User } from '@/lib/types';
 import { statesProvinces } from '@/lib/geography-data';
 import { getPlanAndUser } from '@/lib/database';
 import { createSubscriptionInvoice } from '@/services/invoicing';
+import { normalizeServerError } from '@/lib/server-error';
 
 export async function createStripePaymentIntent({ planId, userId }: { planId: string, userId: string }): Promise<{ success: true; clientSecret: string; } | { success: false, error: string }> {
     const secretKey = process.env.STRIPE_SECRET_KEY;
@@ -91,6 +92,9 @@ export async function createStripePaymentIntent({ planId, userId }: { planId: st
 
     } catch (error: any) {
         console.error('Error creating Stripe Payment Intent:', error);
-        return { success: false, error: error.message || 'Failed to create payment session.' };
+        return {
+          success: false,
+          error: normalizeServerError(error, 'Failed to create payment session.'),
+        };
     }
 }

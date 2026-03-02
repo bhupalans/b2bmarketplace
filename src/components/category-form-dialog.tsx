@@ -1,5 +1,4 @@
-
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useTransition, useRef } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
@@ -117,8 +116,16 @@ export function CategoryFormDialog({ open, onOpenChange, categoryId, onSuccess, 
   const onSubmit = async (values: z.infer<typeof categorySchema>) => {
     setIsSaving(true);
     try {
-      const dataToSave = {
-        ...values,
+      const dataToSave: {
+        name: string;
+        parentId: string | null;
+        status: "active" | "inactive";
+        specTemplateId?: string | null;
+        imageUrl?: string | null;
+      } = {
+        name: values.name,
+        parentId: values.parentId,
+        status: values.status,
         imageUrl: previewImageUrl, // Use the state which holds the generated image
         specTemplateId: values.specTemplateId || null,
       };
@@ -335,3 +342,5 @@ export function CategoryFormDialog({ open, onOpenChange, categoryId, onSuccess, 
     </Dialog>
   );
 }
+
+

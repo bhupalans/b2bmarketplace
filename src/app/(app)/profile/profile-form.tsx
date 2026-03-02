@@ -1,7 +1,6 @@
+﻿"use client";
 
-"use client";
-
-import React, { useTransition, useEffect, useState, useMemo } from "react";
+import React, { useTransition, useEffect, useState, useMemo, useRef } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -32,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Edit, X } from "lucide-react";
+import { Loader2, Edit, X, Trash2, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { countries, statesProvinces } from "@/lib/geography-data";
@@ -41,6 +40,10 @@ import { useAuth } from "@/contexts/auth-context";
 import { getVerificationTemplatesClient } from "@/lib/firebase";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { storage } from "@/lib/firebase";
+
+
 
 const addressSchema = z.object({
     street: z.string().min(1, 'Street is required'),
@@ -60,6 +63,7 @@ const addressSchema = z.object({
 
 const baseProfileSchema = z.object({
   name: z.string().min(2, "Name is too short."),
+  avatar: z.string().optional(),
   companyName: z.string().optional(),
   phoneNumber: z.string().optional(),
   address: addressSchema,
@@ -200,9 +204,12 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const { firebaseUser, updateUserContext } = useAuth();
   const [verificationTemplates, setVerificationTemplates] = useState<VerificationTemplate[]>([]);
   const [activeTemplate, setActiveTemplate] = useState<VerificationTemplate | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
 
-  useEffect(() => {
+
+ useEffect(() => {
     async function fetchTemplates() {
       try {
         const templates = await getVerificationTemplatesClient();
@@ -404,7 +411,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
         toast({
             variant: "destructive",
             title: "Update Failed",
-            description: result.error || "An unknown error occurred.",
+            description: ('error' in result && result.error) ? result.error : "An unknown error occurred.",
         });
       }
     });
@@ -420,10 +427,108 @@ export function ProfileForm({ user }: ProfileFormProps) {
     { id: 'international', label: 'International' }
   ];
 
+const handleAvatarDelete = async () => {
+  const currentUrl = form.getValues("avatar");
+  if (!currentUrl) return;
+
+  try {
+    const imageRef = ref(storage, currentUrl); // works with full URL
+    await deleteObject(imageRef);
+    form.setValue("avatar", "", { shouldDirty: true });
+  } catch (error: any) {
+    if (error.code !== "storage/object-not-found") {
+      console.error("Failed to delete avatar:", error);
+    }
+  }
+};
+
+const handleImageUpload = async (file: File) => {
+  if (!user?.id) return;
+
+  try {
+    setImageUploading(true);
+
+    const imageRef = ref(
+      storage,
+      `avatars/${user.id}/profile-${Date.now()}`
+    );
+
+    await uploadBytes(imageRef, file);
+    const url = await getDownloadURL(imageRef);
+
+    form.setValue("avatar", url, { shouldDirty: true });
+
+  } catch (err) {
+    console.error("Upload failed:", err);
+  } finally {
+    setImageUploading(false);
+  }
+};
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <fieldset disabled={!isEditing || isPending} className="space-y-6">
+        <Card>
+  <CardHeader>
+    <CardTitle>Profile Image</CardTitle>
+    <CardDescription>
+      Upload a profile photo or your company logo.
+    </CardDescription>
+  </CardHeader>
+
+  <CardContent>
+    <div className="flex items-center gap-6">
+      <div className="relative group w-24 h-24">
+
+        {/* Clickable Image */}
+        <div
+          onClick={() => isEditing && fileInputRef.current?.click()}
+          className="w-24 h-24 rounded-xl overflow-hidden border cursor-pointer"
+        >
+          {form.watch("avatar") ? (
+            <img
+              src={form.watch("avatar")}
+              alt="Profile"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+            <Upload className="h-6 w-6" />
+            </div>
+          )}
+        </div>
+
+        {/* Delete Button */}
+        {isEditing && form.watch("avatar") && (
+          <button
+            type="button"
+            onClick={handleAvatarDelete}
+            className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 shadow"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
+
+      </div> {/* â† CLOSE relative group div */}
+
+      {/* Hidden Input */}
+      <input
+        type="file"
+        accept="image/*"
+        ref={fileInputRef}
+        className="hidden"
+        onChange={(e) => {
+          if (e.target.files?.[0]) {
+            handleImageUpload(e.target.files[0]);
+          }
+        }}
+      />
+
+    </div> {/* â† CLOSE flex container */}
+  </CardContent>
+</Card>
+        
           <Card>
             <CardHeader>
               <CardTitle>Basic Information</CardTitle>
@@ -734,4 +839,6 @@ export function ProfileForm({ user }: ProfileFormProps) {
       </form>
     </Form>
   );
-}
+  }
+
+

@@ -57,6 +57,25 @@ const requestSchema = z.object({
 
 type SourcingRequestFormData = z.infer<typeof requestSchema>;
 
+const toDateValue = (value: unknown): Date | null => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === "string" || typeof value === "number") {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  if (
+    typeof value === "object" &&
+    "toDate" in (value as Record<string, unknown>) &&
+    typeof (value as { toDate?: () => unknown }).toDate === "function"
+  ) {
+    const maybeDate = (value as { toDate: () => unknown }).toDate();
+    if (maybeDate instanceof Date && !Number.isNaN(maybeDate.getTime())) {
+      return maybeDate;
+    }
+  }
+  return null;
+};
 function CreateSourcingRequestForm() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
@@ -114,7 +133,7 @@ function CreateSourcingRequestForm() {
             setSubscriptionPlans(plans);
 
             if (isEditMode) {
-                const requestToEdit = await getSourcingRequestClient(requestId);
+                const requestToEdit = await getSourcingRequestClient(requestId!);
                 if (requestToEdit && requestToEdit.buyerId === user.uid) {
                     const expiresAt = new Date(requestToEdit.expiresAt as string);
                     const createdAt = new Date(requestToEdit.createdAt as string);
@@ -156,7 +175,11 @@ function CreateSourcingRequestForm() {
       return { limit: 0, canPost: false };
     }
     
-    const hasActiveSubscription = user.subscriptionPlanId && user.subscriptionExpiryDate && new Date(user.subscriptionExpiryDate) > new Date();
+    const subscriptionExpiryDate = toDateValue(user.subscriptionExpiryDate);
+    const hasActiveSubscription =
+      !!user.subscriptionPlanId &&
+      !!subscriptionExpiryDate &&
+      subscriptionExpiryDate > new Date();
 
     let effectiveLimit = 0;
     
@@ -197,7 +220,7 @@ function CreateSourcingRequestForm() {
         requestData.expiresAt = expiresAt;
         
         if (isEditMode) {
-            await updateSourcingRequestClient(requestId, requestData);
+            await updateSourcingRequestClient(requestId!, requestData);
             toast({
               title: "Request Updated",
               description: "Your sourcing request has been updated and is pending review.",
@@ -434,3 +457,4 @@ export default function CreateSourcingRequestPage() {
 }
 
     
+

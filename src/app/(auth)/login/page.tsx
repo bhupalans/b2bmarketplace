@@ -9,11 +9,16 @@ import {
 } from "@/components/ui/card";
 import Link from "next/link";
 import Image from "next/image";
-import { getBrandingSettings } from "@/lib/database";
 
 export default async function LoginPage() {
-  const branding = await getBrandingSettings();
-  const companyName = branding.companyName || "B2B Marketplace";
+  let companyName = "B2B Marketplace";
+  try {
+    const { getBrandingSettings } = await import("@/lib/database");
+    const branding = await getBrandingSettings();
+    companyName = branding.companyName || companyName;
+  } catch {
+    // Keep fallback in environments without Firebase Admin credentials.
+  }
 
   return (
     <Card className="w-full max-w-sm">

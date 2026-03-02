@@ -12,12 +12,12 @@ import { sendQuestionAnsweredEmail, sendProductApprovedEmail, sendProductRejecte
 import { areDetailsEqual, areSpecificationsEqual } from './utils';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAPZvlTpb4klPXdiT7dkg_QbZ_Ex_IebUM",
-  authDomain: "vbuysell-dev.firebaseapp.com",
-  projectId: "vbuysell-dev",
-  storageBucket: "vbuysell-dev.firebasestorage.app",
-  messagingSenderId: "278976679767",
-  appId: "1:278976679767:web:b8380d02064980c4eb7812"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyAPZvlTpb4klPXdiT7dkg_QbZ_Ex_IebUM",
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "vbuysell-dev.web.app",
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "vbuysell-dev",
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "vbuysell-dev.firebasestorage.app",
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "278976679767",
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:278976679767:web:b8380d02064980c4eb7812"
 };
 
 
@@ -726,8 +726,8 @@ export async function findOrCreateConversation(data: {
   const otherParticipantId = hasProduct ? data.sellerId : data.buyerId;
 
   querySnapshot.forEach(docSnap => {
-      const convData = docSnap.data();
-      if (convData.participantIds.includes(otherParticipantId)) {
+      const convData = docSnap.data() as Partial<Conversation>;
+      if (Array.isArray(convData.participantIds) && convData.participantIds.includes(otherParticipantId)) {
           existingConversation = { id: docSnap.id, ...convData } as Conversation;
       }
   });
@@ -1042,16 +1042,7 @@ export async function updateOfferStatusClient(
         } 
     });
 
-    // If the offer is accepted, call the server action to handle the rest
-    if (status === 'accepted') {
-        try {
-            await processAcceptedOffer(offerId);
-        } catch (error) {
-            console.error("Failed to trigger server-side offer processing:", error);
-            // The client-side part is done, but we should log this failure.
-            // The user will see the "accepted" status but may not get the contact card/email.
-        }
-    }
+    // Server-side post-processing should run from trusted backend/webhook paths.
 }
 
 export async function sendQuoteForSourcingRequest(data: {
@@ -1574,3 +1565,5 @@ export async function getInvoicesForUserClient(userId: string): Promise<Subscrip
 export { app, auth, db, storage };
 
     
+
+

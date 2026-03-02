@@ -1,5 +1,4 @@
-
-'use server';
+﻿'use server';
 
 import { adminDb } from "@/lib/firebase-admin";
 import { User, Message, BrandingSettings, SubscriptionPlan } from "@/lib/types";
@@ -7,6 +6,13 @@ import { format } from 'date-fns';
 import { Timestamp } from "firebase-admin/firestore";
 import { getUsersByIds } from "@/lib/database";
 import { revalidatePath } from 'next/cache';
+
+const toDateValue = (value: string | Timestamp | undefined | null): Date | null => {
+  if (!value) return null;
+  if (value instanceof Timestamp) return value.toDate();
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
 
 export async function getActiveSubscribers(): Promise<User[]> {
     const plansSnapshot = await adminDb.collection('subscriptionPlans').get();
@@ -30,9 +36,10 @@ export async function getActiveSubscribers(): Promise<User[]> {
                 return false;
             }
             // Handle both Timestamp and ISO string formats for expiry date
-            const expiryDate = user.subscriptionExpiryDate instanceof Timestamp 
-                ? user.subscriptionExpiryDate.toDate() 
-                : new Date(user.subscriptionExpiryDate);
+            const expiryDate = toDateValue(user.subscriptionExpiryDate);
+            if (!expiryDate) {
+                return false;
+            }
             
             return expiryDate > now;
         })
@@ -85,7 +92,7 @@ export async function downloadConversationAction(conversationId: string) {
 
         const csvHeader = 'Timestamp,Sender Name,Message\n';
         const csvRows = messages.map(msg => {
-            const senderName = userMap.get(msg.senderId)?.name || 'Unknown User';
+            const senderName = userMap.get(msg.senderId ?? '')?.name || 'Unknown User';
             
             const timestamp = msg.timestamp instanceof Timestamp && typeof msg.timestamp.toDate === 'function' 
               ? format(msg.timestamp.toDate(), 'yyyy-MM-dd HH:mm:ss') 
@@ -122,3 +129,6 @@ export async function updateBrandingSettings(settings: BrandingSettings): Promis
     return { success: false, error: 'Failed to save settings on the server.' };
   }
 }
+
+
+

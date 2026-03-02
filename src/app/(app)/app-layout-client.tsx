@@ -1,5 +1,4 @@
-
-"use client";
+﻿"use client";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -213,11 +212,19 @@ export function AppLayoutClient({
   return (
     <SidebarProvider>
       <Sidebar
-        className="[--sidebar-background:theme(colors.card)] dark:[--sidebar-background:theme(colors.background)]"
+        className="[--sidebar-background:hsl(222.2_84%_4.9%)] [--sidebar-foreground:hsl(210_40%_98%)] [--sidebar-accent:hsl(217.2_32.6%_17.5%)] [--sidebar-accent-foreground:hsl(210_40%_98%)] [--sidebar-border:hsl(217.2_32.6%_17.5%)]"
         collapsible="icon"
       >
         <SidebarHeader>
-          <Button variant="ghost" size="icon" className="size-9" asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "size-9 text-slate-300 hover:bg-slate-800 hover:text-white",
+              pathname === "/" && "bg-slate-800 text-white"
+            )}
+            asChild
+          >
             <Link href="/">
               <Building />
             </Link>
@@ -354,7 +361,7 @@ export function AppLayoutClient({
                       <CollapsibleTrigger asChild>
                           <SidebarMenuButton
                               className="w-full justify-start"
-                              variant="ghost"
+                              variant="outline"
                               tooltip="Sourcing Tools"
                           >
                               <FileText />
@@ -389,7 +396,7 @@ export function AppLayoutClient({
                         <CollapsibleTrigger asChild>
                             <SidebarMenuButton
                                 className="w-full justify-start"
-                                variant="ghost"
+                                variant="outline"
                                 tooltip="Admin"
                             >
                                 <Shield />
@@ -489,3 +496,5 @@ export function AppLayoutClient({
     </SidebarProvider>
   );
 }
+
+

@@ -1,5 +1,4 @@
-
-"use client";
+﻿"use client";
 
 import React, { useEffect, useState } from 'react';
 import { useParams, notFound, useRouter } from 'next/navigation';
@@ -14,6 +13,25 @@ import { ContactBuyerDialog } from '@/components/contact-buyer-dialog';
 import { useCurrency } from '@/contexts/currency-context';
 import { convertPrice } from '@/lib/currency';
 import Link from 'next/link';
+const toDateValue = (value: unknown): Date | null => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === "string" || typeof value === "number") {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  if (
+    typeof value === "object" &&
+    "toDate" in (value as Record<string, unknown>) &&
+    typeof (value as { toDate?: () => unknown }).toDate === "function"
+  ) {
+    const maybeDate = (value as { toDate: () => unknown }).toDate();
+    if (maybeDate instanceof Date && !Number.isNaN(maybeDate.getTime())) {
+      return maybeDate;
+    }
+  }
+  return null;
+};
 
 export default function SourcingRequestDetailPage() {
   const params = useParams();
@@ -63,10 +81,11 @@ export default function SourcingRequestDetailPage() {
     notFound();
   }
 
-  const expiresAtDate = typeof request.expiresAt === 'string' ? new Date(request.expiresAt) : request.expiresAt.toDate();
-  const createdAtDate = typeof request.createdAt === 'string' ? new Date(request.createdAt) : request.createdAt.toDate();
+  const expiresAtDate = toDateValue(request.expiresAt);
+  const createdAtDate = toDateValue(request.createdAt);
   const buyerLocation = [buyer.address?.city, buyer.address?.country].filter(Boolean).join(', ');
-  const isFeaturedBuyer = buyer?.subscriptionPlan?.isFeatured && buyer?.subscriptionExpiryDate && new Date(buyer.subscriptionExpiryDate) > new Date();
+  const subscriptionExpiryDate = toDateValue(buyer.subscriptionExpiryDate);
+  const isFeaturedBuyer = !!buyer?.subscriptionPlan?.isFeatured && !!subscriptionExpiryDate && subscriptionExpiryDate > new Date();
 
 
   return (
@@ -78,10 +97,10 @@ export default function SourcingRequestDetailPage() {
                 <MapPin className="h-4 w-4" /> Ship to {request.buyerCountry}
             </div>
             <div className="flex items-center gap-1">
-                <Calendar className="h-4 w-4" /> Posted {format(createdAtDate, 'PPP')}
+                <Calendar className="h-4 w-4" /> Posted {format(createdAtDate ?? new Date(), 'PPP')}
             </div>
             <div className="flex items-center gap-1">
-                <Calendar className="h-4 w-4 text-destructive" /> Expires in {formatDistanceToNow(expiresAtDate)}
+                <Calendar className="h-4 w-4 text-destructive" /> Expires in {formatDistanceToNow(expiresAtDate ?? new Date())}
             </div>
         </div>
       </div>
@@ -152,10 +171,10 @@ export default function SourcingRequestDetailPage() {
                             <span>{buyerLocation}</span>
                             </div>
                         )}
-                        {buyer.createdAt && (
+                        {toDateValue(buyer.createdAt) && (
                             <div className="flex items-center">
                             <Calendar className="mr-3 h-4 w-4 text-muted-foreground" />
-                            <span>Member since {format(new Date(buyer.createdAt), 'yyyy')}</span>
+                            <span>Member since {format(toDateValue(buyer.createdAt)!, 'yyyy')}</span>
                             </div>
                         )}
                      </div>
@@ -167,3 +186,6 @@ export default function SourcingRequestDetailPage() {
     </div>
   );
 }
+
+
+

@@ -1,5 +1,4 @@
-
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect } from 'react';
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
@@ -106,13 +105,17 @@ export function VerificationTemplateFormDialog({ open, onOpenChange, templateId,
     setIsSaving(true);
     try {
         const countryName = countries.find(c => c.value === values.id)?.label || values.id;
+        const normalizedFields: VerificationField[] = values.fields.map(f => ({
+            name: f.name,
+            label: f.label,
+            type: f.type,
+            required: f.required,
+            validationRegex: f.validationRegex || undefined,
+            helperText: f.helperText || undefined,
+        }));
         const templateData = {
             countryName,
-            fields: values.fields.map(f => ({
-                ...f,
-                validationRegex: f.validationRegex || undefined,
-                helperText: f.helperText || undefined,
-            }))
+            fields: normalizedFields,
         };
 
       const savedTemplate = await createOrUpdateVerificationTemplateClient(templateData, values.id);
@@ -292,3 +295,5 @@ export function VerificationTemplateFormDialog({ open, onOpenChange, templateId,
     </Dialog>
   );
 }
+
+

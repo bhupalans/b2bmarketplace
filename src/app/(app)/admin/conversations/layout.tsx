@@ -1,15 +1,14 @@
-
-import { getAllConversationsForAdmin } from "@/lib/database";
+﻿import { getAllConversationsForAdmin } from "@/lib/database";
 import { AdminConversationList } from "./admin-conversation-list";
-import { Conversation, Message, User } from "@/lib/types";
+import { Conversation, User } from "@/lib/types";
 import { getUsersByIds } from "@/lib/database";
 import { Timestamp } from "firebase-admin/firestore";
 
 export const revalidate = 60; // Revalidate this page every 60 seconds
 
-type SerializableConversation = Omit<import('@/lib/types').Conversation, 'createdAt' | 'lastMessage' | 'otherParticipant'> & {
+type SerializableConversation = Omit<Conversation, 'createdAt' | 'lastMessage' | 'otherParticipant'> & {
     createdAt: string | null;
-    lastMessage: (Omit<Message, 'timestamp'> & { timestamp: string | null }) | null;
+    lastMessage: { timestamp: string | null; text: string; senderId: string } | null;
     participants: User[];
 };
 
@@ -53,3 +52,5 @@ export default async function AdminConversationsLayout({
     </div>
   );
 }
+
+

@@ -1,5 +1,4 @@
-
-import { getConversationForAdmin, getUsersByIds } from "@/lib/database";
+﻿import { getConversationForAdmin, getUsersByIds } from "@/lib/database";
 import { AdminMessageView } from "./admin-message-view";
 import { User } from "@/lib/types";
 import { notFound } from "next/navigation";
@@ -8,10 +7,11 @@ import { Timestamp } from "firebase-admin/firestore";
 export default async function AdminConversationPage({
   params,
 }: {
-  params: { conversationId: string };
+  params: Promise<{ conversationId: string }>;
 }) {
+  const { conversationId } = await params;
 
-  const conversation = await getConversationForAdmin(params.conversationId);
+  const conversation = await getConversationForAdmin(conversationId);
   if (!conversation) {
     notFound();
   }
@@ -35,3 +35,5 @@ export default async function AdminConversationPage({
     />
   );
 }
+
+

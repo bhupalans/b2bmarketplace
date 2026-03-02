@@ -1,5 +1,4 @@
-
-"use client";
+﻿"use client";
 
 import { useState, useTransition } from "react";
 import { useRouter, usePathname } from "next/navigation";
@@ -37,6 +36,26 @@ type QuoteFormData = z.infer<typeof quoteSchema>;
 type RequestQuoteDialogProps = {
   product: Product;
   seller: User;
+};
+
+const toDateValue = (value: unknown): Date | null => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === "string" || typeof value === "number") {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  if (
+    typeof value === "object" &&
+    "toDate" in (value as Record<string, unknown>) &&
+    typeof (value as { toDate?: () => unknown }).toDate === "function"
+  ) {
+    const maybeDate = (value as { toDate: () => unknown }).toDate();
+    if (maybeDate instanceof Date && !Number.isNaN(maybeDate.getTime())) {
+      return maybeDate;
+    }
+  }
+  return null;
 };
 
 export function RequestQuoteDialog({ product, seller }: RequestQuoteDialogProps) {
@@ -119,7 +138,8 @@ export function RequestQuoteDialog({ product, seller }: RequestQuoteDialogProps)
     );
   }
   
-  const hasActiveSubscription = user.subscriptionExpiryDate && new Date(user.subscriptionExpiryDate) > new Date();
+  const userSubscriptionExpiryDate = toDateValue(user.subscriptionExpiryDate);
+  const hasActiveSubscription = !!userSubscriptionExpiryDate && userSubscriptionExpiryDate > new Date();
   
   if (!hasActiveSubscription) {
       return (
@@ -191,3 +211,5 @@ export function RequestQuoteDialog({ product, seller }: RequestQuoteDialogProps)
     </Dialog>
   );
 }
+
+

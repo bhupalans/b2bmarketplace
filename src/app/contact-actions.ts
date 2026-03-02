@@ -1,5 +1,4 @@
-
-'use server';
+﻿'use server';
 
 import { adminDb } from '@/lib/firebase-admin';
 import { CallbackRequest } from '@/lib/types';
@@ -18,7 +17,8 @@ export async function submitCallbackRequest(data: CallbackRequestData): Promise<
     };
     
     // Check if user is logged in to associate the request
-    const session = cookies().get('session')?.value;
+    const cookieStore = await cookies();
+    const session = cookieStore.get('session')?.value;
     if (session) {
       try {
         const decodedToken = await getAuth().verifySessionCookie(session, true);
@@ -41,3 +41,6 @@ export async function submitCallbackRequest(data: CallbackRequestData): Promise<
     return { success: false, error: 'Failed to submit your request on the server.' };
   }
 }
+
+
+

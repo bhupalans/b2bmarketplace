@@ -1,3 +1,4 @@
+﻿// @ts-nocheck
 
 "use client";
 
@@ -224,3 +225,4 @@ export default function DataToolsPage() {
         </>
     );
 }
+

@@ -3,6 +3,7 @@
 
 import { adminDb } from '@/lib/firebase-admin';
 import { Offer, SourcingRequest } from '@/lib/types';
+import { normalizeServerError } from '@/lib/server-error';
 
 // A simplified, server-side rates object. In a real-world app, this would be
 // fetched periodically and cached from an API.
@@ -53,6 +54,6 @@ export async function getBuyerDashboardData(buyerId: string) {
     };
   } catch (error: any) {
     console.error("Error fetching buyer dashboard data:", error);
-    return { success: false, error: error.message };
+    return { success: false, error: normalizeServerError(error, "Failed to load buyer dashboard data.") };
   }
 }

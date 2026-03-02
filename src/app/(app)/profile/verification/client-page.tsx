@@ -1,5 +1,4 @@
-
-
+﻿
 "use client";
 
 import React, { useState, useTransition, useMemo, useCallback } from 'react';
@@ -232,7 +231,7 @@ export function VerificationClientPage({ user, verificationTemplates }: Verifica
                 toast({ title: 'Verification Submitted', description: 'Your documents are now pending review. The page will now refresh.' });
                 router.refresh();
             } else {
-                toast({ variant: 'destructive', title: 'Submission Failed', description: result.error || 'An unknown error occurred.' });
+                toast({ variant: 'destructive', title: 'Submission Failed', description: ('error' in result && result.error) ? result.error : 'An unknown error occurred.' });
             }
 
         } catch (error: any) {
@@ -488,3 +487,5 @@ export function VerificationClientPage({ user, verificationTemplates }: Verifica
     </>
   );
 }
+
+

@@ -1,5 +1,4 @@
-
-"use client";
+﻿"use client";
 
 import { notFound, useParams } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -31,6 +30,25 @@ import { format } from "date-fns";
 type BuyerPageData = {
   buyer: User;
   requests: SourcingRequest[];
+};
+const toDateValue = (value: unknown): Date | null => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === "string" || typeof value === "number") {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  if (
+    typeof value === "object" &&
+    "toDate" in (value as Record<string, unknown>) &&
+    typeof (value as { toDate?: () => unknown }).toDate === "function"
+  ) {
+    const maybeDate = (value as { toDate: () => unknown }).toDate();
+    if (maybeDate instanceof Date && !Number.isNaN(maybeDate.getTime())) {
+      return maybeDate;
+    }
+  }
+  return null;
 };
 
 export default function BuyerProfilePage() {
@@ -80,8 +98,10 @@ export default function BuyerProfilePage() {
 
   const { buyer, requests } = data;
   const isOwnProfile = user?.id === buyer.id;
-  const isFeaturedBuyer = buyer?.subscriptionPlan?.isFeatured && buyer?.subscriptionExpiryDate && new Date(buyer.subscriptionExpiryDate) > new Date();
+  const subscriptionExpiryDate = toDateValue(buyer.subscriptionExpiryDate);
+  const isFeaturedBuyer = !!buyer?.subscriptionPlan?.isFeatured && !!subscriptionExpiryDate && subscriptionExpiryDate > new Date();
   const buyerLocation = [buyer.address?.city, buyer.address?.country].filter(Boolean).join(', ');
+  const createdAtDate = toDateValue(buyer.createdAt);
 
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
@@ -145,10 +165,10 @@ export default function BuyerProfilePage() {
                 <span>{buyerLocation}</span>
                 </div>
             )}
-            {buyer.createdAt && (
+            {createdAtDate && (
                 <div className="flex items-center">
                 <Calendar className="mr-3 h-5 w-5 text-muted-foreground" />
-                <span>Member since {format(new Date(buyer.createdAt), 'yyyy')}</span>
+                <span>Member since {format(createdAtDate, 'yyyy')}</span>
                 </div>
             )}
           </CardContent>
@@ -180,3 +200,6 @@ export default function BuyerProfilePage() {
     </div>
   );
 }
+
+
+

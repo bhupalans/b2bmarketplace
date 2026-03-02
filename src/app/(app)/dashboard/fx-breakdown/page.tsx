@@ -1,5 +1,4 @@
 import { adminDb } from "@/lib/firebase-admin";
-import { getAuth } from "@/lib/auth"; // if you have helper, else skip
 import { notFound } from "next/navigation";
 import Link from "next/link";
 
@@ -92,3 +91,5 @@ export default async function SellerFxBreakdownPage({
     </div>
   );
 }
+
+

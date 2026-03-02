@@ -47,7 +47,7 @@ export function CallbackRequestForm() {
     defaultValues: {
       name: user?.name || '',
       companyName: user?.companyName || '',
-      role: user?.role || 'buyer',
+      role: user?.role === 'seller' ? 'seller' : 'buyer',
       country: user?.address?.country || '',
       phoneNumber: user?.phoneNumber || '',
       preferredTime: '',
@@ -57,7 +57,15 @@ export function CallbackRequestForm() {
   const onSubmit = async (values: CallbackRequestFormData) => {
     setIsSubmitting(true);
     try {
-        const result = await submitCallbackRequest(values);
+        const payload = {
+          name: values.name,
+          companyName: values.companyName,
+          role: values.role,
+          country: values.country,
+          phoneNumber: values.phoneNumber,
+          preferredTime: values.preferredTime,
+        };
+        const result = await submitCallbackRequest(payload);
         if (result.success) {
             toast({
                 title: 'Request Sent',
@@ -190,3 +198,5 @@ export function CallbackRequestForm() {
     </Dialog>
   );
 }
+
+

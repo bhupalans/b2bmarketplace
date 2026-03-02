@@ -1,5 +1,4 @@
-
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useTransition, useMemo } from 'react';
 import { useAuth } from '@/contexts/auth-context';
@@ -22,6 +21,26 @@ const PlanFeature = ({ children }: { children: React.ReactNode }) => (
         <span className="text-muted-foreground">{children}</span>
     </li>
 );
+
+const toDateValue = (value: unknown): Date | null => {
+    if (!value) return null;
+    if (value instanceof Date) return value;
+    if (typeof value === "string" || typeof value === "number") {
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+    if (
+        typeof value === "object" &&
+        "toDate" in (value as Record<string, unknown>) &&
+        typeof (value as { toDate?: () => unknown }).toDate === "function"
+    ) {
+        const maybeDate = (value as { toDate: () => unknown }).toDate();
+        if (maybeDate instanceof Date && !Number.isNaN(maybeDate.getTime())) {
+            return maybeDate;
+        }
+    }
+    return null;
+};
 
 export default function SubscriptionPage() {
     const { user, firebaseUser, loading: authLoading, revalidateUser } = useAuth();
@@ -124,7 +143,8 @@ export default function SubscriptionPage() {
         if (!user || plans.length === 0) {
             return { currentPlan: null, usageCount: 0 };
         }
-        const hasActiveSubscription = user.subscriptionPlanId && user.subscriptionExpiryDate && new Date(user.subscriptionExpiryDate) > new Date();
+        const activeExpiryDate = toDateValue(user.subscriptionExpiryDate);
+        const hasActiveSubscription = !!user.subscriptionPlanId && !!activeExpiryDate && activeExpiryDate > new Date();
         
         let plan = hasActiveSubscription ? user.subscriptionPlan : plans.find(p => p.price === 0);
         let count = user.role === 'seller' ? products.length : sourcingRequests.length;
@@ -146,11 +166,14 @@ export default function SubscriptionPage() {
         return limit === -1 ? 'Unlimited' : limit;
     }
     
-    const hasActiveSubscription = user.subscriptionExpiryDate && new Date(user.subscriptionExpiryDate) > new Date();
+    const expiryDate = toDateValue(user.subscriptionExpiryDate);
+    const hasActiveSubscription = !!expiryDate && expiryDate > new Date();
+    const isExpired = !!expiryDate && expiryDate <= new Date();
     const isCancelled = hasActiveSubscription && user.renewalCancelled;
     
-    const daysUntilExpiry = user.subscriptionExpiryDate ? differenceInDays(new Date(user.subscriptionExpiryDate), new Date()) : null;
+    const daysUntilExpiry = expiryDate ? differenceInDays(expiryDate, new Date()) : null;
     const showExpirationWarning = hasActiveSubscription && !isCancelled && daysUntilExpiry !== null && daysUntilExpiry <= 30;
+    const activePlanId = user.subscriptionPlanId || currentPlan?.id;
 
     
     return (
@@ -168,12 +191,36 @@ export default function SubscriptionPage() {
                     <AlertTitle>Your Subscription is Expiring Soon!</AlertTitle>
                     <AlertDescription>
                         Your plan will expire in {daysUntilExpiry} day(s). Renew now to maintain access to premium features.
-                        <Button asChild variant="link" className="p-0 h-auto ml-1 text-destructive hover:text-destructive/80">
-                            <Link href={`/profile/subscription/checkout?planId=${user.subscriptionPlanId}`}>Renew Now</Link>
-                        </Button>
+                        {activePlanId && (
+                            <Button asChild variant="link" className="p-0 h-auto ml-1 text-destructive hover:text-destructive/80">
+                                <Link href={`/profile/subscription/checkout?planId=${activePlanId}`}>Renew Now</Link>
+                            </Button>
+                        )}
                     </AlertDescription>
                 </Alert>
             )}
+
+	{isExpired && (
+  <Alert variant="destructive">
+    <AlertTitle>Your Subscription Has Expired</AlertTitle>
+    <AlertDescription>
+      Your plan expired on{" "}
+      {format(expiryDate ?? new Date(), "PPP")}.
+      Renew now to regain premium access.
+      {activePlanId && (
+        <Button
+          asChild
+          variant="link"
+          className="p-0 h-auto ml-1 text-destructive"
+        >
+          <Link href={`/profile/subscription/checkout?planId=${activePlanId}`}>
+            Renew Now
+          </Link>
+        </Button>
+      )}
+    </AlertDescription>
+  </Alert>
+)}
 
             {currentPlan && (
                 <Card>
@@ -181,26 +228,26 @@ export default function SubscriptionPage() {
                         <CardTitle>Your Current Plan: {currentPlan.name}</CardTitle>
                          <CardDescription>
                             {isCancelled ? (
-                                `Your plan was cancelled and is set to expire on ${format(new Date(user.subscriptionExpiryDate!), 'PPP')}.`
+                                `Your plan was cancelled and is set to expire on ${format(expiryDate ?? new Date(), 'PPP')}.`
                             ) : hasActiveSubscription ? (
-                                `Your plan is active and renews on ${format(new Date(user.subscriptionExpiryDate!), 'PPP')}.`
+                                `Your plan is active and renews on ${format(expiryDate ?? new Date(), 'PPP')}.`
                             ) : (
                                 "You are currently on the Free plan."
                             )}
                         </CardDescription>
                     </CardHeader>
-                    <CardContent>
-                         <p className="text-sm">
-                            {user.role === 'buyer'
-                                ? `You have posted ${usageCount} of ${formatLimit(currentPlan.sourcingRequestLimit)} sourcing requests.`
-                                : `You have listed ${usageCount} of ${formatLimit(currentPlan.productLimit)} products.`
-                            }
-                        </p>
-                    </CardContent>
+
+			<CardContent>
+  			<div className="text-sm space-y-1">
+    				<p>You have used {products.length} of{" "}{formatLimit(currentPlan.productLimit)} Product Listings.</p>
+    				<p>You have used {sourcingRequests.length} of{" "}{formatLimit(currentPlan.sourcingRequestLimit)} Sourcing Requests.</p>
+  			</div>
+			</CardContent>
+
                 </Card>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-20">
                 {plans.map(plan => {
                     const isCurrentPaidPlan = hasActiveSubscription && plan.id === currentPlan?.id;
                     const isCurrentFreePlan = !hasActiveSubscription && plan.price === 0;
@@ -217,8 +264,15 @@ export default function SubscriptionPage() {
 
                     const showFeaturedBadge = plan.isFeatured && plan.price > 0;
 
+const oppositeRole =
+  user.role === 'buyer' ? 'Seller' : 'Buyer';
+
+const oppositeRolePlural =
+  user.role === 'buyer' ? 'Sellers' : 'Buyers';
+
+
                     return (
-                    <Card key={plan.id} className={cn("flex flex-col", (isCurrentPaidPlan || isCurrentFreePlan) && !isCancelled && "ring-2 ring-primary")}>
+                    <Card key={plan.id} className={cn("flex flex-col transition-transform duration-200 hover:scale-[1.01]", (isCurrentPaidPlan || isCurrentFreePlan) && !isCancelled && "ring-2 ring-primary")}>
                         {showFeaturedBadge && (
                             <div className="bg-primary text-primary-foreground text-xs font-bold text-center py-1 rounded-t-lg flex items-center justify-center gap-1">
                                <Star className="h-3 w-3" /> Most Popular
@@ -234,26 +288,33 @@ export default function SubscriptionPage() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="flex-grow space-y-3">
-                            <ul className="space-y-2">
-                                {user.role === 'seller' ? (
-                                    <>
-                                        <PlanFeature>{formatLimit(plan.productLimit)} Product Listings</PlanFeature>
-                                        {plan.price > 0 
-                                            ? <PlanFeature>Initiate conversations with buyers</PlanFeature>
-                                            : <PlanFeature>Respond to buyer inquiries</PlanFeature>
-                                        }
-                                    </>
-                                ) : (
-                                    <>
-                                        <PlanFeature>{formatLimit(plan.sourcingRequestLimit)} Sourcing Requests</PlanFeature>
-                                        {plan.price > 0
-                                            ? <PlanFeature>Interact directly with Sellers</PlanFeature>
-                                            : <PlanFeature>Respond to Inquiries</PlanFeature>
-                                        }
-                                    </>
-                                )}
-                                <PlanFeature>{plan.hasAnalytics ? 'Advanced Analytics' : 'Basic Analytics'}</PlanFeature>
-                                {plan.isFeatured && <PlanFeature>Featured Badge on Profile</PlanFeature>}
+                            <ul className="space-y-3">
+				
+				<>
+  <PlanFeature>
+    {formatLimit(plan.productLimit)} Product Listings
+  </PlanFeature>
+
+  <PlanFeature>
+    {formatLimit(plan.sourcingRequestLimit)} Sourcing Requests
+  </PlanFeature>
+
+  <PlanFeature>
+    {plan.price > 0
+      ? `Initiate conversations with ${oppositeRolePlural}`
+      : `Respond to ${oppositeRole} inquiries`}
+  </PlanFeature>
+
+  {plan.price > 0 && plan.hasAnalytics && (
+    <PlanFeature>Advanced Analytics</PlanFeature>
+  )}
+
+  {plan.price > 0 && plan.isFeatured && (
+    <PlanFeature>Featured Badge on Profile</PlanFeature>
+  )}
+</>
+                               
+                                
                             </ul>
                         </CardContent>
                         <CardFooter>
@@ -282,3 +343,5 @@ export default function SubscriptionPage() {
         </div>
     );
 }
+
+

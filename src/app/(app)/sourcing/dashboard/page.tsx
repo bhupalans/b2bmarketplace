@@ -1,5 +1,4 @@
-
-"use client";
+﻿"use client";
 
 import { useAuth } from "@/contexts/auth-context";
 import { getBuyerDashboardData } from "@/app/buyer-actions";
@@ -37,6 +36,25 @@ type DashboardData = {
   acceptedOffersCount: number;
   requestStatusData: { status: string; count: number }[];
 };
+const toDateValue = (value: unknown): Date | null => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === "string" || typeof value === "number") {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  if (
+    typeof value === "object" &&
+    "toDate" in (value as Record<string, unknown>) &&
+    typeof (value as { toDate?: () => unknown }).toDate === "function"
+  ) {
+    const maybeDate = (value as { toDate: () => unknown }).toDate();
+    if (maybeDate instanceof Date && !Number.isNaN(maybeDate.getTime())) {
+      return maybeDate;
+    }
+  }
+  return null;
+};
 
 export default function BuyerDashboardPage() {
   const { user } = useAuth();
@@ -45,7 +63,8 @@ export default function BuyerDashboardPage() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const hasActiveSubscription = user?.subscriptionExpiryDate && new Date(user.subscriptionExpiryDate) > new Date();
+  const subscriptionExpiryDate = toDateValue(user?.subscriptionExpiryDate);
+  const hasActiveSubscription = !!subscriptionExpiryDate && subscriptionExpiryDate > new Date();
 
   useEffect(() => {
     if (user?.role === "buyer" && hasActiveSubscription) {
@@ -161,7 +180,7 @@ if (rates && currency && currency !== "USD") {
 	
 	<Link
   		href={`/sourcing/dashboard/fx-breakdown?buyerId=${user?.id}`}className="text-xs text-blue-600 hover:underline">
-  		View FX Breakdown →
+  		View FX Breakdown â†’
 	</Link>
 
 
@@ -273,3 +292,5 @@ if (rates && currency && currency !== "USD") {
     </div>
   );
 }
+
+

@@ -1,5 +1,4 @@
-
-"use client";
+﻿"use client";
 
 import React, { Suspense, useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -10,6 +9,26 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
 import { confirmStripePayment } from '@/app/user-actions';
 import { useToast } from '@/hooks/use-toast';
+
+const toDateValue = (value: unknown): Date | null => {
+    if (!value) return null;
+    if (value instanceof Date) return value;
+    if (typeof value === "string" || typeof value === "number") {
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+    if (
+        typeof value === "object" &&
+        "toDate" in (value as Record<string, unknown>) &&
+        typeof (value as { toDate?: () => unknown }).toDate === "function"
+    ) {
+        const maybeDate = (value as { toDate: () => unknown }).toDate();
+        if (maybeDate instanceof Date && !Number.isNaN(maybeDate.getTime())) {
+            return maybeDate;
+        }
+    }
+    return null;
+};
 
 function ConfirmationPageContent() {
     const searchParams = useSearchParams();
@@ -39,7 +58,7 @@ function ConfirmationPageContent() {
                          setConfirmationStatus('success');
                     });
                 } else {
-                    setErrorMessage(result.error);
+                    setErrorMessage(('error' in result && result.error) ? result.error : 'Payment confirmation failed.');
                     setConfirmationStatus('error');
                 }
             }).catch(err => {
@@ -56,8 +75,6 @@ function ConfirmationPageContent() {
      useEffect(() => {
         // Start polling only for Razorpay payments and if we are still processing
         if (razorpayPaymentId && confirmationStatus === 'processing') {
-            const initialPlanId = user?.subscriptionPlanId;
-
             pollingIntervalRef.current = setInterval(async () => {
                 await revalidateUser();
             }, 3000); // Poll every 3 seconds
@@ -79,15 +96,17 @@ function ConfirmationPageContent() {
         }
     }, [razorpayPaymentId, confirmationStatus, revalidateUser, user]);
 
-    // Effect to check for subscription change after revalidation
+    // Razorpay-only fallback: mark success only after plan matches and expiry is active.
     useEffect(() => {
-        if (user && user.subscriptionPlanId === planId) {
+        const expiryDate = toDateValue(user?.subscriptionExpiryDate);
+        const hasActiveSubscription = !!expiryDate && expiryDate > new Date();
+        if (razorpayPaymentId && !paymentIntentId && user && user.subscriptionPlanId === planId && hasActiveSubscription) {
             if (pollingIntervalRef.current) {
                 clearInterval(pollingIntervalRef.current);
             }
             setConfirmationStatus('success');
         }
-    }, [user, planId]);
+    }, [user, planId, razorpayPaymentId, paymentIntentId]);
     
 
     if (confirmationStatus === 'processing') {
@@ -175,3 +194,5 @@ export default function ConfirmationPage() {
         </Suspense>
     )
 }
+
+
