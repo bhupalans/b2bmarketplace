@@ -340,3 +340,69 @@ export type AppNotification = {
   read: boolean;
   createdAt: string;
 };
+
+export type SavedSearch = {
+  id: string;
+  userId: string;
+  name: string;
+  searchTerm: string;
+  categoryId: string | null;
+  country: string;
+  quantityMin: number;
+  quantityMax: number;
+  sortBy: 'expires_asc' | 'created_desc' | 'quantity_desc';
+  emailAlerts: boolean;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt?: string;
+  lastMatchedAt?: string;
+};
+
+export type ProductSavedSearch = {
+  id: string;
+  userId: string;
+  name: string;
+  searchTerm: string;
+  categoryId: string | null;
+  country: string;
+  stockStatus: 'all' | 'in_stock' | 'out_of_stock' | 'made_to_order';
+  sortBy: 'newest' | 'price_asc' | 'price_desc';
+  minPrice: number;
+  maxPrice: number;
+  emailAlerts: boolean;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt?: string;
+  lastMatchedAt?: string;
+};
+
+export type EntityType = 'product' | 'sourcing';
+
+export type EntityBookmark = {
+  id: string;
+  userId: string;
+  entityType: EntityType;
+  entityId: string;
+  createdAt: string;
+};
+
+export type EntityReview = {
+  id: string;
+  entityType: EntityType;
+  entityId: string;
+  reviewerId: string;
+  reviewerName: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+};
+
+export type EntityReport = {
+  id: string;
+  reporterId: string;
+  targetType: 'product' | 'seller' | 'sourcing' | 'buyer';
+  targetId: string;
+  reason: string;
+  details?: string;
+  createdAt: string;
+};
