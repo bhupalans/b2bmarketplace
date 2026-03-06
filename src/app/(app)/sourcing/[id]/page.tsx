@@ -1,12 +1,25 @@
 ﻿"use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, notFound, useRouter } from 'next/navigation';
-import { SourcingRequest, User } from '@/lib/types';
-import { getSourcingRequestClient, getUserClient } from '@/lib/firebase';
-import { Loader2, MapPin, Calendar, Package, DollarSign, ShieldCheck, Building, Gem } from 'lucide-react';
+import { SourcingRequest, User, EntityReview } from '@/lib/types';
+import {
+  getSourcingRequestClient,
+  getUserClient,
+  toggleBookmarkClient,
+  isBookmarkedClient,
+  getEntityReviewsClient,
+  upsertEntityReviewClient,
+  createEntityReportClient,
+} from '@/lib/firebase';
+import { Loader2, MapPin, Calendar, Package, DollarSign, ShieldCheck, Building, Gem, Bookmark, Star, Flag } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { useAuth } from '@/contexts/auth-context';
+import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ContactBuyerDialog } from '@/components/contact-buyer-dialog';
@@ -41,6 +54,13 @@ export default function SourcingRequestDetailPage() {
   const [buyer, setBuyer] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [bookmarked, setBookmarked] = useState(false);
+  const [reviews, setReviews] = useState<EntityReview[]>([]);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [reportReason, setReportReason] = useState('');
 
   useEffect(() => {
     async function fetchData() {
@@ -69,6 +89,48 @@ export default function SourcingRequestDetailPage() {
     fetchData();
   }, [id]);
 
+  useEffect(() => {
+    async function loadMeta() {
+      if (!request?.id) return;
+      const reviewData = await getEntityReviewsClient('sourcing', request.id);
+      setReviews(reviewData);
+      if (user?.uid) {
+        const isSaved = await isBookmarkedClient(user.uid, 'sourcing', request.id);
+        setBookmarked(isSaved);
+      }
+    }
+    loadMeta();
+  }, [request?.id, user?.uid]);
+
+  const averageRating = useMemo(() => {
+    if (!reviews.length) return 0;
+    return reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
+  }, [reviews]);
+
+  const handleToggleBookmark = async () => {
+    if (!user?.uid || !request) return;
+    const next = await toggleBookmarkClient(user.uid, 'sourcing', request.id);
+    setBookmarked(next);
+    toast({ title: next ? 'Bookmarked' : 'Bookmark removed' });
+  };
+
+  const handleSubmitReview = async () => {
+    if (!user?.uid || !request) return;
+    await upsertEntityReviewClient({ entityType: 'sourcing', entityId: request.id, reviewerId: user.uid, reviewerName: user.name || user.email || 'User', rating, comment });
+    const reviewData = await getEntityReviewsClient('sourcing', request.id);
+    setReviews(reviewData);
+    setComment('');
+    toast({ title: 'Review submitted' });
+  };
+
+  const handleReport = async (targetType: 'sourcing' | 'buyer') => {
+    if (!user?.uid || !request) return;
+    if (!reportReason.trim()) return toast({ variant: 'destructive', title: 'Reason required' });
+    await createEntityReportClient({ reporterId: user.uid, targetType, targetId: targetType === 'sourcing' ? request.id : buyer?.id || '', reason: reportReason.trim() });
+    setReportReason('');
+    toast({ title: 'Report submitted' });
+  };
+
   if (loading) {
     return <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
@@ -92,6 +154,12 @@ export default function SourcingRequestDetailPage() {
     <div className="max-w-4xl mx-auto space-y-8">
       <div className="space-y-2">
         <h1 className="text-3xl font-bold tracking-tight">{request.title}</h1>
+        <div className="flex flex-wrap gap-2">
+          <Button variant={bookmarked ? 'default' : 'outline'} onClick={handleToggleBookmark}><Bookmark className="h-4 w-4 mr-2" />{bookmarked ? 'Bookmarked' : 'Bookmark'}</Button>
+          <Button variant="outline" onClick={() => handleReport('sourcing')}><Flag className="h-4 w-4 mr-2" />Report Request</Button>
+          <Button variant="outline" onClick={() => handleReport('buyer')}><Flag className="h-4 w-4 mr-2" />Report Buyer</Button>
+        </div>
+        <Input placeholder="Report reason" value={reportReason} onChange={(e) => setReportReason(e.target.value)} />
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
             <div className="flex items-center gap-1">
                 <MapPin className="h-4 w-4" /> Ship to {request.buyerCountry}
@@ -125,6 +193,27 @@ export default function SourcingRequestDetailPage() {
                     </div>
                      <p className="text-base whitespace-pre-wrap leading-relaxed">{request.description}</p>
                 </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Ratings & Reviews</CardTitle>
+                <CardDescription><span className="inline-flex items-center gap-1"><Star className="h-4 w-4 text-yellow-500" />{averageRating.toFixed(1)} / 5</span> ({reviews.length} reviews)</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex gap-2">
+                  <Input type="number" min={1} max={5} value={rating} onChange={(e) => setRating(Math.max(1, Math.min(5, Number(e.target.value))))} className="w-24" />
+                  <Textarea value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Write your review" />
+                  <Button onClick={handleSubmitReview}>Submit</Button>
+                </div>
+                {reviews.slice(0, 5).map((review) => (
+                  <div key={review.id} className="rounded-md border p-3">
+                    <p className="text-sm font-medium">{review.reviewerName} · {review.rating}/5</p>
+                    <p className="text-sm text-muted-foreground">{review.comment || 'No comment provided.'}</p>
+                  </div>
+                ))}
+                {reviews.length === 0 && <p className="text-sm text-muted-foreground">No reviews yet.</p>}
+              </CardContent>
             </Card>
         </div>
         <div className="space-y-6">

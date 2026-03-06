@@ -2,12 +2,12 @@
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, collection, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc as getDocClient, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError, setDoc, increment } from 'firebase/firestore';
+import { getFirestore, collection, collectionGroup, getDocs, query, where, doc, updateDoc, addDoc, deleteDoc, getDoc as getDocClient, Timestamp, writeBatch, serverTimestamp, orderBy, onSnapshot, limit, FirestoreError, setDoc, increment } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject, uploadString } from 'firebase/storage';
-import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate, VerificationTemplate, VerificationField, SourcingRequest, Question, Answer, AppNotification, SubscriptionPlan, PaymentGateway, SubscriptionInvoice, BrandingSettings } from './types';
+import { Product, Category, User, SpecTemplate, SpecTemplateField, Conversation, Message, Offer, OfferStatusUpdate, VerificationTemplate, VerificationField, SourcingRequest, Question, Answer, AppNotification, SubscriptionPlan, PaymentGateway, SubscriptionInvoice, BrandingSettings, SavedSearch, ProductSavedSearch, EntityBookmark, EntityReview, EntityReport, EntityType } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { moderateMessageContent } from '@/ai/flows/moderate-message-content';
-import { sendQuestionAnsweredEmail, sendProductApprovedEmail, sendProductRejectedEmail, sendUserVerifiedEmail, sendUserRejectedEmail, sendSourcingRequestSubmittedEmail, sendSourcingRequestApprovedEmail, sendSourcingRequestRejectedEmail, sendOfferAcceptedEmail } from '@/services/email';
+import { sendQuestionAnsweredEmail, sendProductApprovedEmail, sendProductRejectedEmail, sendUserVerifiedEmail, sendUserRejectedEmail, sendSourcingRequestSubmittedEmail, sendSourcingRequestApprovedEmail, sendSourcingRequestRejectedEmail, sendOfferAcceptedEmail, sendSourcingMatchAlertEmail } from '@/services/email';
 //import { processAcceptedOffer } from '@/app/user-actions';
 import { areDetailsEqual, areSpecificationsEqual } from './utils';
 
@@ -50,6 +50,205 @@ export const convertTimestamps = (data: any): any => {
     return data;
 };
 
+
+const SAVED_SEARCH_SORT_OPTIONS = new Set(['expires_asc', 'created_desc', 'quantity_desc']);
+const PRODUCT_SAVED_SEARCH_SORT_OPTIONS = new Set(['newest', 'price_asc', 'price_desc']);
+
+const normalizeProductSavedSearchInput = (input: Partial<ProductSavedSearch>) => {
+  const minPrice = Number.isFinite(input.minPrice as number) ? Math.max(0, Number(input.minPrice)) : 0;
+  const maxPriceRaw = Number.isFinite(input.maxPrice as number) ? Number(input.maxPrice) : 1000000;
+  const maxPrice = Math.max(minPrice, maxPriceRaw);
+
+  return {
+    name: (input.name || 'Product Saved Search').toString().trim().slice(0, 80) || 'Product Saved Search',
+    searchTerm: (input.searchTerm || '').toString().trim().slice(0, 120),
+    categoryId: input.categoryId || null,
+    country: (input.country || 'all').toString(),
+    stockStatus: ['all', 'in_stock', 'out_of_stock', 'made_to_order'].includes(String(input.stockStatus))
+      ? (input.stockStatus as ProductSavedSearch['stockStatus'])
+      : 'all',
+    sortBy: PRODUCT_SAVED_SEARCH_SORT_OPTIONS.has(String(input.sortBy))
+      ? (input.sortBy as ProductSavedSearch['sortBy'])
+      : 'newest',
+    minPrice,
+    maxPrice,
+    emailAlerts: Boolean(input.emailAlerts),
+    enabled: input.enabled !== false,
+  };
+};
+
+const productMatchesSavedSearch = (product: Product, savedSearch: ProductSavedSearch): boolean => {
+  if (!savedSearch.enabled) return false;
+
+  const lowerSearch = savedSearch.searchTerm.trim().toLowerCase();
+  if (lowerSearch) {
+    const haystack = `${product.title} ${product.description}`.toLowerCase();
+    if (!haystack.includes(lowerSearch)) return false;
+  }
+
+  if (savedSearch.categoryId && product.categoryId !== savedSearch.categoryId) return false;
+  if (savedSearch.country !== 'all' && product.countryOfOrigin !== savedSearch.country) return false;
+  if (savedSearch.stockStatus !== 'all' && product.stockAvailability !== savedSearch.stockStatus) return false;
+
+  const price = Number(product.price?.baseAmount || 0);
+  return price >= savedSearch.minPrice && price <= savedSearch.maxPrice;
+};
+
+const buildProductSavedSearchLink = (savedSearch: ProductSavedSearch): string => {
+  const params = new URLSearchParams();
+  if (savedSearch.searchTerm) params.set('search', savedSearch.searchTerm);
+  if (savedSearch.categoryId) params.set('category', savedSearch.categoryId);
+  if (savedSearch.country && savedSearch.country !== 'all') params.set('country', savedSearch.country);
+  if (savedSearch.stockStatus && savedSearch.stockStatus !== 'all') params.set('stock', savedSearch.stockStatus);
+  params.set('minPrice', String(savedSearch.minPrice));
+  params.set('maxPrice', String(savedSearch.maxPrice));
+  params.set('sortBy', savedSearch.sortBy);
+  params.set('savedSearchId', savedSearch.id);
+  const queryString = params.toString();
+  return queryString ? `/products?${queryString}` : '/products';
+};
+
+async function notifyMatchingProductSavedSearches(product: Product): Promise<void> {
+  const savedSearchQuery = query(collectionGroup(db, 'productSavedSearches'), where('enabled', '==', true));
+  const snapshot = await getDocs(savedSearchQuery);
+  if (snapshot.empty) return;
+
+  for (const docSnap of snapshot.docs) {
+    const savedSearch = { id: docSnap.id, ...convertTimestamps(docSnap.data()) } as ProductSavedSearch;
+    if (!productMatchesSavedSearch(product, savedSearch)) continue;
+
+    const matchId = `${product.id}_${savedSearch.id}`;
+    const matchRef = doc(db, 'productSavedSearchMatches', matchId);
+    const existingMatch = await getDocClient(matchRef);
+    if (existingMatch.exists()) continue;
+
+    const link = buildProductSavedSearchLink(savedSearch);
+    const now = new Date().toISOString();
+
+    const batch = writeBatch(db);
+    batch.set(matchRef, {
+      productId: product.id,
+      savedSearchId: savedSearch.id,
+      userId: savedSearch.userId,
+      createdAt: now,
+    });
+
+    const notificationRef = doc(collection(db, 'notifications'));
+    batch.set(notificationRef, {
+      userId: savedSearch.userId,
+      message: `New product matches your saved search "${savedSearch.name}": ${product.title}`,
+      link,
+      read: false,
+      createdAt: now,
+    });
+
+    const savedSearchRef = doc(db, 'users', savedSearch.userId, 'productSavedSearches', savedSearch.id);
+    batch.set(savedSearchRef, { lastMatchedAt: now, updatedAt: now }, { merge: true });
+    await batch.commit();
+  }
+}
+
+const normalizeSavedSearchInput = (input: Partial<SavedSearch>) => {
+  const quantityMin = Number.isFinite(input.quantityMin as number) ? Math.max(0, Number(input.quantityMin)) : 0;
+  const quantityMaxRaw = Number.isFinite(input.quantityMax as number) ? Number(input.quantityMax) : 1000000;
+  const quantityMax = Math.max(quantityMin, quantityMaxRaw);
+
+  return {
+    name: (input.name || 'Saved Search').toString().trim().slice(0, 80) || 'Saved Search',
+    searchTerm: (input.searchTerm || '').toString().trim().slice(0, 120),
+    categoryId: input.categoryId || null,
+    country: (input.country || 'all').toString(),
+    quantityMin,
+    quantityMax,
+    sortBy: SAVED_SEARCH_SORT_OPTIONS.has(String(input.sortBy)) ? (input.sortBy as SavedSearch['sortBy']) : 'expires_asc',
+    emailAlerts: Boolean(input.emailAlerts),
+    enabled: input.enabled !== false,
+  };
+};
+
+const requestMatchesSavedSearch = (request: SourcingRequest, savedSearch: SavedSearch): boolean => {
+  if (!savedSearch.enabled) return false;
+
+  const lowerSearch = savedSearch.searchTerm.trim().toLowerCase();
+  if (lowerSearch) {
+    const haystack = `${request.title} ${request.description}`.toLowerCase();
+    if (!haystack.includes(lowerSearch)) return false;
+  }
+
+  if (savedSearch.categoryId && request.categoryId !== savedSearch.categoryId) {
+    return false;
+  }
+
+  if (savedSearch.country !== 'all' && request.buyerCountry !== savedSearch.country) {
+    return false;
+  }
+
+  return request.quantity >= savedSearch.quantityMin && request.quantity <= savedSearch.quantityMax;
+};
+
+const buildSavedSearchLink = (savedSearch: SavedSearch): string => {
+  const params = new URLSearchParams();
+  if (savedSearch.searchTerm) params.set('search', savedSearch.searchTerm);
+  if (savedSearch.categoryId) params.set('categoryId', savedSearch.categoryId);
+  if (savedSearch.country && savedSearch.country !== 'all') params.set('country', savedSearch.country);
+  params.set('qMin', String(savedSearch.quantityMin));
+  params.set('qMax', String(savedSearch.quantityMax));
+  params.set('sortBy', savedSearch.sortBy);
+  params.set('savedSearchId', savedSearch.id);
+  const queryString = params.toString();
+  return queryString ? `/sourcing?${queryString}` : '/sourcing';
+};
+
+async function notifyMatchingSavedSearches(request: SourcingRequest): Promise<void> {
+  const savedSearchQuery = query(collectionGroup(db, 'savedSearches'), where('enabled', '==', true));
+  const snapshot = await getDocs(savedSearchQuery);
+
+  if (snapshot.empty) return;
+
+  for (const docSnap of snapshot.docs) {
+    const savedSearch = { id: docSnap.id, ...convertTimestamps(docSnap.data()) } as SavedSearch;
+    if (!requestMatchesSavedSearch(request, savedSearch)) continue;
+
+    const matchId = `${request.id}_${savedSearch.id}`;
+    const matchRef = doc(db, 'savedSearchMatches', matchId);
+    const existingMatch = await getDocClient(matchRef);
+    if (existingMatch.exists()) continue;
+
+    const link = buildSavedSearchLink(savedSearch);
+
+    const batch = writeBatch(db);
+    batch.set(matchRef, {
+      requestId: request.id,
+      savedSearchId: savedSearch.id,
+      userId: savedSearch.userId,
+      createdAt: new Date().toISOString(),
+    });
+
+    const notificationRef = doc(collection(db, 'notifications'));
+    batch.set(notificationRef, {
+      userId: savedSearch.userId,
+      message: `New sourcing request matches your saved search "${savedSearch.name}": ${request.title}`,
+      link,
+      read: false,
+      createdAt: new Date().toISOString(),
+    });
+
+    const savedSearchRef = doc(db, 'users', savedSearch.userId, 'savedSearches', savedSearch.id);
+    batch.set(savedSearchRef, {
+      lastMatchedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
+
+    await batch.commit();
+
+    if (savedSearch.emailAlerts) {
+      const seller = await getUserClient(savedSearch.userId);
+      if (seller?.email) {
+        await sendSourcingMatchAlertEmail({ seller, request, savedSearch, link });
+      }
+    }
+  }
+}
 
 // Client-side data fetching functions
 export async function getProductsClient(): Promise<Product[]> {
@@ -309,6 +508,7 @@ export async function updateProductStatus(
           if (seller) {
               if (status === 'approved') {
                   await sendProductApprovedEmail({ seller, product });
+                  await notifyMatchingProductSavedSearches(product);
               } else if (status === 'rejected') {
                   const serializableProduct = {
                     ...product,
@@ -1221,6 +1421,52 @@ export async function deletePaymentGatewayClient(id: string): Promise<void> {
 
 // --- Sourcing Request Functions ---
 
+
+export async function getSavedSearchesClient(userId: string): Promise<SavedSearch[]> {
+  const savedSearchesRef = collection(db, 'users', userId, 'savedSearches');
+  const q = query(savedSearchesRef, orderBy('createdAt', 'desc'));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((docSnap) => ({
+    id: docSnap.id,
+    userId,
+    ...convertTimestamps(docSnap.data()),
+  } as SavedSearch));
+}
+
+export async function createSavedSearchClient(userId: string, input: Partial<SavedSearch>): Promise<SavedSearch> {
+  const normalized = normalizeSavedSearchInput(input);
+  const now = new Date().toISOString();
+  const docRef = doc(collection(db, 'users', userId, 'savedSearches'));
+  const payload: Omit<SavedSearch, 'id'> = {
+    userId,
+    ...normalized,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await setDoc(docRef, payload);
+  return { id: docRef.id, ...payload };
+}
+
+export async function updateSavedSearchClient(userId: string, savedSearchId: string, input: Partial<SavedSearch>): Promise<void> {
+  const normalized = normalizeSavedSearchInput(input);
+  const ref = doc(db, 'users', userId, 'savedSearches', savedSearchId);
+  await updateDoc(ref, {
+    ...normalized,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+export async function toggleSavedSearchClient(userId: string, savedSearchId: string, enabled: boolean): Promise<void> {
+  const ref = doc(db, 'users', userId, 'savedSearches', savedSearchId);
+  await updateDoc(ref, { enabled, updatedAt: new Date().toISOString() });
+}
+
+export async function deleteSavedSearchClient(userId: string, savedSearchId: string): Promise<void> {
+  const ref = doc(db, 'users', userId, 'savedSearches', savedSearchId);
+  await deleteDoc(ref);
+}
+
 export async function getPendingSourcingRequestsClient(): Promise<SourcingRequest[]> {
     const requestsRef = collection(db, "sourcingRequests");
     const q = query(requestsRef, where("status", "==", "pending"), orderBy("createdAt", "asc"));
@@ -1348,6 +1594,7 @@ export async function updateSourcingRequestStatus(
             if (buyer) {
                 if (action === 'approve') {
                     await sendSourcingRequestApprovedEmail({ requestId: request.id, requestTitle: request.title, buyer });
+                    await notifyMatchingSavedSearches(request);
                 } else if (action === 'reject') {
                     await sendSourcingRequestRejectedEmail({
                         requestId: request.id,
@@ -1495,6 +1742,98 @@ export async function markNotificationAsReadClient(notificationId: string): Prom
     const notificationRef = doc(db, 'notifications', notificationId);
     await updateDoc(notificationRef, { read: true });
 }
+
+
+export async function markAllNotificationsAsReadClient(userId: string): Promise<void> {
+    const notificationsRef = collection(db, 'notifications');
+    const q = query(notificationsRef, where('userId', '==', userId), where('read', '==', false));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return;
+
+    const batch = writeBatch(db);
+    snapshot.docs.forEach((docSnap) => batch.update(docSnap.ref, { read: true }));
+    await batch.commit();
+}
+
+export async function clearReadNotificationsClient(userId: string): Promise<void> {
+    const notificationsRef = collection(db, 'notifications');
+    const q = query(notificationsRef, where('userId', '==', userId), where('read', '==', true));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return;
+
+    const batch = writeBatch(db);
+    snapshot.docs.forEach((docSnap) => batch.delete(docSnap.ref));
+    await batch.commit();
+}
+
+export async function getProductSavedSearchesClient(userId: string): Promise<ProductSavedSearch[]> {
+  const ref = collection(db, 'users', userId, 'productSavedSearches');
+  const q = query(ref, orderBy('createdAt', 'desc'));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((docSnap) => ({ id: docSnap.id, userId, ...convertTimestamps(docSnap.data()) } as ProductSavedSearch));
+}
+
+export async function createProductSavedSearchClient(userId: string, input: Partial<ProductSavedSearch>): Promise<ProductSavedSearch> {
+  const normalized = normalizeProductSavedSearchInput(input);
+  const now = new Date().toISOString();
+  const docRef = doc(collection(db, 'users', userId, 'productSavedSearches'));
+  const payload: Omit<ProductSavedSearch, 'id'> = { userId, ...normalized, createdAt: now, updatedAt: now };
+  await setDoc(docRef, payload);
+  return { id: docRef.id, ...payload };
+}
+
+export async function toggleProductSavedSearchClient(userId: string, savedSearchId: string, enabled: boolean): Promise<void> {
+  const ref = doc(db, 'users', userId, 'productSavedSearches', savedSearchId);
+  await updateDoc(ref, { enabled, updatedAt: new Date().toISOString() });
+}
+
+export async function deleteProductSavedSearchClient(userId: string, savedSearchId: string): Promise<void> {
+  const ref = doc(db, 'users', userId, 'productSavedSearches', savedSearchId);
+  await deleteDoc(ref);
+}
+
+export async function toggleBookmarkClient(userId: string, entityType: EntityType, entityId: string): Promise<boolean> {
+  const bookmarkRef = doc(db, 'users', userId, 'bookmarks', `${entityType}_${entityId}`);
+  const snap = await getDocClient(bookmarkRef);
+  if (snap.exists()) {
+    await deleteDoc(bookmarkRef);
+    return false;
+  }
+
+  const payload: Omit<EntityBookmark, 'id'> = { userId, entityType, entityId, createdAt: new Date().toISOString() };
+  await setDoc(bookmarkRef, payload);
+  return true;
+}
+
+export async function isBookmarkedClient(userId: string, entityType: EntityType, entityId: string): Promise<boolean> {
+  const bookmarkRef = doc(db, 'users', userId, 'bookmarks', `${entityType}_${entityId}`);
+  const snap = await getDocClient(bookmarkRef);
+  return snap.exists();
+}
+
+export async function getEntityReviewsClient(entityType: EntityType, entityId: string): Promise<EntityReview[]> {
+  const reviewsRef = collection(db, `${entityType}Reviews`);
+  const q = query(reviewsRef, where('entityId', '==', entityId), orderBy('createdAt', 'desc'));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...convertTimestamps(docSnap.data()) } as EntityReview));
+}
+
+export async function upsertEntityReviewClient(data: Omit<EntityReview, 'id' | 'createdAt'>): Promise<void> {
+  const reviewsRef = collection(db, `${data.entityType}Reviews`);
+  const q = query(reviewsRef, where('entityId', '==', data.entityId), where('reviewerId', '==', data.reviewerId), limit(1));
+  const existing = await getDocs(q);
+  if (!existing.empty) {
+    await updateDoc(existing.docs[0].ref, { rating: data.rating, comment: data.comment, createdAt: new Date().toISOString() });
+    return;
+  }
+
+  await addDoc(reviewsRef, { ...data, createdAt: new Date().toISOString() });
+}
+
+export async function createEntityReportClient(data: Omit<EntityReport, 'id' | 'createdAt'>): Promise<void> {
+  await addDoc(collection(db, 'reports'), { ...data, createdAt: new Date().toISOString() });
+}
+
 
 // --- Subscription Plan Client Functions ---
 

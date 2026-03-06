@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -9,12 +9,22 @@ import { Separator } from '@/components/ui/separator';
 import { RequestQuoteDialog } from '@/components/request-quote-dialog';
 import { QuestionForm } from '@/components/question-form';
 import { QuestionItem } from '@/components/question-item';
-import { Product, User, Question } from '@/lib/types';
+import { Product, User, Question, EntityReview } from '@/lib/types';
 import { useCurrency } from '@/contexts/currency-context';
 import { convertPrice } from '@/lib/currency';
 import { useAuth } from '@/contexts/auth-context';
-import { CheckCircle, Globe, Package, Clock, Tag, Gem } from 'lucide-react';
-import { Share2 } from "lucide-react";
+import { useToast } from '@/hooks/use-toast';
+import {
+  toggleBookmarkClient,
+  isBookmarkedClient,
+  getEntityReviewsClient,
+  upsertEntityReviewClient,
+  createEntityReportClient,
+} from '@/lib/firebase';
+import { CheckCircle, Globe, Package, Clock, Tag, Gem, Share2, Bookmark, Star, Flag } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 
 
 interface ProductDetailsClientProps {
@@ -72,6 +82,54 @@ const handleShare = async () => {
 
 
   const { currency, rates } = useCurrency();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [bookmarked, setBookmarked] = useState(false);
+  const [reviews, setReviews] = useState<EntityReview[]>([]);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [reportReason, setReportReason] = useState('');
+
+  useEffect(() => {
+    async function loadMeta() {
+      const reviewData = await getEntityReviewsClient('product', product.id);
+      setReviews(reviewData);
+      if (user?.uid) {
+        const isSaved = await isBookmarkedClient(user.uid, 'product', product.id);
+        setBookmarked(isSaved);
+      }
+    }
+    loadMeta();
+  }, [product.id, user?.uid]);
+
+  const averageRating = useMemo(() => {
+    if (!reviews.length) return 0;
+    return reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
+  }, [reviews]);
+
+  const handleToggleBookmark = async () => {
+    if (!user?.uid) return toast({ variant: 'destructive', title: 'Login required', description: 'Please login to bookmark.' });
+    const next = await toggleBookmarkClient(user.uid, 'product', product.id);
+    setBookmarked(next);
+    toast({ title: next ? 'Bookmarked' : 'Bookmark removed' });
+  };
+
+  const handleSubmitReview = async () => {
+    if (!user?.uid) return toast({ variant: 'destructive', title: 'Login required', description: 'Please login to review.' });
+    await upsertEntityReviewClient({ entityType: 'product', entityId: product.id, reviewerId: user.uid, reviewerName: user.name || user.email || 'User', rating, comment });
+    const reviewData = await getEntityReviewsClient('product', product.id);
+    setReviews(reviewData);
+    setComment('');
+    toast({ title: 'Thanks!', description: 'Your review has been saved.' });
+  };
+
+  const handleReport = async (targetType: 'product' | 'seller') => {
+    if (!user?.uid) return toast({ variant: 'destructive', title: 'Login required', description: 'Please login to report.' });
+    if (!reportReason.trim()) return toast({ variant: 'destructive', title: 'Reason required', description: 'Please add a report reason.' });
+    await createEntityReportClient({ reporterId: user.uid, targetType, targetId: targetType === 'product' ? product.id : (seller?.id || ''), reason: reportReason.trim() });
+    setReportReason('');
+    toast({ title: 'Report submitted', description: 'Thank you for helping us keep quality high.' });
+  };
 
 
   const formattedPrice = new Intl.NumberFormat(undefined, {
@@ -144,9 +202,41 @@ const handleShare = async () => {
             )}
           </div>
           <Separator />
+          <div className="flex flex-wrap gap-2">
+            <Button variant={bookmarked ? 'default' : 'outline'} onClick={handleToggleBookmark}><Bookmark className="h-4 w-4 mr-2" />{bookmarked ? 'Bookmarked' : 'Bookmark'}</Button>
+            <Button variant="outline" onClick={() => handleReport('product')}><Flag className="h-4 w-4 mr-2" />Report Product</Button>
+            <Button variant="outline" onClick={() => handleReport('seller')} disabled={!seller}><Flag className="h-4 w-4 mr-2" />Report Seller</Button>
+          </div>
+          <Input placeholder="Report reason (optional until submit)" value={reportReason} onChange={(e) => setReportReason(e.target.value)} />
           <p className="text-muted-foreground whitespace-pre-wrap">{product.description}</p>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Ratings & Reviews</CardTitle>
+          <CardDescription>
+            <span className="inline-flex items-center gap-1 font-medium text-foreground"><Star className="h-4 w-4 text-yellow-500" /> {averageRating.toFixed(1)} / 5</span> ({reviews.length} reviews)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex gap-2">
+            <Input type="number" min={1} max={5} value={rating} onChange={(e) => setRating(Math.max(1, Math.min(5, Number(e.target.value))))} className="w-24" />
+            <Textarea placeholder="Write your review" value={comment} onChange={(e) => setComment(e.target.value)} />
+            <Button onClick={handleSubmitReview}>Submit</Button>
+          </div>
+          <div className="space-y-2">
+            {reviews.slice(0, 5).map((review) => (
+              <div key={review.id} className="rounded-md border p-3">
+                <p className="text-sm font-medium">{review.reviewerName} · {review.rating}/5</p>
+                <p className="text-sm text-muted-foreground">{review.comment || 'No comment provided.'}</p>
+              </div>
+            ))}
+            {reviews.length === 0 && <p className="text-sm text-muted-foreground">No reviews yet.</p>}
+          </div>
+        </CardContent>
+      </Card>
+
       {seller && (
         <Card>
           <CardHeader className="flex flex-row items-center gap-4 space-y-0">
