@@ -34,13 +34,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, AlertTriangle, Gem } from "lucide-react";
+import { Loader2, AlertTriangle, Gem, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter, useSearchParams } from "next/navigation";
 import { add, differenceInDays } from "date-fns";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from "next/link";
 import { useCurrency } from "@/contexts/currency-context";
+import { enhanceProductDescriptionAction } from "@/app/seller-actions";
 
 const requestSchema = z.object({
   title: z.string().min(10, "Title must be at least 10 characters.").max(100, "Title is too long."),
@@ -85,6 +86,7 @@ function CreateSourcingRequestForm() {
   const { currency, rates } = useCurrency();
 
   const [isSubmitting, startTransition] = useTransition();
+  const [isEnhancing, startEnhancingTransition] = useTransition();
   const [categories, setCategories] = useState<Category[]>([]);
   const [sourcingRequests, setSourcingRequests] = useState<SourcingRequest[]>([]);
   const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
@@ -199,6 +201,27 @@ function CreateSourcingRequestForm() {
   const handleParentCategoryChange = (parentId: string) => {
     setSelectedParentCategory(parentId);
     form.setValue('categoryId', ''); // Reset sub-category when parent changes
+  };
+
+  const handleEnhanceDescription = () => {
+    const title = form.getValues('title');
+    const description = form.getValues('description');
+
+    if (!title || !description) {
+      toast({ variant: 'destructive', title: 'Missing Information', description: 'Please provide title and description first.' });
+      return;
+    }
+
+    startEnhancingTransition(async () => {
+      const result = await enhanceProductDescriptionAction(title, description);
+      if (result.success) {
+        form.setValue('description', result.enhancedDescription, { shouldValidate: true, shouldDirty: true });
+        toast({ title: 'Description Enhanced', description: 'AI updated your sourcing description.' });
+      } else {
+        const errorMessage = 'error' in result ? result.error : 'AI enhancement failed.';
+        toast({ variant: 'destructive', title: 'Enhancement Failed', description: errorMessage });
+      }
+    });
   };
 
   const onSubmit = (values: SourcingRequestFormData) => {
@@ -345,7 +368,13 @@ function CreateSourcingRequestForm() {
                     name="description"
                     render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Detailed Description</FormLabel>
+                        <div className="flex items-center justify-between">
+                          <FormLabel>Detailed Description</FormLabel>
+                          <Button type="button" size="sm" variant="outline" onClick={handleEnhanceDescription} disabled={isEnhancing}>
+                            {isEnhancing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                            Enhance with AI
+                          </Button>
+                        </div>
                         <FormControl>
                         <Textarea
                             rows={5}

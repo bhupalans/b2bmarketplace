@@ -5,12 +5,12 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { ProductCard } from "@/components/product-card";
 import { CategorySidebar } from "@/components/category-sidebar";
-import { Category, Product } from "@/lib/types";
+import { Category, Product, ProductSavedSearch } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { useProducts } from "@/hooks/use-products";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { useCurrency } from "@/contexts/currency-context";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { convertPrice } from "@/lib/currency";
+import { useAuth } from "@/contexts/auth-context";
+import { useToast } from "@/hooks/use-toast";
+import { BellPlus, Trash2, Loader2 } from "lucide-react";
+import {
+  getProductSavedSearchesClient,
+  createProductSavedSearchClient,
+  toggleProductSavedSearchClient,
+  deleteProductSavedSearchClient,
+} from "@/lib/firebase";
 
 // Helper function to get all descendant category IDs
 const getDescendantCategoryIds = (
@@ -59,6 +68,14 @@ export default function ProductsPage() {
   const [country, setCountry] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('newest');
 
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [savedSearches, setSavedSearches] = useState<ProductSavedSearch[]>([]);
+  const [selectedSavedSearchId, setSelectedSavedSearchId] = useState<string>('none');
+  const [savedSearchName, setSavedSearchName] = useState('');
+  const [saveEmailAlerts, setSaveEmailAlerts] = useState(true);
+  const [savingSearch, setSavingSearch] = useState(false);
+
   const maxPrice = useMemo(() => {
     if (products.length === 0) return 100000;
     const maxBasePrice = Math.max(...products.map(p => p.price.baseAmount));
@@ -76,14 +93,38 @@ export default function ProductsPage() {
   useEffect(() => {
     const categoryIdFromUrl = searchParams.get('category');
     const searchTermFromUrl = searchParams.get('search');
+    const stockFromUrl = searchParams.get('stock');
+    const minPriceFromUrl = Number(searchParams.get('minPrice') || 0);
+    const maxPriceFromUrl = Number(searchParams.get('maxPrice') || maxPrice);
+    const savedSearchIdFromUrl = searchParams.get('savedSearchId');
     
     if (categoryIdFromUrl) {
       setSelectedCategoryId(categoryIdFromUrl);
     }
-    if (searchTermFromUrl) {
-      setSearchTerm(searchTermFromUrl);
+    if (searchTermFromUrl) setSearchTerm(searchTermFromUrl);
+    if (stockFromUrl && ['all','in_stock','out_of_stock','made_to_order'].includes(stockFromUrl)) setStockStatus(stockFromUrl);
+    const safeMin = Number.isFinite(minPriceFromUrl) ? Math.max(0, minPriceFromUrl) : 0;
+    const safeMax = Number.isFinite(maxPriceFromUrl) ? Math.max(safeMin, maxPriceFromUrl) : maxPrice;
+    setPriceRange([safeMin, safeMax]);
+    if (savedSearchIdFromUrl) setSelectedSavedSearchId(savedSearchIdFromUrl);
+  }, [searchParams, maxPrice]);
+
+  useEffect(() => {
+    async function loadSavedSearches() {
+      if (!user?.uid) {
+        setSavedSearches([]);
+        setSelectedSavedSearchId('none');
+        return;
+      }
+      try {
+        const searches = await getProductSavedSearchesClient(user.uid);
+        setSavedSearches(searches);
+      } catch (error) {
+        console.error('Failed to load product saved searches:', error);
+      }
     }
-  }, [searchParams]);
+    loadSavedSearches();
+  }, [user?.uid]);
 
   const filteredProducts = useMemo(() => {
     if (loading) {
@@ -154,6 +195,59 @@ export default function ProductsPage() {
     setSelectedCategoryId(null);
   };
 
+  const applySavedSearch = (savedSearch: ProductSavedSearch) => {
+    setSearchTerm(savedSearch.searchTerm || '');
+    setSelectedCategoryId(savedSearch.categoryId || null);
+    setCountry(savedSearch.country || 'all');
+    setStockStatus(savedSearch.stockStatus || 'all');
+    setSortBy(savedSearch.sortBy || 'newest');
+    setPriceRange([savedSearch.minPrice ?? 0, savedSearch.maxPrice ?? maxPrice]);
+    setSaveEmailAlerts(savedSearch.emailAlerts);
+  };
+
+  const handleSaveCurrentSearch = async () => {
+    if (!user?.uid) return;
+    setSavingSearch(true);
+    try {
+      const created = await createProductSavedSearchClient(user.uid, {
+        name: savedSearchName.trim() || 'Product Saved Search',
+        searchTerm,
+        categoryId: selectedCategoryId,
+        country,
+        stockStatus: stockStatus as ProductSavedSearch['stockStatus'],
+        sortBy: sortBy as ProductSavedSearch['sortBy'],
+        minPrice: priceRange[0],
+        maxPrice: priceRange[1],
+        emailAlerts: saveEmailAlerts,
+        enabled: true,
+      });
+      setSavedSearches((prev) => [created, ...prev]);
+      setSelectedSavedSearchId(created.id);
+      setSavedSearchName('');
+      toast({ title: 'Saved', description: 'Product saved search created.' });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to save search.' });
+    } finally {
+      setSavingSearch(false);
+    }
+  };
+
+  const selectedSavedSearch = savedSearches.find((s) => s.id === selectedSavedSearchId);
+
+  const handleToggleSavedSearch = async () => {
+    if (!user?.uid || !selectedSavedSearch) return;
+    const nextEnabled = !selectedSavedSearch.enabled;
+    await toggleProductSavedSearchClient(user.uid, selectedSavedSearch.id, nextEnabled);
+    setSavedSearches((prev) => prev.map((s) => (s.id === selectedSavedSearch.id ? { ...s, enabled: nextEnabled } : s)));
+  };
+
+  const handleDeleteSavedSearch = async () => {
+    if (!user?.uid || !selectedSavedSearch) return;
+    await deleteProductSavedSearchClient(user.uid, selectedSavedSearch.id);
+    setSavedSearches((prev) => prev.filter((s) => s.id !== selectedSavedSearch.id));
+    setSelectedSavedSearchId('none');
+  };
+
   const uniqueCountries = useMemo(() => {
     const countrySet = new Set(products.map(p => p.countryOfOrigin));
     return Array.from(countrySet).sort();
@@ -181,6 +275,55 @@ export default function ProductsPage() {
           </div>
         </div>
         
+
+        {user && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Saved Search Alerts</CardTitle>
+              <CardDescription>Save product filters and get alerts when matching products are approved.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Saved searches</Label>
+                <Select
+                  value={selectedSavedSearchId}
+                  onValueChange={(value) => {
+                    setSelectedSavedSearchId(value);
+                    if (value === 'none') return;
+                    const selected = savedSearches.find((search) => search.id === value);
+                    if (selected) applySavedSearch(selected);
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Choose a saved search" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None selected</SelectItem>
+                    {savedSearches.map((search) => (
+                      <SelectItem key={search.id} value={search.id}>{search.name}{search.enabled ? '' : ' (paused)'}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>New saved search name</Label>
+                <Input value={savedSearchName} onChange={(e) => setSavedSearchName(e.target.value)} placeholder="e.g. Steel tools in India" />
+              </div>
+              <div className="flex flex-wrap gap-2 md:col-span-2">
+                <Button onClick={handleSaveCurrentSearch} disabled={savingSearch}>
+                  {savingSearch ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BellPlus className="mr-2 h-4 w-4" />}
+                  Save current filters
+                </Button>
+                <Button variant="outline" onClick={() => setSaveEmailAlerts((prev) => !prev)}>Email alerts: {saveEmailAlerts ? 'On' : 'Off'}</Button>
+                <Button variant="outline" onClick={handleToggleSavedSearch} disabled={!selectedSavedSearch}>
+                  {selectedSavedSearch?.enabled ? 'Pause selected alert' : 'Enable selected alert'}
+                </Button>
+                <Button variant="destructive" onClick={handleDeleteSavedSearch} disabled={!selectedSavedSearch}>
+                  <Trash2 className="mr-2 h-4 w-4" />Delete selected
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
             <CardContent className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="relative">

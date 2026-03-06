@@ -3,7 +3,7 @@
 'use server';
 
 import { Resend } from 'resend';
-import { User, Product, Question, SubscriptionInvoice, SourcingRequest, CallbackRequest, Offer } from '@/lib/types';
+import { User, Product, Question, SubscriptionInvoice, SourcingRequest, CallbackRequest, Offer, SavedSearch } from '@/lib/types';
 import { format } from 'date-fns';
 
 const fromAddress = 'B2B Marketplace <notifications@b2b.vbuysell.com>';
@@ -149,6 +149,38 @@ export async function sendCallbackRequestEmail(requestData: Omit<CallbackRequest
         console.log(`Callback request email sent for ${requestData.name}`);
     } catch (error) {
         console.error(`Failed to send callback request email:`, error);
+    }
+}
+
+
+export async function sendSourcingMatchAlertEmail({ seller, request, savedSearch, link }: { seller: User; request: SourcingRequest; savedSearch: SavedSearch; link: string }) {
+    const resend = getResend();
+    if (!resend || !seller.email) return;
+
+    const requestUrl = `${process.env.NEXT_PUBLIC_BASE_URL}${link}`;
+
+    try {
+        await resend.emails.send({
+            from: fromAddress,
+            to: seller.email,
+            subject: `New sourcing match: ${request.title}` ,
+            html: `
+                <div style="font-family: sans-serif; line-height: 1.5;">
+                    <h1>Hi ${seller.name},</h1>
+                    <p>A new sourcing request matches your saved search <strong>${savedSearch.name}</strong>.</p>
+                    <p><strong>Request:</strong> ${request.title}</p>
+                    <p><strong>Buyer Country:</strong> ${request.buyerCountry}</p>
+                    <p><strong>Quantity:</strong> ${request.quantity.toLocaleString()} ${request.quantityUnit}</p>
+                    <p>
+                        <a href="${requestUrl}" style="display: inline-block; padding: 10px 15px; background-color: #007bff; color: #ffffff; text-decoration: none; border-radius: 5px;">
+                            View matching requests
+                        </a>
+                    </p>
+                </div>
+            `
+        });
+    } catch (error) {
+        console.error(`Failed to send sourcing match alert email to ${seller.email}:`, error);
     }
 }
 

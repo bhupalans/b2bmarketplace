@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { getNotificationsClient, markNotificationAsReadClient } from '@/lib/firebase';
+import { getNotificationsClient, markNotificationAsReadClient, markAllNotificationsAsReadClient, clearReadNotificationsClient } from '@/lib/firebase';
 import { AppNotification } from '@/lib/types';
 import { Loader2, Bell, BellOff } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -48,6 +48,7 @@ export default function NotificationsPage() {
     const { user } = useAuth();
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [loading, setLoading] = useState(true);
+    const [processing, setProcessing] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -60,6 +61,28 @@ export default function NotificationsPage() {
             setLoading(false);
         }
     }, [user]);
+
+    const handleMarkAllAsRead = async () => {
+        if (!user?.uid) return;
+        setProcessing(true);
+        try {
+            await markAllNotificationsAsReadClient(user.uid);
+            setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    const handleClearRead = async () => {
+        if (!user?.uid) return;
+        setProcessing(true);
+        try {
+            await clearReadNotificationsClient(user.uid);
+            setNotifications(prev => prev.filter(n => !n.read));
+        } finally {
+            setProcessing(false);
+        }
+    };
 
     const handleMarkAsRead = async (id: string) => {
         try {
@@ -78,11 +101,17 @@ export default function NotificationsPage() {
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Notifications</h1>
-                <p className="text-muted-foreground">
-                    Your latest updates and alerts from the marketplace.
-                </p>
+            <div className="flex items-start justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">Notifications</h1>
+                    <p className="text-muted-foreground">
+                        Your latest updates and alerts from the marketplace.
+                    </p>
+                </div>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={handleMarkAllAsRead} disabled={processing || notifications.length === 0}>Mark all as read</Button>
+                    <Button variant="outline" onClick={handleClearRead} disabled={processing || notifications.every(n => !n.read)}>Clear read</Button>
+                </div>
             </div>
             <Card>
                 <CardContent className="p-0">
