@@ -304,66 +304,7 @@ export default function SourcingRequestsPage() {
           </div>
         </div>
 
-        {user && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Saved Search Alerts</CardTitle>
-              <CardDescription>Save your current filters and receive notifications when a new request matches.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Saved searches</Label>
-                <Select
-                  value={selectedSavedSearchId}
-                  onValueChange={(value) => {
-                    setSelectedSavedSearchId(value);
-                    if (value === 'none') return;
-                    const selected = savedSearches.find((search) => search.id === value);
-                    if (selected) applySavedSearch(selected);
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose a saved search" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None selected</SelectItem>
-                    {savedSearches.map((search) => (
-                      <SelectItem key={search.id} value={search.id}>
-                        {search.name}{search.enabled ? '' : ' (paused)'}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>New saved search name</Label>
-                <Input
-                  value={savedSearchName}
-                  onChange={(event) => setSavedSearchName(event.target.value)}
-                  placeholder="e.g. Electronics buyers in UAE"
-                />
-              </div>
-
-              <div className="flex flex-wrap gap-2 md:col-span-2">
-                <Button onClick={handleSaveCurrentSearch} disabled={savingSearch}>
-                  {savingSearch ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BellPlus className="mr-2 h-4 w-4" />}
-                  Save current filters
-                </Button>
-                <Button variant="outline" onClick={() => setSaveEmailAlerts((prev) => !prev)}>
-                  Email alerts: {saveEmailAlerts ? 'On' : 'Off'}
-                </Button>
-                <Button variant="outline" onClick={handleToggleSavedSearch} disabled={!selectedSavedSearch}>
-                  {selectedSavedSearch?.enabled ? 'Pause selected alert' : 'Enable selected alert'}
-                </Button>
-                <Button variant="destructive" onClick={handleDeleteSavedSearch} disabled={!selectedSavedSearch}>
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete selected
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        
 
         <Card>
           <CardContent className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">

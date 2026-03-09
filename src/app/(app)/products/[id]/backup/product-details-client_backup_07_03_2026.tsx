@@ -25,12 +25,7 @@ import { CheckCircle, Globe, Package, Clock, Tag, Gem, Share2, Bookmark, Star, F
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent
-} from "@/components/ui/popover";
-import { UserX } from "lucide-react";
+
 
 interface ProductDetailsClientProps {
   product: Product;
@@ -94,15 +89,6 @@ const handleShare = async () => {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [reportReason, setReportReason] = useState('');
-  const [hover, setHover] = useState<number | null>(null);
-
-  const handleBookmark = () => {
-    console.log("Bookmark clicked");
-  };
-
-  const handleSubmitReport = () => {
-    console.log(reportReason);
-  };
 
   useEffect(() => {
     async function loadMeta() {
@@ -170,138 +156,24 @@ const handleShare = async () => {
     !!sellerSubscriptionExpiryDate &&
     sellerSubscriptionExpiryDate > new Date();
 
-  const ratingCounts = [1,2,3,4,5].reduce((acc, star) => {
-  acc[star] = reviews.filter(r => r.rating === star).length;
-  return acc;
-}, {} as Record<number, number>);
-
-
-  const totalReviews = reviews.length; //<Share2 className="w-5 h-5 text-gray-700" />
-
   return (
     <>
       <Card>
-
-<CardHeader className="pb-4">
-
-  <div className="flex justify-between items-start gap-6">
-
-    {/* LEFT — TITLE */}
-    <div className="space-y-2 flex-1">
-
-      <h1 className="text-3xl font-bold leading-snug">
-        {product.title}
-      </h1>
-
-      <p className="text-3xl font-bold text-primary">
-        {formattedPrice}
-      </p>
-
-      <p className="text-sm text-muted-foreground">
-        per {product.moqUnit}
-      </p>
-
-    </div>
-
-<div className="flex flex-col items-center gap-3 pt-1">
-
-  {/* SHARE */}
-  <button
-    onClick={handleShare}
-    title="Share"
-    className="p-2 rounded-full hover:bg-muted transition"
-  >
-    <Share2 size={15} />
-  </button>
-
-  {/* BOOKMARK */}
-  <button
-    onClick={handleToggleBookmark}
-    title="Bookmark"
-    className={`p-2 rounded-full transition ${
-      bookmarked
-        ? "text-primary"
-        : "text-muted-foreground hover:text-primary"
-    }`}
-  >
-    <Bookmark size={15} fill={bookmarked ? "currentColor" : "none"} />
-  </button>
-
-  {/* REPORT PRODUCT */}
-  <Popover>
-    <PopoverTrigger asChild>
-      <button
-        title="Report product"
-        className="p-2 rounded-full text-muted-foreground hover:text-red-500 transition"
-      >
-        <Flag size={15} />
-      </button>
-    </PopoverTrigger>
-
-    <PopoverContent className="w-64">
-      <div className="space-y-3">
-
-        <p className="text-sm font-medium">Report Product</p>
-
-        <Textarea
-          placeholder="Describe the issue..."
-          value={reportReason}
-          onChange={(e) => setReportReason(e.target.value)}
-        />
-
-        <Button
-          size="sm"
-          className="w-full"
-          onClick={() => handleReport("product")}
-        >
-          Submit
-        </Button>
-
-      </div>
-    </PopoverContent>
-  </Popover>
-
-  {/* REPORT SELLER */}
-  {seller && (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button
-          title="Report seller"
-          className="p-2 rounded-full text-muted-foreground hover:text-red-500 transition"
-        >
-          <UserX size={15} />
-        </button>
-      </PopoverTrigger>
-
-      <PopoverContent className="w-64">
-        <div className="space-y-3">
-
-          <p className="text-sm font-medium">Report Seller</p>
-
-          <Textarea
-            placeholder="Describe the issue..."
-            value={reportReason}
-            onChange={(e) => setReportReason(e.target.value)}
-          />
-
-          <Button
-            size="sm"
-            className="w-full"
-            onClick={() => handleReport("seller")}
-          >
-            Submit
-          </Button>
-
-        </div>
-      </PopoverContent>
-    </Popover>
-  )}
-
-</div>  </div>
-
-</CardHeader>
-
-
+        <CardHeader>
+	<div className="flex items-start justify-between gap-4">
+          <h1 className="text-3xl font-bold leading-snug">{product.title}</h1>
+		  <button onClick={handleShare}
+    			title="Share this product"
+    			className="flex-shrink-0 p-2 rounded-full border border-gray-200 hover:bg-gray-100 transition"
+  		  >
+    			<Share2 className="w-5 h-5 text-gray-700" />
+  		  </button>
+	</div>
+          <CardDescription className="pt-2">
+            <p className="text-3xl font-bold text-primary">{formattedPrice}</p>
+            <p className="text-sm text-muted-foreground mt-1">per {product.moqUnit}</p>
+          </CardDescription>
+        </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2 text-sm">
             <div className="flex items-center text-muted-foreground">
@@ -330,8 +202,12 @@ const handleShare = async () => {
             )}
           </div>
           <Separator />
-
-
+          <div className="flex flex-wrap gap-2">
+            <Button variant={bookmarked ? 'default' : 'outline'} onClick={handleToggleBookmark}><Bookmark className="h-4 w-4 mr-2" />{bookmarked ? 'Bookmarked' : 'Bookmark'}</Button>
+            <Button variant="outline" onClick={() => handleReport('product')}><Flag className="h-4 w-4 mr-2" />Report Product</Button>
+            <Button variant="outline" onClick={() => handleReport('seller')} disabled={!seller}><Flag className="h-4 w-4 mr-2" />Report Seller</Button>
+          </div>
+          <Input placeholder="Report reason (optional until submit)" value={reportReason} onChange={(e) => setReportReason(e.target.value)} />
           <p className="text-muted-foreground whitespace-pre-wrap">{product.description}</p>
         </CardContent>
       </Card>
@@ -345,101 +221,19 @@ const handleShare = async () => {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex gap-2">
-	<div className="space-y-3">
-
-  <div className="flex items-center gap-2">
-    {[1,2,3,4,5].map((star) => (
-      <Star
-        key={star}
-        size={20}
-        className={`cursor-pointer transition ${
-          (hover ?? rating) >= star
-            ? "fill-yellow-400 text-yellow-400"
-            : "text-gray-300"
-        }`}
-        onMouseEnter={() => setHover(star)}
-        onMouseLeave={() => setHover(null)}
-        onClick={() => setRating(star)}
-      />
-    ))}
-  </div>
-
-	<div className="space-y-1">
-  		{[5,4,3,2,1].map((star) => {
-    		const count = ratingCounts[star] || 0;
-    		const percent = totalReviews ? (count / totalReviews) * 100 : 0;
-
-    		return (
-      			<div key={star} className="flex items-center gap-2 text-sm">
-        		<span className="w-10 flex items-center gap-1">
-  				{star}
-  				<Star size={14} className="text-yellow-400 fill-yellow-400" />
-			</span>
-
-        		<div className="flex-1 h-2 bg-gray-200 rounded">
-          		<div
-            			className="h-2 bg-yellow-400 rounded"
-            			style={{ width: `${percent}%` }}
-          		/>
-        		</div>
-
-        	<span className="w-10 text-right text-muted-foreground">
-          	{count}
-        	</span>
-      		</div>
-    		);
-  		})}
-	</div>
-
-  <Textarea
-    placeholder="Write your review"
-    value={comment}
-    onChange={(e) => setComment(e.target.value)}
-  />
-
-  <Button onClick={handleSubmitReview}>
-    Submit Review
-  </Button>
-
-</div>
+            <Input type="number" min={1} max={5} value={rating} onChange={(e) => setRating(Math.max(1, Math.min(5, Number(e.target.value))))} className="w-24" />
+            <Textarea placeholder="Write your review" value={comment} onChange={(e) => setComment(e.target.value)} />
+            <Button onClick={handleSubmitReview}>Submit</Button>
           </div>
-<div className="space-y-3">
-  {reviews.slice(0, 5).map((review) => (
-    <div key={review.id} className="rounded-md border p-3 space-y-1">
-
-      <div className="flex items-center gap-2">
-        <div className="flex">
-          {[1,2,3,4,5].map((star) => (
-            <Star
-              key={star}
-              size={16}
-              className={
-                review.rating >= star
-                  ? "fill-yellow-400 text-yellow-400"
-                  : "text-gray-300"
-              }
-            />
-          ))}
-        </div>
-
-        <span className="text-sm font-medium">
-          {review.reviewerName}
-        </span>
-      </div>
-
-      <p className="text-sm text-muted-foreground">
-        {review.comment || "No comment provided."}
-      </p>
-
-    </div>
-  ))}
-
-  {reviews.length === 0 && (
-    <p className="text-sm text-muted-foreground">
-      No reviews yet.
-    </p>
-  )}
-</div>
+          <div className="space-y-2">
+            {reviews.slice(0, 5).map((review) => (
+              <div key={review.id} className="rounded-md border p-3">
+                <p className="text-sm font-medium">{review.reviewerName} · {review.rating}/5</p>
+                <p className="text-sm text-muted-foreground">{review.comment || 'No comment provided.'}</p>
+              </div>
+            ))}
+            {reviews.length === 0 && <p className="text-sm text-muted-foreground">No reviews yet.</p>}
+          </div>
         </CardContent>
       </Card>
 

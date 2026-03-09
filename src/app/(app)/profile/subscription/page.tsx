@@ -60,6 +60,7 @@ export default function SubscriptionPage() {
             return;
         };
 
+/*
         async function fetchData() {
             try {
                 setLoading(true);
@@ -86,6 +87,38 @@ export default function SubscriptionPage() {
                 setLoading(false);
             }
         }
+*/
+async function fetchData() {
+  try {
+    setLoading(true);
+
+    const fetchedPlans = await getSubscriptionPlansClient();
+
+    const relevantPlans = fetchedPlans
+  	.filter(p => p.status === 'active' && p.type === user.role)
+  	.sort((a, b) => a.price - b.price);
+
+    setPlans(relevantPlans);
+
+    const [fetchedProducts, fetchedSourcingRequests] = await Promise.all([
+      getSellerProductsClient(user.uid),
+      getSourcingRequestsClient({ buyerId: user.uid }),
+    ]);
+
+    setProducts(fetchedProducts);
+    setSourcingRequests(fetchedSourcingRequests);
+
+  } catch (error) {
+    console.error("Failed to fetch subscription data:", error);
+    toast({
+      variant: 'destructive',
+      title: 'Error',
+      description: 'Could not load subscription plans.'
+    });
+  } finally {
+    setLoading(false);
+  }
+}
         fetchData();
     }, [user, authLoading, toast]);
 
@@ -147,9 +180,10 @@ export default function SubscriptionPage() {
         const hasActiveSubscription = !!user.subscriptionPlanId && !!activeExpiryDate && activeExpiryDate > new Date();
         
         let plan = hasActiveSubscription ? user.subscriptionPlan : plans.find(p => p.price === 0);
-        let count = user.role === 'seller' ? products.length : sourcingRequests.length;
+        //let count = user.role === 'seller' ? products.length : sourcingRequests.length;
         
-        return { currentPlan: plan, usageCount: count };
+        //return { currentPlan: plan, usageCount: count };
+	return { currentPlan: plan};
 
     }, [user, plans, products, sourcingRequests]);
 

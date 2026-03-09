@@ -108,16 +108,14 @@ export default function SourcingRequestDetailPage() {
   }, [reviews]);
 
   const handleToggleBookmark = async () => {
-    if (!user?.uid) return toast({ variant: 'destructive', title: 'Login required', description: 'Please login to report.' });
-    //if (!user?.uid || !request) return;
+    if (!user?.uid || !request) return;
     const next = await toggleBookmarkClient(user.uid, 'sourcing', request.id);
     setBookmarked(next);
     toast({ title: next ? 'Bookmarked' : 'Bookmark removed' });
   };
 
   const handleSubmitReview = async () => {
-    if (!user?.uid) return toast({ variant: 'destructive', title: 'Login required', description: 'Please login to report.' });
-    //if (!user?.uid || !request) return;
+    if (!user?.uid || !request) return;
     await upsertEntityReviewClient({ entityType: 'sourcing', entityId: request.id, reviewerId: user.uid, reviewerName: user.name || user.email || 'User', rating, comment });
     const reviewData = await getEntityReviewsClient('sourcing', request.id);
     setReviews(reviewData);
@@ -126,8 +124,7 @@ export default function SourcingRequestDetailPage() {
   };
 
   const handleReport = async (targetType: 'sourcing' | 'buyer') => {
-    //if (!user?.uid || !request) return;
-    if (!user?.uid) return toast({ variant: 'destructive', title: 'Login required', description: 'Please login to report.' });
+    if (!user?.uid || !request) return;
     if (!reportReason.trim()) return toast({ variant: 'destructive', title: 'Reason required' });
     await createEntityReportClient({ reporterId: user.uid, targetType, targetId: targetType === 'sourcing' ? request.id : buyer?.id || '', reason: reportReason.trim() });
     setReportReason('');
@@ -198,7 +195,26 @@ export default function SourcingRequestDetailPage() {
                 </CardContent>
             </Card>
 
-
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Ratings & Reviews</CardTitle>
+                <CardDescription><span className="inline-flex items-center gap-1"><Star className="h-4 w-4 text-yellow-500" />{averageRating.toFixed(1)} / 5</span> ({reviews.length} reviews)</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex gap-2">
+                  <Input type="number" min={1} max={5} value={rating} onChange={(e) => setRating(Math.max(1, Math.min(5, Number(e.target.value))))} className="w-24" />
+                  <Textarea value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Write your review" />
+                  <Button onClick={handleSubmitReview}>Submit</Button>
+                </div>
+                {reviews.slice(0, 5).map((review) => (
+                  <div key={review.id} className="rounded-md border p-3">
+                    <p className="text-sm font-medium">{review.reviewerName} · {review.rating}/5</p>
+                    <p className="text-sm text-muted-foreground">{review.comment || 'No comment provided.'}</p>
+                  </div>
+                ))}
+                {reviews.length === 0 && <p className="text-sm text-muted-foreground">No reviews yet.</p>}
+              </CardContent>
+            </Card>
         </div>
         <div className="space-y-6">
             <Card>

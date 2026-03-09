@@ -508,12 +508,7 @@ export async function updateProductStatus(
           if (seller) {
               if (status === 'approved') {
                   await sendProductApprovedEmail({ seller, product });
-                  //await notifyMatchingProductSavedSearches(product);
-			try {
-  				await notifyMatchingProductSavedSearches(product);
-			} catch (err) {
-  					console.warn("Saved search notification skipped:", err);
-			}
+                  await notifyMatchingProductSavedSearches(product);
               } else if (status === 'rejected') {
                   const serializableProduct = {
                     ...product,
@@ -1599,11 +1594,7 @@ export async function updateSourcingRequestStatus(
             if (buyer) {
                 if (action === 'approve') {
                     await sendSourcingRequestApprovedEmail({ requestId: request.id, requestTitle: request.title, buyer });
-                    try {
-   				await notifyMatchingSavedSearches(request);
-		    } catch (err) {
-   				console.warn("Saved search notification skipped:", err);
-		    }
+                    await notifyMatchingSavedSearches(request);
                 } else if (action === 'reject') {
                     await sendSourcingRequestRejectedEmail({
                         requestId: request.id,
@@ -1840,7 +1831,7 @@ export async function upsertEntityReviewClient(data: Omit<EntityReview, 'id' | '
 }
 
 export async function createEntityReportClient(data: Omit<EntityReport, 'id' | 'createdAt'>): Promise<void> {
-  await addDoc(collection(db, 'complaints'), { ...data, createdAt: new Date().toISOString() });
+  await addDoc(collection(db, 'reports'), { ...data, createdAt: new Date().toISOString() });
 }
 
 
