@@ -12,7 +12,7 @@ import { sendQuestionAnsweredEmail, sendProductApprovedEmail, sendProductRejecte
 import { areDetailsEqual, areSpecificationsEqual } from './utils';
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyAPZvlTpb4klPXdiT7dkg_QbZ_Ex_IebUM",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "Enter API key here",
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "vbuysell-dev.web.app",
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "vbuysell-dev",
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "vbuysell-dev.firebasestorage.app",
